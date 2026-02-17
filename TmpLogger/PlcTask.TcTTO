@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Task Name="PlcTask" Id="{875da465-5337-4054-a8ed-a7d43a91ee1b}">
+    <!--CycleTime in micro seconds.-->
+    <CycleTime>1000</CycleTime>
+    <Priority>20</Priority>
+    <PouCall>
+      <Name>PRG_VM_Logger</Name>
+    </PouCall>
+    <TaskFBGuid>{9ee62fa1-002f-4fa4-b214-2b5a5b5ccac3}</TaskFBGuid>
+    <Fb_init>{731244a4-20a7-49e2-ad47-58eeb9ef6b88}</Fb_init>
+    <Fb_exit>{447c2603-bd7c-4187-8b35-dd4017c9a32b}</Fb_exit>
+    <CycleUpdate>{214d57b1-3c6d-48a0-8454-400de3c75587}</CycleUpdate>
+    <PostCycleUpdate>{9fb8b038-c44a-4f69-ac36-5ed4a0ff642d}</PostCycleUpdate>
+  </Task>
+</TcPlcObject>

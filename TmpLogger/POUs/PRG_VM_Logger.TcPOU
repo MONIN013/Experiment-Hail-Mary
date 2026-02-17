@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="PRG_VM_Logger" Id="{da4fe8bb-b82a-49b8-ba08-c7f24c56f56d}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM PRG_VM_Logger
+VAR
+    idx : DINT := 0;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// 実験シークエンスをカウントアップ simulinkのcountに相当
+GVL_VM_LOG.seq := GVL_VM_LOG.seq + 1;
+// シークエンスに基づいて、現在の時刻を計算 simulinkのtimeに相当
+GVL_VM_LOG.t_ns := UDINT_TO_ULINT(GVL_VM_LOG.seq) * GVL_VM.task_dt_ns;
+
+// ログ配列に現在の入力、出力、時刻を保存
+IF GVL_VM_LOG.wr_idx < GVL_VM_LOG.LOG_N THEN
+    idx := UDINT_TO_DINT(GVL_VM_LOG.wr_idx);
+    GVL_VM_LOG.log_seq[idx] := GVL_VM_LOG.seq;
+    GVL_VM_LOG.log_i[idx] := GVL_VM.current_in;
+    GVL_VM_LOG.log_x[idx] := GVL_VM.position_out;
+    GVL_VM_LOG.log_t[idx] := GVL_VM_LOG.t_ns;
+    GVL_VM_LOG.wr_idx := GVL_VM_LOG.wr_idx + 1;
+ELSE
+    GVL_VM_LOG.overflow := TRUE;
+END_IF]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

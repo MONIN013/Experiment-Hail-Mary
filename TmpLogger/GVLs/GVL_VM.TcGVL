@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <GVL Name="GVL_VM" Id="{f0861b0b-0c5a-426d-abce-12fba38ed0b0}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL
+    task_dt_ns : ULINT := ULINT#125000;
+
+    param_M : LREAL := 0.01;
+    param_D : LREAL := 0.1;
+    param_Kt : LREAL := 1.0;
+    param_tau_limit : LREAL := 5.0;
+    param_vel_limit : LREAL := 100.0;
+
+    current_in : LREAL := 0.0;
+    position_out : LREAL := 0.0;
+END_VAR
+]]></Declaration>
+  </GVL>
+</TcPlcObject>
