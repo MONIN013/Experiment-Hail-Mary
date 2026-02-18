@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="MAIN" Id="{9328c0c8-0c23-447b-8f8c-ef2a688ee9a0}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+VAR
+    uiCtrlWord AT%Q* : UINT; // ControlWord output
+    uiStatWord AT%I* : UINT; // StatusWord input
+
+    bEnable : BOOL := TRUE;
+
+    fbSM : FB_StateMachineControl;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbSM(
+    uiStatusWord := uiStatWord,
+    bEnable      := bEnable
+);
+
+uiCtrlWord := fbSM.uiControlWord;]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

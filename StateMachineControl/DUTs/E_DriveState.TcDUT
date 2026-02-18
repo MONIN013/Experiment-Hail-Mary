@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="E_DriveState" Id="{83ee1ce5-dee7-425b-9f44-9e06bca03e56}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_DriveState :
+(
+    UNKNOWN := 0,
+
+    // CiA402 "Switch on disabled"
+    SWITCH_ON_DISABLED := 10,
+
+    // CiA402 "Ready to switch on"
+    READY_TO_SWITCH_ON := 20,
+
+    // CiA402 "Switched on"
+    SWITCHED_ON := 30,
+
+    // CiA402 "Operation enabled"
+    OPERATION_ENABLED := 40,
+
+    // CiA402 "Fault"
+    FAULT := 90
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -42,7 +42,7 @@
 			</SubItem>
 		</DataType>
 		<DataType>
-			<Name GUID="{830E765E-E3EB-4FD6-8EC3-C0D3345CAEBA}">ST_VirtualMotorInputs</Name>
+			<Name GUID="{D27DC1B7-F0A6-4309-9297-D3E9F02AB56B}">ST_VirtualMotorInputs</Name>
 			<BitSize>64</BitSize>
 			<SubItem>
 				<Name>current_in</Name>
@@ -50,6 +50,9 @@
 				<BitSize>64</BitSize>
 				<BitOffs>0</BitOffs>
 			</SubItem>
+			<Hides>
+				<Hide GUID="{830E765E-E3EB-4FD6-8EC3-C0D3345CAEBA}"/>
+			</Hides>
 		</DataType>
 		<DataType>
 			<Name GUID="{BFC6ACC0-51F9-4334-ADDA-169B9F320B23}" Namespace="position_out">ST_VirtualMotorOutputs</Name>
@@ -77,11 +80,14 @@
 				<Task Id="4" Priority="1" CycleTime="10000" AmsPort="351" AdtTasks="true">
 					<Name>VirtualMotorTask</Name>
 				</Task>
+				<Task Id="5" Priority="21" CycleTime="100000" AmsPort="352" AdtTasks="true">
+					<Name>PlcTask1</Name>
+				</Task>
 			</Tasks>
 		</System>
 		<Plc>
 			<Project GUID="{BE83EF32-AB68-4A1C-B0C2-8329058EB897}" Name="TmpLogger" PrjFilePath="TmpLogger\TmpLogger.plcproj" TmcFilePath="TmpLogger\TmpLogger.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{740B96BA-BFE2-E1DB-65CB-447B95263723}" TmcPath="TmpLogger\TmpLogger.tmc">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{32783070-6551-C242-E1EC-F928CE50767C}" TmcPath="TmpLogger\TmpLogger.tmc">
 					<Name>TmpLogger Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -115,6 +121,42 @@
 					</Contexts>
 					<TaskPouOids>
 						<TaskPouOid Prio="20" OTCID="#x08502001"/>
+					</TaskPouOids>
+				</Instance>
+			</Project>
+			<Project GUID="{FCFF5180-937F-4F0E-915A-7CF7E9CA7F30}" Name="StateMachineControl" PrjFilePath="StateMachineControl\StateMachineControl.plcproj" TmcFilePath="StateMachineControl\StateMachineControl.tmc" ReloadTmc="true" AmsPort="852" FileArchiveSettings="#x000e" SymbolicMapping="true">
+				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{1EF8A650-9E56-DB7B-3185-0F068A504FBE}">
+					<Name>StateMachineControl Instance</Name>
+					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
+					<Vars VarGrpType="2" AreaNo="1">
+						<Name>PlcTask Outputs</Name>
+						<Var>
+							<Name>MAIN.uiCtrlWord</Name>
+							<Comment><![CDATA[ ControlWord output]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+					</Vars>
+					<Vars VarGrpType="1">
+						<Name>PlcTask Inputs</Name>
+						<Var>
+							<Name>MAIN.uiStatWord</Name>
+							<Comment><![CDATA[ StatusWord input]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+					</Vars>
+					<Contexts>
+						<Context>
+							<Id>0</Id>
+							<Name>PlcTask</Name>
+							<ManualConfig>
+								<OTCID>#x02010050</OTCID>
+							</ManualConfig>
+							<Priority>21</Priority>
+							<CycleTime>10000000</CycleTime>
+						</Context>
+					</Contexts>
+					<TaskPouOids>
+						<TaskPouOid Prio="21" OTCID="#x08502041"/>
 					</TaskPouOids>
 				</Instance>
 			</Project>
@@ -178,24 +220,36 @@
 								<AreaNo AreaType="InputDst" CreateSymbols="true">0</AreaNo>
 								<Name>Inputs</Name>
 								<ContextId>1</ContextId>
-								<ByteSize>8</ByteSize>
+								<ByteSize>10</ByteSize>
 								<Symbol>
 									<Name>VirtualMotorInputs</Name>
 									<BitSize>64</BitSize>
-									<BaseType GUID="{830E765E-E3EB-4FD6-8EC3-C0D3345CAEBA}">ST_VirtualMotorInputs</BaseType>
+									<BaseType GUID="{D27DC1B7-F0A6-4309-9297-D3E9F02AB56B}">ST_VirtualMotorInputs</BaseType>
 									<BitOffs>0</BitOffs>
+								</Symbol>
+								<Symbol>
+									<Name>controlword</Name>
+									<BitSize>16</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-000000000005}">UINT</BaseType>
+									<BitOffs>64</BitOffs>
 								</Symbol>
 							</DataArea>
 							<DataArea>
 								<AreaNo AreaType="OutputSrc" CreateSymbols="true">1</AreaNo>
 								<Name>Outputs</Name>
 								<ContextId>1</ContextId>
-								<ByteSize>16</ByteSize>
+								<ByteSize>18</ByteSize>
 								<Symbol>
 									<Name>VirtualMotorOutputs</Name>
 									<BitSize>128</BitSize>
 									<BaseType GUID="{BFC6ACC0-51F9-4334-ADDA-169B9F320B23}">position_out.ST_VirtualMotorOutputs</BaseType>
 									<BitOffs>0</BitOffs>
+								</Symbol>
+								<Symbol>
+									<Name>statusword</Name>
+									<BitSize>16</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-000000000005}">UINT</BaseType>
+									<BitOffs>128</BitOffs>
 								</Symbol>
 							</DataArea>
 						</DataAreas>
@@ -250,6 +304,12 @@
 	</Project>
 	<Mappings>
 		<MappingInfo Identifier="{02010040-2001-0850-1000-010100205008}" Id="#x02030010" Watchdog="04000000040000000400000004000000"/>
+		<OwnerA Name="TIPC^StateMachineControl^StateMachineControl Instance">
+			<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">
+				<Link VarA="PlcTask Inputs^MAIN.uiStatWord" VarB="Outputs^statusword"/>
+				<Link VarA="PlcTask Outputs^MAIN.uiCtrlWord" VarB="Inputs^controlword"/>
+			</OwnerB>
+		</OwnerA>
 		<OwnerA Name="TIPC^TmpLogger^TmpLogger Instance">
 			<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">
 				<Link VarA="PlcTask Inputs^GVL_VM.position_out" VarB="Outputs^VirtualMotorOutputs^position_out"/>
