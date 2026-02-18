@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <GVL Name="GVL_VM" Id="{f0861b0b-0c5a-426d-abce-12fba38ed0b0}">
     <Declaration><![CDATA[{attribute 'linkalways'}
@@ -20,10 +20,8 @@ VAR_GLOBAL
     cmd_len : UDINT := 0;
     cmd_idx : UDINT := 0;
 
-    play_enable : BOOL := FALSE;
-    play_done : BOOL := FALSE;
     reset_req : BOOL := FALSE;
-    experiment_done : BOOL := FALSE;
+    experiment_start : BOOL := FALSE;
 END_VAR
 ]]></Declaration>
   </GVL>

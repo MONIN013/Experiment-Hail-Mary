@@ -74,11 +74,14 @@
 				<Task Id="3" Priority="20" CycleTime="10000" AmsPort="350" AdtTasks="true">
 					<Name>PlcTask</Name>
 				</Task>
+				<Task Id="4" Priority="1" CycleTime="10000" AmsPort="351" AdtTasks="true">
+					<Name>VirtualMotorTask</Name>
+				</Task>
 			</Tasks>
 		</System>
 		<Plc>
 			<Project GUID="{BE83EF32-AB68-4A1C-B0C2-8329058EB897}" Name="TmpLogger" PrjFilePath="TmpLogger\TmpLogger.plcproj" TmcFilePath="TmpLogger\TmpLogger.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{3792C023-0893-B308-53C9-388EB9C304AF}" TmcPath="TmpLogger\TmpLogger.tmc">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{740B96BA-BFE2-E1DB-65CB-447B95263723}" TmcPath="TmpLogger\TmpLogger.tmc">
 					<Name>TmpLogger Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -133,9 +136,9 @@
 							<Context>
 								<Id>1</Id>
 								<ManualConfig>
-									<OTCID>#x02010030</OTCID>
+									<OTCID>#x02010040</OTCID>
 								</ManualConfig>
-								<Priority>20</Priority>
+								<Priority>1</Priority>
 								<CycleTime>1000000</CycleTime>
 							</Context>
 						</Contexts>
@@ -162,7 +165,7 @@
 								<PTCID>#x03002103</PTCID>
 								<ContextId>1</ContextId>
 							</Parameter>
-							<Parameter>
+							<Parameter CreateSymbol="true">
 								<Name>VirtualMotorParameter</Name>
 								<BitSize>384</BitSize>
 								<BaseType GUID="{AD65C9B8-FC86-4AF1-817D-BF58D4446348}">ST_VirtualMotorParams</BaseType>
@@ -172,7 +175,7 @@
 						</Parameters>
 						<DataAreas>
 							<DataArea>
-								<AreaNo AreaType="InputDst">0</AreaNo>
+								<AreaNo AreaType="InputDst" CreateSymbols="true">0</AreaNo>
 								<Name>Inputs</Name>
 								<ContextId>1</ContextId>
 								<ByteSize>8</ByteSize>
@@ -184,7 +187,7 @@
 								</Symbol>
 							</DataArea>
 							<DataArea>
-								<AreaNo AreaType="OutputSrc">1</AreaNo>
+								<AreaNo AreaType="OutputSrc" CreateSymbols="true">1</AreaNo>
 								<Name>Outputs</Name>
 								<ContextId>1</ContextId>
 								<ByteSize>16</ByteSize>
@@ -236,7 +239,7 @@
 						<InterfacePointerValues>
 							<Value>
 								<Name>CyclicCaller</Name>
-								<OTCID>#x02010030</OTCID>
+								<OTCID>#x02010040</OTCID>
 							</Value>
 						</InterfacePointerValues>
 					</TmcDesc>
@@ -246,7 +249,7 @@
 		<Io/>
 	</Project>
 	<Mappings>
-		<MappingInfo Identifier="{00000000-2001-0850-0020-500810000101}" Id="#x02030010"/>
+		<MappingInfo Identifier="{02010040-2001-0850-1000-010100205008}" Id="#x02030010" Watchdog="04000000040000000400000004000000"/>
 		<OwnerA Name="TIPC^TmpLogger^TmpLogger Instance">
 			<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">
 				<Link VarA="PlcTask Inputs^GVL_VM.position_out" VarB="Outputs^VirtualMotorOutputs^position_out"/>
