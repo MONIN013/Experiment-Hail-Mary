@@ -1,5 +1,73 @@
 <?xml version="1.0"?>
 <TcSmProject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2012/07/TcSmProject" TcSmVersion="1.0" TcVersion="3.1.4026.20">
+	<DataTypes>
+		<DataType>
+			<Name GUID="{AD65C9B8-FC86-4AF1-817D-BF58D4446348}">ST_VirtualMotorParams</Name>
+			<BitSize>384</BitSize>
+			<SubItem>
+				<Name>M</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>0</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>D</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>64</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>Kt</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>128</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>tau_limit</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>192</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>vel_limit</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>256</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>task_dt_ns</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000B}">ULINT</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>320</BitOffs>
+			</SubItem>
+		</DataType>
+		<DataType>
+			<Name GUID="{830E765E-E3EB-4FD6-8EC3-C0D3345CAEBA}">ST_VirtualMotorInputs</Name>
+			<BitSize>64</BitSize>
+			<SubItem>
+				<Name>current_in</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>0</BitOffs>
+			</SubItem>
+		</DataType>
+		<DataType>
+			<Name GUID="{BFC6ACC0-51F9-4334-ADDA-169B9F320B23}" Namespace="position_out">ST_VirtualMotorOutputs</Name>
+			<BitSize>128</BitSize>
+			<SubItem>
+				<Name>position_out</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>0</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>velocity_out</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>64</BitOffs>
+			</SubItem>
+		</DataType>
+	</DataTypes>
 	<Project ProjectGUID="{4A5895CC-136C-4342-8211-A3240A616049}" TargetNetId="192.168.10.3.1.1" Target64Bit="true" ShowHideConfigurations="#x6">
 		<System>
 			<Tasks>
@@ -10,9 +78,27 @@
 		</System>
 		<Plc>
 			<Project GUID="{BE83EF32-AB68-4A1C-B0C2-8329058EB897}" Name="TmpLogger" PrjFilePath="TmpLogger\TmpLogger.plcproj" TmcFilePath="TmpLogger\TmpLogger.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{22DB2B28-DE88-040D-E56E-CCD7763F9A31}" TmcPath="TmpLogger\TmpLogger.tmc">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{3792C023-0893-B308-53C9-388EB9C304AF}" TmcPath="TmpLogger\TmpLogger.tmc">
 					<Name>TmpLogger Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
+					<Vars VarGrpType="2" AreaNo="1">
+						<Name>PlcTask Outputs</Name>
+						<Var>
+							<Name>GVL_VM.current_in</Name>
+							<Type>LREAL</Type>
+						</Var>
+					</Vars>
+					<Vars VarGrpType="1">
+						<Name>PlcTask Inputs</Name>
+						<Var>
+							<Name>GVL_VM.position_out</Name>
+							<Type>LREAL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_VM.velocity_out</Name>
+							<Type>LREAL</Type>
+						</Var>
+					</Vars>
 					<Contexts>
 						<Context>
 							<Id>0</Id>
@@ -31,7 +117,142 @@
 			</Project>
 		</Plc>
 		<Cpp>
-			<Project GUID="{F0960896-54DF-4A54-9575-6F77A08B5518}" Name="VirtualMotorCore" PrjFilePath="VirtualMotorCore\VirtualMotorCore.vcxproj" TmcFilePath="VirtualMotorCore\VirtualMotorCore.tmc"/>
+			<Project GUID="{F0960896-54DF-4A54-9575-6F77A08B5518}" Name="VirtualMotorCore" PrjFilePath="VirtualMotorCore\VirtualMotorCore.vcxproj" TmcFilePath="VirtualMotorCore\VirtualMotorCore.tmc">
+				<Instance Id="#x01010010" KeepUnrestoredLinks="2" AutoReloadTmc="true" ClassFactoryId="C++ Module Vendor|VirtualMotorCore|0.0.0.1">
+					<Name>VirtualMotorCore_Obj1 (Module1)</Name>
+					<TmcDesc GUID="{9FDB9E89-7DA5-406E-BD80-DB7A4BDEAF68}" ClassFactoryId="C++ Module Vendor|VirtualMotorCore|0.0.0.1">
+						<Name>Module1</Name>
+						<CLSID ClassFactory="VirtualMotorCore">{9FDB9E89-7DA5-406E-BD80-DB7A4BDEAF68}</CLSID>
+						<Licenses>
+							<License>
+								<LicenseId>{304D006A-8299-4560-AB79-438534B50288}</LicenseId>
+							</License>
+						</Licenses>
+						<InitSequence>PSO</InitSequence>
+						<Contexts>
+							<Context>
+								<Id>1</Id>
+								<ManualConfig>
+									<OTCID>#x02010030</OTCID>
+								</ManualConfig>
+								<Priority>20</Priority>
+								<CycleTime>1000000</CycleTime>
+							</Context>
+						</Contexts>
+						<Interfaces>
+							<Interface DisableCodeGeneration="true">
+								<Type GUID="{00000012-0000-0000-E000-000000000064}">ITComObject</Type>
+							</Interface>
+							<Interface>
+								<Type GUID="{03000010-0000-0000-E000-000000000064}">ITcCyclic</Type>
+							</Interface>
+							<Interface DisableCodeGeneration="true">
+								<Type GUID="{03000012-0000-0000-E000-000000000064}">ITcADI</Type>
+							</Interface>
+							<Interface DisableCodeGeneration="true">
+								<Type GUID="{03000018-0000-0000-E000-000000000064}">ITcWatchSource</Type>
+							</Interface>
+						</Interfaces>
+						<Parameters>
+							<Parameter HideParameter="true">
+								<Name>TraceLevelMax</Name>
+								<Comment><![CDATA[Controls the amount of log messages.]]></Comment>
+								<BitSize>32</BitSize>
+								<BaseType GUID="{8007AE3B-86BB-40F2-B385-EF87FCC239A4}">TcTraceLevel</BaseType>
+								<PTCID>#x03002103</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+							<Parameter>
+								<Name>VirtualMotorParameter</Name>
+								<BitSize>384</BitSize>
+								<BaseType GUID="{AD65C9B8-FC86-4AF1-817D-BF58D4446348}">ST_VirtualMotorParams</BaseType>
+								<PTCID>#x00000001</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+						</Parameters>
+						<DataAreas>
+							<DataArea>
+								<AreaNo AreaType="InputDst">0</AreaNo>
+								<Name>Inputs</Name>
+								<ContextId>1</ContextId>
+								<ByteSize>8</ByteSize>
+								<Symbol>
+									<Name>VirtualMotorInputs</Name>
+									<BitSize>64</BitSize>
+									<BaseType GUID="{830E765E-E3EB-4FD6-8EC3-C0D3345CAEBA}">ST_VirtualMotorInputs</BaseType>
+									<BitOffs>0</BitOffs>
+								</Symbol>
+							</DataArea>
+							<DataArea>
+								<AreaNo AreaType="OutputSrc">1</AreaNo>
+								<Name>Outputs</Name>
+								<ContextId>1</ContextId>
+								<ByteSize>16</ByteSize>
+								<Symbol>
+									<Name>VirtualMotorOutputs</Name>
+									<BitSize>128</BitSize>
+									<BaseType GUID="{BFC6ACC0-51F9-4334-ADDA-169B9F320B23}">position_out.ST_VirtualMotorOutputs</BaseType>
+									<BitOffs>0</BitOffs>
+								</Symbol>
+							</DataArea>
+						</DataAreas>
+						<InterfacePointers>
+							<InterfacePointer>
+								<PTCID>#x03002060</PTCID>
+								<Name>CyclicCaller</Name>
+								<Type GUID="{0300001E-0000-0000-E000-000000000064}">ITcCyclicCaller</Type>
+							</InterfacePointer>
+						</InterfacePointers>
+						<ParameterValues>
+							<Value>
+								<Name>TraceLevelMax</Name>
+								<EnumText>tlAlways</EnumText>
+							</Value>
+							<Value>
+								<Name>VirtualMotorParameter.M</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>VirtualMotorParameter.D</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>VirtualMotorParameter.Kt</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>VirtualMotorParameter.tau_limit</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>VirtualMotorParameter.vel_limit</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>VirtualMotorParameter.task_dt_ns</Name>
+								<Value>0</Value>
+							</Value>
+						</ParameterValues>
+						<InterfacePointerValues>
+							<Value>
+								<Name>CyclicCaller</Name>
+								<OTCID>#x02010030</OTCID>
+							</Value>
+						</InterfacePointerValues>
+					</TmcDesc>
+				</Instance>
+			</Project>
 		</Cpp>
+		<Io/>
 	</Project>
+	<Mappings>
+		<MappingInfo Identifier="{00000000-2001-0850-0020-500810000101}" Id="#x02030010"/>
+		<OwnerA Name="TIPC^TmpLogger^TmpLogger Instance">
+			<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">
+				<Link VarA="PlcTask Inputs^GVL_VM.position_out" VarB="Outputs^VirtualMotorOutputs^position_out"/>
+				<Link VarA="PlcTask Inputs^GVL_VM.velocity_out" VarB="Outputs^VirtualMotorOutputs^velocity_out"/>
+				<Link VarA="PlcTask Outputs^GVL_VM.current_in" VarB="Inputs^VirtualMotorInputs^current_in"/>
+			</OwnerB>
+		</OwnerA>
+	</Mappings>
 </TcSmProject>
