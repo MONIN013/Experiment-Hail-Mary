@@ -1,4 +1,4 @@
-classdef MockAdsTransport < ehm.interfaces.IAdsTransport
+classdef MockAdsTransport < twincat_ads.IAdsTransport
   properties
     connected = false
     scalarMap
@@ -32,7 +32,7 @@ classdef MockAdsTransport < ehm.interfaces.IAdsTransport
         return;
       end
       if ~isKey(obj.scalarMap, key)
-        error("ehm:symbol:notFound", "Missing scalar symbol: %s", key);
+        error("twincat_ads:symbol:notFound", "Missing scalar symbol: %s", key);
       end
       value = obj.scalarMap(key);
     end
@@ -47,7 +47,7 @@ classdef MockAdsTransport < ehm.interfaces.IAdsTransport
       key = char(string(symbol));
       obj.operations(end + 1, 1) = "readArray:" + string(key);
       if ~isKey(obj.arrayMap, key)
-        error("ehm:symbol:notFound", "Missing array symbol: %s", key);
+        error("twincat_ads:symbol:notFound", "Missing array symbol: %s", key);
       end
       values = obj.arrayMap(key);
       values = values(:);

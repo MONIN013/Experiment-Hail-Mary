@@ -5,10 +5,9 @@ classdef TestVirtualMotorService < matlab.unittest.TestCase
       vm = MockAdsTransport();
       seedScalars(plc);
       seedVmScalars(vm, "VirtualMotor.");
-      catalog = MockSymbolCatalog();
-      svc = ehm.services.VirtualMotorService(plc, vm, catalog);
+      svc = experiment.VirtualMotorService(plc, vm);
 
-      cfg = ehm.config.RunConfig.fromVarargin( ...
+      cfg = experiment.RunConfig.fromVarargin( ...
         "ams_net_id", "192.168.10.3.1.1", ...
         "vm_param_symbol_prefix", "VirtualMotor.", ...
         "current_profile", [0.1; 0.2; 0.3], ...
@@ -29,10 +28,9 @@ classdef TestVirtualMotorService < matlab.unittest.TestCase
       seedScalars(plc);
       seedVmScalars(vm, "VirtualMotor.");
       plc.forceStartTrue = true;
-      catalog = MockSymbolCatalog();
-      svc = ehm.services.VirtualMotorService(plc, vm, catalog);
+      svc = experiment.VirtualMotorService(plc, vm);
 
-      cfg = ehm.config.RunConfig.fromVarargin( ...
+      cfg = experiment.RunConfig.fromVarargin( ...
         "ams_net_id", "192.168.10.3.1.1", ...
         "vm_param_symbol_prefix", "VirtualMotor.", ...
         "current_profile", [0.1], ...
@@ -41,7 +39,7 @@ classdef TestVirtualMotorService < matlab.unittest.TestCase
         "hold_seconds", 0.0, ...
         "save_path", fullfile(tempdir, "ehm_test_timeout.mat"));
 
-      testCase.verifyWarning(@()svc.run(cfg), "ehm:service:timeout");
+      testCase.verifyWarning(@()svc.run(cfg), "experiment:service:timeout");
     end
 
     function missingLogsReturnsEmptyArrays(testCase)
@@ -51,10 +49,9 @@ classdef TestVirtualMotorService < matlab.unittest.TestCase
       remove(plc.scalarMap, "GVL_VM_LOG.wr_idx");
       remove(plc.scalarMap, "GVL_VM_LOG.overflow");
       seedVmScalars(vm, "VirtualMotor.");
-      catalog = MockSymbolCatalog();
-      svc = ehm.services.VirtualMotorService(plc, vm, catalog);
+      svc = experiment.VirtualMotorService(plc, vm);
 
-      cfg = ehm.config.RunConfig.fromVarargin( ...
+      cfg = experiment.RunConfig.fromVarargin( ...
         "ams_net_id", "192.168.10.3.1.1", ...
         "vm_param_symbol_prefix", "VirtualMotor.", ...
         "current_in", 0.2, ...
@@ -62,7 +59,7 @@ classdef TestVirtualMotorService < matlab.unittest.TestCase
         "hold_seconds", 0.0, ...
         "save_path", fullfile(tempdir, "ehm_test_missing_logs.mat"));
 
-      testCase.verifyWarning(@()svc.run(cfg), "ehm:service:logUnavailable");
+      testCase.verifyWarning(@()svc.run(cfg), "experiment:service:logUnavailable");
       out = svc.run(cfg);
       testCase.verifyEmpty(out.raw.log_i);
       testCase.verifyEmpty(out.raw.log_x);
