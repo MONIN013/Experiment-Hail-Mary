@@ -35,7 +35,7 @@ classdef TwinCATSymbolCatalog < ehm.interfaces.ISymbolCatalog
       if nargin < 2
         topLevelOnly = true;
       end
-      [names, types, sizes] = collectFromCollection(symbols, logical(topLevelOnly), inf, inf);
+      [names, types, sizes] = collectFromLoaderSymbols(symbols, logical(topLevelOnly), inf, inf);
     end
 
     function [Tports, Tsymbols] = discoverPortsAndSymbols(amsNetId, ports, varargin)
@@ -134,7 +134,7 @@ classdef TwinCATSymbolCatalog < ehm.interfaces.ISymbolCatalog
         return;
       end
 
-      [names, types, sizes] = collectFromCollection( ...
+      [names, types, sizes] = collectFromLoaderSymbols( ...
         symbols, ...
         logical(cfg.top_level_only), ...
         double(cfg.traversal_timeout_ms), ...
@@ -157,17 +157,7 @@ classdef TwinCATSymbolCatalog < ehm.interfaces.ISymbolCatalog
   end
 end
 
-function [names, types, sizes] = collectFromCollection(symbols, topLevelOnly, traversalTimeoutMs, traversalMaxNodes)
-if nargin < 2
-  topLevelOnly = true;
-end
-if nargin < 3
-  traversalTimeoutMs = inf;
-end
-if nargin < 4
-  traversalMaxNodes = inf;
-end
-
+function [names, types, sizes] = collectFromLoaderSymbols(symbols, topLevelOnly, traversalTimeoutMs, traversalMaxNodes)
 names = strings(0, 1);
 types = strings(0, 1);
 sizes = int32(zeros(0, 1));
@@ -175,17 +165,22 @@ if isempty(symbols)
   return;
 end
 
-nodes = collectChildrenFromCollection(symbols);
-if isempty(nodes)
+if nargin < 3 || ~isfinite(traversalTimeoutMs) || traversalTimeoutMs <= 0
+  traversalTimeoutMs = inf;
+end
+if nargin < 4 || ~isfinite(traversalMaxNodes) || traversalMaxNodes <= 0
+  traversalMaxNodes = inf;
+end
+
+queue = collectSymbolsFromCollection(symbols);
+if isempty(queue)
   return;
 end
 
-stack = nodes(:);
-depths = ones(numel(stack), 1);
 visited = containers.Map("KeyType", "char", "ValueType", "logical");
 startTick = tic;
 processedCount = 0;
-while ~isempty(stack)
+while ~isempty(queue)
   if processedCount >= traversalMaxNodes
     break;
   end
@@ -193,10 +188,8 @@ while ~isempty(stack)
     break;
   end
 
-  symbol = stack{1};
-  depth = depths(1);
-  stack(1) = [];
-  depths(1) = [];
+  symbol = queue{1};
+  queue(1) = [];
   processedCount = processedCount + 1;
 
   if isempty(symbol)
@@ -213,39 +206,127 @@ while ~isempty(stack)
     name = extractName(symbol);
     type = extractType(symbol);
     sizeBytes = extractSize(symbol);
-    names(end + 1, 1) = name; %#ok<AGROW>
-    types(end + 1, 1) = type; %#ok<AGROW>
-    sizes(end + 1, 1) = sizeBytes; %#ok<AGROW>
   catch
-    % Skip malformed symbol rows and continue with traversal.
+    continue;
   end
+  if strlength(name) == 0
+    continue;
+  end
+  names(end + 1, 1) = name; %#ok<AGROW>
+  types(end + 1, 1) = type; %#ok<AGROW>
+  sizes(end + 1, 1) = sizeBytes; %#ok<AGROW>
 
   if topLevelOnly
     continue;
   end
-  try
-    childCollection = getChildren(symbol);
-    children = collectChildrenFromCollection(childCollection);
-    if ~isempty(children)
-      childDepths = repmat(depth + 1, numel(children), 1);
-      stack = [children(:); stack];
-      depths = [childDepths; depths];
-    end
-  catch
-    % Child extraction failures are tolerated per symbol.
+  if isArraySymbol(name, type)
+    continue;
   end
+
+  childCollection = getChildrenCollection(symbol);
+  if isempty(childCollection)
+    continue;
+  end
+  children = collectSymbolsFromCollection(childCollection);
+  if isempty(children)
+    continue;
+  end
+  queue = [children; queue]; %#ok<AGROW>
 end
 
 keep = names ~= "";
+if topLevelOnly
+  keep = keep & ~contains(names, ".");
+end
 names = names(keep);
 types = types(keep);
 sizes = sizes(keep);
 
 if ~isempty(names)
   [~, ia] = unique(names, "stable");
+  ia = ia(:);
   names = names(ia);
   types = types(ia);
   sizes = sizes(ia);
+end
+names = names(:);
+types = types(:);
+sizes = sizes(:);
+end
+
+function tf = isArraySymbol(name, type)
+tf = contains(name, "[");
+if tf
+  return;
+end
+typeText = upper(strtrim(char(string(type))));
+tf = startsWith(typeText, "ARRAY ");
+end
+
+function key = symbolIdentityKey(symbol)
+key = "";
+try
+  id = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(symbol);
+  key = "dotnet#" + string(int64(id));
+catch
+end
+if strlength(key) > 0
+  key = char(key);
+  return;
+end
+
+name = extractName(symbol);
+if strlength(name) > 0
+  key = char("name#" + name);
+  return;
+end
+
+key = char("fallback#" + string(class(symbol)));
+end
+
+function children = collectSymbolsFromCollection(collection)
+children = cell(0, 1);
+if isempty(collection)
+  return;
+end
+try
+  n = double(collection.Count);
+catch
+  return;
+end
+if n <= 0
+  return;
+end
+children = cell(n, 1);
+count = 0;
+for k = 1:n
+  try
+    symbol = collection.Item(int32(k - 1));
+  catch
+    continue;
+  end
+  if isempty(symbol)
+    continue;
+  end
+  count = count + 1;
+  children{count, 1} = symbol;
+end
+children = children(1:count);
+end
+
+function collection = getChildrenCollection(symbol)
+collection = [];
+try
+  collection = symbol.SubSymbols;
+catch
+end
+if ~isempty(collection)
+  return;
+end
+try
+  collection = symbol.Members;
+catch
+  collection = [];
 end
 end
 
@@ -286,77 +367,6 @@ function sizeBytes = extractSize(symbol)
 sizeBytes = safeInt32Value(symbol, "Size");
 end
 
-function collection = getChildren(symbol)
-collection = [];
-try
-  collection = symbol.SubSymbols;
-catch
-end
-if ~isempty(collection)
-  return;
-end
-try
-  collection = symbol.Members;
-catch
-  collection = [];
-end
-end
-
-function children = collectChildrenFromCollection(collection)
-children = cell(0, 1);
-if isempty(collection)
-  return;
-end
-try
-  n = double(collection.Count);
-catch
-  return;
-end
-if n <= 0
-  return;
-end
-
-children = cell(n, 1);
-count = 0;
-for k = 1:n
-  try
-    child = collection.Item(int32(k - 1));
-  catch
-    continue;
-  end
-  if isempty(child)
-    continue;
-  end
-  count = count + 1;
-  children{count, 1} = child;
-end
-children = children(1:count);
-end
-
-function key = symbolIdentityKey(symbol)
-key = "";
-try
-  id = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(symbol);
-  key = "dotnet#" + string(int64(id));
-catch
-end
-if strlength(key) > 0
-  key = char(key);
-  return;
-end
-
-name = extractName(symbol);
-if strlength(name) > 0
-  key = "name#" + name;
-  key = char(key);
-  return;
-end
-
-className = string(class(symbol));
-sizeValue = extractSize(symbol);
-key = char("fallback#" + className + "#" + string(sizeValue));
-end
-
 function T = failedTable(amsNetId, port, status, errorMessage)
 T = table( ...
   amsNetId, ...
@@ -383,6 +393,7 @@ end
 
 function out = safeStringValue(obj, propName)
 out = "";
+propName = char(string(propName));
 try
   v = obj.(propName);
 catch
@@ -412,12 +423,9 @@ catch
 end
 end
 
-function out = safeTypeName(symbol)
-out = extractType(symbol);
-end
-
 function out = safeInt32Value(obj, propName)
 out = int32(0);
+propName = char(string(propName));
 try
   v = obj.(propName);
   if isempty(v)

@@ -6,7 +6,7 @@ addpath(genpath(baseDir));
 %% Connection and model parameters
 amsNetId = "192.168.10.3.1.1";
 vmAmsPort = 351;
-vmParamSymbolPrefix = "VirtualMotorCore_Obj1 (Module1).";
+vmParamSymbolPrefix = "VirtualMotorCore_Obj1 (Module1).VirtualMotorParameter.";
 taskRateHz = 1000;
 M = 1;
 D = 6;
@@ -15,8 +15,8 @@ tauLimit = 5.0;
 velLimit = 100.0;
 
 %% Input waveform parameters
-duration_s = 2.0;
-freq_hz = 1.0;
+duration_s = 5.0;
+freq_hz = 2.0;
 amp_a = 0.4;
 offset_a = 0.0;
 phase_rad = 0.0;
