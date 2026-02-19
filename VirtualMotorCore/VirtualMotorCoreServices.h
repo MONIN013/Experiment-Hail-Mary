@@ -48,15 +48,15 @@ typedef struct _ST_VirtualMotorInputs
 const GUID GUID_ST_VirtualMotorInputs = {0xD27DC1B7, 0xF0A6, 0x4309, {0x92, 0x97, 0xD3, 0xE9, 0xF0, 0x2A, 0xB5, 0x6B}};
 #endif // !defined(_TC_TYPE_D27DC1B7_F0A6_4309_9297_D3E9F02AB56B_INCLUDED_)
 
-#if !defined(_TC_TYPE_BFC6ACC0_51F9_4334_ADDA_169B9F320B23_INCLUDED_)
-#define _TC_TYPE_BFC6ACC0_51F9_4334_ADDA_169B9F320B23_INCLUDED_
-typedef struct _position_out_ST_VirtualMotorOutputs
+#if !defined(_TC_TYPE_C0683341_5BAE_4C43_8224_7D274A9AE924_INCLUDED_)
+#define _TC_TYPE_C0683341_5BAE_4C43_8224_7D274A9AE924_INCLUDED_
+typedef struct _ST_VirtualMotorOutputs
 {
 	double position_out;
 	double velocity_out;
-} position_out_ST_VirtualMotorOutputs, *Pposition_out_ST_VirtualMotorOutputs;
-const GUID GUID_position_out_ST_VirtualMotorOutputs = {0xBFC6ACC0, 0x51F9, 0x4334, {0xAD, 0xDA, 0x16, 0x9B, 0x9F, 0x32, 0x0B, 0x23}};
-#endif // !defined(_TC_TYPE_BFC6ACC0_51F9_4334_ADDA_169B9F320B23_INCLUDED_)
+} ST_VirtualMotorOutputs, *PST_VirtualMotorOutputs;
+const GUID GUID_ST_VirtualMotorOutputs = {0xC0683341, 0x5BAE, 0x4C43, {0x82, 0x24, 0x7D, 0x27, 0x4A, 0x9A, 0xE9, 0x24}};
+#endif // !defined(_TC_TYPE_C0683341_5BAE_4C43_8224_7D274A9AE924_INCLUDED_)
 
 #pragma pack(push,1)
 typedef struct _Module1Inputs
@@ -69,7 +69,7 @@ typedef struct _Module1Inputs
 #pragma pack(push,1)
 typedef struct _Module1Outputs
 {
-	position_out_ST_VirtualMotorOutputs VirtualMotorOutputs;
+	ST_VirtualMotorOutputs VirtualMotorOutputs;
 	USHORT statusword;
 } Module1Outputs, *PModule1Outputs;
 #pragma pack(pop)

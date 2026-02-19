@@ -55,7 +55,7 @@
 			</Hides>
 		</DataType>
 		<DataType>
-			<Name GUID="{BFC6ACC0-51F9-4334-ADDA-169B9F320B23}" Namespace="position_out">ST_VirtualMotorOutputs</Name>
+			<Name GUID="{C0683341-5BAE-4C43-8224-7D274A9AE924}">ST_VirtualMotorOutputs</Name>
 			<BitSize>128</BitSize>
 			<SubItem>
 				<Name>position_out</Name>
@@ -69,6 +69,9 @@
 				<BitSize>64</BitSize>
 				<BitOffs>64</BitOffs>
 			</SubItem>
+			<Hides>
+				<Hide GUID="{BFC6ACC0-51F9-4334-ADDA-169B9F320B23}"/>
+			</Hides>
 		</DataType>
 	</DataTypes>
 	<Project ProjectGUID="{4A5895CC-136C-4342-8211-A3240A616049}" TargetNetId="192.168.10.3.1.1" Target64Bit="true" ShowHideConfigurations="#x6">
@@ -242,7 +245,7 @@
 								<Symbol>
 									<Name>VirtualMotorOutputs</Name>
 									<BitSize>128</BitSize>
-									<BaseType GUID="{BFC6ACC0-51F9-4334-ADDA-169B9F320B23}">position_out.ST_VirtualMotorOutputs</BaseType>
+									<BaseType GUID="{C0683341-5BAE-4C43-8224-7D274A9AE924}">ST_VirtualMotorOutputs</BaseType>
 									<BitOffs>0</BitOffs>
 								</Symbol>
 								<Symbol>
@@ -304,6 +307,7 @@
 	</Project>
 	<Mappings>
 		<MappingInfo Identifier="{02010040-2001-0850-1000-010100205008}" Id="#x02030010" Watchdog="04000000040000000400000004000000"/>
+		<MappingInfo Identifier="{02010040-2041-0850-1000-010140205008}" Id="#x02030020" Watchdog="28000000040000000400000004000000"/>
 		<OwnerA Name="TIPC^StateMachineControl^StateMachineControl Instance">
 			<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">
 				<Link VarA="PlcTask Inputs^MAIN.uiStatWord" VarB="Outputs^statusword"/>
