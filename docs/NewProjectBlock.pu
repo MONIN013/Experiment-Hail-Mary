@@ -1,0 +1,136 @@
+@startuml
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam defaultFontSize 11
+
+title Next-Gen Experiment Platform — Module Architecture
+
+' ============================================================
+'  TwinCAT Real-Time Layer
+' ============================================================
+package "TwinCAT Real-Time (Phase 1-3: 1 ms / Phase 4: 125 µs = 8 kHz)" {
+
+  ' ---- Drive / Plant ----
+  package "DriveAdapter\n(PLC ST — Phase 4)\nor VirtualMotorCore\n(C++ TcCOM — Phase 1-3)" as Drive {
+    [CiA 402\nState Machine] as CiA
+    [PDO I/O\n(EtherCAT)] as PDO
+  }
+
+  ' ---- ControllerCore (TE1400 TcObject — 誤差計算 + FB Chain + FF付加) ----
+  package "ControllerCore\n(TE1400 TcObject — Simulink 生成\nテーブル非所有・スカラ I/O)" as CC {
+    [Error Calc\n(e = r - y)] as Err
+
+    package "FB Chain (各ブロック enable/bypass)" {
+      [PID\n(Discrete)] as PID
+      [Lead\nCompensator] as Lead
+      [Notch\nFilter] as Notch
+      [Phase-Optimal\nResonance Filter] as Reso
+    }
+
+    [FF Adder\n(u = u_fb + ff_value)] as FFAdd
+  }
+
+  ' ---- ExperimentSequencer (PLC ST — テーブル所有・最終合成) ----
+  package "ExperimentSequencer\n(PLC ST)" as Seq {
+    [Ref Table Replay\n(ref_table)] as RefTbl
+    [FF Table Replay\n(ff_table)] as FF
+    [Dist Table Replay\n(dist_table)] as Dist
+    [Dist Adder\n(target = control_input + u_dist)] as DistAdd
+  }
+
+  ' ---- ModeManager (PLC ST) ----
+  [ModeManager\n(PLC ST, 10 ms)] as Mode
+
+  ' ---- ExperimentLogger (PLC ST) ----
+  [ExperimentLogger\n(PLC ST, Ring Buffer)] as Log
+
+  ' ---- Data flow: Drive → ControllerCore (スカラ) ----
+  PDO --> Err : position_act
+  PDO --> Log : torque_act
+
+  ' ---- ExperimentSequencer → ControllerCore (スカラ) ----
+  RefTbl --> Err : ref_value\n(scalar)
+  FF --> FFAdd : ff_value\n(scalar)
+
+  ' ---- ControllerCore internal ----
+  Err --> PID : error
+  PID --> Lead
+  Lead --> Notch
+  Notch --> Reso
+  Reso --> FFAdd : u_fb
+
+  ' ---- ControllerCore → ExperimentSequencer ----
+  FFAdd --> DistAdd : control_input\n(u_fb + u_ff)
+
+  Dist --> DistAdd : u_dist
+
+  ' ---- ExperimentSequencer → Drive ----
+  DistAdd --> PDO : target_torque
+
+  ' ---- ModeManager ↔ Drive ----
+  Mode --> CiA : controlword
+  CiA --> Mode : statusword
+  Mode --> Seq : mode_flags\nexperiment_active
+
+  ' ---- Logging ----
+  Err --> Log : error
+  DistAdd --> Log : torque_cmd
+  RefTbl --> Log : ref_value
+  FF --> Log : ff_value
+  FFAdd --> Log : control_input
+  PDO --> Log : position_act\nvelocity_act
+}
+
+' ============================================================
+'  MATLAB Non-RT Layer
+' ============================================================
+package "MATLAB (Non-RT)" {
+  [Experiment\nOrchestrator] as Matlab
+  [Simulink\n(制御器設計\n& TE1400 Build)] as Simulink
+}
+
+' ---- ADS parameter injection (Non-RT → RT) ----
+Matlab --> Mode : ADS\n(mode_flags)
+Matlab --> CC : ADS\n(PID/Lead/Notch/Reso params\nenable_* flags)
+Matlab --> RefTbl : ADS\n(ref_table[])
+Matlab --> FF : ADS\n(ff_table[])
+Matlab --> Dist : ADS\n(dist_table[])
+
+' ---- ADS data pull (RT → Non-RT) ----
+Log --> Matlab : ADS\n(ring buffer\nchunk read)
+
+' ---- Simulink → TE1400 build (offline) ----
+Simulink ..> CC : TE1400 Build\n(構造変更時のみ)
+
+' ============================================================
+'  Notes
+' ============================================================
+note right of CC
+  TE1400 で Simulink モデルから TcObject を生成。
+  **テーブル (ref/ff/dist) は所有しない。**
+  入力: ref_value, ff_value, position_act (全スカラ)
+  出力: control_input (u_fb + ff_value)
+  Simulink ブロック図で制御構造が直感的に見える設計。
+  ゲイン・係数は ADS Tunable Parameter で注入。
+end note
+
+note right of Seq
+  テーブル所有・テーブルリプレイ・
+  Dist 加算 (target = control_input + u_dist) を
+  PLC ST で実装。TE1400 制約の影響なし。
+  テーブルは GVL 配列として ADS 経由で注入。
+end note
+
+note right of Drive
+  Phase 1-3: VirtualMotorCore (C++ TcCOM)
+  Phase 4: DriveAdapter (PLC ST)
+  同一 Data Area I/F で差し替え可能。
+end note
+
+note bottom of Log
+  Ring Buffer 方式。
+  wr_idx (PLC) / rd_idx (MATLAB ADS)
+  による Producer-Consumer パターン。
+end note
+
+@enduml
