@@ -24,9 +24,9 @@ classdef MockAdsTransport < twincat_ads.IAdsTransport
       obj.operations(end + 1, 1) = "disconnect";
     end
 
-    function value = readScalar(obj, symbol, ~)
+    function value = read_scalar(obj, symbol, ~)
       key = char(string(symbol));
-      obj.operations(end + 1, 1) = "readScalar:" + string(key);
+      obj.operations(end + 1, 1) = "read_scalar:" + string(key);
       if contains(key, "experiment_start") && obj.forceStartTrue
         value = true;
         return;
@@ -37,15 +37,15 @@ classdef MockAdsTransport < twincat_ads.IAdsTransport
       value = obj.scalarMap(key);
     end
 
-    function writeScalar(obj, symbol, value, ~)
+    function write_scalar(obj, symbol, value, ~)
       key = char(string(symbol));
-      obj.operations(end + 1, 1) = "writeScalar:" + string(key);
+      obj.operations(end + 1, 1) = "write_scalar:" + string(key);
       obj.scalarMap(key) = value;
     end
 
-    function values = readArray(obj, symbol, ~, n)
+    function values = read_array(obj, symbol, ~, n)
       key = char(string(symbol));
-      obj.operations(end + 1, 1) = "readArray:" + string(key);
+      obj.operations(end + 1, 1) = "read_array:" + string(key);
       if ~isKey(obj.arrayMap, key)
         error("twincat_ads:symbol:notFound", "Missing array symbol: %s", key);
       end
@@ -54,9 +54,9 @@ classdef MockAdsTransport < twincat_ads.IAdsTransport
       values = values(1:min(numel(values), double(n)));
     end
 
-    function writeArray(obj, symbol, values, ~)
+    function write_array(obj, symbol, values, ~)
       key = char(string(symbol));
-      obj.operations(end + 1, 1) = "writeArray:" + string(key);
+      obj.operations(end + 1, 1) = "write_array:" + string(key);
       obj.arrayMap(key) = values(:);
     end
   end

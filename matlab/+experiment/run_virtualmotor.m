@@ -1,5 +1,5 @@
 function out = run_virtualmotor(varargin)
-cfg = experiment.RunConfig.fromVarargin(varargin{:});
+cfg = experiment.RunConfig.from_varargin(varargin{:});
 
 plc_transport = twincat_ads.AdsTransport("ads_assembly", cfg.ads_assembly);
 vm_transport = twincat_ads.AdsTransport("ads_assembly", cfg.ads_assembly);

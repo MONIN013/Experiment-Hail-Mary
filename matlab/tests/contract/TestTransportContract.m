@@ -3,8 +3,8 @@ classdef TestTransportContract < matlab.unittest.TestCase
     function mockTransportRoundTripScalar(testCase)
       t = MockAdsTransport();
       t.connect("x", 1);
-      t.writeScalar("X.flag", true, "System.Boolean");
-      v = t.readScalar("X.flag", "System.Boolean");
+      t.write_scalar("X.flag", true, "System.Boolean");
+      v = t.read_scalar("X.flag", "System.Boolean");
       testCase.verifyTrue(logical(v));
     end
 
@@ -12,8 +12,8 @@ classdef TestTransportContract < matlab.unittest.TestCase
       t = MockAdsTransport();
       t.connect("x", 1);
       x = [1; 2; 3];
-      t.writeArray("X.arr", x, "System.Double");
-      y = t.readArray("X.arr", "System.Double", 3);
+      t.write_array("X.arr", x, "System.Double");
+      y = t.read_array("X.arr", "System.Double", 3);
       testCase.verifyEqual(double(y(:)), x);
     end
   end

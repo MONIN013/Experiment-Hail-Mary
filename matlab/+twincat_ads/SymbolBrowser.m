@@ -1,6 +1,6 @@
 classdef SymbolBrowser
   methods (Static)
-    function validateSymbols(transport, probe_list)
+    function validate_symbols(transport, probe_list)
       if ~isa(transport, "twincat_ads.IAdsTransport")
         error("twincat_ads:symbol:invalidTransport", ...
           "transport must implement twincat_ads.IAdsTransport.");
@@ -14,7 +14,7 @@ classdef SymbolBrowser
         symbol = string(probe_list{k, 1});
         net_type = string(probe_list{k, 2});
         try
-          transport.readScalar(symbol, net_type);
+          transport.read_scalar(symbol, net_type);
         catch
           missing(end + 1, 1) = symbol; %#ok<AGROW>
         end
@@ -25,33 +25,33 @@ classdef SymbolBrowser
       end
     end
 
-    function [names, types, sizes] = collectSymbolsForTest(symbols, top_level_only)
+    function [names, types, sizes] = collect_symbols_for_test(symbols, top_level_only)
       if nargin < 2
         top_level_only = true;
       end
-      [names, types, sizes] = twincat_ads.internal.SymbolTraversal.collectSymbols( ...
+      [names, types, sizes] = twincat_ads.internal.SymbolTraversal.collect_symbols( ...
         symbols, logical(top_level_only), inf, inf);
     end
 
-    function [t_ports, t_symbols] = discoverPortsAndSymbols(ams_net_id, ports, varargin)
-      t_ports = twincat_ads.SymbolBrowser.listPorts(ams_net_id, ports, varargin{:});
+    function [t_ports, t_symbols] = discover_ports_and_symbols(ams_net_id, ports, varargin)
+      t_ports = twincat_ads.SymbolBrowser.list_ports(ams_net_id, ports, varargin{:});
       rows = cell(height(t_ports), 1);
       for k = 1:height(t_ports)
         if t_ports.Status(k) == "ok"
-          rows{k} = twincat_ads.SymbolBrowser.listSymbolsForPort( ...
+          rows{k} = twincat_ads.SymbolBrowser.list_symbols_for_port( ...
             ams_net_id, t_ports.Port(k), varargin{:});
         else
-          rows{k} = emptySymbolsTable();
+          rows{k} = empty_symbols_table();
         end
       end
       t_symbols = vertcat(rows{:});
       required = {'AmsNetId', 'Port', 'Name', 'Type', 'SizeBytes', 'Status', 'ErrorMessage'};
       if isempty(t_symbols) || ~all(ismember(required, t_symbols.Properties.VariableNames))
-        t_symbols = emptySymbolsTable();
+        t_symbols = empty_symbols_table();
       end
     end
 
-    function t_ports = listPorts(ams_net_id, ports, varargin)
+    function t_ports = list_ports(ams_net_id, ports, varargin)
       p = inputParser;
       p.KeepUnmatched = true;
       p.addParameter("ads_assembly", "", @(x) ischar(x) || isstring(x));
@@ -102,7 +102,7 @@ classdef SymbolBrowser
         'VariableNames', {'AmsNetId', 'Port', 'Status', 'ErrorMessage'});
     end
 
-    function t_symbols = listSymbolsForPort(ams_net_id, port, varargin)
+    function t_symbols = list_symbols_for_port(ams_net_id, port, varargin)
       p = inputParser;
       p.addParameter("ads_assembly", "", @(x) ischar(x) || isstring(x));
       p.addParameter("top_level_only", true, @(x) islogical(x) || isnumeric(x));
@@ -119,18 +119,18 @@ classdef SymbolBrowser
 
       try
         transport.connect(char(ams_net_id), port);
-        client = transport.readClient();
+        client = transport.read_client();
         try_set_client_timeout(client, cfg.connect_timeout_ms);
         loader = TwinCAT.Ads.TypeSystem.SymbolLoaderFactory.Create( ...
           client, TwinCAT.Ads.SymbolLoaderSettings.DefaultDynamic);
         symbols = loader.Symbols;
       catch e
-        t_symbols = failedTable(ams_net_id, port, "symbol_loader_failed", string(e.message));
+        t_symbols = failed_table(ams_net_id, port, "symbol_loader_failed", string(e.message));
         transport.disconnect();
         return;
       end
 
-      [names, types, sizes] = twincat_ads.internal.SymbolTraversal.collectSymbols( ...
+      [names, types, sizes] = twincat_ads.internal.SymbolTraversal.collect_symbols( ...
         symbols, ...
         logical(cfg.top_level_only), ...
         double(cfg.traversal_timeout_ms), ...
@@ -153,7 +153,7 @@ classdef SymbolBrowser
   end
 end
 
-function T = failedTable(ams_net_id, port, status, error_message)
+function T = failed_table(ams_net_id, port, status, error_message)
 T = table( ...
   ams_net_id, ...
   port, ...
@@ -165,7 +165,7 @@ T = table( ...
   'VariableNames', {'AmsNetId', 'Port', 'Name', 'Type', 'SizeBytes', 'Status', 'ErrorMessage'});
 end
 
-function T = emptySymbolsTable()
+function T = empty_symbols_table()
 T = table( ...
   strings(0, 1), ...
   int32(zeros(0, 1)), ...

@@ -8,8 +8,8 @@ metrics.position.last = raw.position_last;
 log_seq = raw.log_seq(:);
 log_i = raw.log_i(:);
 log_x = raw.log_x(:);
-N = numel(log_seq);
-metrics.sample_count = N;
+sample_n = numel(log_seq);
+metrics.sample_count = sample_n;
 
 metrics.log.overflow = logical(raw.log_overflow);
 [iw, iw_accept, iw_notes] = evaluate_input_waveform(cmd.current_profile(:), log_i);
@@ -20,7 +20,7 @@ metrics.comparison.current_command_vs_plc = iw;
 metrics.sampling = sampling;
 
 metrics.acceptance.io_available = true;
-metrics.acceptance.log_available = (N > 0);
+metrics.acceptance.log_available = (sample_n > 0);
 metrics.acceptance.input_waveform_exact_match = iw_accept;
 metrics.acceptance.input_waveform_max_abs_le_1e_6 = iw_accept;
 metrics.acceptance.seq_no_gap_aligned = sampling_accept.seq_no_gap_aligned;
@@ -33,7 +33,7 @@ metrics.notes = {
   };
 metrics.notes = [metrics.notes; iw_notes];
 
-if N == 0
+if sample_n == 0
   metrics.notes = [
     {
     "No GVL_VM_LOG data found."
@@ -58,7 +58,7 @@ metrics.seq.missing_count = sum(seq_diff ~= 1);
 
 capture_time_s = (log_seq(end) - log_seq(1) + 1) / cfg.task_rate_hz;
 metrics.throughput.capture_time_s = capture_time_s;
-metrics.throughput.plc_log_rate_hz = N / max(capture_time_s, eps);
+metrics.throughput.plc_log_rate_hz = sample_n / max(capture_time_s, eps);
 
 metrics.model.position.max_abs_err = max(abs(x_err));
 metrics.model.position.mean_abs_err = mean(abs(x_err));

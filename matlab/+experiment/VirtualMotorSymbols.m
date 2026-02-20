@@ -15,8 +15,8 @@ classdef VirtualMotorSymbols
   end
 
   methods (Static)
-    function out = fromDefaults()
-      out = experiment.VirtualMotorSymbols.baseContract();
+    function out = from_defaults()
+      out = experiment.VirtualMotorSymbols.base_contract();
       out.required_probes = {
         out.start, out.types.bool;
         out.reset, out.types.bool;
@@ -28,8 +28,8 @@ classdef VirtualMotorSymbols
       };
     end
 
-    function out = fromPrefix(prefix)
-      out = experiment.VirtualMotorSymbols.baseContract();
+    function out = from_prefix(prefix)
+      out = experiment.VirtualMotorSymbols.base_contract();
       prefix = char(string(prefix));
       if isempty(strtrim(prefix))
         error("experiment:symbol:invalidPrefix", "vm_param_symbol_prefix is required.");
@@ -54,8 +54,8 @@ classdef VirtualMotorSymbols
   end
 
   methods (Static, Access = private)
-    function out = baseContract()
-      t = twincat_ads.AdsTransport.netTypes();
+    function out = base_contract()
+      t = twincat_ads.AdsTransport.net_types();
       out = experiment.VirtualMotorSymbols();
       out.start = "GVL_VM.experiment_start";
       out.reset = "GVL_VM.reset_req";

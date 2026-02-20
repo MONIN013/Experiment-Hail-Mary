@@ -25,7 +25,7 @@ classdef RunConfig
   end
 
   methods (Static)
-    function out = fromVarargin(varargin)
+    function out = from_varargin(varargin)
       p = inputParser;
       p.addParameter("ams_net_id", "", @(x) ischar(x) || isstring(x));
       p.addParameter("ams_port", 851, @(x) isnumeric(x) && isscalar(x));
@@ -49,10 +49,10 @@ classdef RunConfig
       p.addParameter("ads_assembly", "", @(x) ischar(x) || isstring(x));
       p.addParameter("save_path", "", @(x) ischar(x) || isstring(x));
       p.parse(varargin{:});
-      out = experiment.RunConfig.fromStruct(p.Results);
+      out = experiment.RunConfig.from_struct(p.Results);
     end
 
-    function out = fromStruct(s)
+    function out = from_struct(s)
       out = experiment.RunConfig();
       f = fieldnames(s);
       for k = 1:numel(f)
@@ -95,7 +95,7 @@ classdef RunConfig
       end
     end
 
-    function s = toStruct(obj)
+    function s = to_struct(obj)
       s = struct();
       p = properties(obj);
       for k = 1:numel(p)

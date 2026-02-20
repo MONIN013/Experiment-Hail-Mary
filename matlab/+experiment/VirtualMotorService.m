@@ -20,14 +20,14 @@ classdef VirtualMotorService < handle
 
     function out = run(obj, cfg)
       if ~isa(cfg, "experiment.RunConfig")
-        cfg = experiment.RunConfig.fromStruct(cfg);
+        cfg = experiment.RunConfig.from_struct(cfg);
       end
       obj.ensure_folder(fileparts(cfg.save_path));
 
-      plc_symbols = experiment.VirtualMotorSymbols.fromDefaults();
-      vm_symbols = experiment.VirtualMotorSymbols.fromPrefix(cfg.vm_param_symbol_prefix);
-      twincat_ads.SymbolBrowser.validateSymbols(obj.plc_transport, plc_symbols.required_probes);
-      twincat_ads.SymbolBrowser.validateSymbols(obj.vm_transport, vm_symbols.required_probes);
+      plc_symbols = experiment.VirtualMotorSymbols.from_defaults();
+      vm_symbols = experiment.VirtualMotorSymbols.from_prefix(cfg.vm_param_symbol_prefix);
+      twincat_ads.SymbolBrowser.validate_symbols(obj.plc_transport, plc_symbols.required_probes);
+      twincat_ads.SymbolBrowser.validate_symbols(obj.vm_transport, vm_symbols.required_probes);
       t = plc_symbols.types;
 
       vm_params = struct();
@@ -49,9 +49,9 @@ classdef VirtualMotorService < handle
             "current_profile length (%d) exceeds cmd_max_n (%d).", profile_n, cfg.cmd_max_n);
         end
 
-        obj.plc_transport.writeScalar(plc_symbols.start, false, t.bool);
-        obj.plc_transport.writeScalar(plc_symbols.cmd_idx, uint32(0), t.u32);
-        obj.plc_transport.writeScalar(plc_symbols.cmd_len, uint32(0), t.u32);
+        obj.plc_transport.write_scalar(plc_symbols.start, false, t.bool);
+        obj.plc_transport.write_scalar(plc_symbols.cmd_idx, uint32(0), t.u32);
+        obj.plc_transport.write_scalar(plc_symbols.cmd_len, uint32(0), t.u32);
         obj.pulse_reset(plc_symbols, 0.02);
 
         idle_ready = obj.wait_for_reset_idle(plc_symbols, cfg.reset_timeout_s);
@@ -60,9 +60,9 @@ classdef VirtualMotorService < handle
             "Timed out waiting reset idle state (wr_idx==0, cmd_idx==0, start flag == FALSE).");
         end
 
-        obj.plc_transport.writeArray(plc_symbols.cmd_profile, profile, t.double);
-        obj.plc_transport.writeScalar(plc_symbols.cmd_len, uint32(profile_n), t.u32);
-        obj.plc_transport.writeScalar(plc_symbols.start, true, t.bool);
+        obj.plc_transport.write_array(plc_symbols.cmd_profile, profile, t.double);
+        obj.plc_transport.write_scalar(plc_symbols.cmd_len, uint32(profile_n), t.u32);
+        obj.plc_transport.write_scalar(plc_symbols.start, true, t.bool);
 
         if cfg.wait_for_done
           done = obj.wait_until_done(plc_symbols, cfg.done_timeout_s);
@@ -75,19 +75,19 @@ classdef VirtualMotorService < handle
           end
         end
       else
-        obj.plc_transport.writeScalar(plc_symbols.current_in, cfg.current_in, t.double);
+        obj.plc_transport.write_scalar(plc_symbols.current_in, cfg.current_in, t.double);
         while toc(t_run) < cfg.hold_seconds
           pause(min(0.05, cfg.hold_seconds / 10 + eps));
         end
         if cfg.release_to_zero
-          obj.plc_transport.writeScalar(plc_symbols.current_in, 0.0, t.double);
+          obj.plc_transport.write_scalar(plc_symbols.current_in, 0.0, t.double);
         end
       end
       elapsed_s = toc(t_run);
 
-      position_last = obj.plc_transport.readScalar(plc_symbols.position_out, t.double);
-      current_last = obj.plc_transport.readScalar(plc_symbols.current_in, t.double);
-      velocity_last = obj.plc_transport.readScalar(plc_symbols.velocity_out, t.double);
+      position_last = obj.plc_transport.read_scalar(plc_symbols.position_out, t.double);
+      current_last = obj.plc_transport.read_scalar(plc_symbols.current_in, t.double);
+      velocity_last = obj.plc_transport.read_scalar(plc_symbols.velocity_out, t.double);
 
       raw = struct();
       raw.position_last = double(position_last);
@@ -113,7 +113,7 @@ classdef VirtualMotorService < handle
       host.elapsed_s = elapsed_s;
       host.log_read_time_s = log_read_time;
 
-      cfg_struct = cfg.toStruct();
+      cfg_struct = cfg.to_struct();
       metrics = experiment.preload_eval(raw, cmd, cfg_struct);
       config = cfg_struct;
       save(cfg.save_path, "raw", "cmd", "host", "metrics", "config");
@@ -131,19 +131,19 @@ classdef VirtualMotorService < handle
   methods (Access = private)
     function write_vm_params(obj, symbols, params)
       t = symbols.types;
-      obj.vm_transport.writeScalar(symbols.vm_params.m, params.m, t.double);
-      obj.vm_transport.writeScalar(symbols.vm_params.d, params.d, t.double);
-      obj.vm_transport.writeScalar(symbols.vm_params.kt, params.kt, t.double);
-      obj.vm_transport.writeScalar(symbols.vm_params.tau_limit, params.tau_limit, t.double);
-      obj.vm_transport.writeScalar(symbols.vm_params.vel_limit, params.vel_limit, t.double);
-      obj.vm_transport.writeScalar(symbols.vm_params.task_dt_ns, uint64(params.task_dt_ns), t.u64);
+      obj.vm_transport.write_scalar(symbols.vm_params.m, params.m, t.double);
+      obj.vm_transport.write_scalar(symbols.vm_params.d, params.d, t.double);
+      obj.vm_transport.write_scalar(symbols.vm_params.kt, params.kt, t.double);
+      obj.vm_transport.write_scalar(symbols.vm_params.tau_limit, params.tau_limit, t.double);
+      obj.vm_transport.write_scalar(symbols.vm_params.vel_limit, params.vel_limit, t.double);
+      obj.vm_transport.write_scalar(symbols.vm_params.task_dt_ns, uint64(params.task_dt_ns), t.u64);
     end
 
     function pulse_reset(obj, symbols, pulse_seconds)
       t = symbols.types;
-      obj.plc_transport.writeScalar(symbols.reset, true, t.bool);
+      obj.plc_transport.write_scalar(symbols.reset, true, t.bool);
       pause(pulse_seconds);
-      obj.plc_transport.writeScalar(symbols.reset, false, t.bool);
+      obj.plc_transport.write_scalar(symbols.reset, false, t.bool);
     end
 
     function done = wait_until_done(obj, symbols, timeout_s)
@@ -152,7 +152,7 @@ classdef VirtualMotorService < handle
       done = false;
       while toc(t0) < timeout_s
         try
-          exp_start = logical(obj.plc_transport.readScalar(symbols.start, t.bool));
+          exp_start = logical(obj.plc_transport.read_scalar(symbols.start, t.bool));
           done = ~exp_start;
         catch
           done = false;
@@ -170,9 +170,9 @@ classdef VirtualMotorService < handle
       ready = false;
       while toc(t0) < timeout_s
         try
-          wr_idx = double(obj.plc_transport.readScalar(symbols.log.wr_idx, t.u32));
-          cmd_idx = double(obj.plc_transport.readScalar(symbols.cmd_idx, t.u32));
-          exp_start = logical(obj.plc_transport.readScalar(symbols.start, t.bool));
+          wr_idx = double(obj.plc_transport.read_scalar(symbols.log.wr_idx, t.u32));
+          cmd_idx = double(obj.plc_transport.read_scalar(symbols.cmd_idx, t.u32));
+          exp_start = logical(obj.plc_transport.read_scalar(symbols.start, t.bool));
           ready = (wr_idx == 0) && (cmd_idx == 0) && (~exp_start);
         catch
           ready = false;
@@ -196,14 +196,14 @@ classdef VirtualMotorService < handle
         "overflow", false);
 
       try
-        wr_idx = obj.plc_transport.readScalar(symbols.log.wr_idx, t.u32);
-        overflow = obj.plc_transport.readScalar(symbols.log.overflow, t.bool);
+        wr_idx = obj.plc_transport.read_scalar(symbols.log.wr_idx, t.u32);
+        overflow = obj.plc_transport.read_scalar(symbols.log.overflow, t.bool);
         valid_n = uint32(min(double(wr_idx), log_n));
         if valid_n > 0
-          log_data.log_seq = double(obj.plc_transport.readArray(symbols.log.log_seq, t.u32, valid_n));
-          log_data.log_i = double(obj.plc_transport.readArray(symbols.log.log_i, t.double, valid_n));
-          log_data.log_x = double(obj.plc_transport.readArray(symbols.log.log_x, t.double, valid_n));
-          log_data.log_t = double(obj.plc_transport.readArray(symbols.log.log_t, t.u64, valid_n));
+          log_data.log_seq = double(obj.plc_transport.read_array(symbols.log.log_seq, t.u32, valid_n));
+          log_data.log_i = double(obj.plc_transport.read_array(symbols.log.log_i, t.double, valid_n));
+          log_data.log_x = double(obj.plc_transport.read_array(symbols.log.log_x, t.double, valid_n));
+          log_data.log_t = double(obj.plc_transport.read_array(symbols.log.log_t, t.u64, valid_n));
         end
         log_data.wr_idx = double(wr_idx);
         log_data.overflow = logical(overflow);

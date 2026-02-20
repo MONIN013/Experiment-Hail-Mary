@@ -1,6 +1,6 @@
 classdef SymbolTraversal
   methods (Static)
-    function [names, types, sizes] = collectSymbols(symbols, top_level_only, traversal_timeout_ms, traversal_max_nodes)
+    function [names, types, sizes] = collect_symbols(symbols, top_level_only, traversal_timeout_ms, traversal_max_nodes)
       names = strings(0, 1);
       types = strings(0, 1);
       sizes = int32(zeros(0, 1));
@@ -18,7 +18,7 @@ classdef SymbolTraversal
         traversal_max_nodes = inf;
       end
 
-      queue = twincat_ads.internal.SymbolTraversal.collectSymbolsFromCollection(symbols);
+      queue = twincat_ads.internal.SymbolTraversal.collect_symbols_from_collection(symbols);
       if isempty(queue)
         return;
       end
@@ -41,16 +41,16 @@ classdef SymbolTraversal
           continue;
         end
 
-        key = twincat_ads.internal.SymbolTraversal.symbolIdentityKey(symbol);
+        key = twincat_ads.internal.SymbolTraversal.symbol_identity_key(symbol);
         if isKey(visited, key)
           continue;
         end
         visited(key) = true;
 
         try
-          name = twincat_ads.internal.SymbolTraversal.extractName(symbol);
-          type = twincat_ads.internal.SymbolTraversal.extractType(symbol);
-          size_bytes = twincat_ads.internal.SymbolTraversal.extractSize(symbol);
+          name = twincat_ads.internal.SymbolTraversal.extract_name(symbol);
+          type = twincat_ads.internal.SymbolTraversal.extract_type(symbol);
+          size_bytes = twincat_ads.internal.SymbolTraversal.extract_size(symbol);
         catch
           continue;
         end
@@ -64,15 +64,15 @@ classdef SymbolTraversal
         if logical(top_level_only)
           continue;
         end
-        if twincat_ads.internal.SymbolTraversal.isArraySymbol(name, type)
+        if twincat_ads.internal.SymbolTraversal.is_array_symbol(name, type)
           continue;
         end
 
-        child_collection = twincat_ads.internal.SymbolTraversal.getChildrenCollection(symbol);
+        child_collection = twincat_ads.internal.SymbolTraversal.get_children_collection(symbol);
         if isempty(child_collection)
           continue;
         end
-        children = twincat_ads.internal.SymbolTraversal.collectSymbolsFromCollection(child_collection);
+        children = twincat_ads.internal.SymbolTraversal.collect_symbols_from_collection(child_collection);
         if isempty(children)
           continue;
         end
@@ -99,7 +99,7 @@ classdef SymbolTraversal
       sizes = sizes(:);
     end
 
-    function tf = isArraySymbol(name, type)
+    function tf = is_array_symbol(name, type)
       tf = contains(name, "[");
       if tf
         return;
@@ -108,7 +108,7 @@ classdef SymbolTraversal
       tf = startsWith(type_text, "ARRAY ");
     end
 
-    function key = symbolIdentityKey(symbol)
+    function key = symbol_identity_key(symbol)
       key = "";
       try
         id = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(symbol);
@@ -120,7 +120,7 @@ classdef SymbolTraversal
         return;
       end
 
-      name = twincat_ads.internal.SymbolTraversal.extractName(symbol);
+      name = twincat_ads.internal.SymbolTraversal.extract_name(symbol);
       if strlength(name) > 0
         key = char("name#" + name);
         return;
@@ -129,7 +129,7 @@ classdef SymbolTraversal
       key = char("fallback#" + string(class(symbol)));
     end
 
-    function children = collectSymbolsFromCollection(collection)
+    function children = collect_symbols_from_collection(collection)
       children = cell(0, 1);
       if isempty(collection)
         return;
@@ -159,7 +159,7 @@ classdef SymbolTraversal
       children = children(1:count);
     end
 
-    function collection = getChildrenCollection(symbol)
+    function collection = get_children_collection(symbol)
       collection = [];
       try
         collection = symbol.SubSymbols;
@@ -175,44 +175,44 @@ classdef SymbolTraversal
       end
     end
 
-    function name = extractName(symbol)
-      name = twincat_ads.internal.SymbolTraversal.safeStringValue(symbol, "InstancePath");
+    function name = extract_name(symbol)
+      name = twincat_ads.internal.SymbolTraversal.safe_string_value(symbol, "InstancePath");
       if strlength(name) > 0
         return;
       end
-      name = twincat_ads.internal.SymbolTraversal.safeStringValue(symbol, "InstanceName");
+      name = twincat_ads.internal.SymbolTraversal.safe_string_value(symbol, "InstanceName");
       if strlength(name) > 0
         return;
       end
-      name = twincat_ads.internal.SymbolTraversal.safeStringValue(symbol, "PathName");
+      name = twincat_ads.internal.SymbolTraversal.safe_string_value(symbol, "PathName");
       if strlength(name) > 0
         return;
       end
-      name = twincat_ads.internal.SymbolTraversal.safeStringValue(symbol, "Name");
+      name = twincat_ads.internal.SymbolTraversal.safe_string_value(symbol, "Name");
     end
 
-    function type = extractType(symbol)
-      type = twincat_ads.internal.SymbolTraversal.safeStringValue(symbol, "TypeName");
+    function type = extract_type(symbol)
+      type = twincat_ads.internal.SymbolTraversal.safe_string_value(symbol, "TypeName");
       if strlength(type) > 0
         return;
       end
-      type = twincat_ads.internal.SymbolTraversal.safeStringValue(symbol, "DataTypeName");
+      type = twincat_ads.internal.SymbolTraversal.safe_string_value(symbol, "DataTypeName");
       if strlength(type) > 0
         return;
       end
       try
         data_type = symbol.DataType;
-        type = twincat_ads.internal.SymbolTraversal.safeStringValue(data_type, "Name");
+        type = twincat_ads.internal.SymbolTraversal.safe_string_value(data_type, "Name");
       catch
         type = "";
       end
     end
 
-    function size_bytes = extractSize(symbol)
-      size_bytes = twincat_ads.internal.SymbolTraversal.safeInt32Value(symbol, "Size");
+    function size_bytes = extract_size(symbol)
+      size_bytes = twincat_ads.internal.SymbolTraversal.safe_int32_value(symbol, "Size");
     end
 
-    function out = safeStringValue(obj, prop_name)
+    function out = safe_string_value(obj, prop_name)
       out = "";
       prop_name = char(string(prop_name));
       try
@@ -243,7 +243,7 @@ classdef SymbolTraversal
       end
     end
 
-    function out = safeInt32Value(obj, prop_name)
+    function out = safe_int32_value(obj, prop_name)
       out = int32(0);
       prop_name = char(string(prop_name));
       try

@@ -21,15 +21,15 @@ amp_a = 0.4;
 offset_a = 0.0;
 phase_rad = 0.0;
 
-N = round(duration_s * task_rate_hz);
-if N <= 0
+sample_n = round(duration_s * task_rate_hz);
+if sample_n <= 0
   error("duration_s must produce at least one sample.");
 end
-t_cmd = (0:N-1)' / task_rate_hz;
+t_cmd = (0:sample_n-1)' / task_rate_hz;
 u = offset_a + amp_a * sin(2 * pi * freq_hz * t_cmd + phase_rad);
 
 fprintf("Sine command: amp=%.4f A, offset=%.4f A, freq=%.4f Hz, phase=%.4f rad, duration=%.3f s, N=%d\n", ...
-  amp_a, offset_a, freq_hz, phase_rad, duration_s, N);
+  amp_a, offset_a, freq_hz, phase_rad, duration_s, sample_n);
 
 %% Run experiment
 out = experiment.run_virtualmotor( ...

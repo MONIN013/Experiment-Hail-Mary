@@ -14,9 +14,15 @@
 |---|---|
 | Done | `run_ads_discovery_demo.m` 実行: Port `851` / `351` とも `Status=ok`、シンボル列挙成功 |
 | Done | `run_preload_and_plot.m` 実行: サマリー `Result OK (6/6 checks passed)` |
-| Done | 実行中に判明した不具合を修正: `SymbolBrowser.listPorts` が上位引数（`top_level_only` 等）を受理できるよう `inputParser.KeepUnmatched=true` を適用 |
+| Done | 実行中に判明した不具合を修正: `SymbolBrowser.list_ports` が上位引数（`top_level_only` 等）を受理できるよう `inputParser.KeepUnmatched=true` を適用 |
 | In Progress | なし |
 | Next | スモーク結果を定期実行できる運用手順の整備（必要なら別ドキュメント化） |
+
+## 破壊的変更（2026-02-20）
+
+- 公開メソッド名を `snake_case` へ統一（互換ラッパーなし）
+- 代表例: `RunConfig.from_varargin`, `VirtualMotorSymbols.from_defaults`, `IAdsTransport.read_scalar`, `SymbolBrowser.discover_ports_and_symbols`
+- 旧 `camelCase` 名を呼び出すコードはすべて更新が必要
 
 ## 現状の問題点
 
@@ -90,13 +96,13 @@ matlab/
 
 | クラス / メソッド | 説明 |
 |---|---|
-| `IAdsTransport` | 抽象インターフェース: `connect`, `disconnect`, `readScalar`, `writeScalar`, `readArray`, `writeArray` |
+| `IAdsTransport` | 抽象インターフェース: `connect`, `disconnect`, `read_scalar`, `write_scalar`, `read_array`, `write_array` |
 | `AdsTransport` | `IAdsTransport` の TwinCAT 具象実装。.NET Interop (`TwinCAT.Ads.TcAdsClient`) 経由 |
-| `AdsTransport.netTypes()` | .NET型マッピング辞書（`bool`, `double`, `single`, `u32`, `u64`） |
-| `SymbolBrowser.discoverPortsAndSymbols(amsNetId, ports, ...)` | ポート走査＋シンボル一覧取得 |
-| `SymbolBrowser.listPorts(amsNetId, ports, ...)` | ポート接続確認 |
-| `SymbolBrowser.listSymbolsForPort(amsNetId, port, ...)` | 指定ポートのシンボルツリー走査 |
-| `SymbolBrowser.validateSymbols(transport, probeList)` | 任意のシンボル存在検証。`probeList` は `{symbol, netType; ...}` セル配列 |
+| `AdsTransport.net_types()` | .NET型マッピング辞書（`bool`, `double`, `single`, `u32`, `u64`） |
+| `SymbolBrowser.discover_ports_and_symbols(amsNetId, ports, ...)` | ポート走査＋シンボル一覧取得 |
+| `SymbolBrowser.list_ports(amsNetId, ports, ...)` | ポート接続確認 |
+| `SymbolBrowser.list_symbols_for_port(amsNetId, port, ...)` | 指定ポートのシンボルツリー走査 |
+| `SymbolBrowser.validate_symbols(transport, probeList)` | 任意のシンボル存在検証。`probeList` は `{symbol, netType; ...}` セル配列 |
 
 #### adsAssembly 解決順序
 
@@ -121,7 +127,7 @@ matlab/
 | ファイル | 説明 |
 |---|---|
 | `RunConfig` | 実験パラメータのバリューオブジェクト（`ams_net_id`, モデルパラメータ, ADS設定等） |
-| `VirtualMotorSymbols` | PLCシンボル名コントラクト。`fromDefaults()` (PLC側) / `fromPrefix(prefix)` (C++モジュール側) |
+| `VirtualMotorSymbols` | PLCシンボル名コントラクト。`from_defaults()` (PLC側) / `from_prefix(prefix)` (C++モジュール側) |
 | `VirtualMotorService` | 実験オーケストレーター: シンボル解決→パラメータ書き込み→実行→ログ読み取り→評価→保存 |
 | `run_virtualmotor` | コンポジションルート: `RunConfig` → `AdsTransport` ×2 → `VirtualMotorService` を組み立てて実行 |
 | `preload_eval` | 実験結果の定量評価（入力波形一致、サンプリング品質、RMSE、相関係数、合否判定） |
@@ -132,7 +138,7 @@ matlab/
 | ファイル | 説明 |
 |---|---|
 | `run_preload_and_plot.m` | 正弦波電流プロファイル生成 → `experiment.run_virtualmotor` 実行 → 3段プロット＋サマリー表示 |
-| `run_ads_discovery_demo.m` | ADS接続テスト用デモ。`twincat_ads.SymbolBrowser.discoverPortsAndSymbols` を呼び、ポート接続状態とシンボル一覧をコンソール表示 |
+| `run_ads_discovery_demo.m` | ADS接続テスト用デモ。`twincat_ads.SymbolBrowser.discover_ports_and_symbols` を呼び、ポート接続状態とシンボル一覧をコンソール表示 |
 
 ## 命名規則
 
@@ -188,7 +194,7 @@ run('tests/run_tests.m')
 | **unit** | `TestRunConfig` | 必須フィールドバリデーション、デフォルト値 |
 | **unit** | `TestSymbolTraversal` | BFS走査ロジック: 名前フォールバック、フィルタ、重複除去、配列展開抑止 |
 | **unit** | `TestVirtualMotorService` | プロファイルフロー操作順序、タイムアウト警告、ログ欠損時の空配列 |
-| **unit** | `TestVirtualMotorSymbols` | `fromPrefix` / `fromDefaults` が正しいシンボル名を生成するか |
+| **unit** | `TestVirtualMotorSymbols` | `from_prefix` / `from_defaults` が正しいシンボル名を生成するか |
 
 ## ADS 通信フロー
 
