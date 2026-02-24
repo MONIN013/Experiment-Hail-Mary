@@ -28,6 +28,10 @@ servo_activateがFalseの場合はサーボオンに対応するControlWordを�
 ### experiment_control.slx
 
 モーター制御を行うメインプログラムです。現在は TE1400 ライセンスを使用し Build を行い、TcObject として TwinCAT に登録後、エクスターナルモードで動作させています。
+
+> **注記 (2026-02):** TE1400 試用版 100kB 制限により、次世代設計では TE1400 を使用せず C++ TcCOM に移行。
+> また、ロギングについても TE1400 File Writer の代わりに C++ TcCOM ファイルライタを採用。
+> → [ArchitectureSpec.md](ArchitectureSpec.md)
 ### input
 - experiment_activate: 実験開始フラグ
 - servo_activate: サーボアクティベートフラグ
@@ -83,5 +87,7 @@ servo_activateがTrueになるとサーボをアクティベートし、その�
 2. **制御器に変更を加えるたびに Build を行う必要がある。**
 
 > これらの問題を解決するため、次世代プロジェクト（→ [ArchitectureSpec.md](ArchitectureSpec.md)）では
-> 制御構造を TwinCAT 側に固定し、テーブルリプレイ方式 + ADS パラメータ注入で Build を排除する設計を採用する。
+> 制御構造を C++ TcCOM で TwinCAT 側に固定し、テーブルリプレイ方式 + ADS パラメータ注入で Build を排除する設計を採用する。
+> ロギングは C++ TcCOM ファイルライタで 8kHz×100s の長時間記録に対応する。
+> TE1400 は試用版 100kB 制限により廃止。
 > ブロック図は [NewProjectBlock.pu](NewProjectBlock.pu) を参照。

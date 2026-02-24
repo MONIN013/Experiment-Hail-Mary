@@ -16,8 +16,8 @@ package "TwinCAT Real-Time (Phase 1-3: 1 ms / Phase 4: 125 µs = 8 kHz)" {
     [PDO I/O\n(EtherCAT)] as PDO
   }
 
-  ' ---- ControllerCore (TE1400 TcObject — 誤差計算 + FB Chain + FF付加) ----
-  package "ControllerCore\n(TE1400 TcObject — Simulink 生成\nテーブル非所有・スカラ I/O)" as CC {
+  ' ---- ControllerCore (C++ TcCOM — 誤差計算 + FB Chain + FF付加) ----
+  package "ControllerCore\n(C++ TcCOM\nテーブル非所有・スカラ I/O)" as CC {
     [Error Calc\n(e = r - y)] as Err
 
     package "FB Chain (各ブロック enable/bypass)" {
@@ -41,12 +41,12 @@ package "TwinCAT Real-Time (Phase 1-3: 1 ms / Phase 4: 125 µs = 8 kHz)" {
   ' ---- ModeManager (PLC ST) ----
   [ModeManager\n(PLC ST, 10 ms)] as Mode
 
-  ' ---- ExperimentLogger (PLC ST) ----
-  [ExperimentLogger\n(PLC ST, Ring Buffer)] as Log
+  ' ---- ExperimentLogger (C++ TcCOM) ----
+  [ExperimentLogger\n(C++ TcCOM, File Writer)] as Log
 
-  ' ---- Data flow: Drive → ControllerCore (スカラ) ----
-  PDO --> Err : position_act
-  PDO --> Log : torque_act
+  ' ---- Data flow: Drive → ControllerCore (Load 側 FB) ----
+  PDO --> Err : load_position\n(Load 側 FB)
+  PDO --> Log : motor/load\nposition, velocity\nmotor_torque_act
 
   ' ---- ExperimentSequencer → ControllerCore (スカラ) ----
   RefTbl --> Err : ref_value\n(scalar)
@@ -64,8 +64,8 @@ package "TwinCAT Real-Time (Phase 1-3: 1 ms / Phase 4: 125 µs = 8 kHz)" {
 
   Dist --> DistAdd : u_dist
 
-  ' ---- ExperimentSequencer → Drive ----
-  DistAdd --> PDO : target_torque
+  ' ---- ExperimentSequencer → Drive (Motor 側入力) ----
+  DistAdd --> PDO : target_torque\n(Motor 側)
 
   ' ---- ModeManager ↔ Drive ----
   Mode --> CiA : controlword
@@ -78,7 +78,7 @@ package "TwinCAT Real-Time (Phase 1-3: 1 ms / Phase 4: 125 µs = 8 kHz)" {
   RefTbl --> Log : ref_value
   FF --> Log : ff_value
   FFAdd --> Log : control_input
-  PDO --> Log : position_act\nvelocity_act
+  PDO --> Log : load_position\nload_velocity
 }
 
 ' ============================================================
@@ -86,7 +86,6 @@ package "TwinCAT Real-Time (Phase 1-3: 1 ms / Phase 4: 125 µs = 8 kHz)" {
 ' ============================================================
 package "MATLAB (Non-RT)" {
   [Experiment\nOrchestrator] as Matlab
-  [Simulink\n(制御器設計\n& TE1400 Build)] as Simulink
 }
 
 ' ---- ADS parameter injection (Non-RT → RT) ----
@@ -97,40 +96,41 @@ Matlab --> FF : ADS\n(ff_table[])
 Matlab --> Dist : ADS\n(dist_table[])
 
 ' ---- ADS data pull (RT → Non-RT) ----
-Log --> Matlab : ADS\n(ring buffer\nchunk read)
-
-' ---- Simulink → TE1400 build (offline) ----
-Simulink ..> CC : TE1400 Build\n(構造変更時のみ)
+Log --> Matlab : ファイル読出し\n(実験後)
 
 ' ============================================================
 '  Notes
 ' ============================================================
 note right of CC
-  TE1400 で Simulink モデルから TcObject を生成。
+  C++ TcCOM で制御構造を直接実装。
   **テーブル (ref/ff/dist) は所有しない。**
   入力: ref_value, ff_value, position_act (全スカラ)
-  出力: control_input (u_fb + ff_value)
-  Simulink ブロック図で制御構造が直感的に見える設計。
+  position_act = **Load 側**実位置 (FB 対象)
+  出力: control_input (u_fb + ff_value) → Motor 側
   ゲイン・係数は ADS Tunable Parameter で注入。
 end note
 
 note right of Seq
   テーブル所有・テーブルリプレイ・
   Dist 加算 (target = control_input + u_dist) を
-  PLC ST で実装。TE1400 制約の影響なし。
+  PLC ST で実装。責務分離を徹底。
   テーブルは GVL 配列として ADS 経由で注入。
 end note
 
 note right of Drive
-  Phase 1-3: VirtualMotorCore (C++ TcCOM)
-  Phase 4: DriveAdapter (PLC ST)
+  **2慣性系:** target_torque → Motor 側
+  position FB ← Load 側エンコーダ
+  Phase 1-3: VirtualMotorCore (1慣性近似)
+  Phase 4: DriveAdapter (Motor+Load 実機)
   同一 Data Area I/F で差し替え可能。
 end note
 
 note bottom of Log
-  Ring Buffer 方式。
-  wr_idx (PLC) / rd_idx (MATLAB ADS)
-  による Producer-Consumer パターン。
+  C++ TcCOM ファイルライタ方式。
+  8kHz × 100s = 800,000 サンプル ≈ 67 MB。
+  Motor/Load 両方の信号を記録。
+  内部バッファ付きバイナリファイル出力。
+  実験後に MATLAB から読み出し。
 end note
 
 @enduml

@@ -394,3 +394,8 @@ MigrationBackup/
 
 ExperimentHailMary.~u
 *.mat
+
+slprj
+*_tcgrt
+*.autosave
+*.slxc
