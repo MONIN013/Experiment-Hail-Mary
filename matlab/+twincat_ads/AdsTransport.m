@@ -2,6 +2,7 @@ classdef AdsTransport < twincat_ads.IAdsTransport
   properties (Access = private)
     client = []
     ads_assembly = ""
+    symbol_info_cache
   end
 
   methods
@@ -23,6 +24,7 @@ classdef AdsTransport < twincat_ads.IAdsTransport
       try
         obj.client = TwinCAT.Ads.TcAdsClient();
         obj.client.Connect(ams_net_id, int32(port));
+        obj.symbol_info_cache = containers.Map("KeyType", "char", "ValueType", "any");
       catch e
         obj.client = [];
         error("twincat_ads:transport:connectFailed", ...
@@ -40,6 +42,7 @@ classdef AdsTransport < twincat_ads.IAdsTransport
       catch
       end
       obj.client = [];
+      obj.symbol_info_cache = [];
     end
 
     function delete(obj)
@@ -69,37 +72,16 @@ classdef AdsTransport < twincat_ads.IAdsTransport
     end
 
     function values = read_array(obj, symbol, net_type, n)
-      c = obj.require_client();
-      n_double = double(n);
-      if n_double <= 0
-        values = zeros(0, 1);
-        return;
+      values = obj.read_array_core(symbol, net_type, n);
+    end
+
+    function values = read_array_slice(obj, symbol, net_type, start_idx, n)
+      start_idx_double = double(start_idx);
+      if start_idx_double < 0 || floor(start_idx_double) ~= start_idx_double
+        error("twincat_ads:transport:invalidIndex", ...
+          "start_idx must be a nonnegative integer. Got %g.", start_idx_double);
       end
-
-      handle = c.CreateVariableHandle(char(symbol));
-      cleanup_obj = onCleanup(@()obj.safe_delete_handle(c, handle)); %#ok<NASGU>
-
-      elem_type = obj.resolve_net_type(net_type);
-      array_type = elem_type.MakeArrayType();
-      dims = NET.createArray("System.Int32", 1);
-      dims(1) = int32(n_double);
-      o = c.ReadAny(handle, array_type, dims);
-
-      if isnumeric(o) || islogical(o)
-        values = double(o(:));
-        return;
-      end
-
-      if isa(o, "System.Array")
-        values = zeros(n_double, 1);
-        for k = 1:n_double
-          values(k) = obj.convert_net_object(o.GetValue(int32(k - 1)));
-        end
-        return;
-      end
-
-      error("twincat_ads:type:unsupported", ...
-        "Unexpected ADS array read return type for symbol '%s'.", string(symbol));
+      values = obj.read_array_slice_via_index_offset(symbol, net_type, start_idx_double, double(n));
     end
 
     function write_array(obj, symbol, values, net_type)
@@ -165,6 +147,133 @@ classdef AdsTransport < twincat_ads.IAdsTransport
   end
 
   methods (Access = private)
+    function values = read_array_core(obj, symbol, net_type, n)
+      c = obj.require_client();
+      n_double = double(n);
+      if n_double <= 0
+        values = zeros(0, 1);
+        return;
+      end
+
+      handle = c.CreateVariableHandle(char(symbol));
+      cleanup_obj = onCleanup(@()obj.safe_delete_handle(c, handle)); %#ok<NASGU>
+
+      elem_type = obj.resolve_net_type(net_type);
+      array_type = elem_type.MakeArrayType();
+      dims = NET.createArray("System.Int32", 1);
+      dims(1) = int32(n_double);
+      o = c.ReadAny(handle, array_type, dims);
+
+      if isnumeric(o) || islogical(o)
+        values = double(o(:));
+        return;
+      end
+
+      if isa(o, "System.Array")
+        values = zeros(n_double, 1);
+        for k = 1:n_double
+          values(k) = obj.convert_net_object(o.GetValue(int32(k - 1)));
+        end
+        return;
+      end
+
+      error("twincat_ads:type:unsupported", ...
+        "Unexpected ADS array read return type for symbol '%s'.", string(symbol));
+    end
+
+    function values = read_array_slice_via_index_offset(obj, symbol, net_type, start_idx, n)
+      if n <= 0
+        values = zeros(0, 1);
+        return;
+      end
+      if floor(n) ~= n
+        error("twincat_ads:transport:invalidIndex", ...
+          "n must be a nonnegative integer. Got %g.", n);
+      end
+
+      c = obj.require_client();
+      info = obj.read_symbol_info_cached(symbol);
+      elem_size = obj.element_size_bytes(net_type);
+      byte_offset = double(start_idx) * double(elem_size);
+      byte_length = double(n) * double(elem_size);
+
+      if isfield(info, "byte_size") && isfinite(info.byte_size) && (byte_offset + byte_length > info.byte_size)
+        error("twincat_ads:transport:invalidIndex", ...
+          "Requested slice exceeds symbol byte size for '%s' (offset=%g bytes, len=%g bytes, size=%g bytes).", ...
+          char(string(symbol)), byte_offset, byte_length, info.byte_size);
+      end
+      if byte_length > double(intmax("int32"))
+        error("twincat_ads:transport:invalidIndex", ...
+          "Requested slice too large for AdsStream (%g bytes).", byte_length);
+      end
+
+      stream = TwinCAT.Ads.AdsStream(int32(byte_length));
+      c.Read(uint32(info.index_group), uint32(info.index_offset + byte_offset), stream);
+      raw_bytes = uint8(stream.ToArray());
+      values = obj.decode_ads_bytes(raw_bytes, net_type);
+    end
+
+    function info = read_symbol_info_cached(obj, symbol)
+      c = obj.require_client();
+      key = char(string(symbol));
+      if isempty(obj.symbol_info_cache) || ~isa(obj.symbol_info_cache, "containers.Map")
+        obj.symbol_info_cache = containers.Map("KeyType", "char", "ValueType", "any");
+      end
+      if isKey(obj.symbol_info_cache, key)
+        info = obj.symbol_info_cache(key);
+        return;
+      end
+
+      sym = c.ReadSymbolInfo(key);
+      info = struct( ...
+        "symbol_name", key, ...
+        "index_group", double(sym.IndexGroup), ...
+        "index_offset", double(sym.IndexOffset), ...
+        "byte_size", double(sym.ByteSize), ...
+        "is_array", logical(sym.IsArray));
+      obj.symbol_info_cache(key) = info;
+    end
+
+    function n = element_size_bytes(~, net_type_name)
+      switch char(string(net_type_name))
+        case "System.Boolean"
+          n = 1;
+        case "System.Single"
+          n = 4;
+        case {"System.Int32", "System.UInt32"}
+          n = 4;
+        case {"System.Double", "System.Int64", "System.UInt64"}
+          n = 8;
+        otherwise
+          error("twincat_ads:type:unsupported", ...
+            "Unsupported .NET element type for array slice read: %s", string(net_type_name));
+      end
+    end
+
+    function values = decode_ads_bytes(~, raw_bytes, net_type_name)
+      bytes = uint8(raw_bytes(:));
+      switch char(string(net_type_name))
+        case "System.Boolean"
+          values = logical(bytes ~= 0);
+        case "System.Single"
+          values = single(typecast(bytes, "single")).';
+        case "System.Double"
+          values = double(typecast(bytes, "double")).';
+        case "System.Int32"
+          values = double(typecast(bytes, "int32")).';
+        case "System.UInt32"
+          values = double(typecast(bytes, "uint32")).';
+        case "System.Int64"
+          values = double(typecast(bytes, "int64")).';
+        case "System.UInt64"
+          values = double(typecast(bytes, "uint64")).';
+        otherwise
+          error("twincat_ads:type:unsupported", ...
+            "Unsupported .NET element type for byte decode: %s", string(net_type_name));
+      end
+      values = values(:);
+    end
+
     function load_assembly(obj)
       attempts = strings(0, 1);
       errors = strings(0, 1);

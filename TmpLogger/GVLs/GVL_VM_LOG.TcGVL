@@ -10,12 +10,15 @@ VAR_GLOBAL
     seq : UDINT := 0;
     t_ns : ULINT := 0;
     wr_idx : UDINT := 0;
+    rd_idx : UDINT := 0;
     overflow : BOOL := FALSE;
 
     log_seq : ARRAY[0..LOG_N - 1] OF UDINT;
     log_i : ARRAY[0..LOG_N - 1] OF LREAL;
     log_x : ARRAY[0..LOG_N - 1] OF LREAL;
     log_t : ARRAY[0..LOG_N - 1] OF ULINT;
+    log_cmd_idx : ARRAY[0..LOG_N - 1] OF UDINT;
+    log_cmd_value : ARRAY[0..LOG_N - 1] OF LREAL;
 END_VAR
 ]]></Declaration>
   </GVL>

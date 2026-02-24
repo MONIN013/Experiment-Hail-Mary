@@ -90,7 +90,7 @@
 		</System>
 		<Plc>
 			<Project GUID="{BE83EF32-AB68-4A1C-B0C2-8329058EB897}" Name="TmpLogger" PrjFilePath="TmpLogger\TmpLogger.plcproj" TmcFilePath="TmpLogger\TmpLogger.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{32783070-6551-C242-E1EC-F928CE50767C}" TmcPath="TmpLogger\TmpLogger.tmc">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{6321C3FE-441C-67DF-E7DB-5BD5E527EC40}" TmcPath="TmpLogger\TmpLogger.tmc">
 					<Name>TmpLogger Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -128,7 +128,7 @@
 				</Instance>
 			</Project>
 			<Project GUID="{FCFF5180-937F-4F0E-915A-7CF7E9CA7F30}" Name="StateMachineControl" PrjFilePath="StateMachineControl\StateMachineControl.plcproj" TmcFilePath="StateMachineControl\StateMachineControl.tmc" ReloadTmc="true" AmsPort="852" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{1EF8A650-9E56-DB7B-3185-0F068A504FBE}">
+				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{1EF8A650-9E56-DB7B-3185-0F068A504FBE}" TmcPath="StateMachineControl\StateMachineControl.tmc">
 					<Name>StateMachineControl Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
