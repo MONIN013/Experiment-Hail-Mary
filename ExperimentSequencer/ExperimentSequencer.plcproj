@@ -3,33 +3,36 @@
   <PropertyGroup>
     <FileVersion>1.0.0.0</FileVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{be83ef32-ab68-4a1c-b0c2-8329058eb897}</ProjectGuid>
+    <ProjectGuid>{54ad89c8-6b39-47e6-b85f-f4753c89f02e}</ProjectGuid>
     <SubObjectsSortedByName>true</SubObjectsSortedByName>
     <DownloadApplicationInfo>true</DownloadApplicationInfo>
     <WriteProductVersion>false</WriteProductVersion>
     <GenerateTpy>false</GenerateTpy>
-    <Name>TmpLogger</Name>
+    <Name>ExperimentSequencer</Name>
     <ProgramVersion>3.1.4026.20</ProgramVersion>
-    <Application>{866fec33-42f8-42fc-8306-010be04ce03d}</Application>
-    <TypeSystem>{a96820be-b521-412a-810f-14b82006e5fb}</TypeSystem>
-    <Implicit_Task_Info>{3bb1bc36-7fc3-4612-8d22-48487b259c74}</Implicit_Task_Info>
-    <Implicit_KindOfTask>{0d7a17d2-9d3a-46d2-adf2-30c3bad86cd5}</Implicit_KindOfTask>
-    <Implicit_Jitter_Distribution>{de234943-b339-4db7-aea6-856e9f351a13}</Implicit_Jitter_Distribution>
-    <LibraryReferences>{322ef79a-b8b3-4a9b-9b23-27aac0c3d2c0}</LibraryReferences>
+    <Application>{c0f069a8-ac45-4807-9306-fd2e5f23b55c}</Application>
+    <TypeSystem>{05b4d9b7-17db-4df4-a8d3-2205478496d4}</TypeSystem>
+    <Implicit_Task_Info>{e4cc9ba9-4feb-4c70-a155-93a24c5a5069}</Implicit_Task_Info>
+    <Implicit_KindOfTask>{300c52e6-1e5f-46e7-b95d-ce9f99c74934}</Implicit_KindOfTask>
+    <Implicit_Jitter_Distribution>{00dbd598-224b-4f68-836b-de13289e7468}</Implicit_Jitter_Distribution>
+    <LibraryReferences>{92eacea6-87d7-4a7d-858a-b2218fe725e8}</LibraryReferences>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="GVLs\GVL_EXE.TcGVL">
+    <Compile Include="GVLs\GVL_SEQ.TcGVL">
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
     </Compile>
-    <Compile Include="GVLs\GVL_EXE_LOG.TcGVL">
+    <Compile Include="GVLs\GVL_SEQ_LOG.TcGVL">
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
     </Compile>
     <Compile Include="PlcTask.TcTTO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="POUs\PRG_EXE_Logger.TcPOU">
+    <Compile Include="POUs\PRG_ExperimentSequencer.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\PRG_SEQ_SILLogger.TcPOU">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
@@ -55,7 +58,7 @@
     </PlaceholderReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="TmpLogger.tmc">
+    <None Include="ExperimentSequencer.tmc">
       <SubType>Content</SubType>
     </None>
   </ItemGroup>

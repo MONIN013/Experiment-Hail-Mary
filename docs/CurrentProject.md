@@ -1,6 +1,7 @@
 # 現行システム仕様 — テスト用プログラム
 
 > **位置づけ:** 現行の TE1400（Simulink → TcObject）方式の機能仕様書。
+> **補足 (2026-02-24):** 本文書は旧方式の記録。現行リポジトリでは TwinCAT 側の次世代構成（`ExperimentSequencer` + `ControllerCore` + `VirtualMotorCore`）へ移行中。
 > 
 ---
 

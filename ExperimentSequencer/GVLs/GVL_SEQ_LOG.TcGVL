@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <GVL Name="GVL_EXE_LOG" Id="{185a13d0-3f58-4ba6-ac12-4d43c6b07812}">
+  <GVL Name="GVL_SEQ_LOG" Id="{f2cb075b-543c-47f0-8f85-3ac426bfc632}">
     <Declaration><![CDATA[{attribute 'qualified_only'}
 VAR_GLOBAL CONSTANT
     LOG_N : UDINT := 200000;

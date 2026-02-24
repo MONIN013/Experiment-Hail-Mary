@@ -18,7 +18,6 @@ classdef TestSymbolBrowserContract < matlab.unittest.TestCase
       transport.scalarMap(char(s.ref_value)) = 0.0;
       transport.scalarMap(char(s.ff_value)) = 0.0;
       transport.scalarMap(char(s.control_input)) = 0.0;
-      transport.scalarMap(char(s.target_torque)) = 0.0;
       transport.scalarMap(char(s.position_act_log)) = 0.0;
       transport.scalarMap(char(s.log.wr_idx)) = uint32(0);
       transport.scalarMap(char(s.log.rd_idx)) = uint32(0);

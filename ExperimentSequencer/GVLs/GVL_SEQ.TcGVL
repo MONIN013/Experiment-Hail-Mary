@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <GVL Name="GVL_SEQ" Id="{33955021-1663-4825-9072-9080eda5b96e}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL CONSTANT
+    N_REF_MAX : UDINT := 100000;
+    N_FF_MAX : UDINT := 100000;
+    N_DIST_MAX : UDINT := 100000;
+    (* Backward-compatible alias for existing scripts/tests. *)
+    TABLE_MAX_N : UDINT := 100000;
+END_VAR
+
+VAR_GLOBAL
+    {attribute 'linkalways'}
+    ref_value AT %Q* : LREAL := 0.0;
+
+    {attribute 'linkalways'}
+    ff_value AT %Q* : LREAL := 0.0;
+
+    {attribute 'linkalways'}
+    dist_value AT %Q* : LREAL := 0.0;
+
+    {attribute 'linkalways'}
+    control_input AT %I* : LREAL := 0.0;
+
+    {attribute 'linkalways'}
+    position_act_log AT %I* : LREAL := 0.0;
+
+    ref_table : ARRAY[0..N_REF_MAX - 1] OF LREAL;
+    ff_table : ARRAY[0..N_FF_MAX - 1] OF LREAL;
+    dist_table : ARRAY[0..N_DIST_MAX - 1] OF LREAL;
+    table_len : UDINT := 0;
+    idx : UDINT := 0;
+
+    mode_flags : UINT := 0;
+    reset_req : BOOL := FALSE;
+    experiment_active : BOOL := FALSE;
+    playback_done : BOOL := FALSE;
+    table_len_clamped : UDINT := 0;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

@@ -6,14 +6,22 @@
 
 ---
 
+## 0. 実装方針メモ (2026-02-24)
+
+* Phase 1 (1 ms SIL) 実装では PLC シンボル名を **`GVL_SEQ` / `GVL_SEQ_LOG`** に統一する（`GVL_EXP*` 互換は維持しない）。
+* `TmpLogger` の機能は `ExperimentSequencer` に置換し、Phase 1 統合完了後に撤去する。
+* Phase 3 の `ExperimentLogger` (C++ TcCOM) 導入まで、SIL 検証用の暫定リングバッファ logger を PLC (`GVL_SEQ_LOG`) に保持する。
+
+---
+
 ## 1. モジュール一覧
 
 | # | モジュール名 | 実装方式 | タスク (Phase 1–3 → Phase 4) | 役割 |
 |---|---|---|---|---|
 | 1 | **ControllerCore** | C++ TcCOM (新規) | VirtualMotorTask 1 ms → ControlTask 125 µs | 誤差計算 + FB 制御チェーン + FF 付加 (スカラ I/O、テーブル非所有) |
-| 2 | **ExperimentSequencer** | PLC ST (新規) | VirtualMotorTask 1 ms → ControlTask 125 µs | テーブルリプレイ + Dist 加算 |
+| 2 | **ExperimentSequencer** | PLC ST (新規) | VirtualMotorTask 1 ms → ControlTask 125 µs | テーブルリプレイ（ref / ff / dist スカラ出力のみ） |
 | 3 | **VirtualMotorCore** | C++ TcCOM (既存) | VirtualMotorTask 1 ms → ControlTask 125 µs | 仮想モーター物理シミュレーション (SIL 用、1慣性近似) |
-| 4 | **DriveAdapter** | PLC ST (Phase 4 新規) | ControlTask 125 µs | EtherCAT PDO I/O + CiA 402 状態遷移 (2慣性系: Motor 入力 / Load FB) |
+| 4 | **DriverAdapter** | PLC ST (Phase 1〜) | VirtualMotorTask 1 ms → ControlTask 125 µs | ControlInput + Dist → TargetTorque 合成 + ControlWord / StatusWord 中継 + EtherCAT PDO I/O (Phase 4) |
 | 5 | **ExperimentLogger** | C++ TcCOM (Phase 3 新規) | VirtualMotorTask 1 ms → ControlTask 125 µs | ファイルロギング専用 (8kHz×100s 対応) |
 | 6 | **ModeManager** | PLC ST (StateMachineControl 拡張) | PlcTask1 10 ms | CiA 402 + 実験シーケンス管理 + 安全監視 |
 
@@ -21,27 +29,34 @@
 
 ```
 Phase 1-3 (1 ms):
-  ExperimentSequencer ─── ControllerCore ─── VirtualMotorCore ─── ModeManager
-                                                       │
-                                             ExperimentLogger (Phase 3〜)
+  ExperimentSequencer ─── ControllerCore ─── DriverAdapter ─── VirtualMotorCore
+         │                                       │
+         └─── mode_flags ◄── ModeManager ◄───────┘ (CW/SW 中継)
+                                   │
+                         ExperimentLogger (Phase 3〜)
 
 Phase 4 (125 µs = 8 kHz):
-  ExperimentSequencer ─── ControllerCore ─── DriveAdapter ─── ModeManager
-         │                                                        │
-         └──── ExperimentLogger ──────────────────────────────────┘
+  ExperimentSequencer ─── ControllerCore ─── DriverAdapter ─── EtherCAT Drive
+         │                                       │
+         └─── mode_flags ◄── ModeManager ◄───────┘ (CW/SW 中継)
+         │                                                        
+         └──── ExperimentLogger ──────────────────────────────────
          (VirtualMotorCore は SIL テスト用に維持)
 ```
 
 > **設計意図:** ControllerCore (C++ TcCOM) はテーブルを所有しない。
 > 制御構造を C++ で直接実装し、ADS で Tunable Parameter を注入する。
 > 誤差計算・FB Chain・FF 付加を ControllerCore 内に配置する。
-> テーブルリプレイ・外乱加算は PLC ST (ExperimentSequencer) で実装する。
+> テーブルリプレイは PLC ST (ExperimentSequencer) で実装する。
+> ExperimentSequencer は ref / ff / dist のスカラ出力のみを担当する。
+> 外乱加算 (Dist Adder: target_torque = control_input + dist) および
+> ControlWord / StatusWord の中継は DriverAdapter (PLC ST) が担当する。
 >
 > **2慣性系構成:** 本実験は Motor + Load の 2 慣性系である。
 > トルク指令 (`target_torque`) は Motor 側に入力し、
 > 位置フィードバック (`position_act`) は Load 側エンコーダから取得する。
 > VirtualMotorCore (SIL) は Load 側応答の 1 慣性近似として動作する。
-> Phase 4 (DriveAdapter) で実機の Motor/Load 両方の信号を取得する。
+> Phase 4 (DriverAdapter + EtherCAT) で実機の Motor/Load 両方の信号を取得する。
 
 ---
 
@@ -57,13 +72,13 @@ Phase 4 (125 µs = 8 kHz):
 |---|---|---|---|---|
 | 1 | `ref_value` | `double` | ExperimentSequencer | 位置指令値 (スカラ) [rad] |
 | 2 | `ff_value` | `double` | ExperimentSequencer | FF 信号 (スカラ) [Nm] |
-| 3 | `position_act` | `double` | DriveAdapter / VirtualMotorCore | **Load 側**実位置 [rad] |
+| 3 | `position_act` | `double` | DriverAdapter / VirtualMotorCore | **Load 側**実位置 [rad] |
 
 ### 2.2 出力ポート (TcCOM Data Area Output)
 
 | # | ポート名 | データ型 | 宛先 | 説明 |
 |---|---|---|---|---|
-| 1 | `control_input` | `double` | ExperimentSequencer | 制御出力 $u_{fb} + u_{ff}$ [Nm] |
+| 1 | `control_input` | `double` | DriverAdapter | 制御出力 $u_{fb} + u_{ff}$ [Nm] |
 
 ### 2.3 内部処理
 
@@ -132,17 +147,18 @@ Phase 4 (125 µs = 8 kHz):
 
 ## 2A. ExperimentSequencer — PLC ST 仕様
 
-> **役割:** テーブルリプレイ・外乱加算を PLC ST で実装する。
+> **役割:** テーブルリプレイ（ref / ff / dist のスカラ読み出し）のみを PLC ST で実装する。
 > ControllerCore (C++ TcCOM) からテーブルを分離し、責務を明確化する。
 > 誤差計算・FF 付加は ControllerCore (C++ TcCOM) 側で実装する。
+> 外乱加算 (Dist Adder) は DriverAdapter に移管する。
+> **ExperimentSequencer は ref / ff / dist のスカラ出力のみを担当する。**
 
 ### 2A.1 機能
 
 1. **Ref Table Replay** — `ref_table[idx]` から位置指令値 `ref_value` (スカラ) を読み出し→ ControllerCore へ
 2. **FF Table Replay** — `ff_table[idx]` から FF 値 `ff_value` (スカラ) を読み出し→ ControllerCore へ
-3. **Dist Table Replay** — `dist_table[idx]` から外乱値 `dist_value` (スカラ) を読み出し
-4. **Dist Adder** — $\text{target\_torque} = \text{control\_input} + u_{dist}$ (最終トルク出力 → Motor 側)
-5. **テーブルインデックス管理** — `experiment_active` が `TRUE` の間 `idx` をインクリメント。`idx >= table_len` で再生完了。
+3. **Dist Table Replay** — `dist_table[idx]` から外乱値 `dist_value` (スカラ) を読み出し→ DriverAdapter へ
+4. **テーブルインデックス管理** — `experiment_active` が `TRUE` の間 `idx` をインクリメント。`idx >= table_len` で再生完了。
 
 ### 2A.2 GVL — テーブル変数
 
@@ -162,9 +178,8 @@ Phase 4 (125 µs = 8 kHz):
 
 | # | 変数名 | データ型 | ソース | 説明 |
 |---|---|---|---|---|
-| 1 | `control_input` | `LREAL` | ControllerCore | 制御出力 $u_{fb} + u_{ff}$ [Nm] |
-| 2 | `mode_flags` | `UINT` | ModeManager | 動作モードフラグ |
-| 3 | `experiment_active` | `BOOL` | ModeManager | 実験実行中フラグ |
+| 1 | `mode_flags` | `UINT` | ModeManager | 動作モードフラグ |
+| 2 | `experiment_active` | `BOOL` | ModeManager | 実験実行中フラグ |
 
 #### 出力
 
@@ -172,52 +187,106 @@ Phase 4 (125 µs = 8 kHz):
 |---|---|---|---|---|
 | 1 | `ref_value` | `LREAL` | ControllerCore | 位置指令値 (スカラ) `ref_table[idx]` [rad] |
 | 2 | `ff_value` | `LREAL` | ControllerCore | FF 信号 (スカラ) `ff_table[idx]` [Nm] |
-| 3 | `target_torque` | `LREAL` | DriveAdapter / VirtualMotorCore | 最終トルク $\text{control\_input} + u_{dist}$ [Nm] → Motor 側 |
+| 3 | `dist_value` | `LREAL` | DriverAdapter | 外乱値 (スカラ) `dist_table[idx]` [Nm] |
+
+---
+
+## 2B. DriverAdapter — PLC ST 仕様
+
+> **役割:** ControllerCore の制御出力 (`control_input`) を Drive 入力形式に整形するアダプタ層。
+> 外乱加算 (Dist Adder) と ControlWord / StatusWord の中継を担当する。
+> Phase 1–3 では VirtualMotorCore に接続し、Phase 4 で EtherCAT PDO I/O に切り替える。
+> **ExperimentSequencer からテーブルリプレイ処理を受け取らず、スカラ入力のみを扱う。**
+
+### 2B.1 機能
+
+1. **Dist Adder** — $\text{target\_torque} = \text{control\_input} + \text{dist\_value}$ (最終トルク出力 → Motor 側)
+2. **ControlWord 中継** — ModeManager が生成した `controlword` を Drive (VirtualMotorCore / EtherCAT) へ転送
+3. **StatusWord 中継** — Drive から受信した `statusword` を ModeManager へ転送
+4. **Phase 4 拡張:** EtherCAT PDO マッピング、2慣性系 (Motor + Load) の信号取得
+
+### 2B.2 入出力
+
+#### 入力
+
+| # | 変数名 | データ型 | ソース | 説明 |
+|---|---|---|---|---|
+| 1 | `control_input` | `LREAL` | ControllerCore | 制御出力 $u_{fb} + u_{ff}$ [Nm] |
+| 2 | `dist_value` | `LREAL` | ExperimentSequencer | 外乱値 (スカラ) [Nm] |
+| 3 | `statusword` | `UINT` | Drive (VirtualMotorCore / EtherCAT) | CiA 402 StatusWord |
+| 4 | `controlword_in` | `UINT` | ModeManager | CiA 402 ControlWord (ModeManager 生成) |
+
+#### 出力
+
+| # | 変数名 | データ型 | 宛先 | 説明 |
+|---|---|---|---|---|
+| 1 | `target_torque` | `LREAL` | Drive (VirtualMotorCore / EtherCAT) | 最終トルク $\text{control\_input} + \text{dist\_value}$ [Nm] → Motor 側 |
+| 2 | `controlword_out` | `UINT` | Drive (VirtualMotorCore / EtherCAT) | CiA 402 ControlWord (中継) |
+| 3 | `statusword_out` | `UINT` | ModeManager | CiA 402 StatusWord (中継) |
+
+> **Phase 4 追加出力 (EtherCAT PDO):**
+> `load_position`, `load_velocity` (Load 側エンコーダ)
+> `motor_position`, `motor_velocity`, `motor_torque_act` (Motor 側)
+>
+> Phase 1–3 では VirtualMotorCore の I/O 構造体と直接リンクする。
+> Phase 4 では EtherCAT Slave の PDO マッピングに切り替え、
+> tsproj の `<Mappings>` 変更のみで仮想/実機を選択可能にする。
 
 ---
 
 ## 3. Data Area — I/O リンク接続マップ
 
-### 3.1 ExperimentSequencer ↔ ControllerCore
+### 3.1 ExperimentSequencer → ControllerCore
 
 ```
 ExperimentSequencer.ref_value      ──►  ControllerCore.ref_value
 ExperimentSequencer.ff_value       ──►  ControllerCore.ff_value
-ControllerCore.control_input       ──►  ExperimentSequencer.control_input
 ```
 
-### 3.2 ControllerCore ↔ VirtualMotorCore (Phase 1–3)
+### 3.2 ControllerCore → DriverAdapter
 
 ```
-VirtualMotorCore.Outputs.VirtualMotorOutputs.position_out  ──►  ControllerCore.position_act
+ControllerCore.control_input       ──►  DriverAdapter.control_input
+```
+
+### 3.3 ExperimentSequencer → DriverAdapter
+
+```
+ExperimentSequencer.dist_value     ──►  DriverAdapter.dist_value
+```
+
+### 3.4 DriverAdapter ↔ VirtualMotorCore (Phase 1–3)
+
+```
+DriverAdapter.target_torque         ──►  VirtualMotorCore.Inputs.VirtualMotorInputs.current_in   (Motor 側入力)
+DriverAdapter.controlword_out       ──►  VirtualMotorCore.Inputs.controlword
+VirtualMotorCore.Outputs.statusword ──►  DriverAdapter.statusword
+VirtualMotorCore.Outputs.VirtualMotorOutputs.position_out  ──►  ControllerCore.position_act   (Load 側 FB)
 ```
 
 > VirtualMotorCore は 1 慣性近似。`position_out` は Load 側応答の近似値として扱う。
 
-### 3.3 ExperimentSequencer → VirtualMotorCore (Phase 1–3)
+### 3.5 ModeManager ↔ DriverAdapter
 
 ```
-ExperimentSequencer.target_torque  ──►  VirtualMotorCore.Inputs.VirtualMotorInputs.current_in   (Motor 側入力)
+ModeManager.controlword            ──►  DriverAdapter.controlword_in
+DriverAdapter.statusword_out       ──►  ModeManager.statusword
 ```
 
-### 3.3 ModeManager (StateMachineControl) ↔ VirtualMotorCore
+> ModeManager が CiA 402 ControlWord を生成し、DriverAdapter が Drive へ中継する。
+> Drive (VirtualMotorCore / EtherCAT) の StatusWord は DriverAdapter 経由で ModeManager に返る。
 
-```
-StateMachineControl.MAIN.uiCtrlWord  ──►  VirtualMotorCore.Inputs.controlword
-VirtualMotorCore.Outputs.statusword  ──►  StateMachineControl.MAIN.uiStatWord
-```
-
-### 3.4 ModeManager → ExperimentSequencer
+### 3.6 ModeManager → ExperimentSequencer
 
 ```
 ModeManager.mode_flags        ──►  ExperimentSequencer.mode_flags
 ModeManager.experiment_active ──►  ExperimentSequencer.experiment_active
 ```
 
-### 3.5 各モジュール → ExperimentLogger (Phase 3〜)
+### 3.7 各モジュール → ExperimentLogger (Phase 3〜)
 
 ```
-ExperimentSequencer.target_torque                          ──►  ExperimentLogger.Inputs.torque_cmd
+DriverAdapter.target_torque                                ──►  ExperimentLogger.Inputs.torque_cmd
 ExperimentSequencer.ref_value                              ──►  ExperimentLogger.Inputs.ref_value
 ExperimentSequencer.ff_value                               ──►  ExperimentLogger.Inputs.ff_value
 ControllerCore.control_input                               ──►  ExperimentLogger.Inputs.control_input
@@ -227,74 +296,86 @@ ControllerCore.error                                       ──►  Experiment
 VirtualMotorCore.Outputs.VirtualMotorOutputs.position_out  ──►  ExperimentLogger.Inputs.load_position    (Load 近似)
 VirtualMotorCore.Outputs.VirtualMotorOutputs.velocity_out  ──►  ExperimentLogger.Inputs.load_velocity    (Load 近似)
 
-(Phase 4: DriveAdapter — 2慣性系実機)
-DriveAdapter.Outputs.motor_position                        ──►  ExperimentLogger.Inputs.motor_position
-DriveAdapter.Outputs.motor_velocity                        ──►  ExperimentLogger.Inputs.motor_velocity
-DriveAdapter.Outputs.motor_torque_act                      ──►  ExperimentLogger.Inputs.motor_torque_act
-DriveAdapter.Outputs.load_position                         ──►  ExperimentLogger.Inputs.load_position
-DriveAdapter.Outputs.load_velocity                         ──►  ExperimentLogger.Inputs.load_velocity
+(Phase 4: DriverAdapter — 2慣性系実機)
+DriverAdapter.Outputs.motor_position                       ──►  ExperimentLogger.Inputs.motor_position
+DriverAdapter.Outputs.motor_velocity                       ──►  ExperimentLogger.Inputs.motor_velocity
+DriverAdapter.Outputs.motor_torque_act                     ──►  ExperimentLogger.Inputs.motor_torque_act
+DriverAdapter.Outputs.load_position                        ──►  ExperimentLogger.Inputs.load_position
+DriverAdapter.Outputs.load_velocity                        ──►  ExperimentLogger.Inputs.load_velocity
 ```
 
 > `error` は ControllerCore の Data Area Output として公開する。
 > Phase 1–3 では motor_position / motor_velocity / motor_torque_act は取得不可 (ゼロ埋め)。
 
-### 3.7 ControllerCore ↔ DriveAdapter (Phase 4)
+### 3.8 DriverAdapter ↔ EtherCAT Drive (Phase 4)
 
 ```
-DriveAdapter.Outputs.load_position  ──►  ControllerCore.position_act   (Load 側 FB)
+DriverAdapter.target_torque         ──►  EtherCAT.PDO.target_torque   (Motor 側入力)
+DriverAdapter.controlword_out       ──►  EtherCAT.PDO.controlword
+EtherCAT.PDO.statusword             ──►  DriverAdapter.statusword
+EtherCAT.PDO.load_position          ──►  ControllerCore.position_act   (Load 側 FB)
 ```
 
-### 3.8 ExperimentSequencer → DriveAdapter (Phase 4)
-
-```
-ExperimentSequencer.target_torque  ──►  DriveAdapter.Inputs.target_torque   (Motor 側入力)
-```
-
-> DriveAdapter は VirtualMotorCore と同一の Data Area インターフェース名を採用し、  
+> Phase 4 では DriverAdapter が EtherCAT PDO に接続する。
+> VirtualMotorCore と同一の Data Area インターフェース名を採用し、
 > tsproj の `<Mappings>` 切り替えのみで仮想/実機を選択可能にする。
 
 ### 3.9 接続マップ図 (Phase 1–3)
 
 ```
-┌──────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────┐
 │       ControllerCore (C++ TcCOM)                 │
 │       誤差計算 + FB Chain + FF Adder              │
-│                                              │
-│  ref_value    ◄────── ExperimentSequencer    │
-│  ff_value     ◄────── ExperimentSequencer    │
-│  position_act ◄────── VirtualMotorCore       │
-│                    (Load 側 1慣性近似)        │
-│                                              │
-│  [e = ref - pos] → PID → Lead → Notch → Reso │
-│  [u_fb + ff_value]                            │
-│                                              │
-│  control_input ────► ExperimentSequencer     │
-└──────────────────────────────────────────────┘
+│                                                  │
+│  ref_value    ◄──────── ExperimentSequencer      │
+│  ff_value     ◄──────── ExperimentSequencer      │
+│  position_act ◄──────── VirtualMotorCore         │
+│                      (Load 側 1慣性近似)          │
+│                                                  │
+│  [e = ref - pos] → PID → Lead → Notch → Reso    │
+│  [u_fb + ff_value]                                │
+│                                                  │
+│  control_input ──────► DriverAdapter             │
+└──────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────┐
-│       ExperimentSequencer (PLC ST)                │
+│       ExperimentSequencer (PLC ST)               │
+│       テーブル読み出し専用 (ref / ff / dist)      │
 │                                                  │
-│  control_input ◄───────── ControllerCore         │
 │  mode_flags ◄──────────── ModeManager            │
 │  experiment_active ◄───── ModeManager            │
 │                                                  │
-│  ref_table[idx] → ref_value → ControllerCore     │
-│  ff_table[idx]  → ff_value  → ControllerCore     │
-│  dist_table[idx]→ dist_value                     │
-│  target_torque = control_input + u_dist           │
-│                                                  │
-│  ref_value ────────────►  ControllerCore         │
-│  ff_value  ────────────►  ControllerCore         │
-│  target_torque ────────►  VirtualMotorCore.in (Motor 側)    │
+│  ref_table[idx]  → ref_value  → ControllerCore   │
+│  ff_table[idx]   → ff_value   → ControllerCore   │
+│  dist_table[idx] → dist_value → DriverAdapter    │
 └──────────────────────────────────────────────────┘
 
-┌──────────────────────────────────┐
-│       ModeManager                │
-│    (StateMachineControl PLC)     │
-│                                  │
-│  uiCtrlWord ─────────────────────►  VirtualMotorCore.controlword
-│  uiStatWord ◄────────────────────── VirtualMotorCore.statusword
-└──────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│       DriverAdapter (PLC ST)                     │
+│       ControlInput → Drive 入力整形              │
+│                                                  │
+│  control_input ◄───────── ControllerCore         │
+│  dist_value    ◄───────── ExperimentSequencer    │
+│  controlword_in ◄──────── ModeManager            │
+│  statusword    ◄───────── VirtualMotorCore       │
+│                                                  │
+│  target_torque = control_input + dist_value      │
+│                                                  │
+│  target_torque ──────────► VirtualMotorCore.in (Motor 側)   │
+│  controlword_out ────────► VirtualMotorCore.controlword     │
+│  statusword_out ─────────► ModeManager                      │
+└──────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────┐
+│       ModeManager (StateMachineControl PLC)      │
+│       CiA 402 + 実験シーケンス + 安全監視        │
+│                                                  │
+│  statusword ◄──────────── DriverAdapter          │
+│                                                  │
+│  controlword ────────────► DriverAdapter         │
+│  mode_flags ─────────────► ExperimentSequencer   │
+│  experiment_active ──────► ExperimentSequencer   │
+└──────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────┐
 │       MATLAB Orchestrator                        │
@@ -302,7 +383,7 @@ ExperimentSequencer.target_torque  ──►  DriveAdapter.Inputs.target_torque 
 │  ───► ADS Write (ExperimentSequencer GVL):        │
 │       ref_table[], ff_table[], dist_table[],      │
 │       table_len                                   │
-│  ───► ADS Write (ControllerCore TcCOM):        │
+│  ───► ADS Write (ControllerCore TcCOM):           │
 │       pid_Kp, pid_Ki, pid_Kd, pid_N              │
 │       lead_num[], lead_den[]                      │
 │       notch_b0..a2, reso_b0..a2                   │
@@ -310,7 +391,7 @@ ExperimentSequencer.target_torque  ──►  DriveAdapter.Inputs.target_torque 
 │       enable_reso                                 │
 │  ───► ADS Write: mode_flags, experiment_active    │
 │  ◄─── ADS Read:  ExperimentLogger ステータス     │
-│  ◄─── File Read: ログファイル (実験後)       │
+│  ◄─── File Read: ログファイル (実験後)            │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -400,16 +481,16 @@ GVL_MODE.experiment_state  → UINT   (IDLE=0, READY=1, RUNNING=2, DONE=3)
 
 | Task 名 | CycleTime | Priority | AmsPort | バインドモジュール |
 |---|---|---|---|---|
-| VirtualMotorTask | 1,000,000 ns (1 ms) | 1 | 351 | ControllerCore, ExperimentSequencer, VirtualMotorCore, (ExperimentLogger) |
+| VirtualMotorTask | 1,000,000 ns (1 ms) | 1 | 351 | ControllerCore, ExperimentSequencer, DriverAdapter, VirtualMotorCore, (ExperimentLogger) |
 | PlcTask1 | 10,000,000 ns (10 ms) | 21 | 352 | ModeManager (StateMachineControl) |
 
-> TmpLogger の PlcTask (1 ms, Priority 20) はControllerCore 導入後に段階的に廃止。
+> TmpLogger の PlcTask (1 ms, Priority 20) は Phase 1 統合完了後に撤去予定。
 
 ### 5.2 Phase 4 (125 µs = 8 kHz)
 
 | Task 名 | CycleTime | Priority | AmsPort | バインドモジュール |
 |---|---|---|---|---|
-| ControlTask | 125,000 ns (125 µs) | 1 | 351 | ControllerCore, ExperimentSequencer, DriveAdapter, ExperimentLogger |
+| ControlTask | 125,000 ns (125 µs) | 1 | 351 | ControllerCore, ExperimentSequencer, DriverAdapter, ExperimentLogger |
 | SupervisionTask | 1,000,000 ns (1 ms) | 20 | 352 | ModeManager |
 
 > EtherCAT DC Sync0 = 125 µs に設定。
@@ -482,16 +563,31 @@ END_TYPE
 
 ```
              ExperimentSequencer (PLC ST)
+             テーブル読み出し専用 (ref / ff / dist)
   ┌─────────────────────────────────────────────────────────┐
   │                                                         │
   │  ref_table[idx]  ──► ref_value  ──► ControllerCore     │
   │  ff_table[idx]   ──► ff_value   ──► ControllerCore     │
-  │                                                         │
-  │  ControllerCore.control_input ──────────────────► (+) ──► target_torque
-  │  dist_table[idx] ────────────────────────────────► (+)    │
+  │  dist_table[idx] ──► dist_value ──► DriverAdapter      │
   │                                                         │
   │  idx: experiment_active=TRUE の間インクリメント          │
-  │  idx >= table_len → target_torque = 0, 再生完了         │
+  │  idx >= table_len → 再生完了                             │
+  └─────────────────────────────────────────────────────────┘
+```
+
+### 7.1b DriverAdapter 内部フロー
+
+```
+             DriverAdapter (PLC ST)
+             ControlInput → Drive 入力整形
+  ┌─────────────────────────────────────────────────────────┐
+  │                                                         │
+  │  ControllerCore.control_input ────────────────► (+) ──► target_torque → Drive
+  │  ExperimentSequencer.dist_value ──────────────► (+)    │
+  │                                                         │
+  │  ModeManager.controlword ──────────► controlword_out → Drive
+  │  Drive.statusword ────────────────► statusword_out → ModeManager
+  │                                                         │
   └─────────────────────────────────────────────────────────┘
 ```
 
@@ -517,12 +613,12 @@ Lead / Notch / Reso も同様。bypass 時はフィルタ内部状態をリセ�
 | # | 決定 | 根拠 |
 |---|---|---|
 | D1 | C++ TcCOM — 誤差計算 + FB Chain + FF Adder | TE1400 試用版 100kB 制限を回避。C++ 直接実装で TE1400 への依存を完全排除。ADS Tunable Parameter により Build 不要の設計は維持 |
-| D1a | テーブル・外乱加算は PLC ST | ExperimentSequencer に分離。GVL 配列で ADS 注入。責務分離を徹底 |
+| D1a | テーブルリプレイは ExperimentSequencer、外乱加算・ControlWord/StatusWord 中継は DriverAdapter | ExperimentSequencer は ref/ff/dist のスカラ出力に専念。DriverAdapter が control_input + dist → target_torque 合成と ControlWord/StatusWord 中継を担当。責務分離を徹底 |
 | D2 | FB Chain バイパスフラグ方式 | Build 1 回で全構成を包含。実験条件変更は ADS パラメータ注入のみ |
 | D3 | 位相最適共振フィルタは Biquad 形式 | Notch と同一構造で実装コストを抑え、係数で特性を変更可能 |
 | D4 | サイクルタイム Phase 1–3 は 1 ms | 既存 VirtualMotorCore の検証済み設定を維持し、段階的に 8 kHz へ移行 |
-| D5 | VirtualMotorCore を SIL 基盤として維持 | DriveAdapter と同一 I/F (Load 側出力) で差し替え可能。1慣性近似としてオフライン検証に利用 |
-| D6 | TmpLogger は段階的廃止 | テーブルリプレイ→ControllerCore、ログ→ExperimentLogger に機能移管 |
+| D5 | VirtualMotorCore を SIL 基盤として維持 | DriverAdapter と同一 I/F (Load 側出力) で差し替え可能。1慣性近似としてオフライン検証に利用 |
+| D6 | TmpLogger は Phase 1 で置換完了 | テーブルリプレイ + SIL 暫定ログを `ExperimentSequencer` (PLC ST) に、Dist 加算を `DriverAdapter` (PLC ST) に移管し、旧 TmpLogger は撤去する |
 | D7 | Lead / Notch / Reso は離散伝達関数係数を ADS 注入 | MATLAB で連続→離散変換 (`c2d`) し、係数のみ送信。Build 不要 |
 | D8 | ExperimentLogger は C++ TcCOM ファイルライタ方式 | 8kHz × 100s = 800,000 サンプルの長時間記録に対応。Ring Buffer + ADS ではメモリ制約あり。ファイル I/O でデータ量制限なし |
 | D9 | 2慣性系構成: Motor 入力 / Load FB | トルク指令は Motor 側、位置 FB は Load 側。ログには Motor/Load 両方の信号を記録。VirtualMotorCore は Load 側 1 慣性近似 |

@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Task Name="PlcTask" Id="{7deaaa95-868d-4499-bba4-8be9563eeea1}">
+    <!--CycleTime in micro seconds.-->
+    <CycleTime>1000</CycleTime>
+    <Priority>22</Priority>
+    <PouCall>
+      <Name>PRG_DriverAdapter</Name>
+    </PouCall>
+    <TaskFBGuid>{986b3d55-8de8-4c09-870b-d2e4a50d9ef8}</TaskFBGuid>
+    <Fb_init>{d4031be2-00ef-4928-b13c-08ef6f35823e}</Fb_init>
+    <Fb_exit>{1e901b6c-bb8f-4e8d-95c7-8d23d76a1750}</Fb_exit>
+    <CycleUpdate>{b248a879-e815-44f4-8afa-4c60c98d0188}</CycleUpdate>
+    <PostCycleUpdate>{15f2d9a8-9953-42f3-b0dc-d1b9758f4ab0}</PostCycleUpdate>
+    <ObjectProperties />
+  </Task>
+</TcPlcObject>

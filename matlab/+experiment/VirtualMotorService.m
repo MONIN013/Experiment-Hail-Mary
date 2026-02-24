@@ -110,12 +110,10 @@ classdef VirtualMotorService < handle
       elapsed_s = toc(t_run);
 
       position_last = obj.plc_transport.read_scalar(plc_symbols.position_act_log, t.double);
-      target_torque_last = obj.plc_transport.read_scalar(plc_symbols.target_torque, t.double);
       control_input_last = obj.plc_transport.read_scalar(plc_symbols.control_input, t.double);
 
       raw = struct();
       raw.position_last = double(position_last);
-      raw.target_torque_last = double(target_torque_last);
       raw.control_input_last = double(control_input_last);
 
       if ~(cfg.wait_for_done && cfg.log_stream_enable && host_log_stats.log_stream_enabled)
@@ -134,6 +132,11 @@ classdef VirtualMotorService < handle
       raw.log_x = raw.log_position_act; % compatibility alias
       raw.log_wr_idx = log_data.wr_idx;
       raw.log_overflow = log_data.overflow;
+      if isempty(raw.log_target_torque)
+        raw.target_torque_last = NaN;
+      else
+        raw.target_torque_last = raw.log_target_torque(end);
+      end
 
       cmd = struct();
       cmd.ref_profile = ref_profile;
@@ -442,7 +445,7 @@ classdef VirtualMotorService < handle
           state.rd_idx_supported = false;
           if ~state.rd_idx_warned
             warning("experiment:service:rdIdxUnavailable", ...
-              "GVL_EXP_LOG.rd_idx write unavailable; continuing without PLC-side consumer index sync (%s: %s).", ...
+              "GVL_SEQ_LOG.rd_idx write unavailable; continuing without PLC-side consumer index sync (%s: %s).", ...
               string(e.identifier), string(e.message));
             state.rd_idx_warned = true;
           end
@@ -457,7 +460,7 @@ classdef VirtualMotorService < handle
       n2 = double(take_n) - n1;
 
       chunk = struct();
-      % PLC logger writes absolute sequence numbers (GVL_EXP_LOG.seq) in lockstep with wr_idx.
+      % PLC logger writes absolute sequence numbers (GVL_SEQ_LOG.seq) in lockstep with wr_idx.
       % Reconstructing from abs_start_idx avoids TwinCAT/MATLAB UDINT[] slice marshaling issues.
       chunk.log_seq = obj.make_expected_seq_chunk(abs_start_idx, take_n);
       chunk.log_ref_value = obj.read_log_component_slice(symbols.log.log_ref_value, t.double, start_ring, n1, n2);

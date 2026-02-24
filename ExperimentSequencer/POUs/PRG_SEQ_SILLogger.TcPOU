@@ -1,0 +1,43 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="PRG_SEQ_SILLogger" Id="{5b0d022b-79a3-4644-b2e3-10990202171b}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM PRG_SEQ_SILLogger
+VAR
+    log_write_idx : DINT := 0;
+    wr_pos : UDINT := 0;
+    logged_idx : UDINT := 0;
+    dist_value_local : LREAL := 0.0;
+    target_torque_local : LREAL := 0.0;
+    VM_TASK_DT_NS : ULINT := ULINT#1000000;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF GVL_SEQ.experiment_active AND (GVL_SEQ.idx > 0) AND (GVL_SEQ.idx <= GVL_SEQ.table_len) THEN
+    logged_idx := GVL_SEQ.idx - 1;
+    wr_pos := GVL_SEQ_LOG.wr_idx MOD GVL_SEQ_LOG.LOG_N;
+    log_write_idx := UDINT_TO_DINT(wr_pos);
+    dist_value_local := GVL_SEQ.dist_value;
+    target_torque_local := GVL_SEQ.control_input + dist_value_local;
+
+    GVL_SEQ_LOG.seq := GVL_SEQ_LOG.seq + 1;
+    GVL_SEQ_LOG.t_ns := UDINT_TO_ULINT(GVL_SEQ_LOG.seq) * VM_TASK_DT_NS;
+
+    GVL_SEQ_LOG.log_seq[log_write_idx] := GVL_SEQ_LOG.seq;
+    GVL_SEQ_LOG.log_ref_value[log_write_idx] := GVL_SEQ.ref_value;
+    GVL_SEQ_LOG.log_ff_value[log_write_idx] := GVL_SEQ.ff_value;
+    GVL_SEQ_LOG.log_dist_value[log_write_idx] := dist_value_local;
+    GVL_SEQ_LOG.log_control_input[log_write_idx] := GVL_SEQ.control_input;
+    GVL_SEQ_LOG.log_target_torque[log_write_idx] := target_torque_local;
+    GVL_SEQ_LOG.log_position_act[log_write_idx] := GVL_SEQ.position_act_log;
+    GVL_SEQ_LOG.log_t[log_write_idx] := GVL_SEQ_LOG.t_ns;
+    GVL_SEQ_LOG.log_idx[log_write_idx] := logged_idx;
+
+    GVL_SEQ_LOG.wr_idx := GVL_SEQ_LOG.wr_idx + 1;
+    IF (GVL_SEQ_LOG.wr_idx - GVL_SEQ_LOG.rd_idx) > GVL_SEQ_LOG.LOG_N THEN
+        GVL_SEQ_LOG.overflow := TRUE;
+    END_IF
+END_IF
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

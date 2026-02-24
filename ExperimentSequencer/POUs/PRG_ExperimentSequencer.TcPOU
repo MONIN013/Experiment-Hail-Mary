@@ -1,0 +1,93 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="PRG_ExperimentSequencer" Id="{518793a6-a82c-47c2-829c-15995f9de9f5}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM PRG_ExperimentSequencer
+VAR
+    table_idx_dint : DINT := 0;
+    table_len_local : UDINT := 0;
+    table_len_max_local : UDINT := 0;
+    ref_value_local : LREAL := 0.0;
+    ff_value_local : LREAL := 0.0;
+    dist_value_local : LREAL := 0.0;
+    experiment_active_prev : BOOL := FALSE;
+    start_edge : BOOL := FALSE;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF GVL_SEQ.reset_req THEN
+    GVL_SEQ.experiment_active := FALSE;
+    GVL_SEQ.table_len := 0;
+    GVL_SEQ.table_len_clamped := 0;
+    GVL_SEQ.idx := 0;
+    GVL_SEQ.ref_value := 0.0;
+    GVL_SEQ.ff_value := 0.0;
+    GVL_SEQ.dist_value := 0.0;
+    GVL_SEQ.playback_done := FALSE;
+
+    GVL_SEQ_LOG.seq := 0;
+    GVL_SEQ_LOG.t_ns := 0;
+    GVL_SEQ_LOG.wr_idx := 0;
+    GVL_SEQ_LOG.rd_idx := 0;
+    GVL_SEQ_LOG.overflow := FALSE;
+
+    GVL_SEQ.reset_req := FALSE;
+END_IF
+
+start_edge := GVL_SEQ.experiment_active AND NOT experiment_active_prev;
+
+table_len_max_local := GVL_SEQ.N_REF_MAX;
+IF GVL_SEQ.N_FF_MAX < table_len_max_local THEN
+    table_len_max_local := GVL_SEQ.N_FF_MAX;
+END_IF
+IF GVL_SEQ.N_DIST_MAX < table_len_max_local THEN
+    table_len_max_local := GVL_SEQ.N_DIST_MAX;
+END_IF
+
+table_len_local := GVL_SEQ.table_len;
+IF table_len_local > table_len_max_local THEN
+    table_len_local := table_len_max_local;
+END_IF
+GVL_SEQ.table_len_clamped := table_len_local;
+
+IF start_edge THEN
+    GVL_SEQ.idx := 0;
+    GVL_SEQ.playback_done := FALSE;
+END_IF
+
+IF GVL_SEQ.experiment_active THEN
+    IF table_len_local = 0 THEN
+        GVL_SEQ.experiment_active := FALSE;
+        GVL_SEQ.playback_done := TRUE;
+        GVL_SEQ.ref_value := 0.0;
+        GVL_SEQ.ff_value := 0.0;
+        GVL_SEQ.dist_value := 0.0;
+    ELSIF (GVL_SEQ.idx < table_len_local) THEN
+        table_idx_dint := UDINT_TO_DINT(GVL_SEQ.idx);
+
+        ref_value_local := GVL_SEQ.ref_table[table_idx_dint];
+        ff_value_local := GVL_SEQ.ff_table[table_idx_dint];
+        dist_value_local := GVL_SEQ.dist_table[table_idx_dint];
+
+        GVL_SEQ.ref_value := ref_value_local;
+        GVL_SEQ.ff_value := ff_value_local;
+        GVL_SEQ.dist_value := dist_value_local;
+
+        GVL_SEQ.idx := GVL_SEQ.idx + 1;
+    ELSE
+        GVL_SEQ.experiment_active := FALSE;
+        GVL_SEQ.playback_done := TRUE;
+        GVL_SEQ.ref_value := 0.0;
+        GVL_SEQ.ff_value := 0.0;
+        GVL_SEQ.dist_value := 0.0;
+    END_IF
+ELSE
+    GVL_SEQ.ref_value := 0.0;
+    GVL_SEQ.ff_value := 0.0;
+    GVL_SEQ.dist_value := 0.0;
+END_IF
+
+experiment_active_prev := GVL_SEQ.experiment_active;
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

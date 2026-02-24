@@ -4,6 +4,15 @@
 
 ---
 
+## 実装ステータス (2026-02-24)
+
+* 現在位置: **Phase 1 統合前〜統合中 (1 ms SIL)**
+* 実装済み: `ControllerCore` の最小 C++ TcCOM ループ (`ref_value`, `ff_value`, `position_act` → `control_input`)
+* 進行中: `ExperimentSequencer` (PLC ST) へのテーブルリプレイ / Dist 加算 / SIL 暫定ログの分離
+* 次に進むべき Phase: **Phase 1 (1 ms) 統合完了** (`ExperimentSequencer + ControllerCore + VirtualMotorCore`)
+
+---
+
 ## 1. 技術的目標
 
 ### 1.1 周期同期性の保証

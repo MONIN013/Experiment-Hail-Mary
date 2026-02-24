@@ -11,9 +11,16 @@ title Next-Gen Experiment Platform — Module Architecture
 package "TwinCAT Real-Time (Phase 1-3: 1 ms / Phase 4: 125 µs = 8 kHz)" {
 
   ' ---- Drive / Plant ----
-  package "DriveAdapter\n(PLC ST — Phase 4)\nor VirtualMotorCore\n(C++ TcCOM — Phase 1-3)" as Drive {
+  package "VirtualMotorCore\n(C++ TcCOM — Phase 1-3)\nor EtherCAT Drive\n(Phase 4)" as Drive {
     [CiA 402\nState Machine] as CiA
-    [PDO I/O\n(EtherCAT)] as PDO
+    [PDO I/O\n(EtherCAT / Virtual)] as PDO
+  }
+
+  ' ---- DriverAdapter (PLC ST — ControlInput→Drive整形 + CW/SW中継) ----
+  package "DriverAdapter\n(PLC ST)" as DA {
+    [Dist Adder\n(target = control_input + dist_value)] as DistAddDrv
+    [ControlWord\nRelay] as CWRelay
+    [StatusWord\nRelay] as SWRelay
   }
 
   ' ---- ControllerCore (C++ TcCOM — 誤差計算 + FB Chain + FF付加) ----
@@ -30,16 +37,15 @@ package "TwinCAT Real-Time (Phase 1-3: 1 ms / Phase 4: 125 µs = 8 kHz)" {
     [FF Adder\n(u = u_fb + ff_value)] as FFAdd
   }
 
-  ' ---- ExperimentSequencer (PLC ST — テーブル所有・最終合成) ----
-  package "ExperimentSequencer\n(PLC ST)" as Seq {
+  ' ---- ExperimentSequencer (PLC ST — テーブル読み出し専用) ----
+  package "ExperimentSequencer\n(PLC ST\nテーブル読み出し専用)" as Seq {
     [Ref Table Replay\n(ref_table)] as RefTbl
     [FF Table Replay\n(ff_table)] as FF
     [Dist Table Replay\n(dist_table)] as Dist
-    [Dist Adder\n(target = control_input + u_dist)] as DistAdd
   }
 
   ' ---- ModeManager (PLC ST) ----
-  [ModeManager\n(PLC ST, 10 ms)] as Mode
+  [ModeManager\n(PLC ST, 10 ms)\nCiA 402 + 実験シーケンス\n+ 安全監視] as Mode
 
   ' ---- ExperimentLogger (C++ TcCOM) ----
   [ExperimentLogger\n(C++ TcCOM, File Writer)] as Log
@@ -52,6 +58,9 @@ package "TwinCAT Real-Time (Phase 1-3: 1 ms / Phase 4: 125 µs = 8 kHz)" {
   RefTbl --> Err : ref_value\n(scalar)
   FF --> FFAdd : ff_value\n(scalar)
 
+  ' ---- ExperimentSequencer → DriverAdapter (dist_value) ----
+  Dist --> DistAddDrv : dist_value\n(scalar)
+
   ' ---- ControllerCore internal ----
   Err --> PID : error
   PID --> Lead
@@ -59,22 +68,26 @@ package "TwinCAT Real-Time (Phase 1-3: 1 ms / Phase 4: 125 µs = 8 kHz)" {
   Notch --> Reso
   Reso --> FFAdd : u_fb
 
-  ' ---- ControllerCore → ExperimentSequencer ----
-  FFAdd --> DistAdd : control_input\n(u_fb + u_ff)
+  ' ---- ControllerCore → DriverAdapter ----
+  FFAdd --> DistAddDrv : control_input\n(u_fb + u_ff)
 
-  Dist --> DistAdd : u_dist
+  ' ---- DriverAdapter → Drive (Motor 側入力) ----
+  DistAddDrv --> PDO : target_torque\n(Motor 側)
 
-  ' ---- ExperimentSequencer → Drive (Motor 側入力) ----
-  DistAdd --> PDO : target_torque\n(Motor 側)
+  ' ---- ModeManager → DriverAdapter → Drive (ControlWord) ----
+  Mode --> CWRelay : controlword
+  CWRelay --> CiA : controlword_out
 
-  ' ---- ModeManager ↔ Drive ----
-  Mode --> CiA : controlword
-  CiA --> Mode : statusword
+  ' ---- Drive → DriverAdapter → ModeManager (StatusWord) ----
+  CiA --> SWRelay : statusword
+  SWRelay --> Mode : statusword_out
+
+  ' ---- ModeManager → ExperimentSequencer ----
   Mode --> Seq : mode_flags\nexperiment_active
 
   ' ---- Logging ----
   Err --> Log : error
-  DistAdd --> Log : torque_cmd
+  DistAddDrv --> Log : torque_cmd
   RefTbl --> Log : ref_value
   FF --> Log : ff_value
   FFAdd --> Log : control_input
@@ -106,22 +119,31 @@ note right of CC
   **テーブル (ref/ff/dist) は所有しない。**
   入力: ref_value, ff_value, position_act (全スカラ)
   position_act = **Load 側**実位置 (FB 対象)
-  出力: control_input (u_fb + ff_value) → Motor 側
+  出力: control_input (u_fb + ff_value) → DriverAdapter
   ゲイン・係数は ADS Tunable Parameter で注入。
 end note
 
 note right of Seq
-  テーブル所有・テーブルリプレイ・
-  Dist 加算 (target = control_input + u_dist) を
-  PLC ST で実装。責務分離を徹底。
+  テーブル所有・テーブルリプレイのみ。
+  **ref / ff / dist のスカラ出力に専念。**
+  Dist 加算は DriverAdapter が担当。
   テーブルは GVL 配列として ADS 経由で注入。
+end note
+
+note right of DA
+  **ControlInput → Drive 入力整形アダプタ。**
+  Dist Adder: target = control_input + dist_value
+  ModeManager → ControlWord → Drive (中継)
+  Drive → StatusWord → ModeManager (中継)
+  Phase 1-3: VirtualMotorCore I/F に接続
+  Phase 4: EtherCAT PDO に切り替え
 end note
 
 note right of Drive
   **2慣性系:** target_torque → Motor 側
   position FB ← Load 側エンコーダ
   Phase 1-3: VirtualMotorCore (1慣性近似)
-  Phase 4: DriveAdapter (Motor+Load 実機)
+  Phase 4: EtherCAT Drive (Motor+Load 実機)
   同一 Data Area I/F で差し替え可能。
 end note
 

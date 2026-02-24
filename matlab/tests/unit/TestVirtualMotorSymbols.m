@@ -2,9 +2,9 @@ classdef TestVirtualMotorSymbols < matlab.unittest.TestCase
   methods (Test)
     function fromDefaultsBuildsGvlExpContract(testCase)
       s = experiment.VirtualMotorSymbols.from_defaults();
-      testCase.verifyEqual(string(s.reset), "GVL_EXP.reset_req");
-      testCase.verifyEqual(string(s.ref_table), "GVL_EXP.ref_table");
-      testCase.verifyEqual(string(s.log.log_ref_value), "GVL_EXP_LOG.log_ref_value");
+      testCase.verifyEqual(string(s.reset), "GVL_SEQ.reset_req");
+      testCase.verifyEqual(string(s.ref_table), "GVL_SEQ.ref_table");
+      testCase.verifyEqual(string(s.log.log_ref_value), "GVL_SEQ_LOG.log_ref_value");
       testCase.verifyGreaterThanOrEqual(size(s.plc_required_probes, 1), 6);
     end
 
