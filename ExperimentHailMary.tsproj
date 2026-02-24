@@ -73,6 +73,68 @@
 				<Hide GUID="{BFC6ACC0-51F9-4334-ADDA-169B9F320B23}"/>
 			</Hides>
 		</DataType>
+		<DataType>
+			<Name GUID="{7A41B282-B6EF-4DA2-B9CD-74B2D70476B6}">ST_Notch</Name>
+			<BitSize>320</BitSize>
+			<SubItem>
+				<Name>notch_b0</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>0</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>notch_b1</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>64</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>notch_b2</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>128</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>notch_a1</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>192</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>notch_a2</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>256</BitOffs>
+			</SubItem>
+		</DataType>
+		<DataType>
+			<Name GUID="{13107610-CD3F-4EB5-ABFF-3AFC341E6827}">ST_FilterEnable</Name>
+			<BitSize>32</BitSize>
+			<SubItem>
+				<Name>enable_pid</Name>
+				<Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
+				<BitSize>8</BitSize>
+				<BitOffs>0</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>enable_lead</Name>
+				<Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
+				<BitSize>8</BitSize>
+				<BitOffs>8</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>enable_notch</Name>
+				<Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
+				<BitSize>8</BitSize>
+				<BitOffs>16</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>enable_reso</Name>
+				<Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
+				<BitSize>8</BitSize>
+				<BitOffs>24</BitOffs>
+			</SubItem>
+		</DataType>
 	</DataTypes>
 	<Project ProjectGUID="{4A5895CC-136C-4342-8211-A3240A616049}" TargetNetId="192.168.10.3.1.1" Target64Bit="true" ShowHideConfigurations="#x6">
 		<System>
@@ -90,27 +152,40 @@
 		</System>
 		<Plc>
 			<Project GUID="{BE83EF32-AB68-4A1C-B0C2-8329058EB897}" Name="TmpLogger" PrjFilePath="TmpLogger\TmpLogger.plcproj" TmcFilePath="TmpLogger\TmpLogger.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{6321C3FE-441C-67DF-E7DB-5BD5E527EC40}" TmcPath="TmpLogger\TmpLogger.tmc">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="1" AutoReloadTmc="true" TmcHash="{82BEC5FB-D816-816E-9E29-85A19E7A6732}" TmcPath="TmpLogger\TmpLogger.tmc">
 					<Name>TmpLogger Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
 						<Name>PlcTask Outputs</Name>
 						<Var>
-							<Name>GVL_VM.current_in</Name>
+							<Name>GVL_EXE.target_torque</Name>
 							<Type>LREAL</Type>
 						</Var>
 					</Vars>
 					<Vars VarGrpType="1">
 						<Name>PlcTask Inputs</Name>
 						<Var>
-							<Name>GVL_VM.position_out</Name>
+							<Name>GVL_EXE.control_input</Name>
 							<Type>LREAL</Type>
 						</Var>
 						<Var>
-							<Name>GVL_VM.velocity_out</Name>
+							<Name>GVL_EXE.position_act_log</Name>
 							<Type>LREAL</Type>
 						</Var>
 					</Vars>
+					<UnrestoredVarLinks ImportTime="2026-02-24T16:47:08">
+						<OwnerA Name="InputDst" Prefix="TIPC^TmpLogger^TmpLogger Instance" Type="1">
+							<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">
+								<Link VarA="GVL_VM.position_out" TypeA="LREAL" InOutA="0" GuidA="{18071995-0000-0000-0000-00000000000E}" VarB="Outputs^VirtualMotorOutputs^position_out" RestoreInfo="ANotFound"/>
+								<Link VarA="GVL_VM.velocity_out" TypeA="LREAL" InOutA="0" GuidA="{18071995-0000-0000-0000-00000000000E}" VarB="Outputs^VirtualMotorOutputs^velocity_out" RestoreInfo="ANotFound"/>
+							</OwnerB>
+						</OwnerA>
+						<OwnerA Name="OutputSrc" Prefix="TIPC^TmpLogger^TmpLogger Instance" Type="2">
+							<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">
+								<Link VarA="GVL_VM.current_in" TypeA="LREAL" InOutA="1" GuidA="{18071995-0000-0000-0000-00000000000E}" VarB="Inputs^VirtualMotorInputs^current_in" RestoreInfo="ANotFound"/>
+							</OwnerB>
+						</OwnerA>
+					</UnrestoredVarLinks>
 					<Contexts>
 						<Context>
 							<Id>0</Id>
@@ -302,23 +377,245 @@
 					</TmcDesc>
 				</Instance>
 			</Project>
+			<Project GUID="{01FE3380-D2A3-4A81-BD4B-E9783E511DE6}" Name="ControllerCore" PrjFilePath="ControllerCore\ControllerCore.vcxproj" TmcFilePath="ControllerCore\ControllerCore.tmc">
+				<Instance Id="#x01010020" KeepUnrestoredLinks="2" ClassFactoryId="C++ Module Vendor|ControllerCore|0.0.0.1">
+					<Name>ControllerCore_Obj1 (Module1)</Name>
+					<TmcDesc GUID="{0424A75D-EBD0-493B-BE31-E3FB024B65C5}" ClassFactoryId="C++ Module Vendor|ControllerCore|0.0.0.1">
+						<Name>Module1</Name>
+						<CLSID ClassFactory="ControllerCore">{0424A75D-EBD0-493B-BE31-E3FB024B65C5}</CLSID>
+						<Licenses>
+							<License>
+								<LicenseId>{304D006A-8299-4560-AB79-438534B50288}</LicenseId>
+							</License>
+						</Licenses>
+						<InitSequence>PSO</InitSequence>
+						<Contexts>
+							<Context>
+								<Id>1</Id>
+							</Context>
+						</Contexts>
+						<Interfaces>
+							<Interface DisableCodeGeneration="true">
+								<Type GUID="{00000012-0000-0000-E000-000000000064}">ITComObject</Type>
+							</Interface>
+							<Interface>
+								<Type GUID="{03000010-0000-0000-E000-000000000064}">ITcCyclic</Type>
+							</Interface>
+							<Interface DisableCodeGeneration="true">
+								<Type GUID="{03000012-0000-0000-E000-000000000064}">ITcADI</Type>
+							</Interface>
+							<Interface DisableCodeGeneration="true">
+								<Type GUID="{03000018-0000-0000-E000-000000000064}">ITcWatchSource</Type>
+							</Interface>
+						</Interfaces>
+						<Parameters>
+							<Parameter HideParameter="true">
+								<Name>TraceLevelMax</Name>
+								<Comment><![CDATA[Controls the amount of log messages.]]></Comment>
+								<BitSize>32</BitSize>
+								<BaseType GUID="{8007AE3B-86BB-40F2-B385-EF87FCC239A4}">TcTraceLevel</BaseType>
+								<PTCID>#x03002103</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+							<Parameter>
+								<Name>PIDParams</Name>
+								<BitSize>320</BitSize>
+								<BaseType GUID="{7A41B282-B6EF-4DA2-B9CD-74B2D70476B6}">ST_Notch</BaseType>
+								<PTCID>#x00000001</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+							<Parameter>
+								<Name>NotchParams</Name>
+								<BitSize>320</BitSize>
+								<BaseType GUID="{7A41B282-B6EF-4DA2-B9CD-74B2D70476B6}">ST_Notch</BaseType>
+								<PTCID>#x00000002</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+							<Parameter>
+								<Name>LeadParams</Name>
+								<BitSize>320</BitSize>
+								<BaseType GUID="{7A41B282-B6EF-4DA2-B9CD-74B2D70476B6}">ST_Notch</BaseType>
+								<PTCID>#x00000003</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+							<Parameter>
+								<Name>ResoParams</Name>
+								<BitSize>320</BitSize>
+								<BaseType GUID="{7A41B282-B6EF-4DA2-B9CD-74B2D70476B6}">ST_Notch</BaseType>
+								<PTCID>#x00000004</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+							<Parameter>
+								<Name>EnableParams</Name>
+								<BitSize>32</BitSize>
+								<BaseType GUID="{13107610-CD3F-4EB5-ABFF-3AFC341E6827}">ST_FilterEnable</BaseType>
+								<PTCID>#x00000005</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+						</Parameters>
+						<DataAreas>
+							<DataArea>
+								<AreaNo AreaType="InputDst">0</AreaNo>
+								<Name>Inputs</Name>
+								<ContextId>1</ContextId>
+								<ByteSize>24</ByteSize>
+								<Symbol CreateSymbol="true">
+									<Name>ref_value</Name>
+									<BitSize>64</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
+									<BitOffs>0</BitOffs>
+								</Symbol>
+								<Symbol CreateSymbol="true">
+									<Name>ff_value</Name>
+									<BitSize>64</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
+									<BitOffs>64</BitOffs>
+								</Symbol>
+								<Symbol CreateSymbol="true">
+									<Name>position_act</Name>
+									<BitSize>64</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
+									<BitOffs>128</BitOffs>
+								</Symbol>
+							</DataArea>
+							<DataArea>
+								<AreaNo AreaType="OutputSrc">1</AreaNo>
+								<Name>Outputs</Name>
+								<ContextId>1</ContextId>
+								<ByteSize>8</ByteSize>
+								<Symbol CreateSymbol="true">
+									<Name>control_input</Name>
+									<BitSize>64</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
+									<BitOffs>0</BitOffs>
+								</Symbol>
+							</DataArea>
+						</DataAreas>
+						<InterfacePointers>
+							<InterfacePointer>
+								<PTCID>#x03002060</PTCID>
+								<Name>CyclicCaller</Name>
+								<Type GUID="{0300001E-0000-0000-E000-000000000064}">ITcCyclicCaller</Type>
+							</InterfacePointer>
+						</InterfacePointers>
+						<ParameterValues>
+							<Value>
+								<Name>TraceLevelMax</Name>
+								<EnumText>tlAlways</EnumText>
+							</Value>
+							<Value>
+								<Name>PIDParams.notch_b0</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>PIDParams.notch_b1</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>PIDParams.notch_b2</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>PIDParams.notch_a1</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>PIDParams.notch_a2</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>NotchParams.notch_b0</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>NotchParams.notch_b1</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>NotchParams.notch_b2</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>NotchParams.notch_a1</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>NotchParams.notch_a2</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>LeadParams.notch_b0</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>LeadParams.notch_b1</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>LeadParams.notch_b2</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>LeadParams.notch_a1</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>LeadParams.notch_a2</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>ResoParams.notch_b0</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>ResoParams.notch_b1</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>ResoParams.notch_b2</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>ResoParams.notch_a1</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>ResoParams.notch_a2</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>EnableParams.enable_pid</Name>
+								<EnumText>FALSE</EnumText>
+							</Value>
+							<Value>
+								<Name>EnableParams.enable_lead</Name>
+								<EnumText>FALSE</EnumText>
+							</Value>
+							<Value>
+								<Name>EnableParams.enable_notch</Name>
+								<EnumText>FALSE</EnumText>
+							</Value>
+							<Value>
+								<Name>EnableParams.enable_reso</Name>
+								<EnumText>FALSE</EnumText>
+							</Value>
+						</ParameterValues>
+						<InterfacePointerValues>
+							<Value>
+								<Name>CyclicCaller</Name>
+								<OTCID>#x00000000</OTCID>
+							</Value>
+						</InterfacePointerValues>
+					</TmcDesc>
+				</Instance>
+			</Project>
 		</Cpp>
-		<Io/>
 	</Project>
 	<Mappings>
-		<MappingInfo Identifier="{02010040-2001-0850-1000-010100205008}" Id="#x02030010" Watchdog="04000000040000000400000004000000"/>
-		<MappingInfo Identifier="{02010040-2041-0850-1000-010140205008}" Id="#x02030020" Watchdog="28000000040000000400000004000000"/>
 		<OwnerA Name="TIPC^StateMachineControl^StateMachineControl Instance">
 			<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">
 				<Link VarA="PlcTask Inputs^MAIN.uiStatWord" VarB="Outputs^statusword"/>
 				<Link VarA="PlcTask Outputs^MAIN.uiCtrlWord" VarB="Inputs^controlword"/>
-			</OwnerB>
-		</OwnerA>
-		<OwnerA Name="TIPC^TmpLogger^TmpLogger Instance">
-			<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">
-				<Link VarA="PlcTask Inputs^GVL_VM.position_out" VarB="Outputs^VirtualMotorOutputs^position_out"/>
-				<Link VarA="PlcTask Inputs^GVL_VM.velocity_out" VarB="Outputs^VirtualMotorOutputs^velocity_out"/>
-				<Link VarA="PlcTask Outputs^GVL_VM.current_in" VarB="Inputs^VirtualMotorInputs^current_in"/>
 			</OwnerB>
 		</OwnerA>
 	</Mappings>

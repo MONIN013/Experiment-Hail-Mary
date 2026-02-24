@@ -1,0 +1,78 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="PRG_EXE_Logger" Id="{54be0b55-55e5-4264-a2f8-13b0f54530e4}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM PRG_EXE_Logger
+VAR
+    table_idx_dint : DINT := 0;
+    log_write_idx : DINT := 0;
+    wr_pos : UDINT := 0;
+    ref_value_local : LREAL := 0.0;
+    ff_value_local : LREAL := 0.0;
+    dist_value_local : LREAL := 0.0;
+    target_torque_local : LREAL := 0.0;
+    VM_TASK_DT_NS : ULINT := ULINT#1000000;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Reset one-shot from host side.
+IF GVL_EXP.reset_req THEN
+    GVL_EXP.experiment_active := FALSE;
+    GVL_EXP.table_len := 0;
+    GVL_EXP.idx := 0;
+    GVL_EXP.ref_value := 0.0;
+    GVL_EXP.ff_value := 0.0;
+    GVL_EXP.target_torque := 0.0;
+    GVL_EXP_LOG.seq := 0;
+    GVL_EXP_LOG.t_ns := 0;
+    GVL_EXP_LOG.wr_idx := 0;
+    GVL_EXP_LOG.rd_idx := 0;
+    GVL_EXP_LOG.overflow := FALSE;
+    GVL_EXP.reset_req := FALSE;
+END_IF
+
+// Table replay + logger: one sample per cycle.
+IF GVL_EXP.experiment_active THEN
+    IF (GVL_EXP.idx < GVL_EXP.table_len) THEN
+        table_idx_dint := UDINT_TO_DINT(GVL_EXP.idx);
+        wr_pos := GVL_EXP_LOG.wr_idx MOD GVL_EXP_LOG.LOG_N;
+        log_write_idx := UDINT_TO_DINT(wr_pos);
+
+        ref_value_local := GVL_EXP.ref_table[table_idx_dint];
+        ff_value_local := GVL_EXP.ff_table[table_idx_dint];
+        dist_value_local := GVL_EXP.dist_table[table_idx_dint];
+
+        GVL_EXP.ref_value := ref_value_local;
+        GVL_EXP.ff_value := ff_value_local;
+        target_torque_local := GVL_EXP.control_input + dist_value_local;
+        GVL_EXP.target_torque := target_torque_local;
+
+        GVL_EXP_LOG.seq := GVL_EXP_LOG.seq + 1;
+        GVL_EXP_LOG.t_ns := UDINT_TO_ULINT(GVL_EXP_LOG.seq) * VM_TASK_DT_NS;
+
+        GVL_EXP_LOG.log_seq[log_write_idx] := GVL_EXP_LOG.seq;
+        GVL_EXP_LOG.log_ref_value[log_write_idx] := ref_value_local;
+        GVL_EXP_LOG.log_ff_value[log_write_idx] := ff_value_local;
+        GVL_EXP_LOG.log_dist_value[log_write_idx] := dist_value_local;
+        GVL_EXP_LOG.log_control_input[log_write_idx] := GVL_EXP.control_input;
+        GVL_EXP_LOG.log_target_torque[log_write_idx] := target_torque_local;
+        GVL_EXP_LOG.log_position_act[log_write_idx] := GVL_EXP.position_act_log;
+        GVL_EXP_LOG.log_t[log_write_idx] := GVL_EXP_LOG.t_ns;
+        GVL_EXP_LOG.log_idx[log_write_idx] := GVL_EXP.idx;
+
+        GVL_EXP.idx := GVL_EXP.idx + 1;
+        GVL_EXP_LOG.wr_idx := GVL_EXP_LOG.wr_idx + 1;
+
+        IF (GVL_EXP_LOG.wr_idx - GVL_EXP_LOG.rd_idx) > GVL_EXP_LOG.LOG_N THEN
+            GVL_EXP_LOG.overflow := TRUE;
+        END_IF
+    ELSE
+        GVL_EXP.experiment_active := FALSE;
+        GVL_EXP.ref_value := 0.0;
+        GVL_EXP.ff_value := 0.0;
+        GVL_EXP.target_torque := 0.0;
+    END_IF
+END_IF
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

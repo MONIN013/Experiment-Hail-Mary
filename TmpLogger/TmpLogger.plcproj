@@ -18,18 +18,18 @@
     <LibraryReferences>{322ef79a-b8b3-4a9b-9b23-27aac0c3d2c0}</LibraryReferences>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="GVLs\GVL_VM.TcGVL">
+    <Compile Include="GVLs\GVL_EXE.TcGVL">
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
     </Compile>
-    <Compile Include="GVLs\GVL_VM_LOG.TcGVL">
+    <Compile Include="GVLs\GVL_EXE_LOG.TcGVL">
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
     </Compile>
     <Compile Include="PlcTask.TcTTO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="POUs\PRG_VM_Logger.TcPOU">
+    <Compile Include="POUs\PRG_EXE_Logger.TcPOU">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
@@ -69,6 +69,12 @@
         <v>{192FAD59-8248-4824-A8DE-9177C94C195A}</v>
         <o>
           <v n="Name">"{192FAD59-8248-4824-A8DE-9177C94C195A}"</v>
+          <d n="SubKeys" t="Hashtable" />
+          <d n="Values" t="Hashtable" />
+        </o>
+        <v>{246001F4-279D-43AC-B241-948EB31120E1}</v>
+        <o>
+          <v n="Name">"{246001F4-279D-43AC-B241-948EB31120E1}"</v>
           <d n="SubKeys" t="Hashtable" />
           <d n="Values" t="Hashtable" />
         </o>

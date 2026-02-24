@@ -25,9 +25,11 @@ classdef VirtualMotorService < handle
       obj.ensure_folder(fileparts(cfg.save_path));
 
       plc_symbols = experiment.VirtualMotorSymbols.from_defaults();
-      vm_symbols = experiment.VirtualMotorSymbols.from_prefix(cfg.vm_param_symbol_prefix);
-      twincat_ads.SymbolBrowser.validate_symbols(obj.plc_transport, plc_symbols.required_probes);
-      twincat_ads.SymbolBrowser.validate_symbols(obj.vm_transport, vm_symbols.required_probes);
+      vm_symbols = experiment.VirtualMotorSymbols.from_vm_prefix(cfg.vm_param_symbol_prefix);
+      controller_symbols = experiment.VirtualMotorSymbols.from_controller_prefix(cfg.controller_param_symbol_prefix);
+      twincat_ads.SymbolBrowser.validate_symbols(obj.plc_transport, plc_symbols.plc_required_probes);
+      twincat_ads.SymbolBrowser.validate_symbols(obj.vm_transport, vm_symbols.vm_required_probes);
+      twincat_ads.SymbolBrowser.validate_symbols(obj.vm_transport, controller_symbols.controller_required_probes);
       t = plc_symbols.types;
 
       vm_params = struct();
@@ -38,16 +40,21 @@ classdef VirtualMotorService < handle
       vm_params.vel_limit = cfg.vel_limit;
       vm_params.task_dt_ns = cfg.task_dt_ns;
       obj.write_vm_params(vm_symbols, vm_params);
+      obj.write_controller_params(controller_symbols, cfg);
 
-      profile = cfg.current_profile(:);
-      use_profile = ~isempty(profile);
+      ref_profile = cfg.ref_profile(:);
+      ff_profile = cfg.ff_profile(:);
+      dist_profile = cfg.dist_profile(:);
       log_data = struct( ...
         "log_seq", zeros(0, 1), ...
-        "log_i", zeros(0, 1), ...
-        "log_x", zeros(0, 1), ...
+        "log_ref_value", zeros(0, 1), ...
+        "log_ff_value", zeros(0, 1), ...
+        "log_dist_value", zeros(0, 1), ...
+        "log_control_input", zeros(0, 1), ...
+        "log_target_torque", zeros(0, 1), ...
+        "log_position_act", zeros(0, 1), ...
         "log_t", zeros(0, 1), ...
-        "log_cmd_idx", zeros(0, 1), ...
-        "log_cmd_value", zeros(0, 1), ...
+        "log_idx", zeros(0, 1), ...
         "wr_idx", 0, ...
         "overflow", false);
       log_read_time = 0;
@@ -60,82 +67,81 @@ classdef VirtualMotorService < handle
         "log_stream_error_identifier", "", ...
         "log_stream_error_message", "");
       t_run = tic;
-      if use_profile
-        profile_n = numel(profile);
-        if profile_n > double(cfg.cmd_max_n)
-          error("experiment:service:invalidProfile", ...
-            "current_profile length (%d) exceeds cmd_max_n (%d).", profile_n, cfg.cmd_max_n);
+      table_n = numel(ref_profile);
+      if table_n > double(cfg.table_max_n)
+        error("experiment:service:invalidProfile", ...
+          "ref_profile length (%d) exceeds table_max_n (%d).", table_n, cfg.table_max_n);
+      end
+
+      obj.plc_transport.write_scalar(plc_symbols.experiment_active, false, t.bool);
+      obj.plc_transport.write_scalar(plc_symbols.idx, uint32(0), t.u32);
+      obj.plc_transport.write_scalar(plc_symbols.table_len, uint32(0), t.u32);
+      obj.pulse_reset(plc_symbols, 0.02);
+
+      idle_ready = obj.wait_for_reset_idle(plc_symbols, cfg.reset_timeout_s);
+      if ~idle_ready
+        warning("experiment:service:resetSyncTimeout", ...
+          "Timed out waiting reset idle state (wr_idx==0, idx==0, experiment_active==FALSE).");
+      end
+
+      obj.plc_transport.write_array(plc_symbols.ref_table, ref_profile, t.double);
+      obj.plc_transport.write_array(plc_symbols.ff_table, ff_profile, t.double);
+      obj.plc_transport.write_array(plc_symbols.dist_table, dist_profile, t.double);
+      obj.plc_transport.write_scalar(plc_symbols.table_len, uint32(table_n), t.u32);
+      obj.plc_transport.write_scalar(plc_symbols.experiment_active, true, t.bool);
+
+      if cfg.wait_for_done && cfg.log_stream_enable
+        [done, log_data, host_log_stats] = obj.wait_until_done_streaming(plc_symbols, cfg);
+        log_read_time = host_log_stats.log_read_time_s_total;
+        if ~done
+          warning("experiment:service:timeout", "Timed out waiting for experiment completion.");
         end
-
-        obj.plc_transport.write_scalar(plc_symbols.start, false, t.bool);
-        obj.plc_transport.write_scalar(plc_symbols.cmd_idx, uint32(0), t.u32);
-        obj.plc_transport.write_scalar(plc_symbols.cmd_len, uint32(0), t.u32);
-        obj.pulse_reset(plc_symbols, 0.02);
-
-        idle_ready = obj.wait_for_reset_idle(plc_symbols, cfg.reset_timeout_s);
-        if ~idle_ready
-          warning("experiment:service:resetSyncTimeout", ...
-            "Timed out waiting reset idle state (wr_idx==0, cmd_idx==0, start flag == FALSE).");
-        end
-
-        obj.plc_transport.write_array(plc_symbols.cmd_profile, profile, t.double);
-        obj.plc_transport.write_scalar(plc_symbols.cmd_len, uint32(profile_n), t.u32);
-        obj.plc_transport.write_scalar(plc_symbols.start, true, t.bool);
-
-        if cfg.wait_for_done && cfg.log_stream_enable
-          [done, log_data, host_log_stats] = obj.wait_until_done_streaming(plc_symbols, cfg);
-          log_read_time = host_log_stats.log_read_time_s_total;
-          if ~done
-            warning("experiment:service:timeout", "Timed out waiting for experiment completion.");
-          end
-        elseif cfg.wait_for_done
-          done = obj.wait_until_done(plc_symbols, cfg.done_timeout_s);
-          if ~done
-            warning("experiment:service:timeout", "Timed out waiting for experiment completion.");
-          end
-        else
-          while toc(t_run) < cfg.hold_seconds
-            pause(min(0.05, cfg.hold_seconds / 10 + eps));
-          end
+      elseif cfg.wait_for_done
+        done = obj.wait_until_done(plc_symbols, cfg.done_timeout_s);
+        if ~done
+          warning("experiment:service:timeout", "Timed out waiting for experiment completion.");
         end
       else
-        obj.plc_transport.write_scalar(plc_symbols.current_in, cfg.current_in, t.double);
         while toc(t_run) < cfg.hold_seconds
           pause(min(0.05, cfg.hold_seconds / 10 + eps));
         end
-        if cfg.release_to_zero
-          obj.plc_transport.write_scalar(plc_symbols.current_in, 0.0, t.double);
-        end
       end
+      obj.plc_transport.write_scalar(plc_symbols.experiment_active, false, t.bool);
       elapsed_s = toc(t_run);
 
-      position_last = obj.plc_transport.read_scalar(plc_symbols.position_out, t.double);
-      current_last = obj.plc_transport.read_scalar(plc_symbols.current_in, t.double);
-      velocity_last = obj.plc_transport.read_scalar(plc_symbols.velocity_out, t.double);
+      position_last = obj.plc_transport.read_scalar(plc_symbols.position_act_log, t.double);
+      target_torque_last = obj.plc_transport.read_scalar(plc_symbols.target_torque, t.double);
+      control_input_last = obj.plc_transport.read_scalar(plc_symbols.control_input, t.double);
 
       raw = struct();
       raw.position_last = double(position_last);
-      raw.current_last = double(current_last);
-      raw.velocity_last = double(velocity_last);
+      raw.target_torque_last = double(target_torque_last);
+      raw.control_input_last = double(control_input_last);
 
-      if ~(use_profile && cfg.wait_for_done && cfg.log_stream_enable && host_log_stats.log_stream_enabled)
+      if ~(cfg.wait_for_done && cfg.log_stream_enable && host_log_stats.log_stream_enabled)
         [log_data, log_read_time] = obj.read_upper_logs(plc_symbols, cfg.log_n);
       end
       raw.log_seq = log_data.log_seq;
-      raw.log_i = log_data.log_i;
-      raw.log_x = log_data.log_x;
+      raw.log_ref_value = log_data.log_ref_value;
+      raw.log_ff_value = log_data.log_ff_value;
+      raw.log_dist_value = log_data.log_dist_value;
+      raw.log_control_input = log_data.log_control_input;
+      raw.log_target_torque = log_data.log_target_torque;
+      raw.log_position_act = log_data.log_position_act;
       raw.log_t = log_data.log_t;
-      raw.log_cmd_idx = log_data.log_cmd_idx;
-      raw.log_cmd_value = log_data.log_cmd_value;
+      raw.log_idx = log_data.log_idx;
+      raw.log_i = raw.log_ref_value; % compatibility alias (old plotting/tests)
+      raw.log_x = raw.log_position_act; % compatibility alias
       raw.log_wr_idx = log_data.wr_idx;
       raw.log_overflow = log_data.overflow;
 
       cmd = struct();
-      cmd.current_in = cfg.current_in;
-      cmd.current_profile = profile;
-      cmd.use_profile = use_profile;
+      cmd.ref_profile = ref_profile;
+      cmd.ff_profile = ff_profile;
+      cmd.dist_profile = dist_profile;
+      cmd.table_len = table_n;
+      cmd.use_profile = true;
       cmd.hold_seconds = cfg.hold_seconds;
-      cmd.release_to_zero = cfg.release_to_zero;
 
       host = struct();
       host.elapsed_s = elapsed_s;
@@ -150,7 +156,7 @@ classdef VirtualMotorService < handle
 
       cfg_struct = cfg.to_struct();
       metrics = experiment.preload_eval(raw, cmd, cfg_struct);
-      if use_profile && cfg.wait_for_done && ~logical(cfg.log_require_waveform_exact) && ...
+      if cfg.wait_for_done && ~logical(cfg.log_require_waveform_exact) && ...
           isfield(metrics, "acceptance") && isfield(metrics.acceptance, "input_waveform_exact_match") && ...
           ~logical(metrics.acceptance.input_waveform_exact_match)
         metrics.notes{end + 1, 1} = ...
@@ -181,6 +187,38 @@ classdef VirtualMotorService < handle
       obj.vm_transport.write_scalar(symbols.vm_params.task_dt_ns, uint64(params.task_dt_ns), t.u64);
     end
 
+    function write_controller_params(obj, symbols, cfg)
+      t = symbols.types;
+      p = symbols.controller_params;
+      obj.vm_transport.write_scalar(p.pid_b0, cfg.pid_b0, t.double);
+      obj.vm_transport.write_scalar(p.pid_b1, cfg.pid_b1, t.double);
+      obj.vm_transport.write_scalar(p.pid_b2, cfg.pid_b2, t.double);
+      obj.vm_transport.write_scalar(p.pid_a1, cfg.pid_a1, t.double);
+      obj.vm_transport.write_scalar(p.pid_a2, cfg.pid_a2, t.double);
+
+      obj.vm_transport.write_scalar(p.lead_b0, cfg.lead_b0, t.double);
+      obj.vm_transport.write_scalar(p.lead_b1, cfg.lead_b1, t.double);
+      obj.vm_transport.write_scalar(p.lead_b2, cfg.lead_b2, t.double);
+      obj.vm_transport.write_scalar(p.lead_a1, cfg.lead_a1, t.double);
+      obj.vm_transport.write_scalar(p.lead_a2, cfg.lead_a2, t.double);
+
+      obj.vm_transport.write_scalar(p.notch_b0, cfg.notch_b0, t.double);
+      obj.vm_transport.write_scalar(p.notch_b1, cfg.notch_b1, t.double);
+      obj.vm_transport.write_scalar(p.notch_b2, cfg.notch_b2, t.double);
+      obj.vm_transport.write_scalar(p.notch_a1, cfg.notch_a1, t.double);
+      obj.vm_transport.write_scalar(p.notch_a2, cfg.notch_a2, t.double);
+      obj.vm_transport.write_scalar(p.reso_b0, cfg.reso_b0, t.double);
+      obj.vm_transport.write_scalar(p.reso_b1, cfg.reso_b1, t.double);
+      obj.vm_transport.write_scalar(p.reso_b2, cfg.reso_b2, t.double);
+      obj.vm_transport.write_scalar(p.reso_a1, cfg.reso_a1, t.double);
+      obj.vm_transport.write_scalar(p.reso_a2, cfg.reso_a2, t.double);
+
+      obj.vm_transport.write_scalar(p.enable_pid, cfg.enable_pid, t.bool);
+      obj.vm_transport.write_scalar(p.enable_lead, cfg.enable_lead, t.bool);
+      obj.vm_transport.write_scalar(p.enable_notch, cfg.enable_notch, t.bool);
+      obj.vm_transport.write_scalar(p.enable_reso, cfg.enable_reso, t.bool);
+    end
+
     function pulse_reset(obj, symbols, pulse_seconds)
       t = symbols.types;
       obj.plc_transport.write_scalar(symbols.reset, true, t.bool);
@@ -194,8 +232,8 @@ classdef VirtualMotorService < handle
       done = false;
       while toc(t0) < timeout_s
         try
-          exp_start = logical(obj.plc_transport.read_scalar(symbols.start, t.bool));
-          done = ~exp_start;
+          exp_active = logical(obj.plc_transport.read_scalar(symbols.experiment_active, t.bool));
+          done = ~exp_active;
         catch
           done = false;
         end
@@ -225,7 +263,7 @@ classdef VirtualMotorService < handle
         try
           wr_idx = double(obj.plc_transport.read_scalar(symbols.log.wr_idx, t.u32));
           plc_overflow = logical(obj.plc_transport.read_scalar(symbols.log.overflow, t.bool));
-          exp_start = logical(obj.plc_transport.read_scalar(symbols.start, t.bool));
+          exp_active = logical(obj.plc_transport.read_scalar(symbols.experiment_active, t.bool));
           [state, local_overflow] = obj.drain_log_ring_to_host(symbols, cfg, ring_n, state, wr_idx);
           if local_overflow && cfg.log_warn_on_overflow && ~state.overflow_warned
             warning("experiment:service:logOverflow", ...
@@ -234,7 +272,7 @@ classdef VirtualMotorService < handle
           end
           state.overflow = state.overflow || plc_overflow || local_overflow;
           host_stats.log_stream_cycles = host_stats.log_stream_cycles + 1;
-          done = ~exp_start;
+          done = ~exp_active;
           if done
             try
               wr_idx_final = double(obj.plc_transport.read_scalar(symbols.log.wr_idx, t.u32));
@@ -278,11 +316,14 @@ classdef VirtualMotorService < handle
           host_stats.log_stream_fallback_used = true;
           log_data = struct( ...
             "log_seq", zeros(0, 1), ...
-            "log_i", zeros(0, 1), ...
-            "log_x", zeros(0, 1), ...
+            "log_ref_value", zeros(0, 1), ...
+            "log_ff_value", zeros(0, 1), ...
+            "log_dist_value", zeros(0, 1), ...
+            "log_control_input", zeros(0, 1), ...
+            "log_target_torque", zeros(0, 1), ...
+            "log_position_act", zeros(0, 1), ...
             "log_t", zeros(0, 1), ...
-            "log_cmd_idx", zeros(0, 1), ...
-            "log_cmd_value", zeros(0, 1), ...
+            "log_idx", zeros(0, 1), ...
             "wr_idx", 0, ...
             "overflow", false);
           return;
@@ -325,9 +366,9 @@ classdef VirtualMotorService < handle
       while toc(t0) < timeout_s
         try
           wr_idx = double(obj.plc_transport.read_scalar(symbols.log.wr_idx, t.u32));
-          cmd_idx = double(obj.plc_transport.read_scalar(symbols.cmd_idx, t.u32));
-          exp_start = logical(obj.plc_transport.read_scalar(symbols.start, t.bool));
-          ready = (wr_idx == 0) && (cmd_idx == 0) && (~exp_start);
+          idx = double(obj.plc_transport.read_scalar(symbols.idx, t.u32));
+          exp_active = logical(obj.plc_transport.read_scalar(symbols.experiment_active, t.bool));
+          ready = (wr_idx == 0) && (idx == 0) && (~exp_active);
         catch
           ready = false;
         end
@@ -341,7 +382,7 @@ classdef VirtualMotorService < handle
     function ring_n = read_log_ring_capacity(obj, symbols, cfg)
       t = symbols.types;
       try
-        ring_n = double(obj.plc_transport.read_scalar("GVL_VM_LOG.LOG_N", t.u32));
+        ring_n = double(obj.plc_transport.read_scalar(symbols.log.log_n, t.u32));
       catch
         ring_n = double(cfg.log_n);
       end
@@ -355,11 +396,14 @@ classdef VirtualMotorService < handle
         "next_read_idx", 0, ...
         "sample_count", 0, ...
         "chunks_seq", {cell(0, 1)}, ...
-        "chunks_i", {cell(0, 1)}, ...
-        "chunks_x", {cell(0, 1)}, ...
+        "chunks_ref_value", {cell(0, 1)}, ...
+        "chunks_ff_value", {cell(0, 1)}, ...
+        "chunks_dist_value", {cell(0, 1)}, ...
+        "chunks_control_input", {cell(0, 1)}, ...
+        "chunks_target_torque", {cell(0, 1)}, ...
+        "chunks_position_act", {cell(0, 1)}, ...
         "chunks_t", {cell(0, 1)}, ...
-        "chunks_cmd_idx", {cell(0, 1)}, ...
-        "chunks_cmd_value", {cell(0, 1)}, ...
+        "chunks_idx", {cell(0, 1)}, ...
         "overflow", false, ...
         "overflow_warned", false, ...
         "rd_idx_supported", true, ...
@@ -398,7 +442,7 @@ classdef VirtualMotorService < handle
           state.rd_idx_supported = false;
           if ~state.rd_idx_warned
             warning("experiment:service:rdIdxUnavailable", ...
-              "GVL_VM_LOG.rd_idx write unavailable; continuing without PLC-side consumer index sync (%s: %s).", ...
+              "GVL_EXP_LOG.rd_idx write unavailable; continuing without PLC-side consumer index sync (%s: %s).", ...
               string(e.identifier), string(e.message));
             state.rd_idx_warned = true;
           end
@@ -413,11 +457,15 @@ classdef VirtualMotorService < handle
       n2 = double(take_n) - n1;
 
       chunk = struct();
-      % PLC logger writes absolute sequence numbers (GVL_VM_LOG.seq) in lockstep with wr_idx.
+      % PLC logger writes absolute sequence numbers (GVL_EXP_LOG.seq) in lockstep with wr_idx.
       % Reconstructing from abs_start_idx avoids TwinCAT/MATLAB UDINT[] slice marshaling issues.
       chunk.log_seq = obj.make_expected_seq_chunk(abs_start_idx, take_n);
-      chunk.log_i = obj.read_log_component_slice(symbols.log.log_i, t.double, start_ring, n1, n2);
-      chunk.log_x = obj.read_log_component_slice(symbols.log.log_x, t.double, start_ring, n1, n2);
+      chunk.log_ref_value = obj.read_log_component_slice(symbols.log.log_ref_value, t.double, start_ring, n1, n2);
+      chunk.log_ff_value = obj.read_log_component_slice(symbols.log.log_ff_value, t.double, start_ring, n1, n2);
+      chunk.log_dist_value = obj.read_log_component_slice(symbols.log.log_dist_value, t.double, start_ring, n1, n2);
+      chunk.log_control_input = obj.read_log_component_slice(symbols.log.log_control_input, t.double, start_ring, n1, n2);
+      chunk.log_target_torque = obj.read_log_component_slice(symbols.log.log_target_torque, t.double, start_ring, n1, n2);
+      chunk.log_position_act = obj.read_log_component_slice(symbols.log.log_position_act, t.double, start_ring, n1, n2);
       try
         chunk.log_t = obj.read_log_component_slice(symbols.log.log_t, t.u64, start_ring, n1, n2);
       catch
@@ -425,14 +473,9 @@ classdef VirtualMotorService < handle
         chunk.log_t = zeros(double(take_n), 1);
       end
       try
-        chunk.log_cmd_idx = obj.read_log_component_slice(symbols.log.log_cmd_idx, t.u32, start_ring, n1, n2);
+        chunk.log_idx = obj.read_log_component_slice(symbols.log.log_idx, t.u32, start_ring, n1, n2);
       catch
-        chunk.log_cmd_idx = zeros(0, 1);
-      end
-      try
-        chunk.log_cmd_value = obj.read_log_component_slice(symbols.log.log_cmd_value, t.double, start_ring, n1, n2);
-      catch
-        chunk.log_cmd_value = zeros(0, 1);
+        chunk.log_idx = zeros(0, 1);
       end
       read_elapsed = toc(t_chunk);
     end
@@ -465,14 +508,15 @@ classdef VirtualMotorService < handle
         return;
       end
       state.chunks_seq{end + 1, 1} = double(chunk.log_seq(:));
-      state.chunks_i{end + 1, 1} = double(chunk.log_i(:));
-      state.chunks_x{end + 1, 1} = double(chunk.log_x(:));
+      state.chunks_ref_value{end + 1, 1} = double(chunk.log_ref_value(:));
+      state.chunks_ff_value{end + 1, 1} = double(chunk.log_ff_value(:));
+      state.chunks_dist_value{end + 1, 1} = double(chunk.log_dist_value(:));
+      state.chunks_control_input{end + 1, 1} = double(chunk.log_control_input(:));
+      state.chunks_target_torque{end + 1, 1} = double(chunk.log_target_torque(:));
+      state.chunks_position_act{end + 1, 1} = double(chunk.log_position_act(:));
       state.chunks_t{end + 1, 1} = double(chunk.log_t(:));
-      if isfield(chunk, "log_cmd_idx") && ~isempty(chunk.log_cmd_idx)
-        state.chunks_cmd_idx{end + 1, 1} = double(chunk.log_cmd_idx(:));
-      end
-      if isfield(chunk, "log_cmd_value") && ~isempty(chunk.log_cmd_value)
-        state.chunks_cmd_value{end + 1, 1} = double(chunk.log_cmd_value(:));
+      if isfield(chunk, "log_idx") && ~isempty(chunk.log_idx)
+        state.chunks_idx{end + 1, 1} = double(chunk.log_idx(:));
       end
       state.sample_count = state.sample_count + n_chunk;
     end
@@ -480,23 +524,27 @@ classdef VirtualMotorService < handle
     function log_data = finalize_log_stream_state(~, state)
       log_data = struct( ...
         "log_seq", zeros(0, 1), ...
-        "log_i", zeros(0, 1), ...
-        "log_x", zeros(0, 1), ...
+        "log_ref_value", zeros(0, 1), ...
+        "log_ff_value", zeros(0, 1), ...
+        "log_dist_value", zeros(0, 1), ...
+        "log_control_input", zeros(0, 1), ...
+        "log_target_torque", zeros(0, 1), ...
+        "log_position_act", zeros(0, 1), ...
         "log_t", zeros(0, 1), ...
-        "log_cmd_idx", zeros(0, 1), ...
-        "log_cmd_value", zeros(0, 1), ...
+        "log_idx", zeros(0, 1), ...
         "wr_idx", 0, ...
         "overflow", false);
       if ~isempty(state.chunks_seq)
         log_data.log_seq = vertcat(state.chunks_seq{:});
-        log_data.log_i = vertcat(state.chunks_i{:});
-        log_data.log_x = vertcat(state.chunks_x{:});
+        log_data.log_ref_value = vertcat(state.chunks_ref_value{:});
+        log_data.log_ff_value = vertcat(state.chunks_ff_value{:});
+        log_data.log_dist_value = vertcat(state.chunks_dist_value{:});
+        log_data.log_control_input = vertcat(state.chunks_control_input{:});
+        log_data.log_target_torque = vertcat(state.chunks_target_torque{:});
+        log_data.log_position_act = vertcat(state.chunks_position_act{:});
         log_data.log_t = vertcat(state.chunks_t{:});
-        if ~isempty(state.chunks_cmd_idx)
-          log_data.log_cmd_idx = vertcat(state.chunks_cmd_idx{:});
-        end
-        if ~isempty(state.chunks_cmd_value)
-          log_data.log_cmd_value = vertcat(state.chunks_cmd_value{:});
+        if ~isempty(state.chunks_idx)
+          log_data.log_idx = vertcat(state.chunks_idx{:});
         end
       end
     end
@@ -506,11 +554,14 @@ classdef VirtualMotorService < handle
       t_read = tic;
       log_data = struct( ...
         "log_seq", zeros(0, 1), ...
-        "log_i", zeros(0, 1), ...
-        "log_x", zeros(0, 1), ...
+        "log_ref_value", zeros(0, 1), ...
+        "log_ff_value", zeros(0, 1), ...
+        "log_dist_value", zeros(0, 1), ...
+        "log_control_input", zeros(0, 1), ...
+        "log_target_torque", zeros(0, 1), ...
+        "log_position_act", zeros(0, 1), ...
         "log_t", zeros(0, 1), ...
-        "log_cmd_idx", zeros(0, 1), ...
-        "log_cmd_value", zeros(0, 1), ...
+        "log_idx", zeros(0, 1), ...
         "wr_idx", 0, ...
         "overflow", false);
 
@@ -520,8 +571,12 @@ classdef VirtualMotorService < handle
         valid_n = uint32(min(double(wr_idx), log_n));
         if valid_n > 0
           log_data.log_seq = double(obj.plc_transport.read_array(symbols.log.log_seq, t.u32, valid_n));
-          log_data.log_i = double(obj.plc_transport.read_array(symbols.log.log_i, t.double, valid_n));
-          log_data.log_x = double(obj.plc_transport.read_array(symbols.log.log_x, t.double, valid_n));
+          log_data.log_ref_value = double(obj.plc_transport.read_array(symbols.log.log_ref_value, t.double, valid_n));
+          log_data.log_ff_value = double(obj.plc_transport.read_array(symbols.log.log_ff_value, t.double, valid_n));
+          log_data.log_dist_value = double(obj.plc_transport.read_array(symbols.log.log_dist_value, t.double, valid_n));
+          log_data.log_control_input = double(obj.plc_transport.read_array(symbols.log.log_control_input, t.double, valid_n));
+          log_data.log_target_torque = double(obj.plc_transport.read_array(symbols.log.log_target_torque, t.double, valid_n));
+          log_data.log_position_act = double(obj.plc_transport.read_array(symbols.log.log_position_act, t.double, valid_n));
           try
             log_data.log_t = double(obj.plc_transport.read_array(symbols.log.log_t, t.u64, valid_n));
           catch
@@ -529,14 +584,9 @@ classdef VirtualMotorService < handle
             log_data.log_t = zeros(double(valid_n), 1);
           end
           try
-            log_data.log_cmd_idx = double(obj.plc_transport.read_array(symbols.log.log_cmd_idx, t.u32, valid_n));
+            log_data.log_idx = double(obj.plc_transport.read_array(symbols.log.log_idx, t.u32, valid_n));
           catch
-            log_data.log_cmd_idx = zeros(0, 1);
-          end
-          try
-            log_data.log_cmd_value = double(obj.plc_transport.read_array(symbols.log.log_cmd_value, t.double, valid_n));
-          catch
-            log_data.log_cmd_value = zeros(0, 1);
+            log_data.log_idx = zeros(0, 1);
           end
         end
         log_data.wr_idx = double(wr_idx);
@@ -571,36 +621,41 @@ classdef VirtualMotorService < handle
       end
 
       n_seq = numel(raw.log_seq);
-      n_i = numel(raw.log_i);
-      n_x = numel(raw.log_x);
+      n_ref = numel(raw.log_ref_value);
+      n_pos = numel(raw.log_position_act);
+      n_ff = numel(raw.log_ff_value);
+      n_dist = numel(raw.log_dist_value);
+      n_u = numel(raw.log_control_input);
+      n_tau = numel(raw.log_target_torque);
       if n_seq == 0
         error("experiment:service:incompleteLog", ...
-          "No log samples captured (log_seq/log_i/log_x are empty).");
+          "No log samples captured (log_seq/log_ref_value/log_position_act are empty).");
       end
       if raw.log_overflow
         error("experiment:service:incompleteLog", ...
           "PLC/host log overflow detected (raw.log_overflow=true).");
       end
-      if ~(n_seq == n_i && n_i == n_x)
+      if ~(n_seq == n_ref && n_ref == n_pos && n_ref == n_ff && n_ref == n_dist && n_ref == n_u && n_ref == n_tau)
         error("experiment:service:incompleteLog", ...
-          "Log component sample counts mismatch (seq=%d, logI=%d, logX=%d).", n_seq, n_i, n_x);
+          "Log component sample counts mismatch (seq=%d, ref=%d, ff=%d, dist=%d, u=%d, tau=%d, pos=%d).", ...
+          n_seq, n_ref, n_ff, n_dist, n_u, n_tau, n_pos);
       end
       if n_seq > 1 && ~all(udint_seq_step_is_one(raw.log_seq(:)))
         missing_n = sum(~udint_seq_step_is_one(raw.log_seq(:)));
         error("experiment:service:incompleteLog", ...
           "Sequence gap detected in log_seq (%d discontinuities).", missing_n);
       end
-      if cmd.use_profile && cfg.wait_for_done && (n_i ~= numel(cmd.current_profile))
+      if cmd.use_profile && cfg.wait_for_done && (n_ref ~= numel(cmd.ref_profile))
         error("experiment:service:incompleteLog", ...
-          "Profile/log sample count mismatch (cmd=%d, logI=%d, logX=%d).", ...
-          numel(cmd.current_profile), n_i, n_x);
+          "Profile/log sample count mismatch (table=%d, refLog=%d, posLog=%d).", ...
+          numel(cmd.ref_profile), n_ref, n_pos);
       end
 
       if isfield(metrics, "sampling") && isfield(metrics.sampling, "all_sample_counts_match") && ...
           ~logical(metrics.sampling.all_sample_counts_match)
         error("experiment:service:incompleteLog", ...
-          "Sampling count check failed (cmd=%d, logI=%d, logX=%d).", ...
-          numel(cmd.current_profile), n_i, n_x);
+          "Sampling count check failed (table=%d, refLog=%d, posLog=%d).", ...
+          numel(cmd.ref_profile), n_ref, n_pos);
       end
       if isfield(metrics, "acceptance") && isfield(metrics.acceptance, "seq_no_gap") && ...
           ~logical(metrics.acceptance.seq_no_gap)

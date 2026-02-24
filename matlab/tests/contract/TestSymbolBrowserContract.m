@@ -4,24 +4,27 @@ classdef TestSymbolBrowserContract < matlab.unittest.TestCase
       transport = MockAdsTransport();
       symbols = experiment.VirtualMotorSymbols.from_defaults();
       testCase.verifyError( ...
-        @()twincat_ads.SymbolBrowser.validate_symbols(transport, symbols.required_probes), ...
+        @()twincat_ads.SymbolBrowser.validate_symbols(transport, symbols.plc_required_probes), ...
         "twincat_ads:symbol:notFound");
     end
 
     function validateRequiredSymbolsPassesWhenPresent(testCase)
       transport = MockAdsTransport();
       s = experiment.VirtualMotorSymbols.from_defaults();
-      transport.scalarMap(char(s.start)) = false;
       transport.scalarMap(char(s.reset)) = false;
-      transport.scalarMap(char(s.current_in)) = 0.0;
-      transport.scalarMap(char(s.position_out)) = 0.0;
-      transport.scalarMap(char(s.velocity_out)) = 0.0;
-      transport.scalarMap(char(s.cmd_len)) = uint32(0);
-      transport.scalarMap(char(s.cmd_idx)) = uint32(0);
+      transport.scalarMap(char(s.experiment_active)) = false;
+      transport.scalarMap(char(s.table_len)) = uint32(0);
+      transport.scalarMap(char(s.idx)) = uint32(0);
+      transport.scalarMap(char(s.ref_value)) = 0.0;
+      transport.scalarMap(char(s.ff_value)) = 0.0;
+      transport.scalarMap(char(s.control_input)) = 0.0;
+      transport.scalarMap(char(s.target_torque)) = 0.0;
+      transport.scalarMap(char(s.position_act_log)) = 0.0;
       transport.scalarMap(char(s.log.wr_idx)) = uint32(0);
+      transport.scalarMap(char(s.log.rd_idx)) = uint32(0);
       transport.scalarMap(char(s.log.overflow)) = false;
       testCase.verifyWarningFree( ...
-        @()twincat_ads.SymbolBrowser.validate_symbols(transport, s.required_probes));
+        @()twincat_ads.SymbolBrowser.validate_symbols(transport, s.plc_required_probes));
     end
 
     function collectSymbolsSkipsRowsWithMissingName(testCase)

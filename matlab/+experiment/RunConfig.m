@@ -2,23 +2,52 @@ classdef RunConfig
   properties
     ams_net_id = ""
     ams_port = 851
-    vm_ams_port = 351
+    module_ams_port = 351
     vm_param_symbol_prefix = ""
-    current_in = 0.0
-    current_profile = zeros(0, 1)
-    hold_seconds = 1.0
-    release_to_zero = true
+    controller_param_symbol_prefix = ""
+
+    ref_profile = zeros(0, 1)
+    ff_profile = zeros(0, 1)
+    dist_profile = zeros(0, 1)
+    hold_seconds = 0.0
     wait_for_done = true
     done_timeout_s = 30.0
     reset_timeout_s = 5.0
-    cmd_max_n = uint32(100000)
+    table_max_n = uint32(100000)
+
     m = 0.01
     d = 0.1
     kt = 1.0
     tau_limit = 5.0
     vel_limit = 100.0
-    task_rate_hz = 8000
-    task_dt_ns = uint64(125000)
+    task_rate_hz = 1000
+    task_dt_ns = uint64(1000000)
+
+    pid_b0 = 0.0
+    pid_b1 = 0.0
+    pid_b2 = 0.0
+    pid_a1 = 0.0
+    pid_a2 = 0.0
+    lead_b0 = 1.0
+    lead_b1 = 0.0
+    lead_b2 = 0.0
+    lead_a1 = 0.0
+    lead_a2 = 0.0
+    notch_b0 = 1.0
+    notch_b1 = 0.0
+    notch_b2 = 0.0
+    notch_a1 = 0.0
+    notch_a2 = 0.0
+    reso_b0 = 1.0
+    reso_b1 = 0.0
+    reso_b2 = 0.0
+    reso_a1 = 0.0
+    reso_a2 = 0.0
+    enable_pid = true
+    enable_lead = false
+    enable_notch = false
+    enable_reso = false
+
     log_n = 200000
     log_stream_enable = true
     log_poll_period_s = 0.05
@@ -28,9 +57,11 @@ classdef RunConfig
     log_stream_require_success = true
     log_require_complete = true
     log_require_waveform_exact = true
+
     waveform_diag_max_shift_samples = 1
     waveform_diag_abs_tol = 1e-12
     waveform_diag_preview_n = 8
+
     ads_assembly = ""
     save_path = ""
   end
@@ -40,22 +71,49 @@ classdef RunConfig
       p = inputParser;
       p.addParameter("ams_net_id", "", @(x) ischar(x) || isstring(x));
       p.addParameter("ams_port", 851, @(x) isnumeric(x) && isscalar(x));
-      p.addParameter("vm_ams_port", 351, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("module_ams_port", 351, @(x) isnumeric(x) && isscalar(x));
       p.addParameter("vm_param_symbol_prefix", "", @(x) ischar(x) || isstring(x));
-      p.addParameter("current_in", 0.0, @(x) isnumeric(x) && isscalar(x));
-      p.addParameter("current_profile", [], @(x) isnumeric(x));
-      p.addParameter("hold_seconds", 1.0, @(x) isnumeric(x) && isscalar(x) && x >= 0);
-      p.addParameter("release_to_zero", true, @(x) islogical(x) || isnumeric(x));
+      p.addParameter("controller_param_symbol_prefix", "", @(x) ischar(x) || isstring(x));
+      p.addParameter("ref_profile", [], @(x) isnumeric(x));
+      p.addParameter("ff_profile", [], @(x) isnumeric(x));
+      p.addParameter("dist_profile", [], @(x) isnumeric(x));
+      p.addParameter("hold_seconds", 0.0, @(x) isnumeric(x) && isscalar(x) && x >= 0);
       p.addParameter("wait_for_done", true, @(x) islogical(x) || isnumeric(x));
       p.addParameter("done_timeout_s", 30.0, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("reset_timeout_s", 5.0, @(x) isnumeric(x) && isscalar(x) && x > 0);
-      p.addParameter("cmd_max_n", 100000, @(x) isnumeric(x) && isscalar(x) && x > 0);
+      p.addParameter("table_max_n", 100000, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("m", 0.01, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("d", 0.1, @(x) isnumeric(x) && isscalar(x));
       p.addParameter("kt", 1.0, @(x) isnumeric(x) && isscalar(x));
       p.addParameter("tau_limit", 5.0, @(x) isnumeric(x) && isscalar(x) && x >= 0);
       p.addParameter("vel_limit", 100.0, @(x) isnumeric(x) && isscalar(x) && x >= 0);
-      p.addParameter("task_rate_hz", 8000, @(x) isnumeric(x) && isscalar(x) && x > 0);
+      p.addParameter("task_rate_hz", 1000, @(x) isnumeric(x) && isscalar(x) && x > 0);
+
+      p.addParameter("pid_b0", 0.0, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("pid_b1", 0.0, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("pid_b2", 0.0, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("pid_a1", 0.0, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("pid_a2", 0.0, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("lead_b0", 1.0, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("lead_b1", 0.0, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("lead_b2", 0.0, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("lead_a1", 0.0, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("lead_a2", 0.0, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("notch_b0", 1.0, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("notch_b1", 0.0, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("notch_b2", 0.0, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("notch_a1", 0.0, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("notch_a2", 0.0, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("reso_b0", 1.0, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("reso_b1", 0.0, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("reso_b2", 0.0, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("reso_a1", 0.0, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("reso_a2", 0.0, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("enable_pid", true, @(x) islogical(x) || isnumeric(x));
+      p.addParameter("enable_lead", false, @(x) islogical(x) || isnumeric(x));
+      p.addParameter("enable_notch", false, @(x) islogical(x) || isnumeric(x));
+      p.addParameter("enable_reso", false, @(x) islogical(x) || isnumeric(x));
+
       p.addParameter("log_n", 200000, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("log_stream_enable", true, @(x) islogical(x) || isnumeric(x));
       p.addParameter("log_poll_period_s", 0.05, @(x) isnumeric(x) && isscalar(x) && x > 0);
@@ -94,12 +152,21 @@ classdef RunConfig
       out.ams_net_id = char(string(out.ams_net_id));
       out.ads_assembly = char(string(out.ads_assembly));
       out.vm_param_symbol_prefix = char(string(out.vm_param_symbol_prefix));
-      out.current_profile = double(out.current_profile(:));
-      out.release_to_zero = logical(out.release_to_zero);
+      out.controller_param_symbol_prefix = char(string(out.controller_param_symbol_prefix));
+      out.ref_profile = double(out.ref_profile(:));
+      out.ff_profile = double(out.ff_profile(:));
+      out.dist_profile = double(out.dist_profile(:));
+      n_ref = numel(out.ref_profile);
+      if isempty(out.ff_profile) && n_ref > 0
+        out.ff_profile = zeros(n_ref, 1);
+      end
+      if isempty(out.dist_profile) && n_ref > 0
+        out.dist_profile = zeros(n_ref, 1);
+      end
       out.wait_for_done = logical(out.wait_for_done);
-      out.log_stream_enable = logical(out.log_stream_enable);
-      out.cmd_max_n = uint32(out.cmd_max_n);
+      out.table_max_n = uint32(out.table_max_n);
       out.task_dt_ns = uint64(round(1e9 / out.task_rate_hz));
+      out.log_stream_enable = logical(out.log_stream_enable);
       out.log_chunk_n = double(out.log_chunk_n);
       out.log_poll_period_s = double(out.log_poll_period_s);
       out.log_host_max_n = double(out.log_host_max_n);
@@ -107,12 +174,16 @@ classdef RunConfig
       out.log_stream_require_success = logical(out.log_stream_require_success);
       out.log_require_complete = logical(out.log_require_complete);
       out.log_require_waveform_exact = logical(out.log_require_waveform_exact);
+      out.enable_pid = logical(out.enable_pid);
+      out.enable_lead = logical(out.enable_lead);
+      out.enable_notch = logical(out.enable_notch);
+      out.enable_reso = logical(out.enable_reso);
       out.waveform_diag_max_shift_samples = double(floor(out.waveform_diag_max_shift_samples));
       out.waveform_diag_abs_tol = double(out.waveform_diag_abs_tol);
       out.waveform_diag_preview_n = double(floor(out.waveform_diag_preview_n));
       if strlength(string(out.save_path)) == 0
         stamp = string(datetime("now", "Format", "yyyyMMdd_HHmmss"));
-        out.save_path = char(fullfile("results", "ads_validation", "virtualmotor_io_minimal_" + stamp + ".mat"));
+        out.save_path = char(fullfile("results", "ads_validation", "experiment_sequencer_controllercore_" + stamp + ".mat"));
       else
         out.save_path = char(string(out.save_path));
       end
@@ -120,11 +191,26 @@ classdef RunConfig
 
     function validate(obj)
       if isempty(strtrim(obj.ams_net_id))
-        error("experiment:config:invalid", ...
-          "ams_net_id is required. Example: ""192.168.10.3.1.1"".");
+        error("experiment:config:invalid", "ams_net_id is required.");
       end
       if isempty(strtrim(obj.vm_param_symbol_prefix))
         error("experiment:config:invalid", "vm_param_symbol_prefix is required.");
+      end
+      if isempty(strtrim(obj.controller_param_symbol_prefix))
+        error("experiment:config:invalid", "controller_param_symbol_prefix is required.");
+      end
+      if isempty(obj.ref_profile)
+        error("experiment:config:invalid", "ref_profile is required and must not be empty.");
+      end
+      n_ref = numel(obj.ref_profile);
+      if numel(obj.ff_profile) ~= n_ref
+        error("experiment:config:invalid", "ff_profile length must match ref_profile length.");
+      end
+      if numel(obj.dist_profile) ~= n_ref
+        error("experiment:config:invalid", "dist_profile length must match ref_profile length.");
+      end
+      if n_ref > double(obj.table_max_n)
+        error("experiment:config:invalid", "ref_profile length (%d) exceeds table_max_n (%d).", n_ref, double(obj.table_max_n));
       end
       if ~(isnumeric(obj.log_poll_period_s) && isscalar(obj.log_poll_period_s) && obj.log_poll_period_s > 0)
         error("experiment:config:invalid", "log_poll_period_s must be > 0.");
@@ -132,23 +218,8 @@ classdef RunConfig
       if ~(isnumeric(obj.log_chunk_n) && isscalar(obj.log_chunk_n) && obj.log_chunk_n > 0)
         error("experiment:config:invalid", "log_chunk_n must be > 0.");
       end
-      if ~(isnumeric(obj.log_host_max_n) && isscalar(obj.log_host_max_n) && ...
-          (isinf(obj.log_host_max_n) || obj.log_host_max_n > 0))
+      if ~(isnumeric(obj.log_host_max_n) && isscalar(obj.log_host_max_n) && (isinf(obj.log_host_max_n) || obj.log_host_max_n > 0))
         error("experiment:config:invalid", "log_host_max_n must be positive or inf.");
-      end
-      if ~(isnumeric(obj.waveform_diag_max_shift_samples) && isscalar(obj.waveform_diag_max_shift_samples) && ...
-          isfinite(obj.waveform_diag_max_shift_samples) && obj.waveform_diag_max_shift_samples >= 0 && ...
-          floor(obj.waveform_diag_max_shift_samples) == obj.waveform_diag_max_shift_samples)
-        error("experiment:config:invalid", "waveform_diag_max_shift_samples must be a nonnegative integer.");
-      end
-      if ~(isnumeric(obj.waveform_diag_abs_tol) && isscalar(obj.waveform_diag_abs_tol) && ...
-          isfinite(obj.waveform_diag_abs_tol) && obj.waveform_diag_abs_tol >= 0)
-        error("experiment:config:invalid", "waveform_diag_abs_tol must be a finite scalar >= 0.");
-      end
-      if ~(isnumeric(obj.waveform_diag_preview_n) && isscalar(obj.waveform_diag_preview_n) && ...
-          isfinite(obj.waveform_diag_preview_n) && obj.waveform_diag_preview_n >= 0 && ...
-          floor(obj.waveform_diag_preview_n) == obj.waveform_diag_preview_n)
-        error("experiment:config:invalid", "waveform_diag_preview_n must be a nonnegative integer.");
       end
     end
 

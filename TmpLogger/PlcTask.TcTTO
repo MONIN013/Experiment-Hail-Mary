@@ -4,9 +4,6 @@
     <!--CycleTime in micro seconds.-->
     <CycleTime>1000</CycleTime>
     <Priority>20</Priority>
-    <PouCall>
-      <Name>PRG_VM_Logger</Name>
-    </PouCall>
     <TaskFBGuid>{9ee62fa1-002f-4fa4-b214-2b5a5b5ccac3}</TaskFBGuid>
     <Fb_init>{731244a4-20a7-49e2-ad47-58eeb9ef6b88}</Fb_init>
     <Fb_exit>{447c2603-bd7c-4187-8b35-dd4017c9a32b}</Fb_exit>
