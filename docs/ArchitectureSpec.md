@@ -94,50 +94,57 @@ Phase 4 (125 µs = 8 kHz):
 > **注記:** テーブル (`ref_table`, `ff_table`, `dist_table`, `table_len`) は ControllerCore に含めない。
 > ExperimentSequencer (PLC ST) 側の GVL に配置。→ §2A 参照。
 
-#### 2.3.1 PID パラメータ
+#### 2.3.1 PID パラメータ (`PIDParams : ST_Notch`)
 
 | パラメータ名 | データ型 | 説明 |
 |---|---|---|
-| `pid_Kp` | `double` | 比例ゲイン |
-| `pid_Ki` | `double` | 積分ゲイン |
-| `pid_Kd` | `double` | 微分ゲイン |
-| `pid_N` | `double` | 微分フィルタ係数 (1次ローパス) |
+| `PIDParams.notch_b0` | `double` | PID 用 biquad 分子係数 $b_0$ |
+| `PIDParams.notch_b1` | `double` | PID 用 biquad 分子係数 $b_1$ |
+| `PIDParams.notch_b2` | `double` | PID 用 biquad 分子係数 $b_2$ |
+| `PIDParams.notch_a1` | `double` | PID 用 biquad 分母係数 $a_1$ |
+| `PIDParams.notch_a2` | `double` | PID 用 biquad 分母係数 $a_2$ |
 
-#### 2.3.2 Lead Compensator パラメータ
+> **注記:** 実装上は `PIDParams` も `ST_Notch` 構造体（`notch_*` 係数名）で統一している。
+> PID の連続時間パラメータ (`Kp`, `Ki`, `Kd`, `N`) は MATLAB 側で離散化し、biquad 係数に変換して注入する。
 
-| パラメータ名 | データ型 | サイズ | 説明 |
-|---|---|---|---|
-| `lead_num` | `double[]` | `[1 × 3]` | 離散伝達関数 分子係数 $[b_0, b_1, b_2]$ |
-| `lead_den` | `double[]` | `[1 × 3]` | 離散伝達関数 分母係数 $[1, a_1, a_2]$ |
-
-#### 2.3.3 Notch Filter パラメータ
+#### 2.3.2 Lead Compensator パラメータ (`LeadParams : ST_Notch`)
 
 | パラメータ名 | データ型 | 説明 |
 |---|---|---|
-| `notch_b0` | `double` | Biquad 分子係数 $b_0$ |
-| `notch_b1` | `double` | Biquad 分子係数 $b_1$ |
-| `notch_b2` | `double` | Biquad 分子係数 $b_2$ |
-| `notch_a1` | `double` | Biquad 分母係数 $a_1$ |
-| `notch_a2` | `double` | Biquad 分母係数 $a_2$ |
+| `LeadParams.notch_b0` | `double` | Lead 用 biquad 分子係数 $b_0$ |
+| `LeadParams.notch_b1` | `double` | Lead 用 biquad 分子係数 $b_1$ |
+| `LeadParams.notch_b2` | `double` | Lead 用 biquad 分子係数 $b_2$ |
+| `LeadParams.notch_a1` | `double` | Lead 用 biquad 分母係数 $a_1$ |
+| `LeadParams.notch_a2` | `double` | Lead 用 biquad 分母係数 $a_2$ |
 
-#### 2.3.4 位相最適共振フィルタ パラメータ
+#### 2.3.3 Notch Filter パラメータ (`NotchParams : ST_Notch`)
 
 | パラメータ名 | データ型 | 説明 |
 |---|---|---|
-| `reso_b0` | `double` | Biquad 分子係数 $b_0$ |
-| `reso_b1` | `double` | Biquad 分子係数 $b_1$ |
-| `reso_b2` | `double` | Biquad 分子係数 $b_2$ |
-| `reso_a1` | `double` | Biquad 分母係数 $a_1$ |
-| `reso_a2` | `double` | Biquad 分母係数 $a_2$ |
+| `NotchParams.notch_b0` | `double` | Biquad 分子係数 $b_0$ |
+| `NotchParams.notch_b1` | `double` | Biquad 分子係数 $b_1$ |
+| `NotchParams.notch_b2` | `double` | Biquad 分子係数 $b_2$ |
+| `NotchParams.notch_a1` | `double` | Biquad 分母係数 $a_1$ |
+| `NotchParams.notch_a2` | `double` | Biquad 分母係数 $a_2$ |
 
-#### 2.3.5 Enable / Bypass フラグ
+#### 2.3.4 位相最適共振フィルタ パラメータ (`ResoParams : ST_Notch`)
+
+| パラメータ名 | データ型 | 説明 |
+|---|---|---|
+| `ResoParams.notch_b0` | `double` | Biquad 分子係数 $b_0$ |
+| `ResoParams.notch_b1` | `double` | Biquad 分子係数 $b_1$ |
+| `ResoParams.notch_b2` | `double` | Biquad 分子係数 $b_2$ |
+| `ResoParams.notch_a1` | `double` | Biquad 分母係数 $a_1$ |
+| `ResoParams.notch_a2` | `double` | Biquad 分母係数 $a_2$ |
+
+#### 2.3.5 Enable / Bypass フラグ (`EnableParams : ST_FilterEnable`)
 
 | パラメータ名 | データ型 | デフォルト | 説明 |
 |---|---|---|---|
-| `enable_pid` | `boolean` | `true` | PID ブロックの有効/バイパス |
-| `enable_lead` | `boolean` | `false` | Lead Compensator の有効/バイパス |
-| `enable_notch` | `boolean` | `false` | Notch Filter の有効/バイパス |
-| `enable_reso` | `boolean` | `false` | 位相最適共振フィルタの有効/バイパス |
+| `EnableParams.enable_pid` | `boolean` | `true` | PID ブロックの有効/バイパス |
+| `EnableParams.enable_lead` | `boolean` | `false` | Lead Compensator の有効/バイパス |
+| `EnableParams.enable_notch` | `boolean` | `false` | Notch Filter の有効/バイパス |
+| `EnableParams.enable_reso` | `boolean` | `false` | 位相最適共振フィルタの有効/バイパス |
 
 > **bypass 動作:** `enable = false` のとき、そのブロックの出力は入力をそのまま通過 (ゲイン 1)。  
 > FB チェーン: `error → [PID] → [Lead] → [Notch] → [Reso] → u_fb → (+ff_value) → control_input`  
@@ -384,11 +391,12 @@ EtherCAT.PDO.load_position          ──►  ControllerCore.position_act   (Lo
 │       ref_table[], ff_table[], dist_table[],      │
 │       table_len                                   │
 │  ───► ADS Write (ControllerCore TcCOM):           │
-│       pid_Kp, pid_Ki, pid_Kd, pid_N              │
-│       lead_num[], lead_den[]                      │
-│       notch_b0..a2, reso_b0..a2                   │
-│       enable_pid, enable_lead, enable_notch,      │
-│       enable_reso                                 │
+│       PIDParams.notch_b0..a2                      │
+│       LeadParams.notch_b0..a2                     │
+│       NotchParams.notch_b0..a2                    │
+│       ResoParams.notch_b0..a2                     │
+│       EnableParams.enable_pid / _lead /           │
+│       _notch / _reso                              │
 │  ───► ADS Write: mode_flags, experiment_active    │
 │  ◄─── ADS Read:  ExperimentLogger ステータス     │
 │  ◄─── File Read: ログファイル (実験後)            │
@@ -407,30 +415,34 @@ VirtualMotorCore と同様に、TMC 定義により Data Area を ADS シンボ�
 <instance_name>.<parameter_name>
 ```
 
-**想定インスタンス名:** `ControllerCore_Obj1 (ControllerModule)`
+**想定インスタンス名:** `ControllerCore_Obj1 (Module1)`
 
 | シンボルパス (例) | 型 |
 |---|---|
-| `ControllerCore_Obj1 (ControllerModule).pid_Kp` | `LREAL` |
-| `ControllerCore_Obj1 (ControllerModule).pid_Ki` | `LREAL` |
-| `ControllerCore_Obj1 (ControllerModule).pid_Kd` | `LREAL` |
-| `ControllerCore_Obj1 (ControllerModule).pid_N` | `LREAL` |
-| `ControllerCore_Obj1 (ControllerModule).lead_num` | `LREAL[3]` |
-| `ControllerCore_Obj1 (ControllerModule).lead_den` | `LREAL[3]` |
-| `ControllerCore_Obj1 (ControllerModule).notch_b0` | `LREAL` |
-| `ControllerCore_Obj1 (ControllerModule).notch_b1` | `LREAL` |
-| `ControllerCore_Obj1 (ControllerModule).notch_b2` | `LREAL` |
-| `ControllerCore_Obj1 (ControllerModule).notch_a1` | `LREAL` |
-| `ControllerCore_Obj1 (ControllerModule).notch_a2` | `LREAL` |
-| `ControllerCore_Obj1 (ControllerModule).reso_b0` | `LREAL` |
-| `ControllerCore_Obj1 (ControllerModule).reso_b1` | `LREAL` |
-| `ControllerCore_Obj1 (ControllerModule).reso_b2` | `LREAL` |
-| `ControllerCore_Obj1 (ControllerModule).reso_a1` | `LREAL` |
-| `ControllerCore_Obj1 (ControllerModule).reso_a2` | `LREAL` |
-| `ControllerCore_Obj1 (ControllerModule).enable_pid` | `BOOL` |
-| `ControllerCore_Obj1 (ControllerModule).enable_lead` | `BOOL` |
-| `ControllerCore_Obj1 (ControllerModule).enable_notch` | `BOOL` |
-| `ControllerCore_Obj1 (ControllerModule).enable_reso` | `BOOL` |
+| `ControllerCore_Obj1 (Module1).PIDParams.notch_b0` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).PIDParams.notch_b1` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).PIDParams.notch_b2` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).PIDParams.notch_a1` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).PIDParams.notch_a2` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).LeadParams.notch_b0` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).LeadParams.notch_b1` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).LeadParams.notch_b2` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).LeadParams.notch_a1` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).LeadParams.notch_a2` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).NotchParams.notch_b0` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).NotchParams.notch_b1` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).NotchParams.notch_b2` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).NotchParams.notch_a1` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).NotchParams.notch_a2` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).ResoParams.notch_b0` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).ResoParams.notch_b1` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).ResoParams.notch_b2` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).ResoParams.notch_a1` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).ResoParams.notch_a2` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).EnableParams.enable_pid` | `BOOL` |
+| `ControllerCore_Obj1 (Module1).EnableParams.enable_lead` | `BOOL` |
+| `ControllerCore_Obj1 (Module1).EnableParams.enable_notch` | `BOOL` |
+| `ControllerCore_Obj1 (Module1).EnableParams.enable_reso` | `BOOL` |
 
 > **注記:** テーブル (`ref_table`, `ff_table`, `dist_table`, `table_len`) は
 > ControllerCore に含めない。ExperimentSequencer PLC 側 GVL を参照。
@@ -519,13 +531,14 @@ STRUCT
   torque_cmd       : LREAL;    (* 指令トルク [Nm] → Motor 側 *)
   error            : LREAL;    (* 位置誤差 = ref - load_position [rad] *)
   ref_value        : LREAL;    (* 指令位置 [rad] *)
+  ff_value         : LREAL;    (* フィードフォワード値 [Nm] *)
   control_input    : LREAL;    (* FB制御出力 u_fb + u_ff [Nm] *)
 END_STRUCT
 END_TYPE
 ```
 
-> 1 レコード = 4 + 8 + 8×9 = 84 bytes (アライメント込み: 88 bytes)  
-> 8kHz × 100s = 800,000 レコード × 88 bytes ≈ 67 MB
+> 1 レコード = 4 + 4(pad) + 8 + 8×10 = 96 bytes  
+> 8kHz × 100s = 800,000 レコード × 96 bytes ≈ 76.8 MB
 >
 > Phase 1–3 (SIL) では `motor_position`, `motor_velocity`, `motor_torque_act` は 0 埋め。
 > `load_position` / `load_velocity` に VirtualMotorCore の出力 (1慣性近似) が入る。
@@ -534,7 +547,7 @@ END_TYPE
 
 - **ファイル出力先:** ローカルディスク (例: `C:\ExperimentData\`)
 - **ファイルフォーマット:** バイナリ (fixed-size record) — MATLAB で `fread` で直接読み込み可能
-- **内部バッファ:** 8,000 レコード (= 1 秒分 @ 8kHz, ≈ 688 KB)
+- **内部バッファ:** 8,000 レコード (= 1 秒分 @ 8kHz, ≈ 768 KB)
 - **flush 戦略:** バッファ満杯時に一括 flush。サイクル分散でジッタを最小化
 - **Producer (RT側):** 毎サイクル `ST_LogRecord` を内部バッファに追記。バッファ満杯゛にディスクへ flush
 - **実験終了時:** 残余バッファを最終 flush し、ファイルをクローズ

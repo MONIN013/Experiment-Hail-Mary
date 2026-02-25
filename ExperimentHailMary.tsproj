@@ -669,6 +669,7 @@
 					</TmcDesc>
 				</Instance>
 			</Project>
+			<Project GUID="{87A3A24D-686F-40A3-A259-2BD298716A67}" Name="ExperimentLogger" PrjFilePath="ExperimentLogger\ExperimentLogger.vcxproj" TmcFilePath="ExperimentLogger\ExperimentLogger.tmc"/>
 		</Cpp>
 		<Io/>
 	</Project>
