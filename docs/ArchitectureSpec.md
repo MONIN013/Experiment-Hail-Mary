@@ -94,28 +94,27 @@ Phase 4 (125 µs = 8 kHz):
 > **注記:** テーブル (`ref_table`, `ff_table`, `dist_table`, `table_len`) は ControllerCore に含めない。
 > ExperimentSequencer (PLC ST) 側の GVL に配置。→ §2A 参照。
 
-#### 2.3.1 PID パラメータ (`PIDParams : ST_Notch`)
+#### 2.3.1 PID パラメータ (`PIDParams : ST_PID`)
 
 | パラメータ名 | データ型 | 説明 |
 |---|---|---|
-| `PIDParams.notch_b0` | `double` | PID 用 biquad 分子係数 $b_0$ |
-| `PIDParams.notch_b1` | `double` | PID 用 biquad 分子係数 $b_1$ |
-| `PIDParams.notch_b2` | `double` | PID 用 biquad 分子係数 $b_2$ |
-| `PIDParams.notch_a1` | `double` | PID 用 biquad 分母係数 $a_1$ |
-| `PIDParams.notch_a2` | `double` | PID 用 biquad 分母係数 $a_2$ |
+| `PIDParams.PID_b0` | `double` | PID 用 biquad 分子係数 $b_0$ |
+| `PIDParams.PID_b1` | `double` | PID 用 biquad 分子係数 $b_1$ |
+| `PIDParams.PID_b2` | `double` | PID 用 biquad 分子係数 $b_2$ |
+| `PIDParams.PID_a1` | `double` | PID 用 biquad 分母係数 $a_1$ |
+| `PIDParams.PID_a2` | `double` | PID 用 biquad 分母係数 $a_2$ |
 
-> **注記:** 実装上は `PIDParams` も `ST_Notch` 構造体（`notch_*` 係数名）で統一している。
-> PID の連続時間パラメータ (`Kp`, `Ki`, `Kd`, `N`) は MATLAB 側で離散化し、biquad 係数に変換して注入する。
+> **注記:** PID の連続時間パラメータ (`Kp`, `Ki`, `Kd`, `N`) は MATLAB 側で離散化し、biquad 係数に変換して注入する。
 
-#### 2.3.2 Lead Compensator パラメータ (`LeadParams : ST_Notch`)
+#### 2.3.2 Lead Compensator パラメータ (`LeadParams : ST_PhaseLead`)
 
 | パラメータ名 | データ型 | 説明 |
 |---|---|---|
-| `LeadParams.notch_b0` | `double` | Lead 用 biquad 分子係数 $b_0$ |
-| `LeadParams.notch_b1` | `double` | Lead 用 biquad 分子係数 $b_1$ |
-| `LeadParams.notch_b2` | `double` | Lead 用 biquad 分子係数 $b_2$ |
-| `LeadParams.notch_a1` | `double` | Lead 用 biquad 分母係数 $a_1$ |
-| `LeadParams.notch_a2` | `double` | Lead 用 biquad 分母係数 $a_2$ |
+| `LeadParams.lead_b0` | `double` | Lead 用 biquad 分子係数 $b_0$ |
+| `LeadParams.lead_b1` | `double` | Lead 用 biquad 分子係数 $b_1$ |
+| `LeadParams.lead_b2` | `double` | Lead 用 biquad 分子係数 $b_2$ |
+| `LeadParams.lead_a1` | `double` | Lead 用 biquad 分母係数 $a_1$ |
+| `LeadParams.lead_a2` | `double` | Lead 用 biquad 分母係数 $a_2$ |
 
 #### 2.3.3 Notch Filter パラメータ (`NotchParams : ST_Notch`)
 
@@ -127,15 +126,15 @@ Phase 4 (125 µs = 8 kHz):
 | `NotchParams.notch_a1` | `double` | Biquad 分母係数 $a_1$ |
 | `NotchParams.notch_a2` | `double` | Biquad 分母係数 $a_2$ |
 
-#### 2.3.4 位相最適共振フィルタ パラメータ (`ResoParams : ST_Notch`)
+#### 2.3.4 位相最適共振フィルタ パラメータ (`ResoParams : ST_Reso`)
 
 | パラメータ名 | データ型 | 説明 |
 |---|---|---|
-| `ResoParams.notch_b0` | `double` | Biquad 分子係数 $b_0$ |
-| `ResoParams.notch_b1` | `double` | Biquad 分子係数 $b_1$ |
-| `ResoParams.notch_b2` | `double` | Biquad 分子係数 $b_2$ |
-| `ResoParams.notch_a1` | `double` | Biquad 分母係数 $a_1$ |
-| `ResoParams.notch_a2` | `double` | Biquad 分母係数 $a_2$ |
+| `ResoParams.reso_b0` | `double` | Biquad 分子係数 $b_0$ |
+| `ResoParams.reso_b1` | `double` | Biquad 分子係数 $b_1$ |
+| `ResoParams.reso_b2` | `double` | Biquad 分子係数 $b_2$ |
+| `ResoParams.reso_a1` | `double` | Biquad 分母係数 $a_1$ |
+| `ResoParams.reso_a2` | `double` | Biquad 分母係数 $a_2$ |
 
 #### 2.3.5 Enable / Bypass フラグ (`EnableParams : ST_FilterEnable`)
 

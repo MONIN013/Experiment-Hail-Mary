@@ -103,6 +103,7 @@ CModule1::CModule1()
 	, m_logBuffer(kBufferRecords)
 	, m_fileHandle(0)
 	, m_isLoggingActive(false)
+	, m_prevResetReq(false)
 	, m_prevLoggingCommand(false)
 	, m_sessionFailed(false)
 	, m_bufferCount(0)
@@ -225,9 +226,22 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 	(void)ipCaller;
 	(void)context;
 
+	const bool resetEdge = (m_Inputs.reset_req != false) && !m_prevResetReq;
+	m_prevResetReq = (m_Inputs.reset_req != false);
+	if (resetEdge)
+	{
+		CloseLogFile(true);
+		ResetRuntimeState();
+	}
+
 	const bool loggingCmd = (m_LogControl.logging != false);
-	const bool risingEdge = loggingCmd && !m_prevLoggingCommand;
-	const bool fallingEdge = !loggingCmd && m_prevLoggingCommand;
+	bool risingEdge = loggingCmd && !m_prevLoggingCommand;
+	bool fallingEdge = !loggingCmd && m_prevLoggingCommand;
+	if (resetEdge)
+	{
+		risingEdge = false;
+		fallingEdge = false;
+	}
 
 	if (risingEdge)
 	{

@@ -103,6 +103,7 @@ protected:
 	ITcFileAccessAsyncPtr m_spFileAccessAsync;
 	TcFileHandle m_fileHandle;
 	bool m_isLoggingActive;
+	bool m_prevResetReq;
 	bool m_prevLoggingCommand;
 	bool m_sessionFailed;
 	ULONG m_bufferCount;

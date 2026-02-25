@@ -263,7 +263,7 @@
 		</System>
 		<Plc>
 			<Project GUID="{FCFF5180-937F-4F0E-915A-7CF7E9CA7F30}" Name="StateMachineControl" PrjFilePath="StateMachineControl\StateMachineControl.plcproj" TmcFilePath="StateMachineControl\StateMachineControl.tmc" ReloadTmc="true" AmsPort="852" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{97FD6ABC-830B-3417-A2DB-C23739AEF520}" TmcPath="StateMachineControl\StateMachineControl.tmc">
+				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{8C7E6726-EE7F-EB98-AFF9-43955A416043}" TmcPath="StateMachineControl\StateMachineControl.tmc">
 					<Name>StateMachineControl Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -272,6 +272,21 @@
 							<Name>MAIN.uiCtrlWord</Name>
 							<Comment><![CDATA[ ControlWord output]]></Comment>
 							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.bExperimentActive</Name>
+							<Comment><![CDATA[ ModeManager experiment active output]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.bResetOut</Name>
+							<Comment><![CDATA[ One-shot reset pulse output]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.bEnableTorqueOut</Name>
+							<Comment><![CDATA[ Torque enable gate output]]></Comment>
+							<Type>BOOL</Type>
 						</Var>
 					</Vars>
 					<Vars VarGrpType="1">
@@ -304,7 +319,7 @@
 				</Instance>
 			</Project>
 			<Project GUID="{54AD89C8-6B39-47E6-B85F-F4753C89F02E}" Name="ExperimentSequencer" PrjFilePath="ExperimentSequencer\ExperimentSequencer.plcproj" TmcFilePath="ExperimentSequencer\ExperimentSequencer.tmc" ReloadTmc="true" AmsPort="853" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{B1C48381-D8A7-B184-11E8-B5D4A874BDF7}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
+				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{0AC7637A-6CEA-430E-520C-39F633485E90}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
 					<Name>ExperimentSequencer Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -321,16 +336,28 @@
 							<Name>GVL_SEQ.dist_value</Name>
 							<Type>LREAL</Type>
 						</Var>
+						<Var>
+							<Name>GVL_SEQ.playback_done</Name>
+							<Type>BOOL</Type>
+						</Var>
 					</Vars>
 					<Vars VarGrpType="1">
 						<Name>PlcTask Inputs</Name>
 						<Var>
-							<Name>GVL_SEQ.control_input</Name>
+							<Name>GVL_SEQ.reset_req</Name>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_SEQ_LOG.control_input_tap</Name>
 							<Type>LREAL</Type>
 						</Var>
 						<Var>
-							<Name>GVL_SEQ.position_act_log</Name>
+							<Name>GVL_SEQ_LOG.position_act_tap</Name>
 							<Type>LREAL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_SEQ.experiment_active</Name>
+							<Type>BOOL</Type>
 						</Var>
 					</Vars>
 					<Contexts>
@@ -350,7 +377,7 @@
 				</Instance>
 			</Project>
 			<Project GUID="{08913967-7B51-43CA-BB9A-1E6358DD9FAA}" Name="DriverAdapter" PrjFilePath="DriverAdapter\DriverAdapter.plcproj" TmcFilePath="DriverAdapter\DriverAdapter.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{F86182AE-1951-A9C8-A3E7-512C707F3BD1}" TmcPath="DriverAdapter\DriverAdapter.tmc">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{68D7CC7F-2CC2-91BB-698D-81B45F283FBD}" TmcPath="DriverAdapter\DriverAdapter.tmc">
 					<Name>DriverAdapter Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -370,6 +397,10 @@
 					</Vars>
 					<Vars VarGrpType="1">
 						<Name>PlcTask Inputs</Name>
+						<Var>
+							<Name>GVL_DRV.enable_torque_output</Name>
+							<Type>BOOL</Type>
+						</Var>
 						<Var>
 							<Name>GVL_DRV.statusword</Name>
 							<Type>UINT</Type>
@@ -451,10 +482,17 @@
 								<ContextId>1</ContextId>
 							</Parameter>
 							<Parameter CreateSymbol="true">
-								<Name>VirtualMotorParameter</Name>
+								<Name>VirtualMotor1Parameter</Name>
 								<BitSize>384</BitSize>
 								<BaseType GUID="{AD65C9B8-FC86-4AF1-817D-BF58D4446348}">ST_VirtualMotorParams</BaseType>
 								<PTCID>#x00000001</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+							<Parameter>
+								<Name>VirtualMotor2Parameter</Name>
+								<BitSize>384</BitSize>
+								<BaseType GUID="{AD65C9B8-FC86-4AF1-817D-BF58D4446348}">ST_VirtualMotorParams</BaseType>
+								<PTCID>#x00000002</PTCID>
 								<ContextId>1</ContextId>
 							</Parameter>
 						</Parameters>
@@ -463,36 +501,60 @@
 								<AreaNo AreaType="InputDst" CreateSymbols="true">0</AreaNo>
 								<Name>Inputs</Name>
 								<ContextId>1</ContextId>
-								<ByteSize>10</ByteSize>
+								<ByteSize>20</ByteSize>
 								<Symbol>
-									<Name>VirtualMotorInputs</Name>
+									<Name>VirtualMotor1Inputs</Name>
 									<BitSize>64</BitSize>
 									<BaseType GUID="{D27DC1B7-F0A6-4309-9297-D3E9F02AB56B}">ST_VirtualMotorInputs</BaseType>
 									<BitOffs>0</BitOffs>
 								</Symbol>
 								<Symbol>
-									<Name>controlword</Name>
+									<Name>controlword1</Name>
 									<BitSize>16</BitSize>
 									<BaseType GUID="{18071995-0000-0000-0000-000000000005}">UINT</BaseType>
 									<BitOffs>64</BitOffs>
+								</Symbol>
+								<Symbol>
+									<Name>VirtualMotor2Inputs</Name>
+									<BitSize>64</BitSize>
+									<BaseType GUID="{D27DC1B7-F0A6-4309-9297-D3E9F02AB56B}">ST_VirtualMotorInputs</BaseType>
+									<BitOffs>80</BitOffs>
+								</Symbol>
+								<Symbol>
+									<Name>controlword2</Name>
+									<BitSize>16</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-000000000005}">UINT</BaseType>
+									<BitOffs>144</BitOffs>
 								</Symbol>
 							</DataArea>
 							<DataArea>
 								<AreaNo AreaType="OutputSrc" CreateSymbols="true">1</AreaNo>
 								<Name>Outputs</Name>
 								<ContextId>1</ContextId>
-								<ByteSize>18</ByteSize>
+								<ByteSize>36</ByteSize>
 								<Symbol>
-									<Name>VirtualMotorOutputs</Name>
+									<Name>VirtualMotor1Outputs</Name>
 									<BitSize>128</BitSize>
 									<BaseType GUID="{C0683341-5BAE-4C43-8224-7D274A9AE924}">ST_VirtualMotorOutputs</BaseType>
 									<BitOffs>0</BitOffs>
 								</Symbol>
 								<Symbol>
-									<Name>statusword</Name>
+									<Name>statusword1</Name>
 									<BitSize>16</BitSize>
 									<BaseType GUID="{18071995-0000-0000-0000-000000000005}">UINT</BaseType>
 									<BitOffs>128</BitOffs>
+								</Symbol>
+								<Symbol>
+									<Name>VirtualMotor2Outputs</Name>
+									<BitSize>128</BitSize>
+									<BaseType GUID="{C0683341-5BAE-4C43-8224-7D274A9AE924}">ST_VirtualMotorOutputs</BaseType>
+									<BitOffs>144</BitOffs>
+								</Symbol>
+								<Symbol>
+									<Name>statusword2</Name>
+									<BitSize>16</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-000000000005}">UINT</BaseType>
+									<BitOffs>272</BitOffs>
 								</Symbol>
 							</DataArea>
 						</DataAreas>
@@ -509,27 +571,51 @@
 								<EnumText>tlAlways</EnumText>
 							</Value>
 							<Value>
-								<Name>VirtualMotorParameter.M</Name>
+								<Name>VirtualMotor1Parameter.M</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>VirtualMotorParameter.D</Name>
+								<Name>VirtualMotor1Parameter.D</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>VirtualMotorParameter.Kt</Name>
+								<Name>VirtualMotor1Parameter.Kt</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>VirtualMotorParameter.tau_limit</Name>
+								<Name>VirtualMotor1Parameter.tau_limit</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>VirtualMotorParameter.vel_limit</Name>
+								<Name>VirtualMotor1Parameter.vel_limit</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>VirtualMotorParameter.task_dt_ns</Name>
+								<Name>VirtualMotor1Parameter.task_dt_ns</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>VirtualMotor2Parameter.M</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>VirtualMotor2Parameter.D</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>VirtualMotor2Parameter.Kt</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>VirtualMotor2Parameter.tau_limit</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>VirtualMotor2Parameter.vel_limit</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>VirtualMotor2Parameter.task_dt_ns</Name>
 								<Value>0</Value>
 							</Value>
 						</ParameterValues>
@@ -628,7 +714,7 @@
 								<AreaNo AreaType="InputDst">0</AreaNo>
 								<Name>Inputs</Name>
 								<ContextId>1</ContextId>
-								<ByteSize>24</ByteSize>
+								<ByteSize>25</ByteSize>
 								<Symbol CreateSymbol="true">
 									<Name>ref_value</Name>
 									<BitSize>64</BitSize>
@@ -646,6 +732,12 @@
 									<BitSize>64</BitSize>
 									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
 									<BitOffs>128</BitOffs>
+								</Symbol>
+								<Symbol CreateSymbol="true">
+									<Name>reset_req</Name>
+									<BitSize>8</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
+									<BitOffs>192</BitOffs>
 								</Symbol>
 							</DataArea>
 							<DataArea>
@@ -794,14 +886,14 @@
 		<MappingInfo Identifier="{02010040-2041-0850-1000-010140205008}" Id="#x02030010" Watchdog="28000000040000000400000004000000"/>
 		<OwnerA Name="TIPC^StateMachineControl^StateMachineControl Instance">
 			<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">
-				<Link VarA="PlcTask Inputs^MAIN.uiStatWord" VarB="Outputs^statusword"/>
-				<Link VarA="PlcTask Outputs^MAIN.uiCtrlWord" VarB="Inputs^controlword"/>
+				<Link VarA="PlcTask Inputs^MAIN.uiStatWord" VarB="Outputs^statusword1"/>
+				<Link VarA="PlcTask Outputs^MAIN.uiCtrlWord" VarB="Inputs^controlword1"/>
 			</OwnerB>
 		</OwnerA>
 		<OwnerA Name="TIXC^ControllerCore^ControllerCore_Obj1 (Module1)">
 			<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">
-				<Link VarA="Inputs^position_act" VarB="Outputs^VirtualMotorOutputs^position_out"/>
-				<Link VarA="Outputs^control_input" VarB="Inputs^VirtualMotorInputs^current_in"/>
+				<Link VarA="Inputs^position_act" VarB="Outputs^VirtualMotor1Outputs^position_out"/>
+				<Link VarA="Outputs^control_input" VarB="Inputs^VirtualMotor1Inputs^current_in"/>
 			</OwnerB>
 		</OwnerA>
 	</Mappings>

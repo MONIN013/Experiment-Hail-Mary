@@ -64,4 +64,5 @@ protected:
 	double m_notchS2;
 	double m_resoS1;
 	double m_resoS2;
+	bool m_prevResetReq;
 };

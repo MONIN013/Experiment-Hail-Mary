@@ -93,12 +93,15 @@ typedef struct _ST_PhaseLead
 const GUID GUID_ST_PhaseLead = {0xFE53C40B, 0xE294, 0x450D, {0xAD, 0x06, 0xDE, 0xEF, 0x6D, 0x60, 0x4A, 0x43}};
 #endif // !defined(_TC_TYPE_FE53C40B_E294_450D_AD06_DEEF6D604A43_INCLUDED_)
 
+#pragma pack(push,1)
 typedef struct _Module1Inputs
 {
 	double ref_value;
 	double ff_value;
 	double position_act;
+	bool reset_req;
 } Module1Inputs, *PModule1Inputs;
+#pragma pack(pop)
 
 typedef struct _Module1Outputs
 {

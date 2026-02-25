@@ -6,12 +6,17 @@ VAR
     uiCtrlWord AT%Q* : UINT; // ControlWord output
     uiStatWord AT%I* : UINT; // StatusWord input
     bSeqPlaybackDone AT%I* : BOOL; // Sequencer playback done (latched)
+    bExperimentActive AT%Q* : BOOL; // ModeManager experiment active output
+    bResetOut AT%Q* : BOOL; // One-shot reset pulse output
+    bEnableTorqueOut AT%Q* : BOOL; // Torque enable gate output
 
     bEnable : BOOL := TRUE;
     bEnableEffective : BOOL := FALSE;
     servo_enable_req : BOOL := FALSE;
     experiment_start_req : BOOL := FALSE;
-    seq_reset_req : BOOL := FALSE;
+    reset_req : BOOL := FALSE;
+    reset_req_prev : BOOL := FALSE;
+    reset_edge : BOOL := FALSE;
     done_latched : BOOL := FALSE;
     drive_ready : BOOL := FALSE;
 
@@ -21,7 +26,14 @@ END_VAR
     <Implementation>
       <ST><![CDATA[servo_enable_req := (GVL_MODE.mode_flags AND GVL_MODE.MODEF_SERVO_ENABLE) <> 0;
 experiment_start_req := (GVL_MODE.mode_flags AND GVL_MODE.MODEF_EXPERIMENT_START_REQ) <> 0;
-seq_reset_req := (GVL_MODE.mode_flags AND GVL_MODE.MODEF_RESET_SEQ_REQ) <> 0;
+reset_req := (GVL_MODE.mode_flags AND GVL_MODE.MODEF_RESET_REQ) <> 0;
+reset_edge := reset_req AND NOT reset_req_prev;
+reset_req_prev := reset_req;
+bResetOut := reset_edge;
+
+IF reset_edge THEN
+    GVL_MODE.mode_flags := GVL_MODE.mode_flags AND NOT GVL_MODE.MODEF_RESET_REQ;
+END_IF
 
 bEnableEffective := bEnable AND servo_enable_req;
 
@@ -32,6 +44,7 @@ fbSM(
 
 uiCtrlWord := fbSM.uiControlWord;
 drive_ready := (fbSM.eDriveState = E_DriveState.OPERATION_ENABLED);
+bEnableTorqueOut := bEnableEffective AND drive_ready;
 
 IF bSeqPlaybackDone THEN
     done_latched := TRUE;
@@ -41,7 +54,7 @@ IF NOT experiment_start_req THEN
     done_latched := FALSE;
 END_IF
 
-IF seq_reset_req THEN
+IF reset_edge THEN
     done_latched := FALSE;
 END_IF
 
@@ -65,7 +78,9 @@ ELSIF bEnableEffective AND drive_ready THEN
     GVL_MODE.experiment_state := GVL_MODE.STATE_READY;
 ELSE
     GVL_MODE.experiment_state := GVL_MODE.STATE_IDLE;
-END_IF]]></ST>
+END_IF
+
+bExperimentActive := GVL_MODE.experiment_active;]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

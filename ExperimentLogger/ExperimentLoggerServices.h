@@ -50,6 +50,7 @@ typedef struct _Module1LogControl
 } Module1LogControl, *PModule1LogControl;
 #pragma pack(pop)
 
+#pragma pack(push,1)
 typedef struct _Module1Inputs
 {
 	double torque_cmd;
@@ -62,7 +63,9 @@ typedef struct _Module1Inputs
 	double motor_torque_act;
 	double load_position;
 	double load_velocity;
+	bool reset_req;
 } Module1Inputs, *PModule1Inputs;
+#pragma pack(pop)
 
 typedef struct _Module1Outputs
 {

@@ -13,6 +13,12 @@ VAR_GLOBAL
     rd_idx : UDINT := 0;
     overflow : BOOL := FALSE;
 
+    {attribute 'linkalways'}
+    control_input_tap AT %I* : LREAL := 0.0;
+
+    {attribute 'linkalways'}
+    position_act_tap AT %I* : LREAL := 0.0;
+
     log_seq : ARRAY[0..LOG_N - 1] OF UDINT;
     log_ref_value : ARRAY[0..LOG_N - 1] OF LREAL;
     log_ff_value : ARRAY[0..LOG_N - 1] OF LREAL;
