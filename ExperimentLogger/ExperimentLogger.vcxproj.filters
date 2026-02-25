@@ -2,19 +2,19 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Header Files">
-      <UniqueIdentifier>{c33514da-392e-4b91-bd27-1319d1301385}</UniqueIdentifier>
+      <UniqueIdentifier>{d7584af1-66c3-4c18-a78f-641df67d8f77}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files">
-      <UniqueIdentifier>{2f7be6f7-dbc1-4c9e-bf0f-445541925286}</UniqueIdentifier>
+      <UniqueIdentifier>{7cec953f-ef5e-4e6b-9394-41d5f8e44d53}</UniqueIdentifier>
     </Filter>
     <Filter Include="TwinCAT RT Files">
-      <UniqueIdentifier>{823cfc16-4b95-489f-8cc6-ad7c071bf279}</UniqueIdentifier>
+      <UniqueIdentifier>{8071c2af-7c6b-4d50-a86e-5333aa3578a3}</UniqueIdentifier>
     </Filter>
     <Filter Include="TwinCAT OS Files">
-      <UniqueIdentifier>{af9ae663-d376-46a8-9cc7-8f2848ada49c}</UniqueIdentifier>
+      <UniqueIdentifier>{d8e7c48d-71e2-4e94-a92d-969ff07eb744}</UniqueIdentifier>
     </Filter>
     <Filter Include="TMC Files">
-      <UniqueIdentifier>{a3c3a792-2c67-4324-ac94-81f15c124c64}</UniqueIdentifier>
+      <UniqueIdentifier>{084a53be-b9e9-48f3-b3e3-55a3b73eec53}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -33,7 +33,7 @@
     <ClInclude Include="ExperimentLoggerDriver.h">
       <Filter>TwinCAT RT Files</Filter>
     </ClInclude>
-    <ClInclude Include="Logger.h">
+    <ClInclude Include="Module1.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -50,7 +50,7 @@
     <ClCompile Include="ExperimentLoggerMain.cpp">
       <Filter>TwinCAT OS Files</Filter>
     </ClCompile>
-    <ClCompile Include="Logger.cpp">
+    <ClCompile Include="Module1.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

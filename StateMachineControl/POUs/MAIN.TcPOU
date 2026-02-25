@@ -5,19 +5,67 @@
 VAR
     uiCtrlWord AT%Q* : UINT; // ControlWord output
     uiStatWord AT%I* : UINT; // StatusWord input
+    bSeqPlaybackDone AT%I* : BOOL; // Sequencer playback done (latched)
 
     bEnable : BOOL := TRUE;
+    bEnableEffective : BOOL := FALSE;
+    servo_enable_req : BOOL := FALSE;
+    experiment_start_req : BOOL := FALSE;
+    seq_reset_req : BOOL := FALSE;
+    done_latched : BOOL := FALSE;
+    drive_ready : BOOL := FALSE;
 
     fbSM : FB_StateMachineControl;
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[fbSM(
+      <ST><![CDATA[servo_enable_req := (GVL_MODE.mode_flags AND GVL_MODE.MODEF_SERVO_ENABLE) <> 0;
+experiment_start_req := (GVL_MODE.mode_flags AND GVL_MODE.MODEF_EXPERIMENT_START_REQ) <> 0;
+seq_reset_req := (GVL_MODE.mode_flags AND GVL_MODE.MODEF_RESET_SEQ_REQ) <> 0;
+
+bEnableEffective := bEnable AND servo_enable_req;
+
+fbSM(
     uiStatusWord := uiStatWord,
-    bEnable      := bEnable
+    bEnable      := bEnableEffective
 );
 
-uiCtrlWord := fbSM.uiControlWord;]]></ST>
+uiCtrlWord := fbSM.uiControlWord;
+drive_ready := (fbSM.eDriveState = E_DriveState.OPERATION_ENABLED);
+
+IF bSeqPlaybackDone THEN
+    done_latched := TRUE;
+END_IF
+
+IF NOT experiment_start_req THEN
+    done_latched := FALSE;
+END_IF
+
+IF seq_reset_req THEN
+    done_latched := FALSE;
+END_IF
+
+IF NOT bEnableEffective THEN
+    GVL_MODE.experiment_active := FALSE;
+ELSIF GVL_MODE.experiment_active THEN
+    IF bSeqPlaybackDone THEN
+        GVL_MODE.experiment_active := FALSE;
+    END_IF
+ELSE
+    IF experiment_start_req AND drive_ready AND (NOT done_latched) THEN
+        GVL_MODE.experiment_active := TRUE;
+    END_IF
+END_IF
+
+IF GVL_MODE.experiment_active THEN
+    GVL_MODE.experiment_state := GVL_MODE.STATE_RUNNING;
+ELSIF done_latched THEN
+    GVL_MODE.experiment_state := GVL_MODE.STATE_DONE;
+ELSIF bEnableEffective AND drive_ready THEN
+    GVL_MODE.experiment_state := GVL_MODE.STATE_READY;
+ELSE
+    GVL_MODE.experiment_state := GVL_MODE.STATE_IDLE;
+END_IF]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

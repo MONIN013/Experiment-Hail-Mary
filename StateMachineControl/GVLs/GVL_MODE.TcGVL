@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <GVL Name="GVL_MODE" Id="{4e4b78e9-90d4-4b53-9647-8f59e8f34bd4}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL CONSTANT
+    MODEF_SERVO_ENABLE : UINT := 16#0001;          (* bit0 *)
+    MODEF_EXPERIMENT_START_REQ : UINT := 16#0002;  (* bit1 *)
+    MODEF_RESET_SEQ_REQ : UINT := 16#0004;         (* bit2 reserved: GUI/ADS reset wiring *)
+
+    STATE_IDLE : UINT := 0;
+    STATE_READY : UINT := 1;
+    STATE_RUNNING : UINT := 2;
+    STATE_DONE : UINT := 3;
+END_VAR
+
+VAR_GLOBAL
+    mode_flags : UINT := 0;
+    experiment_active : BOOL := FALSE;
+    experiment_state : UINT := STATE_IDLE;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

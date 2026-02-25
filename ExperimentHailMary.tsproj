@@ -74,7 +74,7 @@
 			</Hides>
 		</DataType>
 		<DataType>
-			<Name GUID="{7A41B282-B6EF-4DA2-B9CD-74B2D70476B6}">ST_Notch</Name>
+			<Name GUID="{7A41B282-B6EF-4DA2-B9CD-74B2D70476B6}" AutoDeleteType="true">ST_Notch</Name>
 			<BitSize>320</BitSize>
 			<SubItem>
 				<Name>notch_b0</Name>
@@ -108,6 +108,77 @@
 			</SubItem>
 		</DataType>
 		<DataType>
+			<Name GUID="{FE53C40B-E294-450D-AD06-DEEF6D604A43}">ST_PhaseLead</Name>
+			<BitSize>320</BitSize>
+			<SubItem>
+				<Name>lead_b0</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>0</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>lead_b1</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>64</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>lead_b2</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>128</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>lead_a1</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>192</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>lead_a2</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>256</BitOffs>
+			</SubItem>
+		</DataType>
+		<DataType>
+			<Name GUID="{F0EFD512-8498-4CBC-A25F-04D8E2741F50}">ST_Reso</Name>
+			<BitSize>320</BitSize>
+			<SubItem>
+				<Name>reso_b0</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>0</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>reso_b1</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>64</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>reso_b2</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>128</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>reso_a1</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>192</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>reso_a2</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>256</BitOffs>
+			</SubItem>
+			<Hides>
+				<Hide GUID="{7A41B282-B6EF-4DA2-B9CD-74B2D70476B6}"/>
+			</Hides>
+		</DataType>
+		<DataType>
 			<Name GUID="{13107610-CD3F-4EB5-ABFF-3AFC341E6827}">ST_FilterEnable</Name>
 			<BitSize>32</BitSize>
 			<SubItem>
@@ -135,6 +206,40 @@
 				<BitOffs>24</BitOffs>
 			</SubItem>
 		</DataType>
+		<DataType>
+			<Name GUID="{601DEA5D-CD1F-4DA3-90A4-3260B161E2AC}">ST_PID</Name>
+			<BitSize>320</BitSize>
+			<SubItem>
+				<Name>PID_b0</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>0</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>PID_b1</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>64</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>PID_b2</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>128</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>PID_a1</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>192</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>PID_a2</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>256</BitOffs>
+			</SubItem>
+		</DataType>
 	</DataTypes>
 	<Project ProjectGUID="{4A5895CC-136C-4342-8211-A3240A616049}" TargetNetId="192.168.10.3.1.1" Target64Bit="true" ShowHideConfigurations="#x6">
 		<System>
@@ -158,7 +263,7 @@
 		</System>
 		<Plc>
 			<Project GUID="{FCFF5180-937F-4F0E-915A-7CF7E9CA7F30}" Name="StateMachineControl" PrjFilePath="StateMachineControl\StateMachineControl.plcproj" TmcFilePath="StateMachineControl\StateMachineControl.tmc" ReloadTmc="true" AmsPort="852" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{1EF8A650-9E56-DB7B-3185-0F068A504FBE}" TmcPath="StateMachineControl\StateMachineControl.tmc">
+				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{97FD6ABC-830B-3417-A2DB-C23739AEF520}" TmcPath="StateMachineControl\StateMachineControl.tmc">
 					<Name>StateMachineControl Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -175,6 +280,11 @@
 							<Name>MAIN.uiStatWord</Name>
 							<Comment><![CDATA[ StatusWord input]]></Comment>
 							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.bSeqPlaybackDone</Name>
+							<Comment><![CDATA[ Sequencer playback done (latched)]]></Comment>
+							<Type>BOOL</Type>
 						</Var>
 					</Vars>
 					<Contexts>
@@ -194,7 +304,7 @@
 				</Instance>
 			</Project>
 			<Project GUID="{54AD89C8-6B39-47E6-B85F-F4753C89F02E}" Name="ExperimentSequencer" PrjFilePath="ExperimentSequencer\ExperimentSequencer.plcproj" TmcFilePath="ExperimentSequencer\ExperimentSequencer.tmc" ReloadTmc="true" AmsPort="853" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{9FA36E47-8E77-EA50-D7C0-89AF87DB4140}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
+				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{B1C48381-D8A7-B184-11E8-B5D4A874BDF7}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
 					<Name>ExperimentSequencer Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -478,13 +588,6 @@
 								<ContextId>1</ContextId>
 							</Parameter>
 							<Parameter>
-								<Name>PIDParams</Name>
-								<BitSize>320</BitSize>
-								<BaseType GUID="{7A41B282-B6EF-4DA2-B9CD-74B2D70476B6}">ST_Notch</BaseType>
-								<PTCID>#x00000003</PTCID>
-								<ContextId>1</ContextId>
-							</Parameter>
-							<Parameter>
 								<Name>NotchParams</Name>
 								<BitSize>320</BitSize>
 								<BaseType GUID="{7A41B282-B6EF-4DA2-B9CD-74B2D70476B6}">ST_Notch</BaseType>
@@ -494,14 +597,14 @@
 							<Parameter>
 								<Name>LeadParams</Name>
 								<BitSize>320</BitSize>
-								<BaseType GUID="{7A41B282-B6EF-4DA2-B9CD-74B2D70476B6}">ST_Notch</BaseType>
+								<BaseType GUID="{FE53C40B-E294-450D-AD06-DEEF6D604A43}">ST_PhaseLead</BaseType>
 								<PTCID>#x00000004</PTCID>
 								<ContextId>1</ContextId>
 							</Parameter>
 							<Parameter>
 								<Name>ResoParams</Name>
 								<BitSize>320</BitSize>
-								<BaseType GUID="{7A41B282-B6EF-4DA2-B9CD-74B2D70476B6}">ST_Notch</BaseType>
+								<BaseType GUID="{F0EFD512-8498-4CBC-A25F-04D8E2741F50}">ST_Reso</BaseType>
 								<PTCID>#x00000006</PTCID>
 								<ContextId>1</ContextId>
 							</Parameter>
@@ -510,6 +613,13 @@
 								<BitSize>32</BitSize>
 								<BaseType GUID="{13107610-CD3F-4EB5-ABFF-3AFC341E6827}">ST_FilterEnable</BaseType>
 								<PTCID>#x00000005</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+							<Parameter>
+								<Name>PIDParams</Name>
+								<BitSize>320</BitSize>
+								<BaseType GUID="{601DEA5D-CD1F-4DA3-90A4-3260B161E2AC}">ST_PID</BaseType>
+								<PTCID>#x00000001</PTCID>
 								<ContextId>1</ContextId>
 							</Parameter>
 						</Parameters>
@@ -542,12 +652,18 @@
 								<AreaNo AreaType="OutputSrc">1</AreaNo>
 								<Name>Outputs</Name>
 								<ContextId>1</ContextId>
-								<ByteSize>8</ByteSize>
+								<ByteSize>16</ByteSize>
 								<Symbol CreateSymbol="true">
 									<Name>control_input</Name>
 									<BitSize>64</BitSize>
 									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
 									<BitOffs>0</BitOffs>
+								</Symbol>
+								<Symbol CreateSymbol="true">
+									<Name>error</Name>
+									<BitSize>64</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
+									<BitOffs>64</BitOffs>
 								</Symbol>
 							</DataArea>
 						</DataAreas>
@@ -562,26 +678,6 @@
 							<Value>
 								<Name>TraceLevelMax</Name>
 								<EnumText>tlAlways</EnumText>
-							</Value>
-							<Value>
-								<Name>PIDParams.notch_b0</Name>
-								<Value>0</Value>
-							</Value>
-							<Value>
-								<Name>PIDParams.notch_b1</Name>
-								<Value>0</Value>
-							</Value>
-							<Value>
-								<Name>PIDParams.notch_b2</Name>
-								<Value>0</Value>
-							</Value>
-							<Value>
-								<Name>PIDParams.notch_a1</Name>
-								<Value>0</Value>
-							</Value>
-							<Value>
-								<Name>PIDParams.notch_a2</Name>
-								<Value>0</Value>
 							</Value>
 							<Value>
 								<Name>NotchParams.notch_b0</Name>
@@ -604,43 +700,43 @@
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>LeadParams.notch_b0</Name>
+								<Name>LeadParams.lead_b0</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>LeadParams.notch_b1</Name>
+								<Name>LeadParams.lead_b1</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>LeadParams.notch_b2</Name>
+								<Name>LeadParams.lead_b2</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>LeadParams.notch_a1</Name>
+								<Name>LeadParams.lead_a1</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>LeadParams.notch_a2</Name>
+								<Name>LeadParams.lead_a2</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>ResoParams.notch_b0</Name>
+								<Name>ResoParams.reso_b0</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>ResoParams.notch_b1</Name>
+								<Name>ResoParams.reso_b1</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>ResoParams.notch_b2</Name>
+								<Name>ResoParams.reso_b2</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>ResoParams.notch_a1</Name>
+								<Name>ResoParams.reso_a1</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>ResoParams.notch_a2</Name>
+								<Name>ResoParams.reso_a2</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
@@ -659,6 +755,26 @@
 								<Name>EnableParams.enable_reso</Name>
 								<EnumText>FALSE</EnumText>
 							</Value>
+							<Value>
+								<Name>PIDParams.PID_b0</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>PIDParams.PID_b1</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>PIDParams.PID_b2</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>PIDParams.PID_a1</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>PIDParams.PID_a2</Name>
+								<Value>0</Value>
+							</Value>
 						</ParameterValues>
 						<InterfacePointerValues>
 							<Value>
@@ -669,7 +785,7 @@
 					</TmcDesc>
 				</Instance>
 			</Project>
-			<Project GUID="{87A3A24D-686F-40A3-A259-2BD298716A67}" Name="ExperimentLogger" PrjFilePath="ExperimentLogger\ExperimentLogger.vcxproj" TmcFilePath="ExperimentLogger\ExperimentLogger.tmc"/>
+			<Project GUID="{C71206DC-4213-420E-9368-4499CDF50D92}" Name="ExperimentLogger" PrjFilePath="ExperimentLogger\ExperimentLogger.vcxproj" TmcFilePath="ExperimentLogger\ExperimentLogger.tmc"/>
 		</Cpp>
 		<Io/>
 	</Project>

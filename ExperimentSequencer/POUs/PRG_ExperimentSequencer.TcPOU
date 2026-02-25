@@ -9,13 +9,22 @@ VAR
     ref_value_local : LREAL := 0.0;
     ff_value_local : LREAL := 0.0;
     dist_value_local : LREAL := 0.0;
-    experiment_active_prev : BOOL := FALSE;
+    cmd_active_prev : BOOL := FALSE;
     start_edge : BOOL := FALSE;
+    playback_running : BOOL := FALSE;
+    rearm_required : BOOL := FALSE;
+    sample_emitted_this_scan : BOOL := FALSE;
+    log_write_idx : DINT := 0;
+    wr_pos : UDINT := 0;
+    logged_idx : UDINT := 0;
+    target_torque_local : LREAL := 0.0;
+    VM_TASK_DT_NS : ULINT := ULINT#1000000;
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[IF GVL_SEQ.reset_req THEN
-    GVL_SEQ.experiment_active := FALSE;
+      <ST><![CDATA[sample_emitted_this_scan := FALSE;
+
+IF GVL_SEQ.reset_req THEN
     GVL_SEQ.table_len := 0;
     GVL_SEQ.table_len_clamped := 0;
     GVL_SEQ.idx := 0;
@@ -23,6 +32,9 @@ END_VAR
     GVL_SEQ.ff_value := 0.0;
     GVL_SEQ.dist_value := 0.0;
     GVL_SEQ.playback_done := FALSE;
+    playback_running := FALSE;
+    rearm_required := FALSE;
+    cmd_active_prev := GVL_SEQ.experiment_active;
 
     GVL_SEQ_LOG.seq := 0;
     GVL_SEQ_LOG.t_ns := 0;
@@ -33,7 +45,12 @@ END_VAR
     GVL_SEQ.reset_req := FALSE;
 END_IF
 
-start_edge := GVL_SEQ.experiment_active AND NOT experiment_active_prev;
+IF (NOT GVL_SEQ.experiment_active) AND rearm_required THEN
+    rearm_required := FALSE;
+    GVL_SEQ.playback_done := FALSE;
+END_IF
+
+start_edge := GVL_SEQ.experiment_active AND NOT cmd_active_prev;
 
 table_len_max_local := GVL_SEQ.N_REF_MAX;
 IF GVL_SEQ.N_FF_MAX < table_len_max_local THEN
@@ -49,14 +66,20 @@ IF table_len_local > table_len_max_local THEN
 END_IF
 GVL_SEQ.table_len_clamped := table_len_local;
 
-IF start_edge THEN
+IF start_edge AND (NOT rearm_required) THEN
     GVL_SEQ.idx := 0;
     GVL_SEQ.playback_done := FALSE;
+    playback_running := TRUE;
 END_IF
 
-IF GVL_SEQ.experiment_active THEN
+IF playback_running AND (NOT GVL_SEQ.experiment_active) THEN
+    playback_running := FALSE;
+END_IF
+
+IF playback_running THEN
     IF table_len_local = 0 THEN
-        GVL_SEQ.experiment_active := FALSE;
+        playback_running := FALSE;
+        rearm_required := TRUE;
         GVL_SEQ.playback_done := TRUE;
         GVL_SEQ.ref_value := 0.0;
         GVL_SEQ.ff_value := 0.0;
@@ -73,8 +96,10 @@ IF GVL_SEQ.experiment_active THEN
         GVL_SEQ.dist_value := dist_value_local;
 
         GVL_SEQ.idx := GVL_SEQ.idx + 1;
+        sample_emitted_this_scan := TRUE;
     ELSE
-        GVL_SEQ.experiment_active := FALSE;
+        playback_running := FALSE;
+        rearm_required := TRUE;
         GVL_SEQ.playback_done := TRUE;
         GVL_SEQ.ref_value := 0.0;
         GVL_SEQ.ff_value := 0.0;
@@ -86,7 +111,32 @@ ELSE
     GVL_SEQ.dist_value := 0.0;
 END_IF
 
-experiment_active_prev := GVL_SEQ.experiment_active;
+IF sample_emitted_this_scan THEN
+    logged_idx := GVL_SEQ.idx - 1;
+    wr_pos := GVL_SEQ_LOG.wr_idx MOD GVL_SEQ_LOG.LOG_N;
+    log_write_idx := UDINT_TO_DINT(wr_pos);
+    target_torque_local := GVL_SEQ.control_input + GVL_SEQ.dist_value;
+
+    GVL_SEQ_LOG.seq := GVL_SEQ_LOG.seq + 1;
+    GVL_SEQ_LOG.t_ns := UDINT_TO_ULINT(GVL_SEQ_LOG.seq) * VM_TASK_DT_NS;
+
+    GVL_SEQ_LOG.log_seq[log_write_idx] := GVL_SEQ_LOG.seq;
+    GVL_SEQ_LOG.log_ref_value[log_write_idx] := GVL_SEQ.ref_value;
+    GVL_SEQ_LOG.log_ff_value[log_write_idx] := GVL_SEQ.ff_value;
+    GVL_SEQ_LOG.log_dist_value[log_write_idx] := GVL_SEQ.dist_value;
+    GVL_SEQ_LOG.log_control_input[log_write_idx] := GVL_SEQ.control_input;
+    GVL_SEQ_LOG.log_target_torque[log_write_idx] := target_torque_local;
+    GVL_SEQ_LOG.log_position_act[log_write_idx] := GVL_SEQ.position_act_log;
+    GVL_SEQ_LOG.log_t[log_write_idx] := GVL_SEQ_LOG.t_ns;
+    GVL_SEQ_LOG.log_idx[log_write_idx] := logged_idx;
+
+    GVL_SEQ_LOG.wr_idx := GVL_SEQ_LOG.wr_idx + 1;
+    IF (GVL_SEQ_LOG.wr_idx - GVL_SEQ_LOG.rd_idx) > GVL_SEQ_LOG.LOG_N THEN
+        GVL_SEQ_LOG.overflow := TRUE;
+    END_IF
+END_IF
+
+cmd_active_prev := GVL_SEQ.experiment_active;
 ]]></ST>
     </Implementation>
   </POU>

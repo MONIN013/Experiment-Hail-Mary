@@ -44,7 +44,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{87a3a24d-686f-40a3-a259-2bd298716a67}</ProjectGuid>
+    <ProjectGuid>{c71206dc-4213-420e-9368-4499cdf50d92}</ProjectGuid>
     <RootNamespace>ExperimentLogger</RootNamespace>
     <Keyword>Win32Proj</Keyword>
     <AutomaticRetargetPlatformVersion>true</AutomaticRetargetPlatformVersion>
@@ -126,7 +126,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|TwinCAT RT (x64)'">
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Logger.cpp" />
+    <ClCompile Include="Module1.cpp" />
     <ClCompile Include="TcPch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|TwinCAT RT (x86)'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|TwinCAT RT (x64)'">Create</PrecompiledHeader>
@@ -156,7 +156,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Logger.h" />
+    <ClInclude Include="Module1.h" />
     <ClInclude Include="TcPch.h" />
     <ClInclude Include="ExperimentLoggerClassFactory.h" />
     <ClInclude Include="ExperimentLoggerDriver.h" />

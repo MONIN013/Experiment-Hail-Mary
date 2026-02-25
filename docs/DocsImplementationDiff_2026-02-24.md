@@ -8,11 +8,14 @@
 
 - `docs/CurrentProject.md` は旧 TE1400 方式の記録であり、現行実装と一致しない箇所がある（意図通り）。
 - 現在は「次世代構成」への移行途中。
+- `tsproj` / `<Mappings>` / TMC 再読み込み確認は GUI 作業で行う（本メモ更新ではコード側の差異修正を優先）。
 
 ## 結論（ざっくり）
 
 - `ExperimentSequencer` / `DriverAdapter` / `ControllerCore` / `VirtualMotorCore` の部品は存在する。
-- ただし `tsproj` の実配線はまだ docs の最終想定どおりにはなっていない。
+- `StateMachineControl` は `GVL_MODE` を持つ ModeManager 相当へ拡張し、`mode_flags` / `experiment_active` / `experiment_state` を公開する構成に更新した。
+- `ExperimentSequencer` は `experiment_active` を外部入力（ModeManager）として扱うように修正し、暫定 SIL ログは `PRG_ExperimentSequencer` に統合した。
+- `tsproj` の実配線（GUI Mapping）はまだ docs の最終想定どおりにはなっていない（GUI 作業対象）。
 - `ControllerCore` と `ExperimentLogger` は docs 記載より実装が進んでいる部分がある。
 - `ControllerCore` の公開 I/O（特に `error` 出力）まわりに、`tsproj` と TMC の不一致候補がある。
 
@@ -33,7 +36,7 @@ docs の Phase 1 想定は以下:
 
 つまり、`DriverAdapter` インスタンス自体は存在するが、配線の本線にまだ入っていない。
 
-### 1.2 ModeManager 拡張（mode_flags / experiment_active）が未実装
+### 1.2 ModeManager 拡張（mode_flags / experiment_active）はコード側で修正済み
 
 docs では `StateMachineControl` を拡張して、少なくとも以下を扱う想定:
 
@@ -41,9 +44,16 @@ docs では `StateMachineControl` を拡張して、少なくとも以下を扱�
 - `experiment_active`
 - `experiment_state`
 
-現状の `StateMachineControl` は CiA402 の ControlWord/StatusWord 制御が中心で、上記の実験シーケンス用 GVL/IF は未確認（未実装扱い）。
+2026-02-25 時点のコード更新で以下を反映:
 
-### 1.3 ExperimentLogger のシステム統合が未完
+- `GVL_MODE.mode_flags`
+- `GVL_MODE.experiment_active`
+- `GVL_MODE.experiment_state`（`IDLE/READY/RUNNING/DONE`）
+- `MAIN` に `bSeqPlaybackDone` 入力を追加（Sequencer 完了通知受け）
+
+※ 実際の PLC 間接続（`GVL_MODE` ↔ `GVL_SEQ`）は GUI Mapping 側の作業。
+
+### 1.3 ExperimentLogger のシステム統合が未完（GUI Mapping/運用統合）
 
 `ExperimentLogger` の C++ プロジェクト/コード/TMC は存在するが、`tsproj` の `<Mappings>` では接続されていない。
 
@@ -94,14 +104,17 @@ docs では `ExperimentSequencer` は `ref/ff/dist` のスカラ出力専任だ�
 
 これは暫定ロガ（`PRG_SEQ_SILLogger`）のための実用的な拡張として入っている。
 
-### 4.2 `PRG_SEQ_SILLogger` が別 POU として残っている
+### 4.2 `PRG_SEQ_SILLogger` が別 POU として残っている（2026-02-25 コード更新で解消）
 
-docs の記述では、暫定ログは `GVL_SEQ_LOG` に保持しつつ `ExperimentSequencer` へ置換していく流れだが、現状は `PRG_SEQ_SILLogger` という独立 POU が残っている。
+docs の記述では、暫定ログは `GVL_SEQ_LOG` に保持しつつ `ExperimentSequencer` へ置換していく流れ。
 
-- `target_torque = control_input + dist_value` をロガ内で再計算
-- リングバッファ書き込み
+2026-02-25 時点のコード更新で以下を反映:
 
-責務分離の最終形（Dist 加算は `DriverAdapter`）に対しては、まだ移行途中。
+- `PRG_SEQ_SILLogger` のロジックを `PRG_ExperimentSequencer` へ統合
+- `ExperimentSequencer` タスク呼び出しを `PRG_ExperimentSequencer` のみへ整理
+- `GVL_SEQ_LOG` は引き続き暫定リングバッファとして保持
+
+暫定ログでの `target_torque = control_input + dist_value` 再計算は継続（Phase 3 `ExperimentLogger` 統合までは許容）。
 
 ### 4.3 互換エイリアスが残っている
 
@@ -118,9 +131,9 @@ docs の「`GVL_EXP*` 互換は維持しない」方針と完全一致ではな�
 - `DriverAdapter` の ST ロジック（`control_input + dist_value`、CW/SW 中継）は docs 方針どおり
 - タスク周期の基本方針（1 ms SIL + 10 ms supervision）は `tsproj` 上でも概ね一致
 
-## 6. 次にやるとよさそうなこと（メモ）
+## 6. 次にやるとよさそうなこと（メモ / GUI 作業中心）
 
-1. `tsproj` の配線を docs どおり `DriverAdapter` 経由へ切り替える
-2. `StateMachineControl` を `ModeManager` 相当に拡張（`mode_flags`, `experiment_active`）
-3. `ControllerCore` の TMC / `tsproj` DataArea を再同期（`error` 出力確認）
-4. `ExperimentLogger` を `tsproj` に統合し、暫定 `PRG_SEQ_SILLogger` の役割を縮小/撤去する
+1. GUI で `tsproj` の配線を docs どおり `DriverAdapter` / `ModeManager` 経由へ切り替える
+2. GUI で `ControllerCore` / `StateMachineControl` / `ExperimentSequencer` の TMC を再読み込みし、公開 I/O を再同期する
+3. `ControllerCore` の `error` 出力が `tsproj` 側で見えることを確認する（`ExperimentLogger` 統合前提）
+4. `ExperimentLogger` を `tsproj` に統合する（GUI Mapping + 運用開始）
