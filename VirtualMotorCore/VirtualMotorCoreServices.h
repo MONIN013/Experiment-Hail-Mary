@@ -30,12 +30,12 @@ const PTCID PID_Module1VirtualMotor2Parameter = 0x00000002;
 #define _TC_TYPE_AD65C9B8_FC86_4AF1_817D_BF58D4446348_INCLUDED_
 typedef struct _ST_VirtualMotorParams
 {
-	double M;
-	double D;
-	double Kt;
-	double tau_limit;
-	double vel_limit;
-	ULONGLONG task_dt_ns;
+	double mass;
+	double damping;
+	double torqueConstant;
+	double tauLimit;
+	double velLimit;
+	ULONGLONG taskDtNs;
 } ST_VirtualMotorParams, *PST_VirtualMotorParams;
 const GUID GUID_ST_VirtualMotorParams = {0xAD65C9B8, 0xFC86, 0x4AF1, {0x81, 0x7D, 0xBF, 0x58, 0xD4, 0x44, 0x63, 0x48}};
 #endif // !defined(_TC_TYPE_AD65C9B8_FC86_4AF1_817D_BF58D4446348_INCLUDED_)
@@ -44,7 +44,7 @@ const GUID GUID_ST_VirtualMotorParams = {0xAD65C9B8, 0xFC86, 0x4AF1, {0x81, 0x7D
 #define _TC_TYPE_D27DC1B7_F0A6_4309_9297_D3E9F02AB56B_INCLUDED_
 typedef struct _ST_VirtualMotorInputs
 {
-	double current_in;
+	double currentIn;
 } ST_VirtualMotorInputs, *PST_VirtualMotorInputs;
 const GUID GUID_ST_VirtualMotorInputs = {0xD27DC1B7, 0xF0A6, 0x4309, {0x92, 0x97, 0xD3, 0xE9, 0xF0, 0x2A, 0xB5, 0x6B}};
 #endif // !defined(_TC_TYPE_D27DC1B7_F0A6_4309_9297_D3E9F02AB56B_INCLUDED_)
@@ -53,8 +53,8 @@ const GUID GUID_ST_VirtualMotorInputs = {0xD27DC1B7, 0xF0A6, 0x4309, {0x92, 0x97
 #define _TC_TYPE_C0683341_5BAE_4C43_8224_7D274A9AE924_INCLUDED_
 typedef struct _ST_VirtualMotorOutputs
 {
-	double position_out;
-	double velocity_out;
+	double positionOut;
+	double velocityOut;
 } ST_VirtualMotorOutputs, *PST_VirtualMotorOutputs;
 const GUID GUID_ST_VirtualMotorOutputs = {0xC0683341, 0x5BAE, 0x4C43, {0x82, 0x24, 0x7D, 0x27, 0x4A, 0x9A, 0xE9, 0x24}};
 #endif // !defined(_TC_TYPE_C0683341_5BAE_4C43_8224_7D274A9AE924_INCLUDED_)
@@ -63,9 +63,9 @@ const GUID GUID_ST_VirtualMotorOutputs = {0xC0683341, 0x5BAE, 0x4C43, {0x82, 0x2
 typedef struct _Module1Inputs
 {
 	ST_VirtualMotorInputs VirtualMotor1Inputs;
-	USHORT controlword1;
+	USHORT controlWord1;
 	ST_VirtualMotorInputs VirtualMotor2Inputs;
-	USHORT controlword2;
+	USHORT controlWord2;
 } Module1Inputs, *PModule1Inputs;
 #pragma pack(pop)
 
@@ -73,9 +73,9 @@ typedef struct _Module1Inputs
 typedef struct _Module1Outputs
 {
 	ST_VirtualMotorOutputs VirtualMotor1Outputs;
-	USHORT statusword1;
+	USHORT statusWord1;
 	ST_VirtualMotorOutputs VirtualMotor2Outputs;
-	USHORT statusword2;
+	USHORT statusWord2;
 } Module1Outputs, *PModule1Outputs;
 #pragma pack(pop)
 

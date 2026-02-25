@@ -4,7 +4,7 @@ classdef TestSymbolBrowserContract < matlab.unittest.TestCase
       transport = MockAdsTransport();
       symbols = experiment.VirtualMotorSymbols.from_defaults();
       testCase.verifyError( ...
-        @()twincat_ads.SymbolBrowser.validate_symbols(transport, symbols.plc_required_probes), ...
+        @()twincat_ads.SymbolBrowser.validate_symbols(transport, symbols.plcRequiredProbes), ...
         "twincat_ads:symbol:notFound");
     end
 
@@ -12,18 +12,18 @@ classdef TestSymbolBrowserContract < matlab.unittest.TestCase
       transport = MockAdsTransport();
       s = experiment.VirtualMotorSymbols.from_defaults();
       transport.scalarMap(char(s.reset)) = false;
-      transport.scalarMap(char(s.experiment_active)) = false;
-      transport.scalarMap(char(s.table_len)) = uint32(0);
+      transport.scalarMap(char(s.experimentActive)) = false;
+      transport.scalarMap(char(s.tableLen)) = uint32(0);
       transport.scalarMap(char(s.idx)) = uint32(0);
-      transport.scalarMap(char(s.ref_value)) = 0.0;
-      transport.scalarMap(char(s.ff_value)) = 0.0;
-      transport.scalarMap(char(s.control_input)) = 0.0;
-      transport.scalarMap(char(s.position_act_log)) = 0.0;
-      transport.scalarMap(char(s.log.wr_idx)) = uint32(0);
-      transport.scalarMap(char(s.log.rd_idx)) = uint32(0);
+      transport.scalarMap(char(s.refValue)) = 0.0;
+      transport.scalarMap(char(s.ffValue)) = 0.0;
+      transport.scalarMap(char(s.controlInput)) = 0.0;
+      transport.scalarMap(char(s.positionActLog)) = 0.0;
+      transport.scalarMap(char(s.log.wrIdx)) = uint32(0);
+      transport.scalarMap(char(s.log.rdIdx)) = uint32(0);
       transport.scalarMap(char(s.log.overflow)) = false;
       testCase.verifyWarningFree( ...
-        @()twincat_ads.SymbolBrowser.validate_symbols(transport, s.plc_required_probes));
+        @()twincat_ads.SymbolBrowser.validate_symbols(transport, s.plcRequiredProbes));
     end
 
     function collectSymbolsSkipsRowsWithMissingName(testCase)
@@ -40,3 +40,5 @@ classdef TestSymbolBrowserContract < matlab.unittest.TestCase
     end
   end
 end
+
+

@@ -1,86 +1,86 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="MAIN" Id="{9328c0c8-0c23-447b-8f8c-ef2a688ee9a0}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM MAIN
 VAR
-    uiCtrlWord AT%Q* : UINT; // ControlWord output
-    uiStatWord AT%I* : UINT; // StatusWord input
-    bSeqPlaybackDone AT%I* : BOOL; // Sequencer playback done (latched)
-    bExperimentActive AT%Q* : BOOL; // ModeManager experiment active output
-    bResetOut AT%Q* : BOOL; // One-shot reset pulse output
-    bEnableTorqueOut AT%Q* : BOOL; // Torque enable gate output
+    ctrlWord AT%Q* : UINT; // ControlWord output
+    statWord AT%I* : UINT; // StatusWord input
+    seqPlaybackDone AT%I* : BOOL; // Sequencer playback done (latched)
+    experimentActiveOut AT%Q* : BOOL; // ModeManager experiment active output
+    resetOut AT%Q* : BOOL; // One-shot reset pulse output
+    enableTorqueOut AT%Q* : BOOL; // Torque enable gate output
 
-    bEnable : BOOL := TRUE;
-    bEnableEffective : BOOL := FALSE;
-    servo_enable_req : BOOL := FALSE;
-    experiment_start_req : BOOL := FALSE;
-    reset_req : BOOL := FALSE;
-    reset_req_prev : BOOL := FALSE;
-    reset_edge : BOOL := FALSE;
-    done_latched : BOOL := FALSE;
-    drive_ready : BOOL := FALSE;
+    enable : BOOL := TRUE;
+    enableEffective : BOOL := FALSE;
+    servoEnableReq : BOOL := FALSE;
+    experimentStartReq : BOOL := FALSE;
+    resetReq : BOOL := FALSE;
+    resetReqPrev : BOOL := FALSE;
+    resetEdge : BOOL := FALSE;
+    doneLatched : BOOL := FALSE;
+    driveReady : BOOL := FALSE;
 
-    fbSM : FB_StateMachineControl;
+    fbStateMachine : FB_StateMachineControl;
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[servo_enable_req := (GVL_MODE.mode_flags AND GVL_MODE.MODEF_SERVO_ENABLE) <> 0;
-experiment_start_req := (GVL_MODE.mode_flags AND GVL_MODE.MODEF_EXPERIMENT_START_REQ) <> 0;
-reset_req := (GVL_MODE.mode_flags AND GVL_MODE.MODEF_RESET_REQ) <> 0;
-reset_edge := reset_req AND NOT reset_req_prev;
-reset_req_prev := reset_req;
-bResetOut := reset_edge;
+      <ST><![CDATA[servoEnableReq := (GVL_MODE.modeFlags AND GVL_MODE.MODEF_SERVO_ENABLE) <> 0;
+experimentStartReq := (GVL_MODE.modeFlags AND GVL_MODE.MODEF_EXPERIMENT_START_REQ) <> 0;
+resetReq := (GVL_MODE.modeFlags AND GVL_MODE.MODEF_RESET_REQ) <> 0;
+resetEdge := resetReq AND NOT resetReqPrev;
+resetReqPrev := resetReq;
+resetOut := resetEdge;
 
-IF reset_edge THEN
-    GVL_MODE.mode_flags := GVL_MODE.mode_flags AND NOT GVL_MODE.MODEF_RESET_REQ;
+IF resetEdge THEN
+    GVL_MODE.modeFlags := GVL_MODE.modeFlags AND NOT GVL_MODE.MODEF_RESET_REQ;
 END_IF
 
-bEnableEffective := bEnable AND servo_enable_req;
+enableEffective := enable AND servoEnableReq;
 
-fbSM(
-    uiStatusWord := uiStatWord,
-    bEnable      := bEnableEffective
+fbStateMachine(
+    statusWord := statWord,
+    enable      := enableEffective
 );
 
-uiCtrlWord := fbSM.uiControlWord;
-drive_ready := (fbSM.eDriveState = E_DriveState.OPERATION_ENABLED);
-bEnableTorqueOut := bEnableEffective AND drive_ready;
+ctrlWord := fbStateMachine.controlWord;
+driveReady := (fbStateMachine.driveState = E_DriveState.OPERATION_ENABLED);
+enableTorqueOut := enableEffective AND driveReady;
 
-IF bSeqPlaybackDone THEN
-    done_latched := TRUE;
+IF seqPlaybackDone THEN
+    doneLatched := TRUE;
 END_IF
 
-IF NOT experiment_start_req THEN
-    done_latched := FALSE;
+IF NOT experimentStartReq THEN
+    doneLatched := FALSE;
 END_IF
 
-IF reset_edge THEN
-    done_latched := FALSE;
+IF resetEdge THEN
+    doneLatched := FALSE;
 END_IF
 
-IF NOT bEnableEffective THEN
-    GVL_MODE.experiment_active := FALSE;
-ELSIF GVL_MODE.experiment_active THEN
-    IF bSeqPlaybackDone THEN
-        GVL_MODE.experiment_active := FALSE;
+IF NOT enableEffective THEN
+    GVL_MODE.experimentActive := FALSE;
+ELSIF GVL_MODE.experimentActive THEN
+    IF seqPlaybackDone THEN
+        GVL_MODE.experimentActive := FALSE;
     END_IF
 ELSE
-    IF experiment_start_req AND drive_ready AND (NOT done_latched) THEN
-        GVL_MODE.experiment_active := TRUE;
+    IF experimentStartReq AND driveReady AND (NOT doneLatched) THEN
+        GVL_MODE.experimentActive := TRUE;
     END_IF
 END_IF
 
-IF GVL_MODE.experiment_active THEN
-    GVL_MODE.experiment_state := GVL_MODE.STATE_RUNNING;
-ELSIF done_latched THEN
-    GVL_MODE.experiment_state := GVL_MODE.STATE_DONE;
-ELSIF bEnableEffective AND drive_ready THEN
-    GVL_MODE.experiment_state := GVL_MODE.STATE_READY;
+IF GVL_MODE.experimentActive THEN
+    GVL_MODE.experimentState := GVL_MODE.STATE_RUNNING;
+ELSIF doneLatched THEN
+    GVL_MODE.experimentState := GVL_MODE.STATE_DONE;
+ELSIF enableEffective AND driveReady THEN
+    GVL_MODE.experimentState := GVL_MODE.STATE_READY;
 ELSE
-    GVL_MODE.experiment_state := GVL_MODE.STATE_IDLE;
+    GVL_MODE.experimentState := GVL_MODE.STATE_IDLE;
 END_IF
 
-bExperimentActive := GVL_MODE.experiment_active;]]></ST>
+experimentActiveOut := GVL_MODE.experimentActive;]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

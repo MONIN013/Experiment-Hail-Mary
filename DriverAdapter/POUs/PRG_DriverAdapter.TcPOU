@@ -1,22 +1,22 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="PRG_DriverAdapter" Id="{2b6eb1d8-78de-49a3-a5f1-da880c0ef4fc}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM PRG_DriverAdapter
 VAR
-    target_torque_local : LREAL := 0.0;
+    targetTorqueLocal : LREAL := 0.0;
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[target_torque_local := GVL_DRV.control_input + GVL_DRV.dist_value;
+      <ST><![CDATA[targetTorqueLocal := GVL_DRV.controlInput + GVL_DRV.distValue;
 
-IF GVL_DRV.enable_torque_output THEN
-    GVL_DRV.target_torque := target_torque_local;
+IF GVL_DRV.enableTorqueOutput THEN
+    GVL_DRV.targetTorque := targetTorqueLocal;
 ELSE
-    GVL_DRV.target_torque := 0.0;
+    GVL_DRV.targetTorque := 0.0;
 END_IF
 
-GVL_DRV.controlword_out := GVL_DRV.controlword_in;
-GVL_DRV.statusword_out := GVL_DRV.statusword;
+GVL_DRV.controlWordOut := GVL_DRV.controlWordIn;
+GVL_DRV.statusWordOut := GVL_DRV.statusWord;
 ]]></ST>
     </Implementation>
   </POU>

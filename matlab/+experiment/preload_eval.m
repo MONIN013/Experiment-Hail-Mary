@@ -3,27 +3,27 @@ ref_cmd = getfield_or(cmd, "ref_profile", zeros(0, 1));
 ff_cmd = getfield_or(cmd, "ff_profile", zeros(0, 1));
 dist_cmd = getfield_or(cmd, "dist_profile", zeros(0, 1));
 
-log_seq = col(raw, "log_seq");
-log_ref = col(raw, "log_ref_value");
-log_ff = col(raw, "log_ff_value");
-log_dist = col(raw, "log_dist_value");
-log_u = col(raw, "log_control_input");
-log_tau = col(raw, "log_target_torque");
-log_pos = col(raw, "log_position_act");
+logSeq = col(raw, "logSeq");
+log_ref = col(raw, "logRefValue");
+log_ff = col(raw, "logFfValue");
+log_dist = col(raw, "logDistValue");
+log_u = col(raw, "logControlInput");
+logTau = col(raw, "logTargetTorque");
+log_pos = col(raw, "logPositionAct");
 
 n_cmd = numel(ref_cmd);
-n_seq = numel(log_seq);
-counts = [n_seq, numel(log_ref), numel(log_ff), numel(log_dist), numel(log_u), numel(log_tau), numel(log_pos)];
+n_seq = numel(logSeq);
+counts = [n_seq, numel(log_ref), numel(log_ff), numel(log_dist), numel(log_u), numel(logTau), numel(log_pos)];
 all_counts_match = all(counts == n_seq);
-seq_gap_count = sum(~udint_seq_step_is_one(log_seq));
+seq_gap_count = sum(~udint_seq_step_is_one(logSeq));
 
 metrics = struct();
 metrics.sample_count = n_seq;
 metrics.log = struct("overflow", logical(getfield_or(raw, "log_overflow", false)));
 metrics.seq = struct("missing_count", double(seq_gap_count));
 if n_seq > 0
-  metrics.seq.first = double(log_seq(1));
-  metrics.seq.last = double(log_seq(end));
+  metrics.seq.first = double(logSeq(1));
+  metrics.seq.last = double(logSeq(end));
 else
   metrics.seq.first = NaN;
   metrics.seq.last = NaN;
@@ -34,7 +34,7 @@ metrics.ff_waveform = compare_exact_waveform(ff_cmd, log_ff, cfg);
 metrics.dist_waveform = compare_exact_waveform(dist_cmd, log_dist, cfg);
 metrics.comparison.current_command_vs_plc = metrics.input_waveform; % compatibility alias
 
-metrics.torque_sum = compare_torque_sum(log_u, log_dist, log_tau);
+metrics.torque_sum = compare_torque_sum(log_u, log_dist, logTau);
 metrics.position_diag = build_position_diag(log_pos, cfg);
 
 metrics.sampling = struct( ...
@@ -42,8 +42,8 @@ metrics.sampling = struct( ...
   "ref_log_count", uint32(numel(log_ref)), ...
   "ff_log_count", uint32(numel(log_ff)), ...
   "dist_log_count", uint32(numel(log_dist)), ...
-  "control_input_log_count", uint32(numel(log_u)), ...
-  "target_torque_log_count", uint32(numel(log_tau)), ...
+  "controlInput_log_count", uint32(numel(log_u)), ...
+  "target_torque_log_count", uint32(numel(logTau)), ...
   "position_log_count", uint32(numel(log_pos)), ...
   "all_sample_counts_match", logical(all_counts_match), ...
   "aligned_sequence_missing_count", uint32(seq_gap_count), ...
@@ -61,12 +61,12 @@ metrics.acceptance.seq_no_gap = (seq_gap_count == 0);
 metrics.acceptance.seq_no_gap_aligned = metrics.acceptance.seq_no_gap;
 metrics.acceptance.total_sample_count_exact_match = (n_seq == n_cmd);
 metrics.acceptance.command_and_position_sample_count_match = (n_cmd == numel(log_pos));
-metrics.acceptance.log_not_overflowed = ~metrics.log.overflow;
+metrics.acceptance.logNot_overflowed = ~metrics.log.overflow;
 
 metrics.notes = {
   "ExperimentSequencer contract: ref/ff/dist table replay (target_torque is produced in DriverAdapter and recorded in logs)."
-  "ControllerCore contract: control_input = u_fb + ff_value."
-  "VirtualMotorCore position is logged via GVL_SEQ.position_act_log."
+  "ControllerCore contract: controlInput = u_fb + ffValue."
+  "VirtualMotorCore position is logged via GVL_SEQ_LOG.positionActTap."
 };
 end
 
@@ -141,16 +141,16 @@ c.head_preview = make_preview(cmd_vec, log_vec, preview_n, true);
 c.tail_preview = make_preview(cmd_vec, log_vec, preview_n, false);
 end
 
-function out = compare_torque_sum(log_u, log_dist, log_tau)
+function out = compare_torque_sum(log_u, log_dist, logTau)
 log_u = double(log_u(:));
 log_dist = double(log_dist(:));
-log_tau = double(log_tau(:));
-n = min([numel(log_u), numel(log_dist), numel(log_tau)]);
+logTau = double(logTau(:));
+n = min([numel(log_u), numel(log_dist), numel(logTau)]);
 out = struct("exact_match", false, "max_abs_err", NaN, "rmse", NaN, "n", uint32(n));
 if n <= 0
   return;
 end
-err = (log_u(1:n) + log_dist(1:n)) - log_tau(1:n);
+err = (log_u(1:n) + log_dist(1:n)) - logTau(1:n);
 out.max_abs_err = max(abs(err));
 out.rmse = sqrt(mean(err.^2));
 out.exact_match = all(abs(err) <= 1e-12);
@@ -162,7 +162,7 @@ pd = struct("available", ~isempty(log_pos), "sample_count", uint32(numel(log_pos
 if isempty(log_pos)
   return;
 end
-if isfield(cfg, "m") && isfield(cfg, "d") && isfield(cfg, "kt") && isfield(cfg, "tau_limit") && isfield(cfg, "vel_limit") && isfield(cfg, "task_rate_hz")
+if isfield(cfg, "m") && isfield(cfg, "d") && isfield(cfg, "kt") && isfield(cfg, "tauLimit") && isfield(cfg, "velLimit") && isfield(cfg, "task_rate_hz")
   pd.velocity_est = [0.0; diff(log_pos) * double(cfg.task_rate_hz)];
 else
   pd.velocity_est = zeros(numel(log_pos), 1);
@@ -227,3 +227,4 @@ max_udint = 2^32;
 step = mod(seq(2:end) - seq(1:end-1), max_udint);
 tf = (step == 1);
 end
+

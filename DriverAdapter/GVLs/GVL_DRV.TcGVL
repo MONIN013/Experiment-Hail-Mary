@@ -4,28 +4,28 @@
     <Declaration><![CDATA[{attribute 'qualified_only'}
 VAR_GLOBAL
     {attribute 'linkalways'}
-    target_torque AT %Q* : LREAL := 0.0;
+    targetTorque AT %Q* : LREAL := 0.0;
 
     {attribute 'linkalways'}
-    controlword_out AT %Q* : UINT := 0;
+    controlWordOut AT %Q* : UINT := 0;
 
     {attribute 'linkalways'}
-    statusword_out AT %Q* : UINT := 0;
+    statusWordOut AT %Q* : UINT := 0;
 
     {attribute 'linkalways'}
-    control_input AT %I* : LREAL := 0.0;
+    controlInput AT %I* : LREAL := 0.0;
 
     {attribute 'linkalways'}
-    dist_value AT %I* : LREAL := 0.0;
+    distValue AT %I* : LREAL := 0.0;
 
     {attribute 'linkalways'}
-    statusword AT %I* : UINT := 0;
+    statusWord AT %I* : UINT := 0;
 
     {attribute 'linkalways'}
-    controlword_in AT %I* : UINT := 0;
+    controlWordIn AT %I* : UINT := 0;
 
     {attribute 'linkalways'}
-    enable_torque_output AT %I* : BOOL := TRUE;
+    enableTorqueOutput AT %I* : BOOL := TRUE;
 END_VAR]]></Declaration>
   </GVL>
 </TcPlcObject>

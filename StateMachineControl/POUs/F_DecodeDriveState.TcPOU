@@ -1,29 +1,29 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="F_DecodeDriveState" Id="{c439a05c-b7ee-4ef5-8b86-661d59fe3393}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION F_DecodeDriveState : E_DriveState
 VAR_INPUT
-    uiStatusWord : UINT; // 0x6041
+    statusWord : UINT; // 0x6041
 END_VAR
 VAR
-    uiMasked : UINT;
+    masked : UINT;
 END_VAR]]></Declaration>
     <Implementation>
-      <ST><![CDATA[uiMasked := uiStatusWord AND 16#006F;
+      <ST><![CDATA[masked := statusWord AND 16#006F;
 
-IF (uiMasked AND 16#0008) <> 0 THEN
+IF (masked AND 16#0008) <> 0 THEN
     // bit3 = Fault
     F_DecodeDriveState := E_DriveState.FAULT;
-ELSIF uiMasked = 16#0060 THEN
+ELSIF masked = 16#0060 THEN
     // Switch on disabled
     F_DecodeDriveState := E_DriveState.SWITCH_ON_DISABLED;
-ELSIF uiMasked = 16#0021 THEN
+ELSIF masked = 16#0021 THEN
     // Ready to switch on
     F_DecodeDriveState := E_DriveState.READY_TO_SWITCH_ON;
-ELSIF uiMasked = 16#0023 THEN
+ELSIF masked = 16#0023 THEN
     // Switched on
     F_DecodeDriveState := E_DriveState.SWITCHED_ON;
-ELSIF uiMasked = 16#0027 THEN
+ELSIF masked = 16#0027 THEN
     // Operation enabled
     F_DecodeDriveState := E_DriveState.OPERATION_ENABLED;
 ELSE

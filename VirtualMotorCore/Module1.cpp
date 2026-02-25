@@ -106,7 +106,7 @@ HRESULT CModule1::SetObjStatePS(PTComInitDataHdr pInitData)
 	HRESULT hr = S_OK;
 	IMPLEMENT_ITCOMOBJECT_EVALUATE_INITDATA(pInitData);
 
-	ResetState();
+	ResetRuntimeState();
 
 	m_Trace.Log(tlVerbose, FLEAVEA_STRV("hr=0x%08x", hr));
 	return hr;
@@ -175,24 +175,24 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 	(void)ipCaller;
 	(void)context;
 
-	UpdateDriveState(0, m_Inputs.controlword1);
-	UpdateDriveState(1, m_Inputs.controlword2);
+	UpdateDriveState(0, m_Inputs.controlWord1);
+	UpdateDriveState(1, m_Inputs.controlWord2);
 
-	if (m_axis[0].driveState == EDriveState::OPERATION_ENABLED)
+	if (m_Axis[0].driveState == EDriveState::OPERATION_ENABLED)
 	{
-		StepVirtualMotor(0, m_Inputs.VirtualMotor1Inputs.current_in);
+		StepVirtualMotor(0, m_Inputs.VirtualMotor1Inputs.currentIn);
 	}
-	if (m_axis[1].driveState == EDriveState::OPERATION_ENABLED)
+	if (m_Axis[1].driveState == EDriveState::OPERATION_ENABLED)
 	{
-		StepVirtualMotor(1, m_Inputs.VirtualMotor2Inputs.current_in);
+		StepVirtualMotor(1, m_Inputs.VirtualMotor2Inputs.currentIn);
 	}
 
-	m_Outputs.VirtualMotor1Outputs.position_out = m_axis[0].position;
-	m_Outputs.VirtualMotor1Outputs.velocity_out = m_axis[0].velocity;
-	m_Outputs.statusword1 = ComposeStatusWord(0);
-	m_Outputs.VirtualMotor2Outputs.position_out = m_axis[1].position;
-	m_Outputs.VirtualMotor2Outputs.velocity_out = m_axis[1].velocity;
-	m_Outputs.statusword2 = ComposeStatusWord(1);
+	m_Outputs.VirtualMotor1Outputs.positionOut = m_Axis[0].position;
+	m_Outputs.VirtualMotor1Outputs.velocityOut = m_Axis[0].velocity;
+	m_Outputs.statusWord1 = ComposeStatusWord(0);
+	m_Outputs.VirtualMotor2Outputs.positionOut = m_Axis[1].position;
+	m_Outputs.VirtualMotor2Outputs.velocityOut = m_Axis[1].velocity;
+	m_Outputs.statusWord2 = ComposeStatusWord(1);
 
 	return hr;
 }
@@ -228,20 +228,20 @@ const ST_VirtualMotorParams& CModule1::AxisParams(int axisIndex) const
 
 void CModule1::StepVirtualMotor(int axisIndex, double currentIn)
 {
-	AxisRuntimeState& axis = m_axis[axisIndex];
+	AxisRuntimeState& axis = m_Axis[axisIndex];
 	const ST_VirtualMotorParams& params = AxisParams(axisIndex);
 
-	if (params.M <= 0.0 || params.task_dt_ns == 0)
+	if (params.mass <= 0.0 || params.taskDtNs == 0)
 	{
 		return;
 	}
 
 	const double kVelocityZeroThreshold = 1e-6;
-	const double dtS = static_cast<double>(params.task_dt_ns) * 1e-9;
-	const double dNonNeg = (params.D < 0.0) ? 0.0 : params.D;
-	const double ktAbs = (params.Kt < 0.0) ? -params.Kt : params.Kt;
+	const double dtS = static_cast<double>(params.taskDtNs) * 1e-9;
+	const double dNonNeg = (params.damping < 0.0) ? 0.0 : params.damping;
+	const double ktAbs = (params.torqueConstant < 0.0) ? -params.torqueConstant : params.torqueConstant;
 	const double tauCmdRequest = ktAbs * currentIn;
-	const double tauLimitAbs = (params.tau_limit < 0.0) ? -params.tau_limit : params.tau_limit;
+	const double tauLimitAbs = (params.tauLimit < 0.0) ? -params.tauLimit : params.tauLimit;
 	if (tauLimitAbs > 0.0 && (tauCmdRequest > tauLimitAbs || tauCmdRequest < -tauLimitAbs))
 	{
 		axis.internalFault = true;
@@ -250,17 +250,17 @@ void CModule1::StepVirtualMotor(int axisIndex, double currentIn)
 
 	const double appliedCurrent = axis.internalFault ? 0.0 : currentIn;
 	const double tauCmd = ktAbs * appliedCurrent;
-	const double tauSat = ClampSymmetric(tauCmd, params.tau_limit);
+	const double tauSat = ClampSymmetric(tauCmd, params.tauLimit);
 
-	const double vNextUnclamped = axis.velocity + (dtS / params.M) * (tauSat - dNonNeg * axis.velocity);
-	const double velLimitAbs = (params.vel_limit < 0.0) ? -params.vel_limit : params.vel_limit;
+	const double vNextUnclamped = axis.velocity + (dtS / params.mass) * (tauSat - dNonNeg * axis.velocity);
+	const double velLimitAbs = (params.velLimit < 0.0) ? -params.velLimit : params.velLimit;
 	if (velLimitAbs > 0.0 && (vNextUnclamped > velLimitAbs || vNextUnclamped < -velLimitAbs))
 	{
 		axis.internalFault = true;
 		axis.driveState = EDriveState::FAULT;
 	}
 
-	double vNext = ClampSymmetric(vNextUnclamped, params.vel_limit);
+	double vNext = ClampSymmetric(vNextUnclamped, params.velLimit);
 	if (vNext < kVelocityZeroThreshold && vNext > -kVelocityZeroThreshold)
 	{
 		vNext = 0.0;
@@ -271,28 +271,28 @@ void CModule1::StepVirtualMotor(int axisIndex, double currentIn)
 	axis.position = xNext;
 }
 
-void CModule1::ResetState()
+void CModule1::ResetRuntimeState()
 {
 	for (int i = 0; i < kAxisCount; ++i)
 	{
-		m_axis[i].position = 0.0;
-		m_axis[i].velocity = 0.0;
-		m_axis[i].driveState = EDriveState::SWITCH_ON_DISABLED;
-		m_axis[i].faultResetBitWasSet = false;
-		m_axis[i].internalFault = false;
+		m_Axis[i].position = 0.0;
+		m_Axis[i].velocity = 0.0;
+		m_Axis[i].driveState = EDriveState::SWITCH_ON_DISABLED;
+		m_Axis[i].faultResetBitWasSet = false;
+		m_Axis[i].internalFault = false;
 	}
 
-	m_Outputs.statusword1 = ComposeStatusWord(0);
-	m_Outputs.statusword2 = ComposeStatusWord(1);
-	m_Outputs.VirtualMotor1Outputs.position_out = 0.0;
-	m_Outputs.VirtualMotor1Outputs.velocity_out = 0.0;
-	m_Outputs.VirtualMotor2Outputs.position_out = 0.0;
-	m_Outputs.VirtualMotor2Outputs.velocity_out = 0.0;
+	m_Outputs.statusWord1 = ComposeStatusWord(0);
+	m_Outputs.statusWord2 = ComposeStatusWord(1);
+	m_Outputs.VirtualMotor1Outputs.positionOut = 0.0;
+	m_Outputs.VirtualMotor1Outputs.velocityOut = 0.0;
+	m_Outputs.VirtualMotor2Outputs.positionOut = 0.0;
+	m_Outputs.VirtualMotor2Outputs.velocityOut = 0.0;
 }
 
 void CModule1::UpdateDriveState(int axisIndex, USHORT controlWord)
 {
-	AxisRuntimeState& axis = m_axis[axisIndex];
+	AxisRuntimeState& axis = m_Axis[axisIndex];
 	const bool disableVoltage = (controlWord & 0x0002) == 0;
 	const bool faultResetBitSet = (controlWord & 0x0080) != 0;
 	const bool faultResetPulse = faultResetBitSet && !axis.faultResetBitWasSet;
@@ -350,7 +350,7 @@ void CModule1::UpdateDriveState(int axisIndex, USHORT controlWord)
 
 USHORT CModule1::ComposeStatusWord(int axisIndex) const
 {
-	switch (m_axis[axisIndex].driveState)
+	switch (m_Axis[axisIndex].driveState)
 	{
 	case EDriveState::SWITCH_ON_DISABLED:
 		return static_cast<USHORT>((1u << 6) | (1u << 5));

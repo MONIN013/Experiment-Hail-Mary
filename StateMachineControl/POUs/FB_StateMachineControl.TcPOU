@@ -1,17 +1,17 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_StateMachineControl" Id="{0986dcd7-5bfc-407b-88b3-426bbb5a0a8b}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_StateMachineControl
 VAR_INPUT
-    uiStatusWord : UINT; // 0x6041
-    bEnable      : BOOL := TRUE;
+    statusWord : UINT; // 0x6041
+    enable      : BOOL := TRUE;
 END_VAR
 VAR_OUTPUT
-    uiControlWord : UINT;      // 0x6040
-    eDriveState   : E_DriveState;
+    controlWord : UINT;      // 0x6040
+    driveState   : E_DriveState;
 END_VAR
 VAR
-    bFaultResetPulsed : BOOL := FALSE;
+    faultResetPulsed : BOOL := FALSE;
 END_VAR
 VAR CONSTANT
     // Common CiA402 control commands (0x6040)
@@ -22,46 +22,46 @@ VAR CONSTANT
     CW_FAULT_RESET     : UINT := 16#0080;
 END_VAR]]></Declaration>
     <Implementation>
-      <ST><![CDATA[eDriveState := F_DecodeDriveState(uiStatusWord);
+      <ST><![CDATA[driveState := F_DecodeDriveState(statusWord);
 
 // Disable requested: force safe output
-IF NOT bEnable THEN
-    uiControlWord := CW_DISABLE_VOLTAGE;
-    bFaultResetPulsed := FALSE;
+IF NOT enable THEN
+    controlWord := CW_DISABLE_VOLTAGE;
+    faultResetPulsed := FALSE;
     RETURN;
 END_IF
 
-CASE eDriveState OF
+CASE driveState OF
 
     E_DriveState.FAULT:
         // Fault reset should be a pulse. One scan is usually enough.
-        IF NOT bFaultResetPulsed THEN
-            uiControlWord := CW_FAULT_RESET;
-            bFaultResetPulsed := TRUE;
+        IF NOT faultResetPulsed THEN
+            controlWord := CW_FAULT_RESET;
+            faultResetPulsed := TRUE;
         ELSE
-            uiControlWord := CW_DISABLE_VOLTAGE;
+            controlWord := CW_DISABLE_VOLTAGE;
         END_IF
 
     E_DriveState.SWITCH_ON_DISABLED:
-        uiControlWord := CW_SHUTDOWN;
-        bFaultResetPulsed := FALSE;
+        controlWord := CW_SHUTDOWN;
+        faultResetPulsed := FALSE;
 
     E_DriveState.READY_TO_SWITCH_ON:
-        uiControlWord := CW_SWITCH_ON;
-        bFaultResetPulsed := FALSE;
+        controlWord := CW_SWITCH_ON;
+        faultResetPulsed := FALSE;
 
     E_DriveState.SWITCHED_ON:
-        uiControlWord := CW_ENABLE_OP;
-        bFaultResetPulsed := FALSE;
+        controlWord := CW_ENABLE_OP;
+        faultResetPulsed := FALSE;
 
     E_DriveState.OPERATION_ENABLED:
-        uiControlWord := CW_ENABLE_OP;
-        bFaultResetPulsed := FALSE;
+        controlWord := CW_ENABLE_OP;
+        faultResetPulsed := FALSE;
 
     ELSE
         // UNKNOWN: converge from below (safe)
-        uiControlWord := CW_SHUTDOWN;
-        bFaultResetPulsed := FALSE;
+        controlWord := CW_SHUTDOWN;
+        faultResetPulsed := FALSE;
 END_CASE]]></ST>
     </Implementation>
   </POU>

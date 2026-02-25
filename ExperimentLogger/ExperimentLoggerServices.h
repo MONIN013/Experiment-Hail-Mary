@@ -29,9 +29,9 @@ const PTCID PID_Module1LogControl = 0x00000001;
 #define _TC_TYPE_A58F1A22_EE38_4D58_AE23_3F4335DD3EEF_INCLUDED_
 typedef struct _ST_LogStatus
 {
-	ULONG records_written;
-	ULONG file_size_kb;
-	ULONG error_code;
+	ULONG recordsWritten;
+	ULONG fileSizeKb;
+	ULONG errorCode;
 } ST_LogStatus, *PST_LogStatus;
 const GUID GUID_ST_LogStatus = {0xA58F1A22, 0xEE38, 0x4D58, {0xAE, 0x23, 0x3F, 0x43, 0x35, 0xDD, 0x3E, 0xEF}};
 #endif // !defined(_TC_TYPE_A58F1A22_EE38_4D58_AE23_3F4335DD3EEF_INCLUDED_)
@@ -45,7 +45,7 @@ const GUID GUID_STRING255 = {0x18071995, 0x0000, 0x0000, {0x00, 0x00, 0x00, 0x01
 #pragma pack(push,1)
 typedef struct _Module1LogControl
 {
-	STRING255 file_path;
+	STRING255 filePath;
 	bool logging;
 } Module1LogControl, *PModule1LogControl;
 #pragma pack(pop)
@@ -53,17 +53,17 @@ typedef struct _Module1LogControl
 #pragma pack(push,1)
 typedef struct _Module1Inputs
 {
-	double torque_cmd;
-	double ref_value;
-	double ff_value;
-	double control_input;
+	double torqueCmd;
+	double refValue;
+	double ffValue;
+	double controlInput;
 	double error;
-	double motor_position;
-	double motor_velocity;
-	double motor_torque_act;
-	double load_position;
-	double load_velocity;
-	bool reset_req;
+	double motorPosition;
+	double motorVelocity;
+	double motorTorqueAct;
+	double loadPosition;
+	double loadVelocity;
+	bool resetReq;
 } Module1Inputs, *PModule1Inputs;
 #pragma pack(pop)
 

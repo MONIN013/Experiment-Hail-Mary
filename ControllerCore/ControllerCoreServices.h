@@ -33,11 +33,11 @@ const PTCID PID_Module1PIDParams = 0x00000001;
 #define _TC_TYPE_7A41B282_B6EF_4DA2_B9CD_74B2D70476B6_INCLUDED_
 typedef struct _ST_Notch
 {
-	double notch_b0;
-	double notch_b1;
-	double notch_b2;
-	double notch_a1;
-	double notch_a2;
+	double notchB0;
+	double notchB1;
+	double notchB2;
+	double notchA1;
+	double notchA2;
 } ST_Notch, *PST_Notch;
 const GUID GUID_ST_Notch = {0x7A41B282, 0xB6EF, 0x4DA2, {0xB9, 0xCD, 0x74, 0xB2, 0xD7, 0x04, 0x76, 0xB6}};
 #endif // !defined(_TC_TYPE_7A41B282_B6EF_4DA2_B9CD_74B2D70476B6_INCLUDED_)
@@ -46,11 +46,11 @@ const GUID GUID_ST_Notch = {0x7A41B282, 0xB6EF, 0x4DA2, {0xB9, 0xCD, 0x74, 0xB2,
 #define _TC_TYPE_F0EFD512_8498_4CBC_A25F_04D8E2741F50_INCLUDED_
 typedef struct _ST_Reso
 {
-	double reso_b0;
-	double reso_b1;
-	double reso_b2;
-	double reso_a1;
-	double reso_a2;
+	double resoB0;
+	double resoB1;
+	double resoB2;
+	double resoA1;
+	double resoA2;
 } ST_Reso, *PST_Reso;
 const GUID GUID_ST_Reso = {0xF0EFD512, 0x8498, 0x4CBC, {0xA2, 0x5F, 0x04, 0xD8, 0xE2, 0x74, 0x1F, 0x50}};
 #endif // !defined(_TC_TYPE_F0EFD512_8498_4CBC_A25F_04D8E2741F50_INCLUDED_)
@@ -59,10 +59,10 @@ const GUID GUID_ST_Reso = {0xF0EFD512, 0x8498, 0x4CBC, {0xA2, 0x5F, 0x04, 0xD8, 
 #define _TC_TYPE_13107610_CD3F_4EB5_ABFF_3AFC341E6827_INCLUDED_
 typedef struct _ST_FilterEnable
 {
-	bool enable_pid;
-	bool enable_lead;
-	bool enable_notch;
-	bool enable_reso;
+	bool enablePid;
+	bool enableLead;
+	bool enableNotch;
+	bool enableReso;
 } ST_FilterEnable, *PST_FilterEnable;
 const GUID GUID_ST_FilterEnable = {0x13107610, 0xCD3F, 0x4EB5, {0xAB, 0xFF, 0x3A, 0xFC, 0x34, 0x1E, 0x68, 0x27}};
 #endif // !defined(_TC_TYPE_13107610_CD3F_4EB5_ABFF_3AFC341E6827_INCLUDED_)
@@ -71,11 +71,11 @@ const GUID GUID_ST_FilterEnable = {0x13107610, 0xCD3F, 0x4EB5, {0xAB, 0xFF, 0x3A
 #define _TC_TYPE_601DEA5D_CD1F_4DA3_90A4_3260B161E2AC_INCLUDED_
 typedef struct _ST_PID
 {
-	double PID_b0;
-	double PID_b1;
-	double PID_b2;
-	double PID_a1;
-	double PID_a2;
+	double pidB0;
+	double pidB1;
+	double pidB2;
+	double pidA1;
+	double pidA2;
 } ST_PID, *PST_PID;
 const GUID GUID_ST_PID = {0x601DEA5D, 0xCD1F, 0x4DA3, {0x90, 0xA4, 0x32, 0x60, 0xB1, 0x61, 0xE2, 0xAC}};
 #endif // !defined(_TC_TYPE_601DEA5D_CD1F_4DA3_90A4_3260B161E2AC_INCLUDED_)
@@ -84,11 +84,11 @@ const GUID GUID_ST_PID = {0x601DEA5D, 0xCD1F, 0x4DA3, {0x90, 0xA4, 0x32, 0x60, 0
 #define _TC_TYPE_FE53C40B_E294_450D_AD06_DEEF6D604A43_INCLUDED_
 typedef struct _ST_PhaseLead
 {
-	double lead_b0;
-	double lead_b1;
-	double lead_b2;
-	double lead_a1;
-	double lead_a2;
+	double leadB0;
+	double leadB1;
+	double leadB2;
+	double leadA1;
+	double leadA2;
 } ST_PhaseLead, *PST_PhaseLead;
 const GUID GUID_ST_PhaseLead = {0xFE53C40B, 0xE294, 0x450D, {0xAD, 0x06, 0xDE, 0xEF, 0x6D, 0x60, 0x4A, 0x43}};
 #endif // !defined(_TC_TYPE_FE53C40B_E294_450D_AD06_DEEF6D604A43_INCLUDED_)
@@ -96,16 +96,16 @@ const GUID GUID_ST_PhaseLead = {0xFE53C40B, 0xE294, 0x450D, {0xAD, 0x06, 0xDE, 0
 #pragma pack(push,1)
 typedef struct _Module1Inputs
 {
-	double ref_value;
-	double ff_value;
-	double position_act;
-	bool reset_req;
+	double refValue;
+	double ffValue;
+	double positionAct;
+	bool resetReq;
 } Module1Inputs, *PModule1Inputs;
 #pragma pack(pop)
 
 typedef struct _Module1Outputs
 {
-	double control_input;
+	double controlInput;
 	double error;
 } Module1Outputs, *PModule1Outputs;
 

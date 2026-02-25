@@ -2,7 +2,8 @@
 
 > **位置づけ:** [ProjectArchitecture.md](ProjectArchitecture.md) の設計思想を具体化したモジュール仕様書。  
 > **参照:** ブロック図 → [NewProjectBlock.pu](NewProjectBlock.pu)  
-> **現行仕様:** [CurrentProject.md](CurrentProject.md)
+> **現行仕様:** [CurrentProject.md](CurrentProject.md)  
+> **命名規則:** [NamingConvention.md](NamingConvention.md)
 
 ---
 

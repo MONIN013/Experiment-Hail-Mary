@@ -111,7 +111,7 @@ CModule1::CModule1()
 	, m_recordsWritten(0)
 	, m_bytesWritten(0)
 	, m_errorCode(0)
-	, m_fileFsmState(EFileFsmState::Idle)
+	, m_fileFsmState(EFileFsmState::IDLE)
 	, m_pendingWriteBytes(0)
 	, m_lastWriteBytes(0)
 {
@@ -191,10 +191,10 @@ HRESULT CModule1::SetObjStateOS()
 	RemoveModuleFromCaller(); 
 	CloseLogFile(true);
 	UpdateStatusOutputs();
-	if (m_fileFsmState != EFileFsmState::Idle)
+	if (m_fileFsmState != EFileFsmState::IDLE)
 	{
 		AbortSession(true);
-		m_fileFsmState = EFileFsmState::Idle;
+		m_fileFsmState = EFileFsmState::IDLE;
 	}
 	m_spFileAccessAsync = NULL;
 
@@ -226,8 +226,8 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 	(void)ipCaller;
 	(void)context;
 
-	const bool resetEdge = (m_Inputs.reset_req != false) && !m_prevResetReq;
-	m_prevResetReq = (m_Inputs.reset_req != false);
+	const bool resetEdge = (m_Inputs.resetReq != false) && !m_prevResetReq;
+	m_prevResetReq = (m_Inputs.resetReq != false);
 	if (resetEdge)
 	{
 		CloseLogFile(true);
@@ -249,17 +249,17 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 		ResetRuntimeState();
 		if (!StartAsyncOpen())
 		{
-			m_fileFsmState = EFileFsmState::Error;
+			m_fileFsmState = EFileFsmState::ERROR;
 			m_sessionFailed = true;
 		}
 	}
 
 	switch (m_fileFsmState)
 	{
-	case EFileFsmState::OpenWait:
+	case EFileFsmState::OPEN_WAIT:
 		if (PollAsyncOp())
 		{
-			m_fileFsmState = EFileFsmState::Active;
+			m_fileFsmState = EFileFsmState::ACTIVE;
 			m_isLoggingActive = true;
 			ClearError();
 			if (!loggingCmd)
@@ -268,14 +268,14 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 			}
 		}
 		break;
-	case EFileFsmState::WriteWait:
+	case EFileFsmState::WRITE_WAIT:
 		if (PollAsyncOp())
 		{
 			if (m_lastWriteBytes != m_pendingWriteBytes)
 			{
 				SetError(kErrAsyncWriteShort);
 				AbortSession(true);
-				m_fileFsmState = EFileFsmState::Error;
+				m_fileFsmState = EFileFsmState::ERROR;
 				break;
 			}
 			m_bytesWritten += static_cast<ULONGLONG>(m_lastWriteBytes);
@@ -284,41 +284,41 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 			m_lastWriteBytes = 0;
 			if (m_isLoggingActive)
 			{
-				m_fileFsmState = EFileFsmState::Active;
+				m_fileFsmState = EFileFsmState::ACTIVE;
 			}
 			else
 			{
-				m_fileFsmState = EFileFsmState::Active;
+				m_fileFsmState = EFileFsmState::ACTIVE;
 				CloseLogFile(false);
 			}
 		}
 		break;
-	case EFileFsmState::CloseWait:
+	case EFileFsmState::CLOSE_WAIT:
 		if (PollAsyncOp())
 		{
 			m_fileHandle = 0;
-			m_fileFsmState = EFileFsmState::Idle;
+			m_fileFsmState = EFileFsmState::IDLE;
 			m_isLoggingActive = false;
 		}
 		break;
-	case EFileFsmState::Idle:
-	case EFileFsmState::Active:
-	case EFileFsmState::Error:
+	case EFileFsmState::IDLE:
+	case EFileFsmState::ACTIVE:
+	case EFileFsmState::ERROR:
 	default:
 		break;
 	}
 
-	if (loggingCmd && m_fileFsmState == EFileFsmState::Active && !m_sessionFailed)
+	if (loggingCmd && m_fileFsmState == EFileFsmState::ACTIVE && !m_sessionFailed)
 	{
 		if (!AppendCurrentInputsAsRecord())
 		{
-			m_fileFsmState = EFileFsmState::Error;
+			m_fileFsmState = EFileFsmState::ERROR;
 		}
 		else if (m_bufferCount >= kBufferRecords)
 		{
 			if (!StartAsyncWrite())
 			{
-				m_fileFsmState = EFileFsmState::Error;
+				m_fileFsmState = EFileFsmState::ERROR;
 			}
 		}
 	}
@@ -347,7 +347,7 @@ void CModule1::ResetRuntimeState()
 	m_pendingWriteBytes = 0;
 	m_lastWriteBytes = 0;
 	m_fileHandle = 0;
-	m_fileFsmState = EFileFsmState::Idle;
+	m_fileFsmState = EFileFsmState::IDLE;
 }
 
 HRESULT CModule1::EnsureFileAccessAsync()
@@ -405,11 +405,11 @@ void CModule1::CloseLogFile(bool flushRemaining)
 		{
 			m_bufferCount = 0;
 		}
-		m_fileFsmState = EFileFsmState::Idle;
+		m_fileFsmState = EFileFsmState::IDLE;
 		return;
 	}
 
-	if (m_fileFsmState == EFileFsmState::OpenWait || m_fileFsmState == EFileFsmState::WriteWait || m_fileFsmState == EFileFsmState::CloseWait)
+	if (m_fileFsmState == EFileFsmState::OPEN_WAIT || m_fileFsmState == EFileFsmState::WRITE_WAIT || m_fileFsmState == EFileFsmState::CLOSE_WAIT)
 	{
 		m_isLoggingActive = false;
 		return;
@@ -420,7 +420,7 @@ void CModule1::CloseLogFile(bool flushRemaining)
 		if (!StartAsyncWrite())
 		{
 			AbortSession(true);
-			m_fileFsmState = EFileFsmState::Error;
+			m_fileFsmState = EFileFsmState::ERROR;
 		}
 		m_isLoggingActive = false;
 		return;
@@ -430,7 +430,7 @@ void CModule1::CloseLogFile(bool flushRemaining)
 	{
 		SetError(kErrCloseFailed);
 		AbortSession(true);
-		m_fileFsmState = EFileFsmState::Error;
+		m_fileFsmState = EFileFsmState::ERROR;
 		return;
 	}
 	m_isLoggingActive = false;
@@ -465,18 +465,18 @@ bool CModule1::AppendCurrentInputsAsRecord()
 
 	LogRecord& rec = m_logBuffer[m_bufferCount];
 	rec.seq = m_seq;
-	rec.reserved_pad0 = 0;
-	rec.t_ns = static_cast<ULONGLONG>(m_seq) * kTimestampStepNs;
-	rec.motor_position = m_Inputs.motor_position;
-	rec.motor_velocity = m_Inputs.motor_velocity;
-	rec.motor_torque_act = m_Inputs.motor_torque_act;
-	rec.load_position = m_Inputs.load_position;
-	rec.load_velocity = m_Inputs.load_velocity;
-	rec.torque_cmd = m_Inputs.torque_cmd;
+	rec.reservedPad0 = 0;
+	rec.tNs = static_cast<ULONGLONG>(m_seq) * kTimestampStepNs;
+	rec.motorPosition = m_Inputs.motorPosition;
+	rec.motorVelocity = m_Inputs.motorVelocity;
+	rec.motorTorqueAct = m_Inputs.motorTorqueAct;
+	rec.loadPosition = m_Inputs.loadPosition;
+	rec.loadVelocity = m_Inputs.loadVelocity;
+	rec.torqueCmd = m_Inputs.torqueCmd;
 	rec.error = m_Inputs.error;
-	rec.ref_value = m_Inputs.ref_value;
-	rec.ff_value = m_Inputs.ff_value;
-	rec.control_input = m_Inputs.control_input;
+	rec.refValue = m_Inputs.refValue;
+	rec.ffValue = m_Inputs.ffValue;
+	rec.controlInput = m_Inputs.controlInput;
 
 	++m_bufferCount;
 	++m_seq;
@@ -491,9 +491,9 @@ bool CModule1::AppendCurrentInputsAsRecord()
 
 void CModule1::UpdateStatusOutputs()
 {
-	m_Outputs.LogStatus.records_written = m_recordsWritten;
-	m_Outputs.LogStatus.file_size_kb = static_cast<ULONG>(m_bytesWritten / 1024ULL);
-	m_Outputs.LogStatus.error_code = m_errorCode;
+	m_Outputs.LogStatus.recordsWritten = m_recordsWritten;
+	m_Outputs.LogStatus.fileSizeKb = static_cast<ULONG>(m_bytesWritten / 1024ULL);
+	m_Outputs.LogStatus.errorCode = m_errorCode;
 }
 
 void CModule1::ResolveFilePath(char* dst, size_t dstSize) const
@@ -504,9 +504,9 @@ void CModule1::ResolveFilePath(char* dst, size_t dstSize) const
 	}
 
 	const char* src = kDefaultLogPath;
-	if (m_LogControl.file_path[0] != '\0')
+	if (m_LogControl.filePath[0] != '\0')
 	{
-		src = m_LogControl.file_path;
+		src = m_LogControl.filePath;
 	}
 
 	size_t len = 0;
@@ -567,7 +567,7 @@ bool CModule1::StartAsyncOpen()
 
 	if (hr == S_PENDING)
 	{
-		m_fileFsmState = EFileFsmState::OpenWait;
+		m_fileFsmState = EFileFsmState::OPEN_WAIT;
 		return true;
 	}
 	if (FAILED(hr))
@@ -577,7 +577,7 @@ bool CModule1::StartAsyncOpen()
 		return false;
 	}
 
-	m_fileFsmState = EFileFsmState::Active;
+	m_fileFsmState = EFileFsmState::ACTIVE;
 	m_isLoggingActive = true;
 	m_sessionFailed = false;
 	return true;
@@ -595,7 +595,7 @@ bool CModule1::StartAsyncWrite()
 	{
 		return true;
 	}
-	if (m_fileFsmState != EFileFsmState::Active)
+	if (m_fileFsmState != EFileFsmState::ACTIVE)
 	{
 		return false;
 	}
@@ -610,7 +610,7 @@ bool CModule1::StartAsyncWrite()
 
 	if (hr == S_PENDING)
 	{
-		m_fileFsmState = EFileFsmState::WriteWait;
+		m_fileFsmState = EFileFsmState::WRITE_WAIT;
 		return true;
 	}
 	if (FAILED(hr))
@@ -630,7 +630,7 @@ bool CModule1::StartAsyncWrite()
 	m_bufferCount = 0;
 	m_pendingWriteBytes = 0;
 	m_lastWriteBytes = 0;
-	m_fileFsmState = EFileFsmState::Active;
+	m_fileFsmState = EFileFsmState::ACTIVE;
 	return true;
 }
 
@@ -639,14 +639,14 @@ bool CModule1::StartAsyncClose()
 	if (!m_spFileAccessAsync || !IsFileHandleValid(m_fileHandle))
 	{
 		m_fileHandle = 0;
-		m_fileFsmState = EFileFsmState::Idle;
+		m_fileFsmState = EFileFsmState::IDLE;
 		return true;
 	}
 
 	const HRESULT hr = m_spFileAccessAsync->FileClose(m_fileHandle);
 	if (hr == S_PENDING)
 	{
-		m_fileFsmState = EFileFsmState::CloseWait;
+		m_fileFsmState = EFileFsmState::CLOSE_WAIT;
 		return true;
 	}
 	if (FAILED(hr))
@@ -657,7 +657,7 @@ bool CModule1::StartAsyncClose()
 	}
 
 	m_fileHandle = 0;
-	m_fileFsmState = EFileFsmState::Idle;
+	m_fileFsmState = EFileFsmState::IDLE;
 	return true;
 }
 

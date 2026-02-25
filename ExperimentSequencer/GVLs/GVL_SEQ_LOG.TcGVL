@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <GVL Name="GVL_SEQ_LOG" Id="{f2cb075b-543c-47f0-8f85-3ac426bfc632}">
     <Declaration><![CDATA[{attribute 'qualified_only'}
@@ -8,26 +8,26 @@ END_VAR
 
 VAR_GLOBAL
     seq : UDINT := 0;
-    t_ns : ULINT := 0;
-    wr_idx : UDINT := 0;
-    rd_idx : UDINT := 0;
+    tNs : ULINT := 0;
+    wrIdx : UDINT := 0;
+    rdIdx : UDINT := 0;
     overflow : BOOL := FALSE;
 
     {attribute 'linkalways'}
-    control_input_tap AT %I* : LREAL := 0.0;
+    controlInputTap AT %I* : LREAL := 0.0;
 
     {attribute 'linkalways'}
-    position_act_tap AT %I* : LREAL := 0.0;
+    positionActTap AT %I* : LREAL := 0.0;
 
-    log_seq : ARRAY[0..LOG_N - 1] OF UDINT;
-    log_ref_value : ARRAY[0..LOG_N - 1] OF LREAL;
-    log_ff_value : ARRAY[0..LOG_N - 1] OF LREAL;
-    log_dist_value : ARRAY[0..LOG_N - 1] OF LREAL;
-    log_control_input : ARRAY[0..LOG_N - 1] OF LREAL;
-    log_target_torque : ARRAY[0..LOG_N - 1] OF LREAL;
-    log_position_act : ARRAY[0..LOG_N - 1] OF LREAL;
-    log_t : ARRAY[0..LOG_N - 1] OF ULINT;
-    log_idx : ARRAY[0..LOG_N - 1] OF UDINT;
+    logSeq : ARRAY[0..LOG_N - 1] OF UDINT;
+    logRefValue : ARRAY[0..LOG_N - 1] OF LREAL;
+    logFfValue : ARRAY[0..LOG_N - 1] OF LREAL;
+    logDistValue : ARRAY[0..LOG_N - 1] OF LREAL;
+    logControlInput : ARRAY[0..LOG_N - 1] OF LREAL;
+    logTargetTorque : ARRAY[0..LOG_N - 1] OF LREAL;
+    logPositionAct : ARRAY[0..LOG_N - 1] OF LREAL;
+    logT : ARRAY[0..LOG_N - 1] OF ULINT;
+    logIdx : ARRAY[0..LOG_N - 1] OF UDINT;
 END_VAR]]></Declaration>
   </GVL>
 </TcPlcObject>

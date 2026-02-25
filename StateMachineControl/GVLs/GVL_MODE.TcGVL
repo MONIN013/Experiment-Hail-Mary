@@ -15,9 +15,9 @@ VAR_GLOBAL CONSTANT
 END_VAR
 
 VAR_GLOBAL
-    mode_flags : UINT := 0;
-    experiment_active : BOOL := FALSE;
-    experiment_state : UINT := STATE_IDLE;
+    modeFlags : UINT := 0;
+    experimentActive : BOOL := FALSE;
+    experimentState : UINT := STATE_IDLE;
 END_VAR]]></Declaration>
   </GVL>
 </TcPlcObject>

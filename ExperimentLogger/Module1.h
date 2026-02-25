@@ -70,18 +70,18 @@ protected:
 	struct LogRecord
 	{
 		ULONG seq;
-		ULONG reserved_pad0;
-		ULONGLONG t_ns;
-		double motor_position;
-		double motor_velocity;
-		double motor_torque_act;
-		double load_position;
-		double load_velocity;
-		double torque_cmd;
+		ULONG reservedPad0;
+		ULONGLONG tNs;
+		double motorPosition;
+		double motorVelocity;
+		double motorTorqueAct;
+		double loadPosition;
+		double loadVelocity;
+		double torqueCmd;
 		double error;
-		double ref_value;
-		double ff_value;
-		double control_input;
+		double refValue;
+		double ffValue;
+		double controlInput;
 	};
 #pragma pack(pop)
 	static_assert(sizeof(LogRecord) == 96, "LogRecord must be 96 bytes");
@@ -91,12 +91,12 @@ protected:
 
 	enum class EFileFsmState
 	{
-		Idle,
-		OpenWait,
-		Active,
-		WriteWait,
-		CloseWait,
-		Error
+		IDLE,
+		OPEN_WAIT,
+		ACTIVE,
+		WRITE_WAIT,
+		CLOSE_WAIT,
+		ERROR
 	};
 
 	std::vector<LogRecord> m_logBuffer;
