@@ -24,7 +24,8 @@ VAR_GLOBAL
     tableLen : UDINT := 0;
     idx : UDINT := 0;
 
-    modeFlags : UINT := 0;
+    {attribute 'linkalways'}
+    modeFlags AT %Q* : UINT := 0;
 
     {attribute 'linkalways'}
     resetReq AT %I* : BOOL := FALSE;

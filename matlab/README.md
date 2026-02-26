@@ -186,6 +186,24 @@ matlab/
 run('tests/run_tests.m')
 ```
 
+## 簡易位置指令（PLC送信のみ）
+
+`ExperimentSequencer` の `GVL_SEQ.refTable` に位置指令ベクトルを直接書き込み、再生完了まで待機する軽量 API を追加。
+
+```matlab
+ref_profile = 0.25 * ones(1000, 1); % 1秒ぶんの一定位置指令 (1 kHz)
+out = experiment.send_position_command( ...
+  "ams_net_id", "192.168.10.3.1.1", ...
+  "ref_profile", ref_profile, ...
+  "task_rate_hz", 1000);
+```
+
+- 351番ポートや module prefix 指定は不要（PLC 851番のみ）
+- `ff_profile` / `dist_profile` は省略時ゼロ埋め
+- ログは非ストリーミングの上位読み取り（`GVL_SEQ_LOG.*`）を使用
+
+実行例は `matlab/run_position_command_demo.m` を参照。
+
 | カテゴリ | ファイル | 検証内容 |
 |---|---|---|
 | **fixtures** | `MockAdsTransport` | `twincat_ads.IAdsTransport` のモック（`containers.Map` で値保持、操作ログ記録） |

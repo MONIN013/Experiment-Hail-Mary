@@ -8,40 +8,7 @@
 
 ## Critical — 実験実行を阻害
 
-### C1. tsproj Mapping: `modeFlags` 転送が未接続
-
-**影響:** MATLAB から実験が開始できない（`GVL_MODE.modeFlags` の値が ExperimentSequencer に到達しない）。
-
-| 作業 | 内容 | GUI/コード |
-|------|------|------------|
-| A1 | `GVL_SEQ.modeFlags` に `AT %Q*` を付与 | コード (PLC) |
-| A2 | `GVL_MODE.modeFlags` に `AT %I*` を付与 | コード (PLC) |
-| A3 | MAIN の `modeFlagsOut` 変数と Q/I リンク追加 | コード (PLC) |
-| A4 | tsproj Mapping: `MAIN.modeFlagsOut → GVL_SEQ.modeFlags` を追加 | GUI (tsproj) |
-| A5 | PLC ビルド + Activate Configuration | GUI |
-
-> `modeFlags` が `AT %I*` になると ModeManager 側で自動書き戻しが効かなくなる。  
-> MODEF_RESET_REQ の自動クリアロジックを MATLAB 側（書込み元がクリア）に移行する必要がある。
-
-### C2. ExperimentLogger の CyclicCaller 未設定
-
-**影響:** ExperimentLogger のインスタンスは tsproj に存在するが、`CyclicCaller` が `#x00000000` のまま。VirtualMotorTask に紐付けないと `CycleUpdate()` が呼ばれず、ロギングが動作しない。
-
-| 作業 | 内容 | GUI/コード |
-|------|------|------------|
-| 1 | tsproj で ExperimentLogger インスタンスの CyclicCaller を VirtualMotorTask の OTCID に設定 | GUI (tsproj) |
-| 2 | ExperimentLogger 向けの全 tsproj Mapping を定義（§C4 参照） | GUI (tsproj) |
-| 3 | Activate Configuration + 動作確認 | GUI |
-
-### C3. ControllerCore の TMC Reload 未実施
-
-**影響:** ControllerCore のフィルタ係数パラメータ (`NotchParams`, `LeadParams`, `ResoParams`, `EnableParams`) が Port 351 のシンボルテーブルに表示されない。MATLAB からのシンボルアクセスによるパラメータ注入が不可。
-
-| 作業 | 内容 | GUI/コード |
-|------|------|------------|
-| 1 | TwinCAT XAE で ControllerCore の TMC Reload を実行 | GUI |
-| 2 | Activate Configuration | GUI |
-| 3 | `run_ads_discovery_demo.m` で Port 351 シンボルを再確認 | MATLAB |
+現時点で Critical 項目なし。
 
 ---
 
@@ -56,57 +23,25 @@
 | 1 | TMC で `PIDParams` DataArea に `CreateSymbol="true"` を追加 | `ControllerCore/ControllerCore.tmc` |
 | 2 | C++ リビルド + TMC Reload + Activate | GUI |
 
-### H2. ExperimentLogger 向け tsproj Mapping 未定義
+### H3. `motor_torque_act` は SIL で 0 埋め（設計決定済み）
 
-**影響:** ExperimentLogger の入力ポートに信号が届かない。
+**現状:** Phase 1–3 (SIL) では実機トルク信号ソースがないため、ExperimentLogger の `motorTorqueAct` は 0 埋め運用（ArchitectureSpec に明記済み）。
 
-必要な Mapping:
-
-```
-DriverAdapter.targetTorque                                  →  ExperimentLogger.Inputs.torqueCmd
-ExperimentSequencer.refValue                                →  ExperimentLogger.Inputs.refValue
-ExperimentSequencer.ffValue                                 →  ExperimentLogger.Inputs.ffValue
-ControllerCore.Outputs.controlInput                         →  ExperimentLogger.Inputs.controlInput
-ControllerCore.Outputs.error                                →  ExperimentLogger.Inputs.error
-VirtualMotorCore.Outputs.VirtualMotor1Outputs.positionOut   →  ExperimentLogger.Inputs.motorPosition
-VirtualMotorCore.Outputs.VirtualMotor1Outputs.velocityOut   →  ExperimentLogger.Inputs.motorVelocity
-VirtualMotorCore.Outputs.VirtualMotor2Outputs.positionOut   →  ExperimentLogger.Inputs.loadPosition
-VirtualMotorCore.Outputs.VirtualMotor2Outputs.velocityOut   →  ExperimentLogger.Inputs.loadVelocity
-ModeManager.resetOut                                        →  ExperimentLogger.Inputs.resetReq
-```
-
-> `motorTorqueAct` は Phase 1–3 (SIL) ではソースなし。0 埋めで許容するか設計判断が必要（→ H3）。
-
-### H3. `motor_torque_act` の SIL ソース方針未決定
-
-**影響:** ExperimentLogger の `motorTorqueAct` フィールドが常に 0 になる。Phase 1–3 では実機トルク信号がない。
-
-**選択肢:**
-1. 0 埋めのまま Phase 4 まで放置
-2. VirtualMotorCore 内部のトルク計算値を出力ポートに追加し、暫定接続
-
-### H4. ControllerCore `error` 出力の tsproj 反映確認
-
-**影響:** `ControllerCore.Outputs.error` が tsproj Mapping に含まれていない可能性がある。ExperimentLogger およびデバッグモニタリングに必要。
-
-| 作業 | 内容 |
-|------|------|
-| 1 | tsproj Mapping で `ControllerCore.Outputs.error → ExperimentLogger.Inputs.error` が存在するか確認 |
-| 2 | 不在であれば追加 |
+**残課題（改善検討）:**
+1. 0 埋めのまま運用継続（現状維持）
 
 ---
 
 ## Medium — 設計不整合・改善
 
-### M1. `enablePid` 初期値が `false`（ArchitectureSpec は `true` 想定）
+### M1. `enablePid` 初期値 `false` のままでよいか（仕様変更検討）
 
-**影響:** ControllerCore のデフォルトで PID が無効。MATLAB 側が明示的に `enablePid = true` を書き込まなければ制御が効かない。
+**現状:** 実装・ArchitectureSpec ともに `enablePid` のデフォルトは `false` で一致している。MATLAB 側が明示的に `enablePid = true` を書き込まなければ制御が効かない。
 
 **対象:** `ControllerCore/Module1.cpp` — `memset(&m_EnableParams, 0, ...)` で全 `false` 初期化。
 
 **選択肢:**
 1. コードを修正し `enablePid` のデフォルトを `true` にする
-2. ArchitectureSpec を修正しデフォルト `false` と明記（MATLAB が常に設定する前提）
 
 ### M2. ADS アクセスが ModeManager-only 設計に非準拠
 
@@ -123,8 +58,8 @@ ModeManager.resetOut                                        →  ExperimentLogge
 **影響:** ExperimentLogger のロギング開始/停止が ModeManager の実験ライフサイクルと連動していない。MATLAB が手動で制御する必要がある。
 
 **選択肢:**
-1. ModeManager が `experimentActive` の立ち上がり/立ち下がりで `logging` を自動制御
-2. MATLAB が実験シーケンスの一部として明示的に制御（現状維持）
+1. ModeManager が `experimentActive` の立ち上がり/立ち下がりで `logging` を自動制御、ただしロギング終了はサンプル数から得られる実験終了と同時にModeManagerが行う。
+開始はADS、終了はサンプル数で自動制御する方式がシンプルで確実。
 
 ### M4. `load_position` / `load_velocity` のマッピング設計確定
 
@@ -138,15 +73,13 @@ ModeManager.resetOut                                        →  ExperimentLogge
 
 **対象:** `StateMachineControl/GVLs/GVL_MODE.TcGVL` — `MODEF_RESET_SEQ_REQ` は `MODEF_RESET_REQ` と同値の旧名。MATLAB 側で参照がないことを確認後に削除。
 
-### L2. ArchitectureSpec §4.1 のシンボル名が旧表記
+### L2. ArchitectureSpec §4.1 旧表記指摘の残骸（清掃）
 
-**対象:** `ArchitectureSpec.md` §4.1 — `PIDParams.notch_b0` 等の `notch_*` 接頭辞が残存。実装は `pidB0`, `leadB0` 等に更新済み。
+**現状:** 旧指摘（`PIDParams.notch_b0` 等）は現行 `ArchitectureSpec.md` では解消済み。未解決課題一覧から削除または解決済みへ移動する。
 
-> ArchitectureSpec 更新時に修正予定。
+### L3. ArchitectureSpec §4.2 VirtualMotorCore 命名差の旧指摘（清掃）
 
-### L3. ArchitectureSpec §4.2 VirtualMotorCore 命名差
-
-**対象:** ArchitectureSpec §4.2 — `VirtualMotorParameter.M`, `.D`, `.Kt` 等の旧名が残存。実装は `VirtualMotor1Parameter.mass`, `.damping`, `.torqueConstant` に更新済み。
+**現状:** 旧指摘（`VirtualMotorParameter.M`, `.D`, `.Kt` 等）は現行 `ArchitectureSpec.md` では解消済み。未解決課題一覧から削除または解決済みへ移動する。
 
 ### L4. 暫定 SIL ログ (`GVL_SEQ_LOG`) 撤去計画
 
@@ -182,5 +115,9 @@ ModeManager.resetOut                                        →  ExperimentLogge
 | `GVL_MODE.modeFlags` に `AT %I*` なし | 2026-02-26 | `AT %I*` 追加済み |
 | MAIN の `modeFlags` 自己クリア問題 | 2026-02-26 | ADS writer がクリアする方式に変更 |
 | 主要 tsproj Mapping 18 接続 | 2026-02-26 | tsproj で確認済み (旧 ModeManagerBugReport §2.1 統合) |
+| tsproj Mapping: `modeFlags` 転送未接続 (`C1`) | 2026-02-26 | `GVL_SEQ.modeFlags → GVL_MODE.modeFlags` リンクを tsproj で確認済み |
+| ExperimentLogger の CyclicCaller 未設定 (`C2`) | 2026-02-26 | `CyclicCaller` が `#x02010040` (VirtualMotorTask) に設定済み |
+| ExperimentLogger 向け tsproj Mapping 未定義 / `ControllerCore.Outputs.error` 反映未確認 (`H2`+`H4`) | 2026-02-26 | 主要 Mapping および `Outputs.error → Inputs.error` を tsproj で確認済み |
+| ControllerCore の TMC Reload 未実施 (`C3`) | 2026-02-26 | `run_ads_discovery_demo.m` 再確認で Port 351 に `PID/Notch/Lead/Reso/EnableParams` が表示されることを確認 |
 
 </details>

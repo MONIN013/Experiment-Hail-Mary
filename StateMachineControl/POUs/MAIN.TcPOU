@@ -30,10 +30,7 @@ resetReq := (GVL_MODE.modeFlags AND GVL_MODE.MODEF_RESET_REQ) <> 0;
 resetEdge := resetReq AND NOT resetReqPrev;
 resetReqPrev := resetReq;
 resetOut := resetEdge;
-
-IF resetEdge THEN
-    GVL_MODE.modeFlags := GVL_MODE.modeFlags AND NOT GVL_MODE.MODEF_RESET_REQ;
-END_IF
+(* modeFlags is mapped input; RESET_REQ bit is cleared by the ADS writer after pulse. *)
 
 enableEffective := enable AND servoEnableReq;
 

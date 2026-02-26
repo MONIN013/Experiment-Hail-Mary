@@ -280,7 +280,7 @@
 		</System>
 		<Plc>
 			<Project GUID="{FCFF5180-937F-4F0E-915A-7CF7E9CA7F30}" Name="StateMachineControl" PrjFilePath="StateMachineControl\StateMachineControl.plcproj" TmcFilePath="StateMachineControl\StateMachineControl.tmc" ReloadTmc="true" AmsPort="852" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{1228ED19-F366-BE99-3EAC-DBD48A83D7DA}" TmcPath="StateMachineControl\StateMachineControl.tmc">
+				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{9620A183-69DB-0A7A-D4A3-949330D8D023}" TmcPath="StateMachineControl\StateMachineControl.tmc">
 					<Name>StateMachineControl Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -318,6 +318,10 @@
 							<Comment><![CDATA[ Sequencer playback done (latched)]]></Comment>
 							<Type>BOOL</Type>
 						</Var>
+						<Var>
+							<Name>GVL_MODE.modeFlags</Name>
+							<Type>UINT</Type>
+						</Var>
 					</Vars>
 					<Contexts>
 						<Context>
@@ -336,7 +340,7 @@
 				</Instance>
 			</Project>
 			<Project GUID="{54AD89C8-6B39-47E6-B85F-F4753C89F02E}" Name="ExperimentSequencer" PrjFilePath="ExperimentSequencer\ExperimentSequencer.plcproj" TmcFilePath="ExperimentSequencer\ExperimentSequencer.tmc" ReloadTmc="true" AmsPort="853" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{FD75BFFA-7A1A-B9C2-6464-20AF7A0E9AC9}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
+				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{DEBEDF8D-752D-7976-65FB-12E979F23E80}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
 					<Name>ExperimentSequencer Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -352,6 +356,10 @@
 						<Var>
 							<Name>GVL_SEQ.distValue</Name>
 							<Type>LREAL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_SEQ.modeFlags</Name>
+							<Type>UINT</Type>
 						</Var>
 						<Var>
 							<Name>GVL_SEQ.playbackDone</Name>
@@ -690,35 +698,35 @@
 								<PTCID>#x03002103</PTCID>
 								<ContextId>1</ContextId>
 							</Parameter>
-							<Parameter>
+							<Parameter CreateSymbol="true">
 								<Name>NotchParams</Name>
 								<BitSize>320</BitSize>
 								<BaseType GUID="{7A41B282-B6EF-4DA2-B9CD-74B2D70476B6}">ST_Notch</BaseType>
 								<PTCID>#x00000002</PTCID>
 								<ContextId>1</ContextId>
 							</Parameter>
-							<Parameter>
+							<Parameter CreateSymbol="true">
 								<Name>LeadParams</Name>
 								<BitSize>320</BitSize>
 								<BaseType GUID="{FE53C40B-E294-450D-AD06-DEEF6D604A43}">ST_PhaseLead</BaseType>
 								<PTCID>#x00000004</PTCID>
 								<ContextId>1</ContextId>
 							</Parameter>
-							<Parameter>
+							<Parameter CreateSymbol="true">
 								<Name>ResoParams</Name>
 								<BitSize>320</BitSize>
 								<BaseType GUID="{F0EFD512-8498-4CBC-A25F-04D8E2741F50}">ST_Reso</BaseType>
 								<PTCID>#x00000006</PTCID>
 								<ContextId>1</ContextId>
 							</Parameter>
-							<Parameter>
+							<Parameter CreateSymbol="true">
 								<Name>EnableParams</Name>
 								<BitSize>32</BitSize>
 								<BaseType GUID="{13107610-CD3F-4EB5-ABFF-3AFC341E6827}">ST_FilterEnable</BaseType>
 								<PTCID>#x00000005</PTCID>
 								<ContextId>1</ContextId>
 							</Parameter>
-							<Parameter>
+							<Parameter CreateSymbol="true">
 								<Name>PIDParams</Name>
 								<BitSize>320</BitSize>
 								<BaseType GUID="{601DEA5D-CD1F-4DA3-90A4-3260B161E2AC}">ST_PID</BaseType>
@@ -1075,5 +1083,90 @@
 				</Instance>
 			</Project>
 		</Cpp>
+		<Io/>
 	</Project>
+	<Mappings>
+		<MappingInfo Identifier="{00000000-2001-0850-0020-500810000101}" Id="#x02030050"/>
+		<MappingInfo Identifier="{00000000-2001-0850-0020-500820000101}" Id="#x02030060"/>
+		<MappingInfo Identifier="{00000000-2001-0850-0020-500830000101}" Id="#x02030070"/>
+		<MappingInfo Identifier="{00000000-0040-0201-1000-010120000101}" Id="#x02030090"/>
+		<MappingInfo Identifier="{00000000-0040-0201-1000-010130000101}" Id="#x020300a0"/>
+		<MappingInfo Identifier="{00000000-0040-0201-2000-010130000101}" Id="#x020300b0"/>
+		<MappingInfo Identifier="{00000000-2081-0850-8020-500800205008}" Id="#x02030010"/>
+		<MappingInfo Identifier="{00000000-2081-0850-8020-500810000101}" Id="#x020300e0"/>
+		<MappingInfo Identifier="{00000000-2081-0850-8020-500820000101}" Id="#x02030020"/>
+		<MappingInfo Identifier="{00000000-2081-0850-8020-500830000101}" Id="#x02030030"/>
+		<MappingInfo Identifier="{08502001-2041-0850-0020-500840205008}" Id="#x02030080" Watchdog="04000000040000000400000004000000"/>
+		<MappingInfo Identifier="{02010040-2041-0850-2000-010140205008}" Id="#x020300c0" Watchdog="04000000040000000400000004000000"/>
+		<MappingInfo Identifier="{02010040-2041-0850-3000-010140205008}" Id="#x020300d0" Watchdog="04000000040000000400000004000000"/>
+		<MappingInfo Identifier="{08502081-2041-0850-8020-500840205008}" Id="#x02030040" Watchdog="04000000040000000400000004000000"/>
+		<OwnerA Name="TIPC^DriverAdapter^DriverAdapter Instance">
+			<OwnerB Name="TIPC^ExperimentSequencer^ExperimentSequencer Instance">
+				<Link VarA="VirtualMotorTask Inputs^GVL_DRV.distValue" VarB="VirtualMotorTask Outputs^GVL_SEQ.distValue"/>
+			</OwnerB>
+			<OwnerB Name="TIPC^StateMachineControl^StateMachineControl Instance">
+				<Link VarA="VirtualMotorTask Inputs^GVL_DRV.controlWordIn" VarB="PlcTask Outputs^MAIN.ctrlWord"/>
+				<Link VarA="VirtualMotorTask Inputs^GVL_DRV.enableTorqueOutput" VarB="PlcTask Outputs^MAIN.enableTorqueOut"/>
+				<Link VarA="VirtualMotorTask Outputs^GVL_DRV.statusWordOut" VarB="PlcTask Inputs^MAIN.statWord"/>
+			</OwnerB>
+			<OwnerB Name="TIXC^ControllerCore^ControllerCore_Obj1 (Module1)">
+				<Link VarA="VirtualMotorTask Inputs^GVL_DRV.controlInput" VarB="Outputs^controlInput"/>
+			</OwnerB>
+			<OwnerB Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
+				<Link VarA="VirtualMotorTask Outputs^GVL_DRV.targetTorque" VarB="Inputs^torqueCmd"/>
+			</OwnerB>
+			<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">
+				<Link VarA="VirtualMotorTask Inputs^GVL_DRV.statusWord" VarB="Outputs^statusWord1"/>
+				<Link VarA="VirtualMotorTask Outputs^GVL_DRV.controlWordOut" VarB="Inputs^controlWord1"/>
+				<Link VarA="VirtualMotorTask Outputs^GVL_DRV.controlWordOut" VarB="Inputs^controlWord2"/>
+				<Link VarA="VirtualMotorTask Outputs^GVL_DRV.targetTorque" VarB="Inputs^VirtualMotor1Inputs^currentIn"/>
+				<Link VarA="VirtualMotorTask Outputs^GVL_DRV.targetTorque" VarB="Inputs^VirtualMotor2Inputs^currentIn"/>
+			</OwnerB>
+		</OwnerA>
+		<OwnerA Name="TIPC^ExperimentSequencer^ExperimentSequencer Instance">
+			<OwnerB Name="TIPC^StateMachineControl^StateMachineControl Instance">
+				<Link VarA="VirtualMotorTask Inputs^GVL_SEQ.experimentActive" VarB="PlcTask Outputs^MAIN.experimentActiveOut"/>
+				<Link VarA="VirtualMotorTask Inputs^GVL_SEQ.resetReq" VarB="PlcTask Outputs^MAIN.resetOut"/>
+				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.modeFlags" VarB="PlcTask Inputs^GVL_MODE.modeFlags"/>
+				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.playbackDone" VarB="PlcTask Inputs^MAIN.seqPlaybackDone"/>
+			</OwnerB>
+			<OwnerB Name="TIXC^ControllerCore^ControllerCore_Obj1 (Module1)">
+				<Link VarA="VirtualMotorTask Inputs^GVL_SEQ_LOG.controlInputTap" VarB="Outputs^controlInput"/>
+				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.ffValue" VarB="Inputs^ffValue"/>
+				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.refValue" VarB="Inputs^refValue"/>
+			</OwnerB>
+			<OwnerB Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
+				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.ffValue" VarB="Inputs^ffValue"/>
+				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.refValue" VarB="Inputs^refValue"/>
+			</OwnerB>
+			<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">
+				<Link VarA="VirtualMotorTask Inputs^GVL_SEQ_LOG.positionActTap" VarB="Outputs^VirtualMotor1Outputs^positionOut"/>
+			</OwnerB>
+		</OwnerA>
+		<OwnerA Name="TIPC^StateMachineControl^StateMachineControl Instance">
+			<OwnerB Name="TIXC^ControllerCore^ControllerCore_Obj1 (Module1)">
+				<Link VarA="PlcTask Outputs^MAIN.resetOut" VarB="Inputs^resetReq"/>
+			</OwnerB>
+			<OwnerB Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
+				<Link VarA="PlcTask Outputs^MAIN.resetOut" VarB="Inputs^resetReq"/>
+			</OwnerB>
+		</OwnerA>
+		<OwnerA Name="TIXC^ControllerCore^ControllerCore_Obj1 (Module1)">
+			<OwnerB Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
+				<Link VarA="Outputs^controlInput" VarB="Inputs^controlInput"/>
+				<Link VarA="Outputs^error" VarB="Inputs^error"/>
+			</OwnerB>
+			<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">
+				<Link VarA="Inputs^positionAct" VarB="Outputs^VirtualMotor1Outputs^positionOut"/>
+			</OwnerB>
+		</OwnerA>
+		<OwnerA Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
+			<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">
+				<Link VarA="Inputs^loadPosition" VarB="Outputs^VirtualMotor2Outputs^positionOut"/>
+				<Link VarA="Inputs^loadVelocity" VarB="Outputs^VirtualMotor2Outputs^velocityOut"/>
+				<Link VarA="Inputs^motorPosition" VarB="Outputs^VirtualMotor1Outputs^positionOut"/>
+				<Link VarA="Inputs^motorVelocity" VarB="Outputs^VirtualMotor1Outputs^velocityOut"/>
+			</OwnerB>
+		</OwnerA>
+	</Mappings>
 </TcSmProject>

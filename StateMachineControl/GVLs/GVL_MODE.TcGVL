@@ -15,7 +15,8 @@ VAR_GLOBAL CONSTANT
 END_VAR
 
 VAR_GLOBAL
-    modeFlags : UINT := 0;
+    {attribute 'linkalways'}
+    modeFlags AT %I* : UINT := 0;
     experimentActive : BOOL := FALSE;
     experimentState : UINT := STATE_IDLE;
 END_VAR]]></Declaration>
