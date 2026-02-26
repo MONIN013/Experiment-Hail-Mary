@@ -3,7 +3,10 @@
 > **位置づけ:** [ProjectArchitecture.md](ProjectArchitecture.md) の設計思想を具体化したモジュール仕様書。  
 > **参照:** ブロック図 → [NewProjectBlock.pu](NewProjectBlock.pu)  
 > **現行仕様:** [CurrentProject.md](CurrentProject.md)  
-> **命名規則:** [NamingConvention.md](NamingConvention.md)
+> **命名規則:** [NamingConvention.md](NamingConvention.md)  
+> **実験手順:** [ExperimentProcedure.md](ExperimentProcedure.md)  
+> **技術リファレンス:** [TechnicalReference.md](TechnicalReference.md)  
+> **未解決課題:** [OpenIssues.md](OpenIssues.md)
 
 ---
 
@@ -99,11 +102,11 @@ Phase 4 (125 µs = 8 kHz):
 
 | パラメータ名 | データ型 | 説明 |
 |---|---|---|
-| `PIDParams.PID_b0` | `double` | PID 用 biquad 分子係数 $b_0$ |
-| `PIDParams.PID_b1` | `double` | PID 用 biquad 分子係数 $b_1$ |
-| `PIDParams.PID_b2` | `double` | PID 用 biquad 分子係数 $b_2$ |
-| `PIDParams.PID_a1` | `double` | PID 用 biquad 分母係数 $a_1$ |
-| `PIDParams.PID_a2` | `double` | PID 用 biquad 分母係数 $a_2$ |
+| `PIDParams.pidB0` | `double` | PID 用 biquad 分子係数 $b_0$ |
+| `PIDParams.pidB1` | `double` | PID 用 biquad 分子係数 $b_1$ |
+| `PIDParams.pidB2` | `double` | PID 用 biquad 分子係数 $b_2$ |
+| `PIDParams.pidA1` | `double` | PID 用 biquad 分母係数 $a_1$ |
+| `PIDParams.pidA2` | `double` | PID 用 biquad 分母係数 $a_2$ |
 
 > **注記:** PID の連続時間パラメータ (`Kp`, `Ki`, `Kd`, `N`) は MATLAB 側で離散化し、biquad 係数に変換して注入する。
 
@@ -111,40 +114,42 @@ Phase 4 (125 µs = 8 kHz):
 
 | パラメータ名 | データ型 | 説明 |
 |---|---|---|
-| `LeadParams.lead_b0` | `double` | Lead 用 biquad 分子係数 $b_0$ |
-| `LeadParams.lead_b1` | `double` | Lead 用 biquad 分子係数 $b_1$ |
-| `LeadParams.lead_b2` | `double` | Lead 用 biquad 分子係数 $b_2$ |
-| `LeadParams.lead_a1` | `double` | Lead 用 biquad 分母係数 $a_1$ |
-| `LeadParams.lead_a2` | `double` | Lead 用 biquad 分母係数 $a_2$ |
+| `LeadParams.leadB0` | `double` | Lead 用 biquad 分子係数 $b_0$ |
+| `LeadParams.leadB1` | `double` | Lead 用 biquad 分子係数 $b_1$ |
+| `LeadParams.leadB2` | `double` | Lead 用 biquad 分子係数 $b_2$ |
+| `LeadParams.leadA1` | `double` | Lead 用 biquad 分母係数 $a_1$ |
+| `LeadParams.leadA2` | `double` | Lead 用 biquad 分母係数 $a_2$ |
 
 #### 2.3.3 Notch Filter パラメータ (`NotchParams : ST_Notch`)
 
 | パラメータ名 | データ型 | 説明 |
 |---|---|---|
-| `NotchParams.notch_b0` | `double` | Biquad 分子係数 $b_0$ |
-| `NotchParams.notch_b1` | `double` | Biquad 分子係数 $b_1$ |
-| `NotchParams.notch_b2` | `double` | Biquad 分子係数 $b_2$ |
-| `NotchParams.notch_a1` | `double` | Biquad 分母係数 $a_1$ |
-| `NotchParams.notch_a2` | `double` | Biquad 分母係数 $a_2$ |
+| `NotchParams.notchB0` | `double` | Biquad 分子係数 $b_0$ |
+| `NotchParams.notchB1` | `double` | Biquad 分子係数 $b_1$ |
+| `NotchParams.notchB2` | `double` | Biquad 分子係数 $b_2$ |
+| `NotchParams.notchA1` | `double` | Biquad 分母係数 $a_1$ |
+| `NotchParams.notchA2` | `double` | Biquad 分母係数 $a_2$ |
 
 #### 2.3.4 位相最適共振フィルタ パラメータ (`ResoParams : ST_Reso`)
 
 | パラメータ名 | データ型 | 説明 |
 |---|---|---|
-| `ResoParams.reso_b0` | `double` | Biquad 分子係数 $b_0$ |
-| `ResoParams.reso_b1` | `double` | Biquad 分子係数 $b_1$ |
-| `ResoParams.reso_b2` | `double` | Biquad 分子係数 $b_2$ |
-| `ResoParams.reso_a1` | `double` | Biquad 分母係数 $a_1$ |
-| `ResoParams.reso_a2` | `double` | Biquad 分母係数 $a_2$ |
+| `ResoParams.resoB0` | `double` | Biquad 分子係数 $b_0$ |
+| `ResoParams.resoB1` | `double` | Biquad 分子係数 $b_1$ |
+| `ResoParams.resoB2` | `double` | Biquad 分子係数 $b_2$ |
+| `ResoParams.resoA1` | `double` | Biquad 分母係数 $a_1$ |
+| `ResoParams.resoA2` | `double` | Biquad 分母係数 $a_2$ |
 
 #### 2.3.5 Enable / Bypass フラグ (`EnableParams : ST_FilterEnable`)
 
 | パラメータ名 | データ型 | デフォルト | 説明 |
 |---|---|---|---|
-| `EnableParams.enable_pid` | `boolean` | `true` | PID ブロックの有効/バイパス |
-| `EnableParams.enable_lead` | `boolean` | `false` | Lead Compensator の有効/バイパス |
-| `EnableParams.enable_notch` | `boolean` | `false` | Notch Filter の有効/バイパス |
-| `EnableParams.enable_reso` | `boolean` | `false` | 位相最適共振フィルタの有効/バイパス |
+| `EnableParams.enablePid` | `boolean` | `false` | PID ブロックの有効/バイパス |
+| `EnableParams.enableLead` | `boolean` | `false` | Lead Compensator の有効/バイパス |
+| `EnableParams.enableNotch` | `boolean` | `false` | Notch Filter の有効/バイパス |
+| `EnableParams.enableReso` | `boolean` | `false` | 位相最適共振フィルタの有効/バイパス |
+
+> **注記:** `enablePid` のデフォルトは実装上 `false`（memset ゼロ初期化）。MATLAB 側で実験開始前に明示的に `true` を設定すること。
 
 > **bypass 動作:** `enable = false` のとき、そのブロックの出力は入力をそのまま通過 (ゲイン 1)。  
 > FB チェーン: `error → [PID] → [Lead] → [Notch] → [Reso] → u_fb → (+ff_value) → control_input`  
@@ -391,13 +396,13 @@ EtherCAT.PDO.load_position          ──►  ControllerCore.position_act   (Lo
 │       ref_table[], ff_table[], dist_table[],      │
 │       table_len                                   │
 │  ───► ADS Write (ControllerCore TcCOM):           │
-│       PIDParams.notch_b0..a2                      │
-│       LeadParams.notch_b0..a2                     │
-│       NotchParams.notch_b0..a2                    │
-│       ResoParams.notch_b0..a2                     │
-│       EnableParams.enable_pid / _lead /           │
-│       _notch / _reso                              │
-│  ───► ADS Write: mode_flags, experiment_active    │
+│       PIDParams.pidB0..pidA2                      │
+│       LeadParams.leadB0..leadA2                   │
+│       NotchParams.notchB0..notchA2                │
+│       ResoParams.resoB0..resoA2                   │
+│       EnableParams.enablePid / enableLead /       │
+│       enableNotch / enableReso                    │
+│  ───► ADS Write: GVL_MODE.modeFlags               │
 │  ◄─── ADS Read:  ExperimentLogger ステータス     │
 │  ◄─── File Read: ログファイル (実験後)            │
 └──────────────────────────────────────────────────┘
@@ -409,80 +414,84 @@ EtherCAT.PDO.load_position          ──►  ControllerCore.position_act   (Lo
 
 ### 4.1 ControllerCore (C++ TcCOM)
 
-VirtualMotorCore と同様に、TMC 定義により Data Area を ADS シンボルとして公開する。
+TMC 定義により Data Area を ADS シンボルとして公開する。
 
 ```
 <instance_name>.<parameter_name>
 ```
 
-**想定インスタンス名:** `ControllerCore_Obj1 (Module1)`
+**インスタンス名:** `ControllerCore_Obj1 (Module1)`
 
 | シンボルパス (例) | 型 |
 |---|---|
-| `ControllerCore_Obj1 (Module1).PIDParams.notch_b0` | `LREAL` |
-| `ControllerCore_Obj1 (Module1).PIDParams.notch_b1` | `LREAL` |
-| `ControllerCore_Obj1 (Module1).PIDParams.notch_b2` | `LREAL` |
-| `ControllerCore_Obj1 (Module1).PIDParams.notch_a1` | `LREAL` |
-| `ControllerCore_Obj1 (Module1).PIDParams.notch_a2` | `LREAL` |
-| `ControllerCore_Obj1 (Module1).LeadParams.notch_b0` | `LREAL` |
-| `ControllerCore_Obj1 (Module1).LeadParams.notch_b1` | `LREAL` |
-| `ControllerCore_Obj1 (Module1).LeadParams.notch_b2` | `LREAL` |
-| `ControllerCore_Obj1 (Module1).LeadParams.notch_a1` | `LREAL` |
-| `ControllerCore_Obj1 (Module1).LeadParams.notch_a2` | `LREAL` |
-| `ControllerCore_Obj1 (Module1).NotchParams.notch_b0` | `LREAL` |
-| `ControllerCore_Obj1 (Module1).NotchParams.notch_b1` | `LREAL` |
-| `ControllerCore_Obj1 (Module1).NotchParams.notch_b2` | `LREAL` |
-| `ControllerCore_Obj1 (Module1).NotchParams.notch_a1` | `LREAL` |
-| `ControllerCore_Obj1 (Module1).NotchParams.notch_a2` | `LREAL` |
-| `ControllerCore_Obj1 (Module1).ResoParams.notch_b0` | `LREAL` |
-| `ControllerCore_Obj1 (Module1).ResoParams.notch_b1` | `LREAL` |
-| `ControllerCore_Obj1 (Module1).ResoParams.notch_b2` | `LREAL` |
-| `ControllerCore_Obj1 (Module1).ResoParams.notch_a1` | `LREAL` |
-| `ControllerCore_Obj1 (Module1).ResoParams.notch_a2` | `LREAL` |
-| `ControllerCore_Obj1 (Module1).EnableParams.enable_pid` | `BOOL` |
-| `ControllerCore_Obj1 (Module1).EnableParams.enable_lead` | `BOOL` |
-| `ControllerCore_Obj1 (Module1).EnableParams.enable_notch` | `BOOL` |
-| `ControllerCore_Obj1 (Module1).EnableParams.enable_reso` | `BOOL` |
+| `ControllerCore_Obj1 (Module1).PIDParams.pidB0` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).PIDParams.pidB1` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).PIDParams.pidB2` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).PIDParams.pidA1` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).PIDParams.pidA2` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).LeadParams.leadB0` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).LeadParams.leadB1` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).LeadParams.leadB2` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).LeadParams.leadA1` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).LeadParams.leadA2` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).NotchParams.notchB0` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).NotchParams.notchB1` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).NotchParams.notchB2` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).NotchParams.notchA1` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).NotchParams.notchA2` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).ResoParams.resoB0` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).ResoParams.resoB1` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).ResoParams.resoB2` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).ResoParams.resoA1` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).ResoParams.resoA2` | `LREAL` |
+| `ControllerCore_Obj1 (Module1).EnableParams.enablePid` | `BOOL` |
+| `ControllerCore_Obj1 (Module1).EnableParams.enableLead` | `BOOL` |
+| `ControllerCore_Obj1 (Module1).EnableParams.enableNotch` | `BOOL` |
+| `ControllerCore_Obj1 (Module1).EnableParams.enableReso` | `BOOL` |
 
-> **注記:** テーブル (`ref_table`, `ff_table`, `dist_table`, `table_len`) は
+> **注記:** テーブル (`refTable`, `ffTable`, `distTable`, `tableLen`) は
 > ControllerCore に含めない。ExperimentSequencer PLC 側 GVL を参照。
+>
+> **注記:** `PIDParams` のみ `CreateSymbol` 属性が未設定。→ [OpenIssues.md](OpenIssues.md) H1
 
-### 4.2 VirtualMotorCore (既存・変更なし)
-
-```
-VirtualMotorCore_Obj1 (Module1).VirtualMotorParameter.M       → LREAL
-VirtualMotorCore_Obj1 (Module1).VirtualMotorParameter.D       → LREAL
-VirtualMotorCore_Obj1 (Module1).VirtualMotorParameter.Kt      → LREAL
-VirtualMotorCore_Obj1 (Module1).VirtualMotorParameter.tau_limit → LREAL
-VirtualMotorCore_Obj1 (Module1).VirtualMotorParameter.vel_limit → LREAL
-VirtualMotorCore_Obj1 (Module1).VirtualMotorParameter.task_dt_ns → ULINT
-```
-
-### 4.3 ExperimentSequencer (PLC ST)
+### 4.2 VirtualMotorCore
 
 ```
-GVL_SEQ.ref_table          → ARRAY[0..N_REF_MAX-1] OF LREAL
-GVL_SEQ.ff_table           → ARRAY[0..N_FF_MAX-1] OF LREAL
-GVL_SEQ.dist_table         → ARRAY[0..N_DIST_MAX-1] OF LREAL
-GVL_SEQ.table_len          → UDINT
+VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.mass             → LREAL
+VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.damping          → LREAL
+VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.torqueConstant   → LREAL
+VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.tauLimit         → LREAL
+VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.velLimit         → LREAL
+VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.taskDtNs         → ULINT
 ```
 
-### 4.4 ExperimentLogger (Phase 3, C++ TcCOM)
+> `VirtualMotor1Parameter` は `CreateSymbol="true"` で ADS Discovery 確認済み。
+
+### 4.3 ExperimentSequencer (PLC ST, Port 853)
 
 ```
-ExperimentLogger_Obj1 (LoggerModule).LogControl.file_path    → STRING(255)
-ExperimentLogger_Obj1 (LoggerModule).LogControl.logging      → BOOL
-ExperimentLogger_Obj1 (LoggerModule).LogStatus.records_written → UDINT
-ExperimentLogger_Obj1 (LoggerModule).LogStatus.file_size_kb  → UDINT
-ExperimentLogger_Obj1 (LoggerModule).LogStatus.error_code    → UDINT
+GVL_SEQ.refTable           → ARRAY[0..99999] OF LREAL
+GVL_SEQ.ffTable            → ARRAY[0..99999] OF LREAL
+GVL_SEQ.distTable          → ARRAY[0..99999] OF LREAL
+GVL_SEQ.tableLen           → UDINT
 ```
 
-### 4.5 ModeManager (StateMachineControl PLC, 既存拡張)
+### 4.4 ExperimentLogger (Phase 3, C++ TcCOM, Port 351)
 
 ```
-GVL_MODE.mode_flags       → UINT
-GVL_MODE.experiment_active → BOOL
-GVL_MODE.experiment_state  → UINT   (IDLE=0, READY=1, RUNNING=2, DONE=3)
+ExperimentLogger_Obj1 (Module1).LogControl.filePath          → STRING(255)
+ExperimentLogger_Obj1 (Module1).LogControl.logging           → BOOL
+ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.recordsWritten → UDINT
+ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.fileSizeKb    → UDINT
+ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.errorCode     → UDINT
+```
+
+### 4.5 ModeManager (StateMachineControl PLC, Port 852)
+
+```
+GVL_MODE.modeFlags         → UINT   (Write: ビットフラグ一括制御)
+GVL_MODE.experimentActive  → BOOL   (Read: ModeManager 出力)
+GVL_MODE.experimentState   → UINT   (Read: IDLE=0, READY=1, RUNNING=2, DONE=3)
 ```
 
 ---
@@ -635,3 +644,17 @@ Lead / Notch / Reso も同様。bypass 時はフィルタ内部状態をリセ�
 | D7 | Lead / Notch / Reso は離散伝達関数係数を ADS 注入 | MATLAB で連続→離散変換 (`c2d`) し、係数のみ送信。Build 不要 |
 | D8 | ExperimentLogger は C++ TcCOM ファイルライタ方式 | 8kHz × 100s = 800,000 サンプルの長時間記録に対応。Ring Buffer + ADS ではメモリ制約あり。ファイル I/O でデータ量制限なし |
 | D9 | 2慣性系構成: Motor 入力 / Load FB | トルク指令は Motor 側、位置 FB は Load 側。ログには Motor/Load 両方の信号を記録。VirtualMotorCore は Load 側 1 慣性近似 |
+| D10 | **ModeManager-only 状態制御** | 状態制御フロー (`modeFlags`, `experimentActive`, `resetReq`) は ModeManager (`GVL_MODE`) のみを経由する。MATLAB が ExperimentSequencer に直接書込むのは **テーブルデータのみ** 。詳細は [OpenIssues.md](OpenIssues.md) M2 |
+
+### 8.1 ADS アクセス設計方針
+
+MATLAB からの ADS アクセスは以下の原則に従う:
+
+| カテゴリ | アクセス方式 | 理由 |
+|---|---|---|
+| **状態制御** (`modeFlags`, `experimentActive`) | `GVL_MODE` のみ → ModeManager 経由 | 一元管理。競合回避 |
+| **テーブルプリロード** (`refTable`, `ffTable`, `distTable`, `tableLen`) | `GVL_SEQ` に直接書込 (Port 853) | 大容量データ (最大 800KB/テーブル)。ModeManager 経由は非現実的 |
+| **制御パラメータ注入** (`*Params.*`) | ControllerCore TcCOM に直接書込 (Port 351) | C++ Data Area。PLC を経由する設計的理由なし |
+| **VM パラメータ注入** (`VirtualMotor1Parameter.*`) | VirtualMotorCore TcCOM に直接書込 (Port 351) | 同上 |
+| **ログ制御/読出し** | ExperimentLogger TcCOM (Port 351) / `GVL_SEQ_LOG` (Port 853) | Phase 3 以降 |
+| **状態監視** (`experimentState`) | `GVL_MODE` 読出し (Port 852) | 正当 |

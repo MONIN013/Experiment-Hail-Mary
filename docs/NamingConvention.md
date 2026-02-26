@@ -1,8 +1,9 @@
 # 命名規則ガイド — ExperimentHailMary
 
 > **目的:** プロジェクト全体で変数・関数・型名の命名を統一し、可読性と保守性を高める。  
-> **制定日:** 2026-02-25  
-> **適用範囲:** C++ TcCOM モジュール / PLC Structured Text / MATLAB コード
+> **制定日:** 2026-02-25 ／ **最終更新:** 2026-02-26  
+> **適用範囲:** C++ TcCOM モジュール / PLC Structured Text / MATLAB コード  
+> **関連文書:** [ArchitectureSpec.md](ArchitectureSpec.md) §4 (シンボル一覧) ｜ [TechnicalReference.md](TechnicalReference.md) §8 (ADS シンボル) ｜ [OpenIssues.md](OpenIssues.md)
 
 ---
 
@@ -199,16 +200,16 @@ C++ ↔ PLC ↔ MATLAB 間でマッピングされるシンボル名は以下で
 
 ## 5. 移行方針
 
-| 優先度 | 対象 | 方針 |
-|--------|------|------|
-| **即時** | 新規コード | このガイドに従う |
-| **高** | C++ enum 値の統一 | `EFileFsmState` の値を ALL_CAPS に変更 |
-| **高** | C++ リセット関数名統一 | 全モジュール `ResetRuntimeState()` に統一 |
-| **高** | PLC ハンガリアン記法の除去 | 次回編集時に camelCase に置換 |
-| **中** | PLC GVL 変数名 snake→camel | Phase 単位でまとめて変更 (TMC マッピング変更を伴う) |
-| **中** | C++ 構造体フィールド統一 | TMC 再定義と合わせて Phase 単位で実施 |
-| **低** | MATLAB 全体の camelCase 化 | 次のメジャーリファクタ時にまとめて実施 |
-| **低** | MATLAB パッケージ名変更 | import 影響が大きいため最後に実施 |
+| 優先度 | 対象 | 方針 | 状況 |
+|--------|------|------|------|
+| **即時** | 新規コード | このガイドに従う | ✅ 運用中 |
+| **高** | C++ enum 値の統一 | `EFileFsmState` の値を ALL_CAPS に変更 | ✅ 完了 |
+| **高** | C++ リセット関数名統一 | 全モジュール `ResetRuntimeState()` に統一 | ✅ 完了 |
+| **高** | PLC ハンガリアン記法の除去 | 次回編集時に camelCase に置換 | ✅ 完了 — 全 POU/GVL で camelCase 化済み (2026-02-26 確認) |
+| **中** | PLC GVL 変数名 snake→camel | Phase 単位でまとめて変更 (TMC マッピング変更を伴う) | ✅ 完了 |
+| **中** | C++ 構造体フィールド統一 | TMC 再定義と合わせて Phase 単位で実施 | 🔄 一部残存 — [OpenIssues.md](OpenIssues.md) L2, L3 参照 |
+| **低** | MATLAB 全体の camelCase 化 | 次のメジャーリファクタ時にまとめて実施 | 未着手 |
+| **低** | MATLAB パッケージ名変更 | import 影響が大きいため最後に実施 | 未着手 |
 
 ---
 
