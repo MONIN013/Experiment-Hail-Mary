@@ -39,6 +39,7 @@ protected:
 	HRESULT AddModuleToCaller();
 	VOID RemoveModuleFromCaller();
 	void ResetRuntimeState();
+	void UpdateTimestampStepFromTask(ITcTask* ipTask);
 	HRESULT OpenLogFileIfNeeded();
 	void CloseLogFile(bool flushRemaining);
 	bool FlushBuffer();
@@ -87,7 +88,7 @@ protected:
 	static_assert(sizeof(LogRecord) == 96, "LogRecord must be 96 bytes");
 
 	static const ULONG kBufferRecords = 8000;
-	static const ULONGLONG kTimestampStepNs = 1000000ULL;
+	static const ULONGLONG kDefaultTimestampStepNs = 1000000ULL;
 
 	enum class EFileFsmState
 	{
@@ -114,4 +115,5 @@ protected:
 	EFileFsmState m_fileFsmState;
 	UINT m_pendingWriteBytes;
 	UINT m_lastWriteBytes;
+	ULONGLONG m_timestampStepNsRuntime;
 };

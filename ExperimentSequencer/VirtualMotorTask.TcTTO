@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Task Name="VirtualMotorTask" Id="{12d1a256-77a5-47d1-bb8e-2e5b1bd6c7a5}">
+    <!--CycleTime in micro seconds.-->
+    <CycleTime>1000</CycleTime>
+    <Priority>1</Priority>
+    <PouCall>
+      <Name>PRG_ExperimentSequencer</Name>
+    </PouCall>
+    <TaskFBGuid>{8c3ca88e-0304-4314-b154-0c95171f924a}</TaskFBGuid>
+    <Fb_init>{a42ba29d-5b90-4414-bdcc-d9cf98609b8d}</Fb_init>
+    <Fb_exit>{2a743602-994d-46ed-87a2-68ec7df7dd1f}</Fb_exit>
+    <CycleUpdate>{2f78ebe6-a61a-4fea-ad41-f49f8d244c7e}</CycleUpdate>
+    <PostCycleUpdate>{1d63289f-1bd2-443b-b0a3-d466a19d8a42}</PostCycleUpdate>
+  </Task>
+</TcPlcObject>

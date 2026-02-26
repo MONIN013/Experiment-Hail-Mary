@@ -265,27 +265,22 @@
 	</DataTypes>
 	<Project ProjectGUID="{4A5895CC-136C-4342-8211-A3240A616049}" TargetNetId="192.168.10.3.1.1" Target64Bit="true" ShowHideConfigurations="#x6">
 		<System>
+			<Settings MaxCpus="4" NonWinCpus="2">
+				<Cpu CpuId="2"/>
+				<Cpu CpuId="3"/>
+			</Settings>
 			<Tasks>
-				<Task Id="3" Priority="20" CycleTime="10000" AmsPort="350" AdtTasks="true">
-					<Name>PlcTask</Name>
-				</Task>
-				<Task Id="4" Priority="1" CycleTime="10000" AmsPort="351" AdtTasks="true">
+				<Task Id="4" Priority="1" CycleTime="10000" AmsPort="351" Affinity="#x00000008" AdtTasks="true">
 					<Name>VirtualMotorTask</Name>
 				</Task>
-				<Task Id="5" Priority="21" CycleTime="100000" AmsPort="352" AdtTasks="true">
-					<Name>PlcTask1</Name>
-				</Task>
-				<Task Id="6" Priority="22" CycleTime="10000" AmsPort="353" AdtTasks="true">
-					<Name>PlcTask2</Name>
-				</Task>
-				<Task Id="7" Priority="23" CycleTime="100000" AmsPort="354" AdtTasks="true">
-					<Name>PlcTask3</Name>
+				<Task Id="8" Priority="2" CycleTime="10000" AmsPort="355" AdtTasks="true">
+					<Name>StateTask</Name>
 				</Task>
 			</Tasks>
 		</System>
 		<Plc>
 			<Project GUID="{FCFF5180-937F-4F0E-915A-7CF7E9CA7F30}" Name="StateMachineControl" PrjFilePath="StateMachineControl\StateMachineControl.plcproj" TmcFilePath="StateMachineControl\StateMachineControl.tmc" ReloadTmc="true" AmsPort="852" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{48C9D24A-8F24-2082-7B08-18167F30C66E}" TmcPath="StateMachineControl\StateMachineControl.tmc">
+				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{1228ED19-F366-BE99-3EAC-DBD48A83D7DA}" TmcPath="StateMachineControl\StateMachineControl.tmc">
 					<Name>StateMachineControl Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -329,23 +324,23 @@
 							<Id>0</Id>
 							<Name>PlcTask</Name>
 							<ManualConfig>
-								<OTCID>#x02010050</OTCID>
+								<OTCID>#x02010080</OTCID>
 							</ManualConfig>
-							<Priority>21</Priority>
-							<CycleTime>10000000</CycleTime>
+							<Priority>2</Priority>
+							<CycleTime>1000000</CycleTime>
 						</Context>
 					</Contexts>
 					<TaskPouOids>
-						<TaskPouOid Prio="21" OTCID="#x08502041"/>
+						<TaskPouOid Prio="2" OTCID="#x08502041"/>
 					</TaskPouOids>
 				</Instance>
 			</Project>
 			<Project GUID="{54AD89C8-6B39-47E6-B85F-F4753C89F02E}" Name="ExperimentSequencer" PrjFilePath="ExperimentSequencer\ExperimentSequencer.plcproj" TmcFilePath="ExperimentSequencer\ExperimentSequencer.tmc" ReloadTmc="true" AmsPort="853" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{5D77FA30-B755-814D-DD06-59A1D777AD3A}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
+				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{FD75BFFA-7A1A-B9C2-6464-20AF7A0E9AC9}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
 					<Name>ExperimentSequencer Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
-						<Name>PlcTask Outputs</Name>
+						<Name>VirtualMotorTask Outputs</Name>
 						<Var>
 							<Name>GVL_SEQ.refValue</Name>
 							<Type>LREAL</Type>
@@ -364,7 +359,7 @@
 						</Var>
 					</Vars>
 					<Vars VarGrpType="1">
-						<Name>PlcTask Inputs</Name>
+						<Name>VirtualMotorTask Inputs</Name>
 						<Var>
 							<Name>GVL_SEQ.resetReq</Name>
 							<Type>BOOL</Type>
@@ -385,25 +380,25 @@
 					<Contexts>
 						<Context>
 							<Id>0</Id>
-							<Name>PlcTask</Name>
+							<Name>VirtualMotorTask</Name>
 							<ManualConfig>
-								<OTCID>#x02010060</OTCID>
+								<OTCID>#x02010040</OTCID>
 							</ManualConfig>
-							<Priority>22</Priority>
+							<Priority>1</Priority>
 							<CycleTime>1000000</CycleTime>
 						</Context>
 					</Contexts>
 					<TaskPouOids>
-						<TaskPouOid Prio="22" OTCID="#x08502081"/>
+						<TaskPouOid Prio="1" OTCID="#x08502081"/>
 					</TaskPouOids>
 				</Instance>
 			</Project>
 			<Project GUID="{08913967-7B51-43CA-BB9A-1E6358DD9FAA}" Name="DriverAdapter" PrjFilePath="DriverAdapter\DriverAdapter.plcproj" TmcFilePath="DriverAdapter\DriverAdapter.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{C74932DF-0248-31D4-448A-8F60497262D3}" TmcPath="DriverAdapter\DriverAdapter.tmc">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{8ED55317-ED89-61E1-30E7-A14B95612B71}" TmcPath="DriverAdapter\DriverAdapter.tmc">
 					<Name>DriverAdapter Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
-						<Name>PlcTask Outputs</Name>
+						<Name>VirtualMotorTask Outputs</Name>
 						<Var>
 							<Name>GVL_DRV.controlWordOut</Name>
 							<Type>UINT</Type>
@@ -418,7 +413,7 @@
 						</Var>
 					</Vars>
 					<Vars VarGrpType="1">
-						<Name>PlcTask Inputs</Name>
+						<Name>VirtualMotorTask Inputs</Name>
 						<Var>
 							<Name>GVL_DRV.enableTorqueOutput</Name>
 							<Type>BOOL</Type>
@@ -443,16 +438,16 @@
 					<Contexts>
 						<Context>
 							<Id>0</Id>
-							<Name>PlcTask</Name>
+							<Name>VirtualMotorTask</Name>
 							<ManualConfig>
-								<OTCID>#x02010060</OTCID>
+								<OTCID>#x02010040</OTCID>
 							</ManualConfig>
-							<Priority>22</Priority>
+							<Priority>1</Priority>
 							<CycleTime>1000000</CycleTime>
 						</Context>
 					</Contexts>
 					<TaskPouOids>
-						<TaskPouOid Prio="22" OTCID="#x08502001"/>
+						<TaskPouOid Prio="1" OTCID="#x08502001"/>
 					</TaskPouOids>
 				</Instance>
 			</Project>
@@ -914,6 +909,11 @@
 						<Contexts>
 							<Context>
 								<Id>1</Id>
+								<ManualConfig>
+									<OTCID>#x02010040</OTCID>
+								</ManualConfig>
+								<Priority>1</Priority>
+								<CycleTime>1000000</CycleTime>
 							</Context>
 						</Contexts>
 						<Interfaces>
@@ -1068,7 +1068,7 @@
 						<InterfacePointerValues>
 							<Value>
 								<Name>CyclicCaller</Name>
-								<OTCID>#x00000000</OTCID>
+								<OTCID>#x02010040</OTCID>
 							</Value>
 						</InterfacePointerValues>
 					</TmcDesc>
