@@ -41,6 +41,8 @@ classdef VirtualMotorService < handle
       twincat_ads.SymbolBrowser.validate_symbols(obj.vm_transport, controller_symbols.controllerRequiredProbes);
       t = plc_symbols.types;
       ctrl = obj.resolve_control_symbols(plc_symbols);
+      heartbeat_state = experiment.ModeManagerControl.init_heartbeat( ...
+        obj.control_transport, ctrl, cfg.host_heartbeat_enable, cfg.host_heartbeat_period_s);
 
       vmParams = struct();
       vmParams.m = cfg.m;
@@ -85,16 +87,18 @@ classdef VirtualMotorService < handle
 
       obj.write_mode_flags(ctrl, uint32(0));
       obj.plc_transport.write_scalar(plc_symbols.tableLen, uint32(0), t.u32);
-      [reset_acked, reset_diag] = obj.request_reset_and_wait_ack(ctrl, cfg.reset_timeout_s);
+      [reset_acked, reset_diag, heartbeat_state] = obj.request_reset_and_wait_ack( ...
+        ctrl, cfg.reset_timeout_s, heartbeat_state);
       if ~reset_acked
         error("experiment:service:resetAckTimeout", ...
           "Timed out waiting reset acknowledgement (resetAckCounter before=%g after=%g).", ...
           reset_diag.counter_before, reset_diag.counter_after);
       end
 
-      idle_ready = obj.wait_for_reset_idle(plc_symbols, ctrl, cfg.reset_timeout_s);
+      [idle_ready, heartbeat_state] = obj.wait_for_reset_idle( ...
+        plc_symbols, ctrl, cfg.reset_timeout_s, heartbeat_state);
       if ~idle_ready
-        warning("experiment:service:resetSyncTimeout", ...
+        error("experiment:service:resetSyncTimeout", ...
           "Timed out waiting reset idle state (wrIdx==0, idx==0, experimentActive==FALSE).");
       end
 
@@ -106,18 +110,22 @@ classdef VirtualMotorService < handle
       obj.write_mode_flags(ctrl, uint32(bitor(ctrl.MODEF_SERVO_ENABLE, ctrl.MODEF_EXPERIMENT_START_REQ)));
 
       if cfg.wait_for_done && cfg.log_stream_enable
-        [done, log_data, host_log_stats] = obj.wait_until_done_streaming(plc_symbols, ctrl, cfg);
+        [done, log_data, host_log_stats, heartbeat_state] = obj.wait_until_done_streaming( ...
+          plc_symbols, ctrl, cfg, heartbeat_state);
         log_read_time = host_log_stats.log_read_time_s_total;
         if ~done
           warning("experiment:service:timeout", "Timed out waiting for experiment completion.");
         end
       elseif cfg.wait_for_done
-        done = obj.wait_until_done(plc_symbols, ctrl, cfg.done_timeout_s);
+        [done, heartbeat_state] = obj.wait_until_done( ...
+          plc_symbols, ctrl, cfg.done_timeout_s, heartbeat_state);
         if ~done
           warning("experiment:service:timeout", "Timed out waiting for experiment completion.");
         end
       else
         while toc(t_run) < cfg.hold_seconds
+          heartbeat_state = experiment.ModeManagerControl.tick_heartbeat( ...
+            obj.control_transport, ctrl, heartbeat_state, false);
           pause(min(0.05, cfg.hold_seconds / 10 + eps));
         end
       end
@@ -169,6 +177,8 @@ classdef VirtualMotorService < handle
       host.log_stream_fallback_used = logical(host_log_stats.log_stream_fallback_used);
       host.log_stream_error_identifier = char(string(host_log_stats.log_stream_error_identifier));
       host.log_stream_error_message = char(string(host_log_stats.log_stream_error_message));
+      host.host_heartbeat_enable = logical(cfg.host_heartbeat_enable);
+      host.host_heartbeat_period_s = double(cfg.host_heartbeat_period_s);
       host.control_mode_flags_symbol = char(string(ctrl.modeFlagsSymbol));
       host.control_experiment_state_symbol = char(string(ctrl.experimentStateSymbol));
 
@@ -246,17 +256,19 @@ classdef VirtualMotorService < handle
       experiment.ModeManagerControl.write_mode_flags(obj.control_transport, ctrl, value);
     end
 
-    function [acked, diag] = request_reset_and_wait_ack(obj, ctrl, timeout_s)
-      [acked, diag] = experiment.ModeManagerControl.request_reset_and_wait_ack( ...
-        obj.control_transport, ctrl, timeout_s);
+    function [acked, diag, heartbeat_state] = request_reset_and_wait_ack( ...
+        obj, ctrl, timeout_s, heartbeat_state)
+      [acked, diag, heartbeat_state] = experiment.ModeManagerControl.request_reset_and_wait_ack( ...
+        obj.control_transport, ctrl, timeout_s, heartbeat_state);
     end
 
-    function done = wait_until_done(obj, symbols, ctrl, timeout_s)
-      done = experiment.ModeManagerControl.wait_until_done( ...
-        obj.control_transport, obj.plc_transport, symbols, ctrl, timeout_s);
+    function [done, heartbeat_state] = wait_until_done(obj, symbols, ctrl, timeout_s, heartbeat_state)
+      [done, heartbeat_state] = experiment.ModeManagerControl.wait_until_done( ...
+        obj.control_transport, obj.plc_transport, symbols, ctrl, timeout_s, heartbeat_state);
     end
 
-    function [done, log_data, host_stats] = wait_until_done_streaming(obj, symbols, ctrl, cfg)
+    function [done, log_data, host_stats, heartbeat_state] = wait_until_done_streaming( ...
+        obj, symbols, ctrl, cfg, heartbeat_state)
       t = symbols.types;
       t0 = tic;
       done = false;
@@ -325,7 +337,8 @@ classdef VirtualMotorService < handle
           warning("experiment:service:logUnavailable", ...
             "Streaming log read failed; falling back to non-streaming read (%s: %s).", ...
             string(e.identifier), string(e.message));
-          done = obj.wait_until_done(symbols, ctrl, max(0, cfg.done_timeout_s - toc(t0)));
+          [done, heartbeat_state] = obj.wait_until_done( ...
+            symbols, ctrl, max(0, cfg.done_timeout_s - toc(t0)), heartbeat_state);
           host_stats.log_stream_enabled = false;
           host_stats.log_stream_fallback_used = true;
           log_data = struct( ...
@@ -342,6 +355,8 @@ classdef VirtualMotorService < handle
             "overflow", false);
           return;
         end
+        heartbeat_state = experiment.ModeManagerControl.tick_heartbeat( ...
+          obj.control_transport, ctrl, heartbeat_state, false);
         pause(cfg.log_poll_period_s);
       end
 
@@ -373,9 +388,10 @@ classdef VirtualMotorService < handle
       log_data.overflow = logical(state.overflow);
     end
 
-    function ready = wait_for_reset_idle(obj, symbols, ctrl, timeout_s)
-      [ready, ~] = experiment.ModeManagerControl.wait_for_reset_idle( ...
-        obj.plc_transport, obj.control_transport, symbols, ctrl, timeout_s);
+    function [ready, heartbeat_state] = wait_for_reset_idle( ...
+        obj, symbols, ctrl, timeout_s, heartbeat_state)
+      [ready, ~, heartbeat_state] = experiment.ModeManagerControl.wait_for_reset_idle( ...
+        obj.plc_transport, obj.control_transport, symbols, ctrl, timeout_s, heartbeat_state);
     end
 
     function ring_n = read_log_ring_capacity(obj, symbols, cfg)

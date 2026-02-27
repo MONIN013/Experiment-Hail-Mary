@@ -9,6 +9,7 @@ classdef ModeManagerControl
         "modeFlagsSymbol", "", ...
         "experimentStateSymbol", "", ...
         "experimentActiveSymbol", "GVL_MODE.experimentActive", ...
+        "hostHeartbeatCounterSymbol", string(plc_symbols.hostHeartbeatCounter), ...
         "resetReqSymbol", string(plc_symbols.modeResetReq), ...
         "resetAckCounterSymbol", string(plc_symbols.modeResetAckCounter), ...
         "MODEF_SERVO_ENABLE", uint32(hex2dec("0001")), ...
@@ -45,6 +46,13 @@ classdef ModeManagerControl
         error(error_id, "No reset handshake ADS symbols found. Required: %s, %s", ...
           char(string(ctrl.resetReqSymbol)), char(string(ctrl.resetAckCounterSymbol)));
       end
+      try
+        hb_current = uint32(control_transport.read_scalar(ctrl.hostHeartbeatCounterSymbol, t.u32));
+        control_transport.write_scalar(ctrl.hostHeartbeatCounterSymbol, hb_current, t.u32);
+      catch
+        error(error_id, "No host heartbeat ADS symbol found. Required: %s", ...
+          char(string(ctrl.hostHeartbeatCounterSymbol)));
+      end
 
       state_candidates = strings(0, 1);
       if isprop(plc_symbols, "experimentStateCandidates") && ~isempty(plc_symbols.experimentStateCandidates)
@@ -75,7 +83,10 @@ classdef ModeManagerControl
         ctrl.modeFlagsSymbol, experiment.ModeManagerControl.cast_modeflags_value(mode_t, value), mode_t);
     end
 
-    function [acked, diag] = request_reset_and_wait_ack(control_transport, ctrl, timeout_s)
+    function [acked, diag, heartbeat_state] = request_reset_and_wait_ack(control_transport, ctrl, timeout_s, heartbeat_state)
+      if nargin < 4 || isempty(heartbeat_state)
+        heartbeat_state = experiment.ModeManagerControl.heartbeat_disabled();
+      end
       t = twincat_ads.AdsTransport.net_types();
       t0 = tic;
       acked = false;
@@ -90,11 +101,16 @@ classdef ModeManagerControl
           acked = true;
           return;
         end
+        heartbeat_state = experiment.ModeManagerControl.tick_heartbeat(control_transport, ctrl, heartbeat_state, false);
         pause(0.01);
       end
     end
 
-    function [ready, diag] = wait_for_reset_idle(plc_transport, control_transport, plc_symbols, ctrl, timeout_s)
+    function [ready, diag, heartbeat_state] = wait_for_reset_idle( ...
+        plc_transport, control_transport, plc_symbols, ctrl, timeout_s, heartbeat_state)
+      if nargin < 6 || isempty(heartbeat_state)
+        heartbeat_state = experiment.ModeManagerControl.heartbeat_disabled();
+      end
       t = plc_symbols.types;
       t0 = tic;
       ready = false;
@@ -119,11 +135,16 @@ classdef ModeManagerControl
         if ready
           return;
         end
+        heartbeat_state = experiment.ModeManagerControl.tick_heartbeat(control_transport, ctrl, heartbeat_state, false);
         pause(0.01);
       end
     end
 
-    function done = wait_until_done(control_transport, plc_transport, plc_symbols, ctrl, timeout_s)
+    function [done, heartbeat_state] = wait_until_done( ...
+        control_transport, plc_transport, plc_symbols, ctrl, timeout_s, heartbeat_state)
+      if nargin < 6 || isempty(heartbeat_state)
+        heartbeat_state = experiment.ModeManagerControl.heartbeat_disabled();
+      end
       t = plc_symbols.types;
       t0 = tic;
       done = false;
@@ -135,8 +156,56 @@ classdef ModeManagerControl
         if done
           return;
         end
+        heartbeat_state = experiment.ModeManagerControl.tick_heartbeat(control_transport, ctrl, heartbeat_state, false);
         pause(0.01);
       end
+    end
+
+    function state = init_heartbeat(control_transport, ctrl, enabled, period_s)
+      if nargin < 3 || isempty(enabled)
+        enabled = true;
+      end
+      if nargin < 4 || isempty(period_s)
+        period_s = 0.1;
+      end
+      state = struct( ...
+        "enabled", logical(enabled), ...
+        "period_s", double(period_s), ...
+        "next_tick_s", 0.0, ...
+        "counter", uint32(0), ...
+        "started_at", tic);
+      if ~state.enabled
+        return;
+      end
+      t = twincat_ads.AdsTransport.net_types();
+      state.counter = uint32(control_transport.read_scalar(ctrl.hostHeartbeatCounterSymbol, t.u32));
+      state = experiment.ModeManagerControl.tick_heartbeat(control_transport, ctrl, state, true);
+    end
+
+    function state = heartbeat_disabled()
+      state = struct( ...
+        "enabled", false, ...
+        "period_s", 0.1, ...
+        "next_tick_s", inf, ...
+        "counter", uint32(0), ...
+        "started_at", tic);
+    end
+
+    function state = tick_heartbeat(control_transport, ctrl, state, force)
+      if nargin < 4
+        force = false;
+      end
+      if ~isstruct(state) || ~isfield(state, "enabled") || ~logical(state.enabled)
+        return;
+      end
+      elapsed_s = toc(state.started_at);
+      if ~force && elapsed_s < state.next_tick_s
+        return;
+      end
+      t = twincat_ads.AdsTransport.net_types();
+      state.counter = uint32(mod(double(state.counter) + 1, 2^32));
+      control_transport.write_scalar(ctrl.hostHeartbeatCounterSymbol, state.counter, t.u32);
+      state.next_tick_s = elapsed_s + state.period_s;
     end
 
     function [done, state_supported, seen_active] = poll_done( ...

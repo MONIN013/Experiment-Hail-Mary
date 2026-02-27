@@ -21,6 +21,7 @@ classdef TestSendPositionCommand < matlab.unittest.TestCase
       testCase.verifyThat(joined, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_SEQ.tableLen"));
       testCase.verifyThat(joined, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_MODE.modeFlags"));
       testCase.verifyThat(joined, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_MODE.resetReq"));
+      testCase.verifyThat(joined, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_MODE.hostHeartbeatCounter"));
       testCase.verifyEqual(string(out.host.mode_flags_symbol), "GVL_MODE.modeFlags");
       testCase.verifyFalse(out.host.servo_ready_check_supported);
       testCase.verifyEqual(double(out.host.control_ams_port), 851);
@@ -85,7 +86,7 @@ classdef TestSendPositionCommand < matlab.unittest.TestCase
       plc = MockAdsTransport();
       seed_plc_state(plc);
       seed_log_arrays(plc);
-      plc.scalarMap("GVL_SEQ_LOG.wrIdx") = uint32(3);
+      plc.set_scalar_read_sequence("GVL_SEQ_LOG.wrIdx", uint32([0; 3]));
       plc.scalarMap("GVL_SEQ_LOG.overflow") = false;
       plc.set_scalar_read_sequence("GVL_SEQ.experimentActive", [false; false; true; true; false]);
 
@@ -108,7 +109,7 @@ classdef TestSendPositionCommand < matlab.unittest.TestCase
       plc = MockAdsTransport();
       seed_plc_state(plc);
       seed_log_arrays(plc);
-      plc.scalarMap("GVL_SEQ_LOG.wrIdx") = uint32(2);
+      plc.set_scalar_read_sequence("GVL_SEQ_LOG.wrIdx", uint32([0; 2]));
       plc.set_scalar_read_sequence("GVL_SEQ.experimentActive", [false; false; true; true; false]);
       remove(plc.arrayMap, "GVL_SEQ_LOG.logControlInput");
 
@@ -158,6 +159,23 @@ classdef TestSendPositionCommand < matlab.unittest.TestCase
         "done_timeout_s", 0.05, ...
         "reset_timeout_s", 0.01), ...
         "experiment:position_command:resetAckTimeout");
+    end
+
+    function resetSyncTimeoutRaisesError(testCase)
+      plc = MockAdsTransport();
+      seed_plc_state(plc);
+      plc.scalarMap("GVL_SEQ_LOG.wrIdx") = uint32(1);
+      plc.scalarMap("GVL_SEQ.idx") = uint32(1);
+
+      testCase.verifyError(@() experiment.send_position_command( ...
+        "ams_net_id", "192.168.10.3.1.1", ...
+        "ref_profile", [0.1; 0.2], ...
+        "plc_transport", plc, ...
+        "validate_symbols", false, ...
+        "read_logs", false, ...
+        "done_timeout_s", 0.05, ...
+        "reset_timeout_s", 0.01), ...
+        "experiment:position_command:resetSyncTimeout");
     end
 
     function noServoReadyTimeoutWhenExperimentStateUnavailable(testCase)
@@ -280,6 +298,7 @@ t.scalarMap("GVL_SEQ.experimentActive") = false;
 t.scalarMap("GVL_MODE.modeFlags") = uint32(0);
 t.scalarMap("GVL_MODE.resetReq") = false;
 t.scalarMap("GVL_MODE.resetAckCounter") = uint32(0);
+t.scalarMap("GVL_MODE.hostHeartbeatCounter") = uint32(0);
 t.scalarMap("GVL_SEQ.tableLen") = uint32(0);
 t.scalarMap("GVL_SEQ.idx") = uint32(0);
 t.scalarMap("GVL_SEQ.refValue") = 0.0;
@@ -299,6 +318,7 @@ t.scalarMap("GVL_MODE.modeFlags") = uint32(0);
 t.scalarMap("GVL_MODE.experimentState") = uint32(0);
 t.scalarMap("GVL_MODE.resetReq") = false;
 t.scalarMap("GVL_MODE.resetAckCounter") = uint32(0);
+t.scalarMap("GVL_MODE.hostHeartbeatCounter") = uint32(0);
 end
 
 function seed_log_arrays(t)

@@ -5,6 +5,7 @@ classdef TestVirtualMotorSymbols < matlab.unittest.TestCase
       testCase.verifyEqual(string(s.reset), "GVL_SEQ.resetReq");
       testCase.verifyEqual(string(s.modeResetReq), "GVL_MODE.resetReq");
       testCase.verifyEqual(string(s.modeResetAckCounter), "GVL_MODE.resetAckCounter");
+      testCase.verifyEqual(string(s.hostHeartbeatCounter), "GVL_MODE.hostHeartbeatCounter");
       testCase.verifyEqual(string(s.experimentState), "GVL_MODE.experimentState");
       testCase.verifyEqual(string(s.modeFlagsCandidates(:)), ["GVL_MODE.modeFlags"]);
       testCase.verifyEqual(string(s.refTable), "GVL_SEQ.refTable");

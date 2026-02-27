@@ -32,6 +32,7 @@ classdef TestVirtualMotorService < matlab.unittest.TestCase
       testCase.verifyFalse(contains(plc_joined, "write_scalar:GVL_SEQ.idx"));
       testCase.verifyThat(ctrl_joined, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_MODE.modeFlags"));
       testCase.verifyThat(ctrl_joined, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_MODE.resetReq"));
+      testCase.verifyThat(ctrl_joined, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_MODE.hostHeartbeatCounter"));
     end
 
     function streamingModeDrainsLogsDuringRun(testCase)
@@ -142,6 +143,31 @@ classdef TestVirtualMotorService < matlab.unittest.TestCase
       ctrl_joined = strjoin(control.operations, "|");
       testCase.verifyThat(ctrl_joined, matlab.unittest.constraints.ContainsSubstring("read_scalar:GVL_MODE.experimentActive"));
     end
+
+    function resetSyncTimeoutRaisesError(testCase)
+      plc = MockAdsTransport();
+      module = MockAdsTransport();
+      control = MockAdsTransport();
+      seedPlcScalars(plc);
+      seedControlScalars(control);
+      seedVmScalars(module, "VirtualMotor.");
+      seedControllerScalars(module, "ControllerCore.");
+      plc.scalarMap("GVL_SEQ_LOG.wrIdx") = uint32(1);
+      plc.scalarMap("GVL_SEQ.idx") = uint32(1);
+      svc = experiment.VirtualMotorService(plc, module, control);
+
+      cfg = experiment.RunConfig.from_varargin( ...
+        "ams_net_id", "192.168.10.3.1.1", ...
+        "vm_param_symbol_prefix", "VirtualMotor.", ...
+        "controller_param_symbol_prefix", "ControllerCore.", ...
+        "ref_profile", [0.1; 0.2], ...
+        "wait_for_done", false, ...
+        "reset_timeout_s", 0.01, ...
+        "log_require_complete", false, ...
+        "save_path", fullfile(tempdir, "ehm_test_reset_sync_timeout_new.mat"));
+
+      testCase.verifyError(@()svc.run(cfg), "experiment:service:resetSyncTimeout");
+    end
   end
 end
 
@@ -168,6 +194,7 @@ t.scalarMap("GVL_MODE.experimentActive") = false;
 t.scalarMap("GVL_MODE.experimentState") = uint32(0);
 t.scalarMap("GVL_MODE.resetReq") = false;
 t.scalarMap("GVL_MODE.resetAckCounter") = uint32(0);
+t.scalarMap("GVL_MODE.hostHeartbeatCounter") = uint32(0);
 end
 
 function seedPlcLogArrays(t)
@@ -184,9 +211,9 @@ end
 
 function seedVmScalars(t, prefix)
 base = char(string(prefix));
-t.scalarMap(strcat(base, 'M')) = 1.0;
-t.scalarMap(strcat(base, 'D')) = 1.0;
-t.scalarMap(strcat(base, 'Kt')) = 1.0;
+t.scalarMap(strcat(base, 'mass')) = 1.0;
+t.scalarMap(strcat(base, 'damping')) = 1.0;
+t.scalarMap(strcat(base, 'torqueConstant')) = 1.0;
 t.scalarMap(strcat(base, 'tauLimit')) = 1.0;
 t.scalarMap(strcat(base, 'velLimit')) = 1.0;
 t.scalarMap(strcat(base, 'taskDtNs')) = uint64(1000);

@@ -48,6 +48,8 @@ end
 t = plc_symbols.types;
 ctrl = experiment.ModeManagerControl.resolve_symbols( ...
   ctrl_transport, plc_symbols, "experiment:position_command:invalidConfig");
+heartbeat_state = experiment.ModeManagerControl.init_heartbeat( ...
+  ctrl_transport, ctrl, cfg.host_heartbeat_enable, cfg.host_heartbeat_period_s);
 [mode_flags_transport, owns_mode_flags_transport] = resolve_mode_flags_transport( ...
   cfg, plc_transport, ctrl_transport, owns_mode_flags_transport);
 [ctrl, mode_flags_symbol] = resolve_mode_flags_symbol( ...
@@ -67,16 +69,18 @@ t_run = tic;
 write_mode_flags(mode_flags_transport, ctrl, uint32(0));
 plc_transport.write_scalar(plc_symbols.idx, uint32(0), t.u32);
 plc_transport.write_scalar(plc_symbols.tableLen, uint32(0), t.u32);
-[reset_acked, reset_diag] = request_reset_and_wait_ack(ctrl_transport, ctrl, cfg.reset_timeout_s);
+[reset_acked, reset_diag, heartbeat_state] = request_reset_and_wait_ack( ...
+  ctrl_transport, ctrl, cfg.reset_timeout_s, heartbeat_state);
 if ~reset_acked
   error("experiment:position_command:resetAckTimeout", ...
     "Timed out waiting reset acknowledgement (resetAckCounter before=%g after=%g).", ...
     reset_diag.counter_before, reset_diag.counter_after);
 end
 
-[idle_ready, idle_diag] = wait_for_reset_idle(plc_transport, ctrl_transport, plc_symbols, ctrl, cfg.reset_timeout_s);
+[idle_ready, idle_diag, heartbeat_state] = wait_for_reset_idle( ...
+  plc_transport, ctrl_transport, plc_symbols, ctrl, cfg.reset_timeout_s, heartbeat_state);
 if ~idle_ready
-  warning("experiment:position_command:resetSyncTimeout", ...
+  error("experiment:position_command:resetSyncTimeout", ...
     "Timed out waiting reset idle state (wrIdx==0, idx==0, experimentActive==FALSE). Observed wrIdx=%g idx=%g experimentActive=%d modeFlagsSymbol=%s", ...
     idle_diag.wr_idx, idle_diag.idx, logical(idle_diag.experiment_active), char(string(ctrl.modeFlagsSymbol)));
 end
@@ -88,8 +92,8 @@ plc_transport.write_array(plc_symbols.distTable, cfg.dist_profile, t.double);
 plc_transport.write_scalar(plc_symbols.tableLen, uint32(table_n), t.u32);
 
 write_mode_flags(mode_flags_transport, ctrl, uint32(ctrl.MODEF_SERVO_ENABLE));
-[servo_ready, servo_ready_check_supported, servo_ready_diag] = wait_until_ready( ...
-  ctrl_transport, plc_symbols, ctrl, min(cfg.done_timeout_s, 5.0));
+[servo_ready, servo_ready_check_supported, servo_ready_diag, heartbeat_state] = wait_until_ready( ...
+  ctrl_transport, plc_symbols, ctrl, min(cfg.done_timeout_s, 5.0), heartbeat_state);
 if servo_ready_check_supported && ~servo_ready
   control_runtime_diag = read_control_runtime_diag(ctrl_transport, t);
   warning("experiment:position_command:servoReadyTimeout", ...
@@ -103,7 +107,8 @@ end
 write_mode_flags(mode_flags_transport, ctrl, uint32(bitor(ctrl.MODEF_SERVO_ENABLE, ctrl.MODEF_EXPERIMENT_START_REQ)));
 
 if cfg.wait_for_done
-  done = wait_until_done(plc_transport, ctrl_transport, plc_symbols, ctrl, cfg.done_timeout_s);
+  [done, heartbeat_state] = wait_until_done( ...
+    plc_transport, ctrl_transport, plc_symbols, ctrl, cfg.done_timeout_s, heartbeat_state);
   timed_out = ~done;
   if timed_out
     if isempty(fieldnames(control_runtime_diag))
@@ -119,6 +124,8 @@ if cfg.wait_for_done
 else
   done = false;
   while toc(t_run) < cfg.hold_seconds
+    heartbeat_state = experiment.ModeManagerControl.tick_heartbeat( ...
+      ctrl_transport, ctrl, heartbeat_state, false);
     pause(min(0.05, cfg.hold_seconds / 10 + eps));
   end
 end
@@ -157,6 +164,8 @@ out.host = struct( ...
   "servo_ready_diag", servo_ready_diag, ...
   "control_runtime_diag", control_runtime_diag, ...
   "control_ams_port", double(cfg.control_ams_port), ...
+  "host_heartbeat_enable", logical(cfg.host_heartbeat_enable), ...
+  "host_heartbeat_period_s", double(cfg.host_heartbeat_period_s), ...
   "mode_flags_symbol", char(string(ctrl.modeFlagsSymbol)), ...
   "experiment_state_symbol", char(string(ctrl.experimentStateSymbol)), ...
   "control_mode_flags_symbol", char(string(ctrl.modeFlagsSymbol)), ...
@@ -182,23 +191,6 @@ function cleanup_transports(plc_transport, ctrl_transport, mode_flags_transport,
     owns_transport, owns_ctrl_transport, owns_mode_flags_transport, plc_symbols, mode_flags_symbol)
 if isempty(plc_transport) && isempty(ctrl_transport)
   return;
-end
-try
-  wrote_stop = false;
-  if ~isempty(mode_flags_transport) && strlength(string(mode_flags_symbol)) > 0
-    mode_t = experiment.ModeManagerControl.modeflags_type(plc_symbols.types);
-    mode_flags_transport.write_scalar(char(string(mode_flags_symbol)), ...
-      cast_modeflags_value(mode_t, uint32(0)), mode_t);
-  else
-    ctrl = experiment.ModeManagerControl.resolve_symbols(ctrl_transport, plc_symbols);
-    experiment.ModeManagerControl.write_mode_flags(ctrl_transport, ctrl, uint32(0));
-  end
-  wrote_stop = true;
-  if ~wrote_stop && ~isempty(plc_transport)
-    t_local = plc_symbols.types;
-    plc_transport.write_scalar(plc_symbols.experimentActive, false, t_local.bool);
-  end
-catch
 end
 
 same_transport = ~isempty(plc_transport) && ~isempty(ctrl_transport) && (plc_transport == ctrl_transport);
@@ -235,6 +227,8 @@ p.addParameter("dist_profile", [], @(x) isnumeric(x));
 p.addParameter("wait_for_done", true, @(x) islogical(x) || isnumeric(x));
 p.addParameter("done_timeout_s", 30.0, @(x) isnumeric(x) && isscalar(x) && x > 0);
 p.addParameter("reset_timeout_s", 5.0, @(x) isnumeric(x) && isscalar(x) && x > 0);
+p.addParameter("host_heartbeat_enable", true, @(x) islogical(x) || isnumeric(x));
+p.addParameter("host_heartbeat_period_s", 0.1, @(x) isnumeric(x) && isscalar(x) && x > 0);
 p.addParameter("hold_seconds", NaN, @(x) isnumeric(x) && isscalar(x) && (isnan(x) || x >= 0));
 p.addParameter("table_max_n", 100000, @(x) isnumeric(x) && isscalar(x) && x > 0);
 p.addParameter("log_n", 200000, @(x) isnumeric(x) && isscalar(x) && x > 0);
@@ -259,6 +253,8 @@ cfg.dist_profile = double(cfg.dist_profile(:));
 cfg.wait_for_done = logical(cfg.wait_for_done);
 cfg.done_timeout_s = double(cfg.done_timeout_s);
 cfg.reset_timeout_s = double(cfg.reset_timeout_s);
+cfg.host_heartbeat_enable = logical(cfg.host_heartbeat_enable);
+cfg.host_heartbeat_period_s = double(cfg.host_heartbeat_period_s);
 cfg.table_max_n = double(cfg.table_max_n);
 cfg.log_n = double(cfg.log_n);
 cfg.ads_assembly = char(string(cfg.ads_assembly));
@@ -326,9 +322,10 @@ function write_mode_flags(plc_transport, ctrl, value)
 experiment.ModeManagerControl.write_mode_flags(plc_transport, ctrl, value);
 end
 
-function [acked, diag] = request_reset_and_wait_ack(control_transport, ctrl, timeout_s)
-[acked, diag] = experiment.ModeManagerControl.request_reset_and_wait_ack( ...
-  control_transport, ctrl, timeout_s);
+function [acked, diag, heartbeat_state] = request_reset_and_wait_ack( ...
+    control_transport, ctrl, timeout_s, heartbeat_state)
+[acked, diag, heartbeat_state] = experiment.ModeManagerControl.request_reset_and_wait_ack( ...
+  control_transport, ctrl, timeout_s, heartbeat_state);
 end
 
 function [mode_flags_transport, owns_mode_flags_transport] = resolve_mode_flags_transport( ...
@@ -405,12 +402,14 @@ else
 end
 end
 
-function [ready, diag] = wait_for_reset_idle(plc_transport, ctrl_transport, symbols, ctrl, timeout_s)
-[ready, diag] = experiment.ModeManagerControl.wait_for_reset_idle( ...
-  plc_transport, ctrl_transport, symbols, ctrl, timeout_s);
+function [ready, diag, heartbeat_state] = wait_for_reset_idle( ...
+    plc_transport, ctrl_transport, symbols, ctrl, timeout_s, heartbeat_state)
+[ready, diag, heartbeat_state] = experiment.ModeManagerControl.wait_for_reset_idle( ...
+  plc_transport, ctrl_transport, symbols, ctrl, timeout_s, heartbeat_state);
 end
 
-function [ready, supported, diag] = wait_until_ready(ctrl_transport, symbols, ctrl, timeout_s)
+function [ready, supported, diag, heartbeat_state] = wait_until_ready( ...
+    ctrl_transport, symbols, ctrl, timeout_s, heartbeat_state)
 t = symbols.types;
 t0 = tic;
 ready = false;
@@ -432,13 +431,16 @@ while toc(t0) < timeout_s
     ready = false;
     return;
   end
+  heartbeat_state = experiment.ModeManagerControl.tick_heartbeat( ...
+    ctrl_transport, ctrl, heartbeat_state, false);
   pause(0.01);
 end
 end
 
-function done = wait_until_done(plc_transport, ctrl_transport, symbols, ctrl, timeout_s)
-done = experiment.ModeManagerControl.wait_until_done( ...
-  ctrl_transport, plc_transport, symbols, ctrl, timeout_s);
+function [done, heartbeat_state] = wait_until_done( ...
+    plc_transport, ctrl_transport, symbols, ctrl, timeout_s, heartbeat_state)
+[done, heartbeat_state] = experiment.ModeManagerControl.wait_until_done( ...
+  ctrl_transport, plc_transport, symbols, ctrl, timeout_s, heartbeat_state);
 end
 
 function diag = read_control_runtime_diag(ctrl_transport, t)

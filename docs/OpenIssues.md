@@ -1,6 +1,6 @@
 # 未解決課題一覧 — ExperimentHailMary
 
-> **最終更新:** 2026-02-27 (リセット処理の不整合・実験間初期化の課題追記)  
+> **最終更新:** 2026-02-27 (H4/H5 解消: modeFlags 所有権再設計 + reset/heartbeat 強化)  
 > **目的:** プロジェクト全体の未解決課題を一元管理する。  
 > **参照:** [ArchitectureSpec.md](ArchitectureSpec.md) / [ExperimentProcedure.md](ExperimentProcedure.md) / [TechnicalReference.md](TechnicalReference.md)
 
@@ -13,40 +13,6 @@
 ---
 
 ## High — 機能不全またはバグ
-
-### H4. `modeFlags` が `AT %I*` のため TwinCAT 側でクリア不可
-
-**対象:** `StateMachineControl/GVLs/GVL_MODE.TcGVL` L19, `matlab/+experiment/send_position_command.m` L69/L96/L102/L115  
-**現状:** `GVL_MODE.modeFlags` は `AT %I*`（入力リンク）で宣言されており、TwinCAT PLC コードからの書き込みが構造的に不可能。フラグの Set（`MODEF_SERVO_ENABLE`, `MODEF_EXPERIMENT_START_REQ`）も Clear（`0x0000`）も MATLAB が ADS 経由で全て行っている。`MAIN` は `modeFlags` を読み取るのみ（`servoEnableReq`, `experimentStartReq` のデコード）。  
-**設計意図との乖離:** フラグの立ち上げ（Set）は MATLAB、クリア（Clear）は TwinCAT 側が行う方針だが、`AT %I*` 制約により TwinCAT がクリアできない。  
-**リスク:**
-1. MATLAB プロセスがクラッシュまたは ADS 通信が切断した場合、`modeFlags` が `0x0003`（サーボ+実験開始）のまま残留し、TwinCAT 側が安全停止できない
-2. `send_position_command.m` の `cleanup_transports` で `modeFlags := 0` を書いているが、プロセス異常終了時にはこのクリーンアップが実行されない
-
-**提案:**
-1. `GVL_MODE.modeFlags` から `AT %I*` を除去し、通常の `VAR_GLOBAL` に変更する
-2. TwinCAT `MAIN` に `modeFlags` のクリアロジックを追加する（例: 実験完了時に `EXPERIMENT_START_REQ` ビットをクリア）
-3. ADS 通信切断検出（ウォッチドッグ/タイムアウト）による `modeFlags` 自動クリア機構の導入を検討する
-4. MATLAB 側の cleanup からは `modeFlags := 0` の書き込みを削除し、TwinCAT 側のクリア完了を待つ方式に移行する
-
-### H5. リセット後 `experimentActive` / `experimentState` が即座にクリアされない可能性
-
-**対象:** `StateMachineControl/POUs/MAIN.TcPOU` L54-57, L60-74  
-**現状:** `resetEdge` 発生時に `doneLatched := FALSE` と `GVL_MODE.resetReq := FALSE` はクリアされるが、`experimentActive` は直接クリアされない。`experimentActive` が `FALSE` になるのは以下のいずれかの条件:
-- `enableEffective = FALSE`（`modeFlags` でサーボ無効化済みの場合）
-- `seqPlaybackDone = TRUE`（テーブル再生完了済みの場合）
-
-リセット要求は通常 `modeFlags := 0`（サーボ無効化）の後に発行されるため `enableEffective = FALSE` → `experimentActive = FALSE` となるが、以下の不整合がある:
-1. MATLAB の `send_position_command.m` L67 で `modeFlags := 0` と `resetReq := TRUE` を **別々の ADS 書込み** で発行するため、タイミング次第で `resetEdge` が `experimentActive = TRUE` の状態で処理される可能性がある
-2. `resetEdge` 時に `experimentActive` を明示的にクリアしないため、リセット完了後も `experimentState = STATE_RUNNING` が 1 スキャン以上残留する可能性がある
-3. MATLAB の `wait_for_reset_idle` は `experimentActive = FALSE` を待つが、タイムアウト時は **warning のみで続行** する（`send_position_command.m` L77-81）
-
-**リスク:** リセット後に `experimentActive = TRUE` が残留した状態でテーブル書き込み → サーボ有効化が行われると、意図しない再生開始や状態遷移の競合が発生する。  
-**関連:** M13（MATLAB が `GVL_SEQ.idx` を直接クリア — ハンドシェイク迂回）  
-**提案:**
-1. `MAIN` の `resetEdge` 処理に `GVL_MODE.experimentActive := FALSE` を追加する
-2. `modeFlags` のクリアと `resetReq` の発行順序を仕様として明文化する（例: `modeFlags := 0` → `experimentActive = FALSE` を確認 → `resetReq := TRUE`）
-3. `wait_for_reset_idle` のタイムアウトを warning ではなく error に昇格するか、リトライ機構を追加する
 
 ### H3. `motor_torque_act` は SIL で 0 埋め（設計決定済み）
 
@@ -167,6 +133,8 @@ PLC 側 `GVL_MODE.modeFlags` は `UINT` (16bit) で定義されているため�
 | M3. `LogControl.logging` と ModeManager の連携未定義 | 2026-02-27 | `ExperimentLogger.Inputs.loggingReq` を追加し、`MAIN.experimentActiveOut` 連動で自動開始/停止 |
 | M4. `load_position` / `load_velocity` のマッピング設計確定 | 2026-02-27 | `loadPosition <- ControllerCore.positionRel`、`loadVelocity <- VirtualMotor1Outputs.velocityOut` に確定 |
 | M5. ControllerCore に位置オフセット機構を実装 | 2026-02-27 | `positionOffset` / `positionRel` 実装、誤差計算を相対位置化、`positionRelTap` へ移行 |
+| H4. `modeFlags` が `AT %I*` のため TwinCAT 側でクリア不可 | 2026-02-27 | `modeFlags` を通常 `VAR_GLOBAL` 化、`MAIN` に完了時 start bit クリアと heartbeat watchdog (`hostHeartbeatCounter`, timeout=500ms) を実装。通信断時は PLC が `modeFlags`/`experimentActive` を安全側クリア |
+| H5. リセット後 `experimentActive` / `experimentState` が即座にクリアされない | 2026-02-27 | `resetEdge` で `GVL_MODE.experimentActive := FALSE` を即時実行。`send_position_command`/`VirtualMotorService` の `wait_for_reset_idle` タイムアウトは warning から error に変更 |
 | `GVL_SEQ.experimentActive` AT リンク不足 | 2026-02-25 | `AT %I*` 追加済み |
 | `GVL_SEQ.playbackDone` AT リンク不足 | 2026-02-25 | `AT %Q*` 追加済み |
 | `GVL_SEQ.resetReq` AT リンク不足 | 2026-02-25 | `AT %I*` 追加済み |
@@ -187,4 +155,3 @@ PLC 側 `GVL_MODE.modeFlags` は `UINT` (16bit) で定義されているため�
 | VirtualMotorCore に `resetReq` 入力がない | 2026-02-27 | 設計決定: 実機モータードライバにもソフトウェアリセット（位置/速度ゼロ復帰）機能はないため、VirtualMotorCore は実機同等の仕様として `resetReq` を持たない。実験間の初期化は ControllerCore の `positionOffset := positionAct` による相対位置補正で対応する |
 
 </details>
-

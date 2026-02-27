@@ -14,6 +14,8 @@ classdef RunConfig
     wait_for_done = true
     done_timeout_s = 30.0
     reset_timeout_s = 5.0
+    host_heartbeat_enable = true
+    host_heartbeat_period_s = 0.1
     table_max_n = uint32(100000)
 
     m = 0.01
@@ -83,6 +85,8 @@ classdef RunConfig
       p.addParameter("wait_for_done", true, @(x) islogical(x) || isnumeric(x));
       p.addParameter("done_timeout_s", 30.0, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("reset_timeout_s", 5.0, @(x) isnumeric(x) && isscalar(x) && x > 0);
+      p.addParameter("host_heartbeat_enable", true, @(x) islogical(x) || isnumeric(x));
+      p.addParameter("host_heartbeat_period_s", 0.1, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("table_max_n", 100000, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("m", 0.01, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("d", 0.1, @(x) isnumeric(x) && isscalar(x));
@@ -177,6 +181,8 @@ classdef RunConfig
         out.dist_profile = zeros(n_ref, 1);
       end
       out.wait_for_done = logical(out.wait_for_done);
+      out.host_heartbeat_enable = logical(out.host_heartbeat_enable);
+      out.host_heartbeat_period_s = double(out.host_heartbeat_period_s);
       out.table_max_n = uint32(out.table_max_n);
       out.task_dt_ns = uint64(round(1e9 / out.task_rate_hz));
       out.log_stream_enable = logical(out.log_stream_enable);
@@ -233,6 +239,9 @@ classdef RunConfig
       end
       if ~(isnumeric(obj.log_host_max_n) && isscalar(obj.log_host_max_n) && (isinf(obj.log_host_max_n) || obj.log_host_max_n > 0))
         error("experiment:config:invalid", "log_host_max_n must be positive or inf.");
+      end
+      if ~(isnumeric(obj.host_heartbeat_period_s) && isscalar(obj.host_heartbeat_period_s) && obj.host_heartbeat_period_s > 0)
+        error("experiment:config:invalid", "host_heartbeat_period_s must be > 0.");
       end
     end
 

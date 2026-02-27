@@ -34,7 +34,6 @@
 |---|---|---|---|
 | bit 0 | `MODEF_SERVO_ENABLE` | `16#0001` | サーボ有効化リクエスト |
 | bit 1 | `MODEF_EXPERIMENT_START_REQ` | `16#0002` | 実験開始リクエスト |
-| bit 2 | `MODEF_RESET_REQ` | `16#0004` | **非推奨**（reset は `GVL_MODE.resetReq` を使用） |
 
 ### 2.2 状態監視変数
 
@@ -43,6 +42,8 @@
 | `GVL_MODE.modeFlags` | `UINT` | ADS → PLC | 上記ビットフィールドで機能リクエストを投入 |
 | `GVL_MODE.resetReq` | `BOOL` | ADS → PLC | リセット要求（MATLAB は `TRUE` を書くだけ） |
 | `GVL_MODE.resetAckCounter` | `UDINT` | PLC → ADS (読取) | reset 受理ごとに +1 |
+| `GVL_MODE.hostHeartbeatCounter` | `UDINT` | ADS → PLC | ホスト生存監視カウンタ（100 ms 周期更新） |
+| `GVL_MODE.watchdogTripCounter` | `UDINT` | PLC → ADS (読取) | heartbeat timeout 発生回数 |
 | `GVL_MODE.experimentActive` | `BOOL` | PLC → ADS (読取) | ModeManager が管理する実験実行中フラグ |
 | `GVL_MODE.experimentState` | `UINT` | PLC → ADS (読取) | 現在の実験状態 |
 
@@ -100,6 +101,7 @@ resetOut       := resetEdge                        ← ワンショットパル�
                                                       → ControllerCore.Inputs.resetReq にリンク
                                                       → ExperimentLogger.Inputs.resetReq にリンク
 IF resetEdge THEN
+    GVL_MODE.experimentActive := FALSE;
     GVL_MODE.resetReq := FALSE;
     GVL_MODE.resetAckCounter := GVL_MODE.resetAckCounter + 1;
 END_IF
@@ -111,15 +113,15 @@ END_IF
 
 | モジュール | resetReq 入力 | 検出方式 | リセット内容 | 既知制約 |
 |---|---|---|---|---|
-| **StateMachineControl** | `GVL_MODE.resetReq` | エッジ | `doneLatched` クリア, `resetAckCounter` +1, `resetOut` パルス生成 | `experimentActive` を直接クリアしない (H5) |
+| **StateMachineControl** | `GVL_MODE.resetReq` | エッジ | `doneLatched` / `experimentActive` クリア, `resetAckCounter` +1, `resetOut` パルス生成 | heartbeat timeout 時に `modeFlags := 0` を自動実行 |
 | **ExperimentSequencer** | `GVL_SEQ.resetReq` (`AT %I*`) | **レベル** | `idx`/`refValue`/`ffValue`/`distValue`/`playbackDone` クリア, `GVL_SEQ_LOG` リセット | エッジ検出不統一 (M14) |
 | **ControllerCore** | `Inputs.resetReq` | エッジ | biquad 内部状態クリア, `positionOffset := positionAct` | — |
 | **ExperimentLogger** | `Inputs.resetReq` | エッジ | ファイルクローズ, `bufferCount`/`seq`/`recordsWritten` 等クリア | — |
 | **VirtualMotorCore** | **なし** | — | — | 設計決定: 実機同等。`position`/`velocity` は実験間で carry-over する。ControllerCore の `positionOffset` で相対位置は補正される |
 | **DriverAdapter** | **なし** | — | — | 組み合わせ回路のため影響なし。Phase 4 拡張時に要検討 (M15) |
 
-> **注意:** リセット要求は `modeFlags := 0`（サーボ無効化）**の後に** 発行すること。  
-> サーボ有効状態のままリセットすると `experimentActive` が即座にクリアされない可能性がある (H5)。
+> **注意:** `send_position_command` / `VirtualMotorService` は `wait_for_reset_idle` タイムアウト時に warning 続行せず **error で停止** する。
+> `hostHeartbeatCounter` の更新が 500 ms 以上停止すると ModeManager watchdog が `modeFlags := 0` を実行する。
 
 #### サーボ有効化 → CiA 402 状態遷移
 

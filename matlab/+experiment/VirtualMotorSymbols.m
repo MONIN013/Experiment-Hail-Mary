@@ -3,6 +3,7 @@ classdef VirtualMotorSymbols
     reset
     modeResetReq
     modeResetAckCounter
+    hostHeartbeatCounter
     experimentActive
     experimentState
     tableLen
@@ -123,6 +124,7 @@ classdef VirtualMotorSymbols
       out.reset = "GVL_SEQ.resetReq";
       out.modeResetReq = "GVL_MODE.resetReq";
       out.modeResetAckCounter = "GVL_MODE.resetAckCounter";
+      out.hostHeartbeatCounter = "GVL_MODE.hostHeartbeatCounter";
       out.experimentActive = "GVL_SEQ.experimentActive";
       out.experimentState = "GVL_MODE.experimentState";
       out.tableLen = "GVL_SEQ.tableLen";

@@ -77,6 +77,24 @@ classdef TestModeManagerControl < matlab.unittest.TestCase
       testCase.verifyFalse(diag.experiment_active);
     end
 
+    function waitUntilDoneTicksHeartbeat(testCase)
+      plc = MockAdsTransport();
+      ctrl_t = MockAdsTransport();
+      seed_plc_state(plc);
+      seed_control_state(ctrl_t);
+      symbols = experiment.VirtualMotorSymbols.from_defaults();
+      ctrl = experiment.ModeManagerControl.resolve_symbols(ctrl_t, symbols);
+      ctrl_t.set_scalar_read_sequence("GVL_MODE.experimentState", uint32([0; 1; 2; 3]));
+      hb = experiment.ModeManagerControl.init_heartbeat(ctrl_t, ctrl, true, 1e-6);
+
+      [done, ~] = experiment.ModeManagerControl.wait_until_done( ...
+        ctrl_t, plc, symbols, ctrl, 0.05, hb);
+
+      testCase.verifyTrue(done);
+      joined = strjoin(ctrl_t.operations, "|");
+      testCase.verifyThat(joined, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_MODE.hostHeartbeatCounter"));
+    end
+
     function requestResetAndWaitAckSucceeds(testCase)
       ctrl_t = MockAdsTransport();
       seed_control_state(ctrl_t);
@@ -111,6 +129,7 @@ t.scalarMap("GVL_MODE.experimentActive") = false;
 t.scalarMap("GVL_MODE.experimentState") = uint32(0);
 t.scalarMap("GVL_MODE.resetReq") = false;
 t.scalarMap("GVL_MODE.resetAckCounter") = uint32(0);
+t.scalarMap("GVL_MODE.hostHeartbeatCounter") = uint32(0);
 t.scalarMap("GVL_SEQ.idx") = uint32(0);
 t.scalarMap("GVL_SEQ_LOG.wrIdx") = uint32(0);
 t.scalarMap("GVL_SEQ_LOG.overflow") = false;
@@ -129,6 +148,7 @@ t.scalarMap("GVL_MODE.experimentActive") = false;
 t.scalarMap("GVL_MODE.experimentState") = uint32(0);
 t.scalarMap("GVL_MODE.resetReq") = false;
 t.scalarMap("GVL_MODE.resetAckCounter") = uint32(0);
+t.scalarMap("GVL_MODE.hostHeartbeatCounter") = uint32(0);
 end
 
 

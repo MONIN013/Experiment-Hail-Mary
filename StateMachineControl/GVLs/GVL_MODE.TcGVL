@@ -5,6 +5,7 @@
 VAR_GLOBAL CONSTANT
     MODEF_SERVO_ENABLE : UINT := 16#0001;          (* bit0 *)
     MODEF_EXPERIMENT_START_REQ : UINT := 16#0002;  (* bit1 *)
+    HEARTBEAT_TIMEOUT_TICKS : UDINT := 50;         (* 10 ms task * 50 = 500 ms *)
 
     STATE_IDLE : UINT := 0;
     STATE_READY : UINT := 1;
@@ -14,9 +15,11 @@ END_VAR
 
 VAR_GLOBAL
     {attribute 'linkalways'}
-    modeFlags AT %I* : UINT := 0;
+    modeFlags : UINT := 0;
     resetReq : BOOL := FALSE;
     resetAckCounter : UDINT := 0;
+    hostHeartbeatCounter : UDINT := 0;
+    watchdogTripCounter : UDINT := 0;
     experimentActive : BOOL := FALSE;
     experimentState : UINT := STATE_IDLE;
 END_VAR]]></Declaration>

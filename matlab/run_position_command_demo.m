@@ -25,7 +25,7 @@ task_rate_hz   = sys.TASK_RATE_HZ;
 
 %% Experiment parameters
 target_position_rad = 0.25;
-duration_s          = 2.0;     % 整定観察のため 2 秒
+duration_s          = 3.0;     % 整定観察のため 3 秒
 hold_margin_s       = 0.50;
 pre_step_s          = 1.0;    % リセット直後の残留を避けるため先頭 20 ms はゼロ指令
 

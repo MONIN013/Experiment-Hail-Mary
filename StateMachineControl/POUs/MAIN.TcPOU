@@ -19,6 +19,12 @@ VAR
     resetEdge : BOOL := FALSE;
     doneLatched : BOOL := FALSE;
     driveReady : BOOL := FALSE;
+    heartbeatCounterPrev : UDINT := 0;
+    heartbeatSilenceTicks : UDINT := 0;
+    watchdogArmed : BOOL := FALSE;
+    watchdogTripLatched : BOOL := FALSE;
+    heartbeatChanged : BOOL := FALSE;
+    watchdogTimeout : BOOL := FALSE;
 
     fbStateMachine : FB_StateMachineControl;
 END_VAR
@@ -31,6 +37,35 @@ resetEdge := resetReq AND NOT resetReqPrev;
 resetReqPrev := resetReq;
 resetOut := resetEdge;
 (* resetReq is latched by ADS writer; PLC owns clear+ack after resetEdge. *)
+watchdogArmed := (GVL_MODE.modeFlags <> 0) OR GVL_MODE.experimentActive;
+heartbeatChanged := (GVL_MODE.hostHeartbeatCounter <> heartbeatCounterPrev);
+
+IF NOT watchdogArmed THEN
+    heartbeatCounterPrev := GVL_MODE.hostHeartbeatCounter;
+    heartbeatSilenceTicks := 0;
+    watchdogTripLatched := FALSE;
+ELSIF heartbeatChanged THEN
+    heartbeatCounterPrev := GVL_MODE.hostHeartbeatCounter;
+    heartbeatSilenceTicks := 0;
+    watchdogTripLatched := FALSE;
+ELSE
+    IF heartbeatSilenceTicks < GVL_MODE.HEARTBEAT_TIMEOUT_TICKS THEN
+        heartbeatSilenceTicks := heartbeatSilenceTicks + 1;
+    END_IF
+END_IF
+watchdogTimeout := watchdogArmed AND (heartbeatSilenceTicks >= GVL_MODE.HEARTBEAT_TIMEOUT_TICKS);
+
+IF watchdogTimeout THEN
+    GVL_MODE.modeFlags := 0;
+    GVL_MODE.experimentActive := FALSE;
+    doneLatched := FALSE;
+    IF NOT watchdogTripLatched THEN
+        GVL_MODE.watchdogTripCounter := GVL_MODE.watchdogTripCounter + 1;
+        watchdogTripLatched := TRUE;
+    END_IF
+END_IF
+servoEnableReq := (GVL_MODE.modeFlags AND GVL_MODE.MODEF_SERVO_ENABLE) <> 0;
+experimentStartReq := (GVL_MODE.modeFlags AND GVL_MODE.MODEF_EXPERIMENT_START_REQ) <> 0;
 
 enableEffective := enable AND servoEnableReq;
 
@@ -45,6 +80,7 @@ enableTorqueOut := enableEffective AND driveReady;
 
 IF seqPlaybackDone THEN
     doneLatched := TRUE;
+    GVL_MODE.modeFlags := GVL_MODE.modeFlags AND (NOT GVL_MODE.MODEF_EXPERIMENT_START_REQ);
 END_IF
 
 IF NOT experimentStartReq THEN
@@ -53,6 +89,7 @@ END_IF
 
 IF resetEdge THEN
     doneLatched := FALSE;
+    GVL_MODE.experimentActive := FALSE;
     GVL_MODE.resetReq := FALSE;
     GVL_MODE.resetAckCounter := GVL_MODE.resetAckCounter + 1;
 END_IF
