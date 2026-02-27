@@ -235,11 +235,11 @@ ControlWord ビット解釈:
 ```
 入力: currentIn (= target_torque from DriverAdapter)
 
-torqueCmd := Kt * currentIn
+torqueCmd := torqueConstant * currentIn
 torqueSat := Clamp(torqueCmd, ±tauLimit)
   ※ |torqueCmd| > tauLimit → internalFault → FAULT 状態に遷移
 
-velocity_next := velocity + (dt / M) * (torqueSat - D * velocity)
+velocity_next := velocity + (dt / mass) * (torqueSat - damping * velocity)
   ※ |velocity_next| > velLimit → internalFault → FAULT 状態に遷移
 
 position_next := position + dt * velocity_next

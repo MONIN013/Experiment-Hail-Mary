@@ -153,7 +153,7 @@ enableTorqueOut := enableEffective AND driveReady
 │     を ADS 書込                                                       │
 │                                                                       │
 │  ③ TcCOM パラメータ ADS 書込     ControllerCore: biquad 係数更新      │
-│                                   VirtualMotorCore: M,D,Kt 等更新     │
+│                                   VirtualMotorCore: mass/damping/torqueConstant 等更新 │
 │                                                                       │
 │  ④ modeFlags = 0x0001            ModeManager: サーボ有効化            │
 │    (SERVO_ENABLE)                 CiA 402 → OPERATION_ENABLED         │

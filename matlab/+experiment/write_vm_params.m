@@ -8,7 +8,7 @@ function write_vm_params(transport, params)
 %               (task_rate_hz は SystemConfig から自動取得)
 %
 %   書込み先 (VirtualMotor1Parameter):
-%     .M, .D, .Kt, .tauLimit, .velLimit, .taskDtNs
+%     .mass, .damping, .torqueConstant, .tauLimit, .velLimit, .taskDtNs
 
   arguments
     transport twincat_ads.IAdsTransport

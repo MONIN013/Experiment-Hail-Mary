@@ -54,9 +54,9 @@ classdef TestWriteHelpers < matlab.unittest.TestCase
 
       sys = experiment.SystemConfig;
       prefix = char(sys.VM_PREFIX);
-      testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'M')), 1.0);
-      testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'D')), 6.0);
-      testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'Kt')), 0.1);
+      testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'mass')), 1.0);
+      testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'damping')), 6.0);
+      testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'torqueConstant')), 0.1);
       testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'tauLimit')), 100.0);
       testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'velLimit')), 10.0);
       testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'taskDtNs')), uint64(1000000));
@@ -138,9 +138,9 @@ end
 function seedModuleDefaults(tr)
   sys = experiment.SystemConfig;
   vm_prefix = char(sys.VM_PREFIX);
-  tr.scalarMap(strcat(vm_prefix, 'M')) = 0.0;
-  tr.scalarMap(strcat(vm_prefix, 'D')) = 0.0;
-  tr.scalarMap(strcat(vm_prefix, 'Kt')) = 0.0;
+  tr.scalarMap(strcat(vm_prefix, 'mass')) = 0.0;
+  tr.scalarMap(strcat(vm_prefix, 'damping')) = 0.0;
+  tr.scalarMap(strcat(vm_prefix, 'torqueConstant')) = 0.0;
   tr.scalarMap(strcat(vm_prefix, 'tauLimit')) = 0.0;
   tr.scalarMap(strcat(vm_prefix, 'velLimit')) = 0.0;
   tr.scalarMap(strcat(vm_prefix, 'taskDtNs')) = uint64(0);

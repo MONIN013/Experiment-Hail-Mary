@@ -27,6 +27,7 @@ task_rate_hz   = sys.TASK_RATE_HZ;
 target_position_rad = 0.25;
 duration_s          = 2.0;     % 整定観察のため 2 秒
 hold_margin_s       = 0.50;
+pre_step_s          = 0.2;    % リセット直後の残留を避けるため先頭 20 ms はゼロ指令
 
 %% VM 物理パラメータ
 vm_params = struct( ...
@@ -46,17 +47,20 @@ ctrl_params = struct( ...
   "enable_pid", true, "enable_lead", false, "enable_notch", false, "enable_reso", false);
 
 %% 指令波形: ステップ位置指令
-sample_n = round(duration_s * task_rate_hz);
-if sample_n <= 0
+step_sample_n = round(duration_s * task_rate_hz);
+pre_step_n = max(1, round(pre_step_s * task_rate_hz));
+if step_sample_n <= 0
   error("experiment:demo:invalid", "duration_s must produce at least one sample.");
 end
-duration_s = sample_n / task_rate_hz;
-ref_profile  = target_position_rad * ones(sample_n, 1);
+sample_n = pre_step_n + step_sample_n;
+duration_s = step_sample_n / task_rate_hz;
+ref_profile  = [zeros(pre_step_n, 1); target_position_rad * ones(step_sample_n, 1)];
 ff_profile   = zeros(sample_n, 1);
 dist_profile = zeros(sample_n, 1);
 
 fprintf("=== Position Command Demo (P control, Kp=%g) ===\n", Kp);
-fprintf("Target=%.4f rad, duration=%.3f s, N=%d\n", target_position_rad, duration_s, sample_n);
+fprintf("Target=%.4f rad, stepDuration=%.3f s, preStep=%.3f s, N=%d\n", ...
+  target_position_rad, duration_s, pre_step_n / task_rate_hz, sample_n);
 
 %% ADS 接続
 seq_transport  = twincat_ads.AdsTransport();

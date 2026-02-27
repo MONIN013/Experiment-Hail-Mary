@@ -88,9 +88,9 @@ VirtualMotorCore の物理パラメータを Port 351 に書込む。
 
 | 書込み先 | フィールド |
 |---|---|
-| `{VM_PREFIX}M` | `params.m` |
-| `{VM_PREFIX}D` | `params.d` |
-| `{VM_PREFIX}Kt` | `params.kt` |
+| `{VM_PREFIX}mass` | `params.m` |
+| `{VM_PREFIX}damping` | `params.d` |
+| `{VM_PREFIX}torqueConstant` | `params.kt` |
 | `{VM_PREFIX}tauLimit` | `params.tau_limit` |
 | `{VM_PREFIX}velLimit` | `params.vel_limit` |
 | `{VM_PREFIX}taskDtNs` | `SystemConfig.task_dt_ns()` |
