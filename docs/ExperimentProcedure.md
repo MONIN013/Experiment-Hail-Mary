@@ -115,7 +115,7 @@ END_IF
 | モジュール | resetReq 入力 | 検出方式 | リセット内容 | 既知制約 |
 |---|---|---|---|---|
 | **StateMachineControl** | `GVL_MODE.resetReq` | エッジ | `doneLatched` / `experimentActive` クリア, `resetAckCounter` +1, `resetOut` パルス生成 | heartbeat timeout 時に `modeFlags := 0` を自動実行 |
-| **ExperimentSequencer** | `GVL_SEQ.resetReq` (`AT %I*`) | **レベル** | `idx`/`refValue`/`ffValue`/`distValue`/`playbackDone` クリア, `GVL_SEQ_LOG` リセット | エッジ検出不統一 (M14) |
+| **ExperimentSequencer** | `GVL_SEQ.resetReq` (`AT %I*`) | **エッジ** | `idx`/`refValue`/`ffValue`/`distValue`/`playbackDone` クリア, `GVL_SEQ_LOG` リセット | M14 解消済み。エッジ検出に統一 |
 | **ControllerCore** | `Inputs.resetReq` | エッジ | biquad 内部状態クリア | 相対位置化は DriverAdapter に移管済み (D12) |
 | **ExperimentLogger** | `Inputs.resetReq` | エッジ | ファイルクローズ, `bufferCount`/`seq`/`recordsWritten` 等クリア | — |
 | **VirtualMotorCore** | **なし** | — | — | 設計決定: 実機同等。`position`/`velocity` は実験間で carry-over する。DriverAdapter の `positionOffsetRad` で相対位置は補正される |
@@ -156,9 +156,17 @@ statusWord → F_DecodeDriveState → driveState に応じて controlWord を生
 #### トルクゲート
 
 ```
-enableCurrentOut := enableEffective AND driveReady
-  → DriverAdapter: enableCurrentOutput = FALSE 時に target_torque := 0.0
+enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
+  IDLE / RESETTING:   enableCurrentOut := FALSE
+  SERVO_READY:        enableCurrentOut := TRUE   ← CiA 402 遷移中
+  RUNNING:            enableCurrentOut := TRUE
+  DONE:               enableCurrentOut := FALSE
+
+  → DriverAdapter: enableCurrentOutput = FALSE 時に targetTorque := 0 (安全停止)
 ```
+
+> ドライブ自体が OPERATION_ENABLED 以外ではトルクを無視するため、SERVO_READY 状態で
+> `enableCurrentOut = TRUE` であっても機能上の影響はない。
 
 ---
 

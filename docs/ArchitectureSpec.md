@@ -397,8 +397,8 @@ EtherCAT.PDO.torqueActualValue (INT, ‰ rated)   ──►  DriverAdapter.torqu
 │                                                  │
 │  ref_value    ◄──────── ExperimentSequencer      │
 │  ff_value     ◄──────── ExperimentSequencer      │
-│  position_act ◄──────── VirtualMotorCore         │
-│                      (Load 側 1慣性近似)          │
+│  position_act ◄──────── DriverAdapter.positionRel│
+│                      (相対位置化済み)             │
 │                                                  │
 │  [e = ref - pos] → PID → Lead → Notch → Reso    │
 │  [u_fb + ff_value]                                │

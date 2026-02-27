@@ -31,26 +31,31 @@
 
 ### 1.2 再生ロジック (PRG_ExperimentSequencer)
 
-#### リセット処理 (`resetReq = TRUE` 時)
+#### リセット処理 (`resetReq` 立ち上がりエッジ時)
 
 ```
-idx          := 0
-refValue     := 0.0
-ffValue      := 0.0
-distValue    := 0.0
-playbackDone := FALSE
-playbackRunning := FALSE (内部)
-rearmRequired   := FALSE (内部)
+resetEdge := GVL_SEQ.resetReq AND NOT resetReqPrev
+IF resetEdge THEN
+    idx          := 0
+    refValue     := 0.0
+    ffValue      := 0.0
+    distValue    := 0.0
+    playbackDone := FALSE
+    playbackRunning := FALSE (内部)
+    rearmRequired   := FALSE (内部)
 
-GVL_SEQ_LOG:
-  seq   := 0
-  tNs   := 0
-  wrIdx := 0
-  rdIdx := 0
-  overflow := FALSE
+    GVL_SEQ_LOG:
+      seq   := 0
+      tNs   := 0
+      wrIdx := 0
+      rdIdx := 0
+      overflow := FALSE
+END_IF
+resetReqPrev := GVL_SEQ.resetReq
 ```
 
 > リセットはテーブル内容には影響しない。インデックスとフラグのみクリアされる。
+> M14 解消により、レベルトリガからエッジ検出に変更済み。
 
 #### 開始エッジ検出
 
@@ -100,7 +105,7 @@ END_IF
 |---|---|---|---|
 | `refValue` | `LREAL` | ExperimentSequencer `GVL_SEQ.refValue` | 位置指令 [rad] |
 | `ffValue` | `LREAL` | ExperimentSequencer `GVL_SEQ.ffValue` | FF 信号 [Nm] |
-| `positionAct` | `LREAL` | VirtualMotorCore `positionOut` | Load 側実位置 [rad] |
+| `positionAct` | `LREAL` | DriverAdapter `positionRel` | Load 側相対位置 [rad]（Adapter で raw→rad 変換+相対位置化済み）|
 | `resetReq` | `BOOL` | ModeManager `resetOut` | リセット要求 |
 
 #### 出力 (OutputSrc)
@@ -147,7 +152,7 @@ s2 = b2 * x - a2 * y
 
 | ADS シンボル | 型 | TMC CreateSymbol |
 |---|---|---|
-| `ControllerCore_Obj1 (Module1).PIDParams.pidB0..pidA2` | `LREAL` × 5 | **未設定** (→ [OpenIssues.md](OpenIssues.md) H1) |
+| `ControllerCore_Obj1 (Module1).PIDParams.pidB0..pidA2` | `LREAL` × 5 | 設定済み |
 | `ControllerCore_Obj1 (Module1).LeadParams.leadB0..leadA2` | `LREAL` × 5 | 設定済み |
 | `ControllerCore_Obj1 (Module1).NotchParams.notchB0..notchA2` | `LREAL` × 5 | 設定済み |
 | `ControllerCore_Obj1 (Module1).ResoParams.resoB0..resoA2` | `LREAL` × 5 | 設定済み |
@@ -156,8 +161,7 @@ s2 = b2 * x - a2 * y
 | `ControllerCore_Obj1 (Module1).EnableParams.enableNotch` | `BOOL` | 設定済み |
 | `ControllerCore_Obj1 (Module1).EnableParams.enableReso` | `BOOL` | 設定済み |
 
-> **現状の制限:** TMC Reload が未実施のため、Port 351 のシンボルテーブルにパラメータが表示されない。  
-> 詳細は §8.6 および [OpenIssues.md](OpenIssues.md) C3 を参照。
+> Port 351 のシンボルテーブルに PID/Notch/Lead/Reso/EnableParams が表示されることを確認済み (H1/C3 解消)。
 
 ---
 
@@ -167,32 +171,58 @@ s2 = b2 * x - a2 * y
 
 | 変数 | 型 | リンク | 方向 | 説明 |
 |---|---|---|---|---|
+| `positionActualValue` | `DINT` | `AT %I*` | VirtualMotorCore/EtherCAT→PLC | 実位置 [pulses] |
+| `velocityActualValue` | `DINT` | `AT %I*` | VirtualMotorCore/EtherCAT→PLC | 実速度 [pulses/s] |
+| `torqueActualValue` | `INT` | `AT %I*` | VirtualMotorCore/EtherCAT→PLC | 実トルク [‰ rated] |
 | `controlInput` | `LREAL` | `AT %I*` | ControllerCore→PLC | 制御出力 [Nm] |
 | `distValue` | `LREAL` | `AT %I*` | ExperimentSequencer→PLC | 外乱値 [Nm] |
 | `statusWord` | `UINT` | `AT %I*` | VirtualMotorCore→PLC | CiA 402 StatusWord |
 | `controlWordIn` | `UINT` | `AT %I*` | ModeManager→PLC | CiA 402 ControlWord |
 | `enableCurrentOutput` | `BOOL` | `AT %I*` | ModeManager→PLC | 電流出力ゲート |
-| `targetTorque` | `LREAL` | `AT %Q*` | PLC→VirtualMotorCore | 最終トルク出力 [Nm] |
+| `resetReq` | `BOOL` | `AT %I*` | ModeManager→PLC | リセット要求 (D12) |
+| `positionRel` | `LREAL` | `AT %Q*` | PLC→ControllerCore/Logger | 相対位置 [rad] |
+| `velocityAct` | `LREAL` | `AT %Q*` | PLC→Logger | 速度 [rad/s] |
+| `currentAct` | `LREAL` | `AT %Q*` | PLC→Logger | 実電流 [A] |
+| `targetTorque` | `INT` | `AT %Q*` | PLC→VirtualMotorCore | 最終トルク出力 [‰ rated] |
 | `controlWordOut` | `UINT` | `AT %Q*` | PLC→VirtualMotorCore | CW 中継 |
 | `statusWordOut` | `UINT` | `AT %Q*` | PLC→ModeManager | SW 中継 |
 
 ### 3.2 PRG_DriverAdapter 処理 (毎スキャン 1 ms)
 
 ```
-targetCurrentLocal := controlInput + distValue        ← 外乱加算
+(* 1. Drive → 工学単位変換 *)
+positionRad          := DINT_TO_LREAL(positionActualValue) * TWO_PI_INV_RES
+velocityAct          := DINT_TO_LREAL(velocityActualValue) * TWO_PI_INV_RES
+currentAct           := INT_TO_LREAL(torqueActualValue) * RATED_CURRENT_DIV_1000
+
+(* 2. リセット — 相対位置オフセットキャプチャ (エッジ検出) *)
+resetEdge := resetReq AND NOT resetReqPrev
+IF resetEdge THEN
+    positionOffsetRad := positionRad
+END_IF
+resetReqPrev := resetReq
+
+(* 3. 相対位置化 *)
+positionRel := positionRad - positionOffsetRad
+
+(* 4. 工学単位 → Drive 変換 (外乱加算 + 電流ゲート + 飽和) *)
+targetCurrentA := controlInput + distValue
 
 IF enableCurrentOutput THEN
-    targetTorque := targetCurrentLocal                ← ゲートオープン
+    targetTorque := LREAL_TO_INT(targetCurrentA * RATED_CURRENT_INV_X1000)
+      ← 飽和: INT 範囲 [-32768, 32767] にクランプ
 ELSE
-    targetTorque := 0.0                              ← ゲートクローズ (安全)
+    targetTorque := 0                                ← ゲートクローズ (安全)
 END_IF
 
-controlWordOut := controlWordIn                      ← CW スルー
-statusWordOut  := statusWord                         ← SW スルー
+(* 5. CW/SW 中継 *)
+controlWordOut := controlWordIn
+statusWordOut  := statusWord
 ```
 
 > `enableCurrentOutput` は ModeManager が `enableEffective AND driveReady` 時のみ `TRUE` を出力する。  
-> ドライブが `OPERATION_ENABLED` に到達するまでトルクは出力されない。
+> ドライブが `OPERATION_ENABLED` に到達するまでトルクは出力されない。  
+> `targetTorque` は D11 により `LREAL [Nm]` → `INT [‰ rated]` に変更済み。
 
 ---
 
@@ -233,22 +263,27 @@ ControlWord ビット解釈:
 `OPERATION_ENABLED` 状態のときのみ物理演算が実行される:
 
 ```
-入力: currentIn (= target_torque from DriverAdapter)
+入力: targetTorque (= ‰ rated, INT from DriverAdapter)
 
-torqueCmd := torqueConstant * currentIn
-torqueSat := Clamp(torqueCmd, ±tauLimit)
-  ※ |torqueCmd| > tauLimit → internalFault → FAULT 状態に遷移
+ratedTorque := EffectiveRatedTorque(params)     ← パラメータから取得 (デフォルト 0.318 Nm)
+tauCmd := (targetTorquePermille / 1000.0) * ratedTorque
+torqueSat := Clamp(tauCmd, ±tauLimit)
+  ※ |tauCmd| > tauLimit → internalFault → FAULT 状態に遷移
 
 velocity_next := velocity + (dt / mass) * (torqueSat - damping * velocity)
   ※ |velocity_next| > velLimit → internalFault → FAULT 状態に遷移
 
 position_next := position + dt * velocity_next
 
-出力:
-  positionOut → ControllerCore.positionAct にリンク (Load 側 FB)
-  velocityOut → (ログ用に利用可)
-  statusWord  → DriverAdapter.statusWord にリンク
+出力 (CiA 402 整数型):
+  positionActualValue  ← SaturatingRoundToDint(position * encoderResolution / 2π)
+  velocityActualValue  ← SaturatingRoundToDint(velocity * encoderResolution / 2π)
+  torqueActualValue    ← SaturatingRoundToInt((lastAppliedTorqueNm / ratedTorque) * 1000.0)
+  statusWord           → DriverAdapter.statusWord にリンク
 ```
+
+> D11 により入力が `currentIn [A]` から `targetTorque [‰ rated, INT]` に変更。
+> 出力も double (`positionOut`/`velocityOut`) から CiA 402 整数型に変更済み。
 
 ### 4.3 ADS で注入可能なパラメータ
 
@@ -260,6 +295,8 @@ position_next := position + dt * velocity_next
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.tauLimit` | `LREAL` | トルクリミット [Nm] |
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.velLimit` | `LREAL` | 速度リミット [rad/s] |
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.taskDtNs` | `ULINT` | タスク周期 [ns] |
+| `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.ratedTorque` | `LREAL` | 定格トルク [Nm] (D11 追加、デフォルト 0.318) |
+| `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.encoderResolution` | `ULONG` | エンコーダ分解能 [pulses/rev] (D11 追加、デフォルト 8388608) |
 
 > `VirtualMotor1Parameter` は `CreateSymbol="true"` でシンボルブラウズ可 (ADS Discovery 確認済み)。  
 > `VirtualMotor2Parameter` は CreateSymbol 未設定のため Port 351 に非公開 — AdsRW (PTCID `#x00000002`) で書き込む。
@@ -375,13 +412,14 @@ GVL_SEQ_LOG のリングバッファ (§5) が ADS ポーリング前提の暫�
 | `error` | `LREAL` | ControllerCore `error` | 位置誤差 [rad] |
 | `motorPosition` | `LREAL` | (Phase 4: EtherCAT) | Motor 側実位置 [rad] |
 | `motorVelocity` | `LREAL` | (Phase 4: EtherCAT) | Motor 側実速度 [rad/s] |
-| `motorCurrentAct` | `LREAL` | (Phase 4: EtherCAT) | Motor 実電流 [A] |
-| `loadPosition` | `LREAL` | ControllerCore `positionRel` | Load 側実位置 (相対位置) [rad] |
-| `loadVelocity` | `LREAL` | VirtualMotorCore `VirtualMotor1Outputs.velocityOut` | Load 側実速度 [rad/s] |
+| `motorCurrentAct` | `LREAL` | DriverAdapter `currentAct` (D13) | Motor 実電流 [A] |
+| `loadPosition` | `LREAL` | DriverAdapter `positionRel` (D12) | Load 側実位置 (相対位置) [rad] |
+| `loadVelocity` | `LREAL` | DriverAdapter `velocityAct` (D11) | Load 側実速度 [rad/s] |
 | `resetReq` | `BOOL` | ModeManager `resetOut` | リセット要求 |
 
-> Phase 1–3 (SIL) では `motorPosition`, `motorVelocity`, `motorCurrentAct` は 0 (未接続)。  
-> `loadPosition` は ControllerCore.positionRel、`loadVelocity` は VirtualMotorCore Axis1 速度出力を使用する。
+> Phase 1–3 (SIL) では `motorPosition`, `motorVelocity` は 0 (未接続)。  
+> `loadPosition` は DriverAdapter.positionRel (D12)、`loadVelocity` は DriverAdapter.velocityAct (D11)、
+> `motorCurrentAct` は DriverAdapter.currentAct (D13) を使用する。
 
 #### 出力 (OutputSrc)
 
@@ -521,7 +559,10 @@ Offset   Size  型          フィールド
 ```
 MAIN.resetOut            (%Q*)  ──►  GVL_SEQ.resetReq           (%I*)
 MAIN.resetOut            (%Q*)  ──►  ControllerCore.Inputs.resetReq
+MAIN.resetOut            (%Q*)  ──►  ExperimentLogger.Inputs.resetReq
+MAIN.resetOut            (%Q*)  ──►  GVL_DRV.resetReq           (%I*)   ← D12 追加
 MAIN.experimentActiveOut (%Q*)  ──►  GVL_SEQ.experimentActive   (%I*)
+MAIN.experimentActiveOut (%Q*)  ──►  ExperimentLogger.Inputs.loggingReq
 MAIN.enableCurrentOut     (%Q*)  ──►  GVL_DRV.enableCurrentOutput (%I*)
 MAIN.ctrlWord            (%Q*)  ──►  GVL_DRV.controlWordIn      (%I*)
 GVL_DRV.statusWordOut    (%Q*)  ──►  MAIN.statWord              (%I*)
@@ -551,31 +592,42 @@ GVL_SEQ.distValue        (%Q*)  ──►  GVL_DRV.distValue          (%I*)
 ### 7.5 DriverAdapter ↔ VirtualMotorCore
 
 ```
-GVL_DRV.targetTorque     (%Q*)  ──►  VirtualMotorCore.Inputs.VirtualMotor1Inputs.currentIn
+GVL_DRV.targetTorque     (%Q*)  ──►  VirtualMotorCore.Inputs.VirtualMotor1Inputs.targetTorque  (INT, ‰ rated)
 GVL_DRV.controlWordOut   (%Q*)  ──►  VirtualMotorCore.Inputs.controlWord1
+VirtualMotorCore.Outputs.VirtualMotor1Outputs.positionActualValue
+                                            ──►  GVL_DRV.positionActualValue (%I*)
+VirtualMotorCore.Outputs.VirtualMotor1Outputs.velocityActualValue
+                                            ──►  GVL_DRV.velocityActualValue (%I*)
+VirtualMotorCore.Outputs.VirtualMotor1Outputs.torqueActualValue
+                                            ──►  GVL_DRV.torqueActualValue  (%I*)
 VirtualMotorCore.Outputs.statusWord1        ──►  GVL_DRV.statusWord     (%I*)
-VirtualMotorCore.Outputs.VirtualMotor1Outputs.positionOut
-                                            ──►  ControllerCore.Inputs.positionAct
-VirtualMotorCore.Outputs.VirtualMotor1Outputs.positionOut
-                                            ──►  GVL_SEQ_LOG.positionRelTap (%I*)
+GVL_DRV.positionRel                         ──►  ControllerCore.Inputs.positionAct
+GVL_DRV.positionRel                         ──►  GVL_SEQ_LOG.positionRelTap (%I*)
 ```
+
+> D11: `currentIn (LREAL)` → `targetTorque (INT, ‰ rated)` に変更。
+> D12: `positionOut → ControllerCore` の経路を `DriverAdapter.positionRel → ControllerCore` に変更。
 
 ### 7.6 各モジュール → ExperimentLogger (Phase 3〜)
 
 ```
-DriverAdapter.targetTorque                                  ──►  ExperimentLogger.Inputs.currentCmd
+GVL_DRV.targetTorque (→ Nm 換算)                            ──►  ExperimentLogger.Inputs.currentCmd
 ExperimentSequencer.refValue                                ──►  ExperimentLogger.Inputs.refValue
 ExperimentSequencer.ffValue                                 ──►  ExperimentLogger.Inputs.ffValue
 ControllerCore.Outputs.controlInput                         ──►  ExperimentLogger.Inputs.controlInput
 ControllerCore.Outputs.error                                ──►  ExperimentLogger.Inputs.error
-VirtualMotorCore.Outputs.VirtualMotor1Outputs.positionOut   ──►  ExperimentLogger.Inputs.motorPosition
-VirtualMotorCore.Outputs.VirtualMotor1Outputs.velocityOut   ──►  ExperimentLogger.Inputs.motorVelocity
-ControllerCore.Outputs.positionRel                          ──►  ExperimentLogger.Inputs.loadPosition
-VirtualMotorCore.Outputs.VirtualMotor1Outputs.velocityOut   ──►  ExperimentLogger.Inputs.loadVelocity
+(Phase 4: EtherCAT Motor 側)                                ──►  ExperimentLogger.Inputs.motorPosition   ← SIL: 未接続 (0)
+(Phase 4: EtherCAT Motor 側)                                ──►  ExperimentLogger.Inputs.motorVelocity   ← SIL: 未接続 (0)
+GVL_DRV.currentAct                                          ──►  ExperimentLogger.Inputs.motorCurrentAct  ← D13: DriverAdapter 経由
+GVL_DRV.positionRel                                         ──►  ExperimentLogger.Inputs.loadPosition     ← D12: DriverAdapter 経由
+GVL_DRV.velocityAct                                         ──►  ExperimentLogger.Inputs.loadVelocity     ← D11: DriverAdapter 経由
 ModeManager.resetOut                                        ──►  ExperimentLogger.Inputs.resetReq
+ModeManager.experimentActiveOut                             ──►  ExperimentLogger.Inputs.loggingReq
 ```
 
-> Motor1 = Motor 側、Motor2 = Load 側 として割り当てている。
+> D12: `loadPosition` のソースを `ControllerCore.positionRel` → `GVL_DRV.positionRel` に変更。
+> D13: `motorCurrentAct` を `GVL_DRV.currentAct` に接続 (SIL でも飽和後の実電流を記録可能)。
+> D11: `loadVelocity` のソースを `VirtualMotorCore.velocityOut` → `GVL_DRV.velocityAct` に変更。
 
 ---
 
@@ -612,12 +664,19 @@ ModeManager.resetOut                                        ──►  Experimen
 
 | ADS シンボル名 | 型 | Size (B) | リンク | R/W | 説明 |
 |---|---|---|---|---|---|
+| `GVL_DRV.positionActualValue` | `DINT` | 4 | `AT %I*` | R | Drive 実位置 [pulses] (D11 追加) |
+| `GVL_DRV.velocityActualValue` | `DINT` | 4 | `AT %I*` | R | Drive 実速度 [pulses/s] (D11 追加) |
+| `GVL_DRV.torqueActualValue` | `INT` | 2 | `AT %I*` | R | Drive 実トルク [‰ rated] (D11 追加) |
 | `GVL_DRV.controlInput` | `LREAL` | 8 | `AT %I*` | R | ControllerCore 出力 |
 | `GVL_DRV.distValue` | `LREAL` | 8 | `AT %I*` | R | ExperimentSequencer 外乱値 |
 | `GVL_DRV.statusWord` | `UINT` | 2 | `AT %I*` | R | VirtualMotorCore StatusWord |
 | `GVL_DRV.controlWordIn` | `UINT` | 2 | `AT %I*` | R | ModeManager ControlWord |
 | `GVL_DRV.enableCurrentOutput` | `BOOL` | 1 | `AT %I*` | R | ModeManager 電流ゲート |
-| `GVL_DRV.targetTorque` | `LREAL` | 8 | `AT %Q*` | R | 最終トルク出力 → VirtualMotorCore |
+| `GVL_DRV.resetReq` | `BOOL` | 1 | `AT %I*` | R | ModeManager リセット要求 (D12 追加) |
+| `GVL_DRV.positionRel` | `LREAL` | 8 | `AT %Q*` | R | 相対位置 [rad] (D12 追加) |
+| `GVL_DRV.velocityAct` | `LREAL` | 8 | `AT %Q*` | R | 速度 [rad/s] (D11 追加) |
+| `GVL_DRV.currentAct` | `LREAL` | 8 | `AT %Q*` | R | 実電流 [A] (D13 追加) |
+| `GVL_DRV.targetTorque` | `INT` | 2 | `AT %Q*` | R | 最終トルク出力 [‰ rated] → VirtualMotorCore |
 | `GVL_DRV.controlWordOut` | `UINT` | 2 | `AT %Q*` | R | CW 中継 → VirtualMotorCore |
 | `GVL_DRV.statusWordOut` | `UINT` | 2 | `AT %Q*` | R | SW 中継 → ModeManager |
 
@@ -717,9 +776,7 @@ Port 351 は VirtualMotorTask に紐付く C++ TcCOM インスタンスのシン
 | `ControllerCore_Obj1 (Module1).Outputs.controlInput` | `LREAL` | 8 | R | 制御出力 |
 | `ControllerCore_Obj1 (Module1).Outputs.error` | `LREAL` | 8 | R | 位置誤差 |
 
-> **注意: パラメータシンボル未公開**  
-> TMC ソースには `CreateSymbol="true"` が NotchParams, LeadParams, ResoParams, EnableParams に設定されているが、現在のデプロイ済み tsproj ではこの属性が反映されておらず、Port 351 のシンボルテーブルにパラメータが表示されない。  
-> → [OpenIssues.md](OpenIssues.md) C3 (TMC Reload), H1 (PIDParams CreateSymbol)
+> Port 351 のシンボルテーブルに PID/Notch/Lead/Reso/EnableParams が表示されることを確認済み (H1/C3 解消)。
 
 | パラメータ | PTCID (AdsRW 用) |
 |---|---|
@@ -825,7 +882,7 @@ ADS Read:   Port=351  Symbol="ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.
 
 ### 8.8 Data Area リンク接続一覧 (tsproj Mappings 検証済み)
 
-> **検証日:** 2026-02-26
+> **検証日:** 2026-02-27  (D11/D12/D13 反映済み)
 
 tsproj の `<Mappings>` セクションから抽出した **実際のデプロイ済みリンク** 一覧。  
 §7 の概念図と異なる箇所がある場合は本セクションが正とする。
@@ -837,20 +894,24 @@ DriverAdapter ← ExperimentSequencer
 DriverAdapter ← StateMachineControl
   GVL_DRV.controlWordIn         ← MAIN.ctrlWord
   GVL_DRV.enableCurrentOutput    ← MAIN.enableCurrentOut
+  GVL_DRV.resetReq              ← MAIN.resetOut                      ← D12 追加
   GVL_DRV.statusWordOut         → MAIN.statWord
 
 DriverAdapter ← ControllerCore
   GVL_DRV.controlInput          ← ControllerCore.Outputs.controlInput
 
-DriverAdapter → ExperimentLogger
-  GVL_DRV.targetTorque          → ExperimentLogger.Inputs.currentCmd
-
-DriverAdapter → VirtualMotorCore
+DriverAdapter ↔ VirtualMotorCore
+  GVL_DRV.positionActualValue   ← VirtualMotorCore.Outputs.VirtualMotor1Outputs.positionActualValue   ← D11
+  GVL_DRV.velocityActualValue   ← VirtualMotorCore.Outputs.VirtualMotor1Outputs.velocityActualValue   ← D11
+  GVL_DRV.torqueActualValue     ← VirtualMotorCore.Outputs.VirtualMotor1Outputs.torqueActualValue     ← D13
   GVL_DRV.statusWord            ← VirtualMotorCore.Outputs.statusWord1
+  GVL_DRV.targetTorque          → VirtualMotorCore.Inputs.VirtualMotor1Inputs.targetTorque  (INT)     ← D11
+  GVL_DRV.targetTorque          → VirtualMotorCore.Inputs.VirtualMotor2Inputs.targetTorque  (INT)     ← 両軸共通
   GVL_DRV.controlWordOut        → VirtualMotorCore.Inputs.controlWord1
-  GVL_DRV.controlWordOut        → VirtualMotorCore.Inputs.controlWord2   ← 両軸共通
-  GVL_DRV.targetTorque          → VirtualMotorCore.Inputs.VirtualMotor1Inputs.currentIn
-  GVL_DRV.targetTorque          → VirtualMotorCore.Inputs.VirtualMotor2Inputs.currentIn  ← 両軸共通
+  GVL_DRV.controlWordOut        → VirtualMotorCore.Inputs.controlWord2                               ← 両軸共通
+
+DriverAdapter → ControllerCore
+  GVL_DRV.positionRel           → ControllerCore.Inputs.positionAct                                  ← D12
 
 ExperimentSequencer ← StateMachineControl
   GVL_SEQ.experimentActive      ← MAIN.experimentActiveOut
@@ -866,27 +927,29 @@ ExperimentSequencer → ExperimentLogger
   GVL_SEQ.ffValue               → ExperimentLogger.Inputs.ffValue
   GVL_SEQ.refValue              → ExperimentLogger.Inputs.refValue
 
-ExperimentSequencer ← VirtualMotorCore
-  GVL_SEQ_LOG.positionRelTap    ← ControllerCore.Outputs.positionRel
+ExperimentSequencer ← DriverAdapter
+  GVL_SEQ_LOG.positionRelTap    ← GVL_DRV.positionRel                                                ← D12
 
 StateMachineControl → ControllerCore
   MAIN.resetOut                 → ControllerCore.Inputs.resetReq
 
 StateMachineControl → ExperimentLogger
   MAIN.resetOut                 → ExperimentLogger.Inputs.resetReq
+  MAIN.experimentActiveOut      → ExperimentLogger.Inputs.loggingReq
 
 ControllerCore → ExperimentLogger
   ControllerCore.Outputs.controlInput  → ExperimentLogger.Inputs.controlInput
   ControllerCore.Outputs.error         → ExperimentLogger.Inputs.error
 
-ControllerCore ← VirtualMotorCore
-  ControllerCore.Inputs.positionAct    ← VirtualMotorCore.Outputs.VirtualMotor1Outputs.positionOut
-
-ExperimentLogger ← VirtualMotorCore
-  ExperimentLogger.Inputs.loadPosition    ← ControllerCore.Outputs.positionRel
-  ExperimentLogger.Inputs.loadVelocity    ← VirtualMotorCore.Outputs.VirtualMotor1Outputs.velocityOut
+DriverAdapter → ExperimentLogger
+  GVL_DRV.targetTorque (→ currentCmd)  → ExperimentLogger.Inputs.currentCmd
+  GVL_DRV.positionRel                  → ExperimentLogger.Inputs.loadPosition      ← D12
+  GVL_DRV.velocityAct                  → ExperimentLogger.Inputs.loadVelocity      ← D11
+  GVL_DRV.currentAct                   → ExperimentLogger.Inputs.motorCurrentAct   ← D13
 ```
 
-> SIL では `loadPosition` は ControllerCore.positionRel、`loadVelocity` は VirtualMotor1Outputs.velocityOut を使用する。`motorPosition`/`motorVelocity` は未接続（0埋め）。
+> SIL では `motorPosition`/`motorVelocity` は未接続（0埋め）。
+> `loadPosition` は D12 により `DriverAdapter.positionRel` 、`loadVelocity` は D11 により `DriverAdapter.velocityAct`、
+> `motorCurrentAct` は D13 により `DriverAdapter.currentAct` を使用する。
 
 

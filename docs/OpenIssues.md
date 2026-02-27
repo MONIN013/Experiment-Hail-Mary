@@ -1,6 +1,6 @@
 # 未解決課題一覧 — ExperimentHailMary
 
-> **最終更新:** 2026-02-27 (D11/D12/D13: DriverAdapter ドライバ差異吸収設計、H3/M15 解消、M16/M17 追加)  
+> **最終更新:** 2026-02-27 (M18/L9–L14 ドキュメント更新反映、D11/D12/D13 反映漏れ精査、M14 解消、L9–L14/M18–M20 追加)  
 > **目的:** プロジェクト全体の未解決課題を一元管理する。  
 > **参照:** [ArchitectureSpec.md](ArchitectureSpec.md) / [ExperimentProcedure.md](ExperimentProcedure.md) / [TechnicalReference.md](TechnicalReference.md)
 
@@ -127,14 +127,12 @@ PLC 側 `GVL_MODE.modeFlags` は `UINT` (16bit) で定義されているため�
 **現状:** `t.u16` フィールドが存在しなければ `t.u32` にフォールバックして `MAIN.statWord`, `MAIN.ctrlWord` を読んでいる。PLC 側はこれらを `UINT` (16bit) で定義しており、`u32` で読むと型不一致リスクがある。  
 **提案:** M7 と同様、型定義を統一してフォールバックを廃止する。
 
-### M14. ExperimentSequencer のリセットがレベルセンシティブ（エッジ検出不統一）
+### ~~M14. ExperimentSequencer のリセットがレベルセンシティブ（エッジ検出不統一）~~ → 解消
 
-**対象:** `ExperimentSequencer/POUs/PRG_ExperimentSequencer.TcPOU` L27  
-**現状:** `IF GVL_SEQ.resetReq THEN` — エッジ検出なしのレベルトリガでリセットブロックを実行している。一方、ControllerCore (`Module1.cpp` L205) と ExperimentLogger (`Module1.cpp` L258) は `(m_Inputs.resetReq != false) && !m_prevResetReq` でエッジ検出を行っている。  
-`resetOut` は 10 ms PlcTask (ModeManager) から出力されるワンショットパルスだが、ExperimentSequencer は 1 ms VirtualMotorTask で動作するため、パルスが約 10 スキャン間 `TRUE` として見える。結果としてリセットブロックが最大 10 回冗長実行される。  
-**影響:** 現在のリセット処理はべき等（`idx := 0`, `refValue := 0.0` 等の代入）のため実害は少ないが、将来リセット処理にカウンタ操作や非べき等なロジックが追加された場合にバグの原因となる。また、他モジュールとの検出方式の不統一はコードレビュー時の混乱を招く。  
-**関連:** M13（MATLAB の直接クリアとの競合）  
-**提案:** `resetReqPrev : BOOL` を導入しエッジ検出に統一する。
+**解消:** `PRG_ExperimentSequencer` で `resetReqPrev : BOOL` を導入し、  
+`resetEdge := GVL_SEQ.resetReq AND NOT resetReqPrev;` によるエッジ検出に修正済み。  
+ControllerCore / ExperimentLogger / DriverAdapter と同一のエッジ検出方式で統一された。  
+→ 解消済みセクションに移動。
 
 ### ~~M15. DriverAdapter にリセット入力がない（Phase 4 拡張リスク）~~ → 解消 (D12)
 
@@ -160,6 +158,47 @@ ControllerCore / ExperimentLogger と同一のエッジ検出方式で統一。
 **提案:** 実装時に tsproj Mapping を更新し、ADS Discovery で接続を確認する。  
 **関連:** D12, M4 (解消済み)
 
+### ~~M18. TechnicalReference.md の D11/D12/D13 反映漏れ（複数箇所）~~ → 解消
+
+**解消:** TechnicalReference.md の §2.1, §2.4, §3.1, §3.2, §4.2, §4.3, §7.1, §7.5, §7.6, §8.3, §8.6, §8.8 を D11/D12/D13 に合わせて一括更新済み。
+→ 解消済みセクションに移動。
+
+### M19. ControllerCore の `positionRel` 出力が D12「廃止」にもかかわらず残存
+
+**対象:** `ControllerCore/ControllerCoreServices.h` L109 (`Module1Outputs.positionRel`)、`ControllerCore/Module1.cpp` L210  
+**現状:** D12 の設計決定では「ControllerCore の `positionOffset` / `positionRel` 出力は廃止」とされている（ArchitectureSpec §2.3 D12 移行注記）。しかし実装では:
+```cpp
+m_Outputs.positionRel = m_Inputs.positionAct;  // 単なるパススルー
+```
+が残存し、`Module1Outputs` 構造体にも `double positionRel;` フィールドが存在する。  
+さらに tsproj Mapping（TechRef §8.8）で `GVL_SEQ_LOG.positionRelTap ← ControllerCore.Outputs.positionRel` と `ExperimentLogger.Inputs.loadPosition ← ControllerCore.Outputs.positionRel` のリンクが引き続き使用されている。  
+**影響:** D12 の設計意図（相対位置化は DriverAdapter に一元化）と実装が矛盾。ControllerCore の `positionRel` は入力のパススルーに過ぎず、DriverAdapter の `positionRel`（相対位置化済み）とは異なる値になりうる。入力が未更新の場合、Logger に誤った値が記録される。  
+**提案:** tsproj Mapping を `GVL_DRV.positionRel` 基準に更新した上で、ControllerCore の `positionRel` 出力と関連コードを撤去する。TMC および tsproj の Data Area 定義も同時に変更すること。  
+**関連:** D12, M17, M18
+
+### M20. VirtualMotorCore の I/O 型が CiA 402 の符号付き型と不一致
+
+**対象:** `VirtualMotorCore/VirtualMotorCoreServices.h` — `ST_VirtualMotorOutputs`, `ST_VirtualMotorInputs`  
+**現状:** CiA 402 では以下の符号付き型が規定されている:
+- `positionActualValue`: INT32 (DINT, 符号付き)
+- `velocityActualValue`: INT32 (DINT, 符号付き)
+- `torqueActualValue`: INT16 (INT, 符号付き)
+- `targetTorque`: INT16 (INT, 符号付き)
+
+しかし VirtualMotorCore の C++ 実装では:
+- `ST_VirtualMotorOutputs.positionActualValue`: `DWORD` (UDINT, **符号なし** 32bit)
+- `ST_VirtualMotorOutputs.velocityActualValue`: `DWORD` (UDINT, **符号なし** 32bit)
+- `ST_VirtualMotorOutputs.torqueActualValue`: `WORD` (UINT, **符号なし** 16bit)
+- `ST_VirtualMotorInputs.targetTorque`: `WORD` (UINT, **符号なし** 16bit)
+
+DriverAdapter 側 GVL は正しく符号付き型 (`DINT`, `DINT`, `INT`, `INT`) で宣言されている。  
+**影響:** `SaturatingRoundToDint` が `LONG` (符号付き) を返し `DWORD` (符号なし) に代入する暗黙変換は、ビットパターンの転送上は問題ないが、TMC 型定義で unsigned として公開されると ADS Discovery やデバッグツールで負の値が巨大な正の値として表示される。  
+**提案:** `ST_VirtualMotorOutputs` / `ST_VirtualMotorInputs` の型を CiA 402 準拠の符号付き型に変更する:
+- `DWORD → LONG` (positionActualValue, velocityActualValue)
+- `WORD → SHORT` (torqueActualValue, targetTorque)
+TMC の `<SubItem>` 定義も併せて更新する。  
+**関連:** D11
+
 ---
 
 ## Low — 品質改善・ドキュメント整備
@@ -184,6 +223,63 @@ ControllerCore / ExperimentLogger と同一のエッジ検出方式で統一。
 - `ControllerCore/Module1.cpp` L134/L150/L177/L190 — 同上
 
 **提案:** リソースファイルの LegalCopyright / ProductName を適切な値に置換する。C++ の TODO コメントは TwinCAT テンプレートの残骸であり、カスタム初期化が不要であれば削除するか、明示的に "No additional initialization needed" に書き換える。
+
+### ~~L9. ArchitectureSpec §3.9 接続マップ図が D12 前の旧フロー~~ → 解消
+
+**解消:** §3.9 の `position_act ◄── VirtualMotorCore` を `position_act ◄── DriverAdapter.positionRel` に更新済み。
+→ 解消済みセクションに移動。
+
+### ~~L10. ExperimentLogger module-spec のマッピングソースが D12/D13 前~~ → 解消
+
+**解消:** `loadPosition ← DriverAdapter.positionRel` (D12)、`loadVelocity ← DriverAdapter.velocityAct` (D11)、`motorCurrentAct ← DriverAdapter.currentAct` (D13) に更新済み。
+→ 解消済みセクションに移動。
+
+### ~~L11. DriverAdapter module-spec の変数名不一致 (`currentActualValue` vs `torqueActualValue`)~~ → 解消
+
+**解消:** §5.1 疑似コードと§8 信号フロー図の `currentActualValue` を `torqueActualValue` に統一済み。
+→ 解消済みセクションに移動。
+
+### ~~L12. ExperimentProcedure §4 の `enableCurrentOut` 記述と MAIN 実装の不一致~~ → 解消
+
+**解消:** §4 のトルクゲート記述を MAIN `CASE modeState` による状態ごとの制御に更新済み。
+→ 解消済みセクションに移動。
+
+**対象:** `docs/ArchitectureSpec.md` §3.9  
+**現状:** §3.9 の ASCII 接続マップ図で `position_act ◄──────── VirtualMotorCore (Load 側 1慣性近似)` と記載されているが、§3.4 は D12 に基づき `DriverAdapter.positionRel → ControllerCore.position_act` に更新済み。同一ドキュメント内で §3.4 と §3.9 が矛盾している。  
+**提案:** §3.9 の図を D12 反映後のフローに更新する。
+
+### L10. ExperimentLogger module-spec のマッピングソースが D12/D13 前
+
+**対象:** `docs/module-specs/ExperimentLogger.md` — Mapping (SIL) セクション  
+**現状:**
+- `loadPosition <- ControllerCore.Outputs.positionRel` → D12: `DriverAdapter.positionRel` に変更すべき
+- `motorCurrentAct` が「SIL: unconnected (0)」→ D13: `DriverAdapter.currentAct` に接続済み
+- `loadVelocity <- VirtualMotorCore.Outputs.VirtualMotor1Outputs.velocityOut` → D11: `velocityActualValue` (+ DriverAdapter 変換後は `GVL_DRV.velocityAct`)
+
+**提案:** M17 の PLC 先行更新に合わせて module-spec のマッピング記述を更新する。  
+**関連:** M17, M18, D12, D13
+
+### L11. DriverAdapter module-spec の変数名不一致 (`currentActualValue` vs `torqueActualValue`)
+
+**対象:** `docs/module-specs/DriverAdapter.md` §5.1 疑似コード、§8 信号フロー図  
+**現状:** 疑似コードで `GVL_DRV.currentActualValue` と記載されているが、実装 (`GVL_DRV.TcGVL`, `PRG_DriverAdapter.TcPOU`) では `GVL_DRV.torqueActualValue` を使用している。§8 の信号フロー図も `currentActualValue (INT)` と旧名が残っている。  
+**提案:** `currentActualValue` → `torqueActualValue` に統一する。  
+**関連:** D11
+
+### ~~L12. ExperimentProcedure §4 の `enableCurrentOut` 記述と MAIN 実装の不一致~~ → 解消
+
+**解消:** §4 のトルクゲート記述を MAIN `CASE modeState` による状態ごとの制御に更新済み。
+→ 解消済みセクションに移動。
+
+### ~~L13. TechnicalReference §1.2 のリセット疑似コードが旧レベルトリガのまま~~ → 解消
+
+**解消:** §1.2 のリセット処理疑似コードをエッジ検出方式 (`resetReq AND NOT resetReqPrev`) に更新済み。
+→ 解消済みセクションに移動。
+
+### ~~L14. ExperimentProcedure §3.3 のリセット処理テーブルに ExperimentSequencer の検出方式が「レベル」と記載~~ → 解消
+
+**解消:** ExperimentSequencer の検出方式を「エッジ」に更新、M14 の欄注を削除済み。
+→ 解消済みセクションに移動。
 
 ---
 
@@ -218,8 +314,16 @@ ControllerCore / ExperimentLogger と同一のエッジ検出方式で統一。
 | ExperimentLogger 向け tsproj Mapping 未定義 / `ControllerCore.Outputs.error` 反映未確認 (`H2`+`H4`) | 2026-02-26 | 主要 Mapping および `Outputs.error → Inputs.error` を tsproj で確認済み |
 | ControllerCore の TMC Reload 未実施 (`C3`) | 2026-02-26 | `run_ads_discovery_demo.m` 再確認で Port 351 に `PID/Notch/Lead/Reso/EnableParams` が表示されることを確認 |
 | `PIDParams` に `CreateSymbol` 属性が未設定 (`H1`) | 2026-02-26 | `ControllerCore/ControllerCore.tmc` で `PIDParams` が `CreateSymbol="true"` になっていることを確認 |
+| M18. TechnicalReference.md の D11/D12/D13 反映漏れ | 2026-02-27 | §2.1, §2.4, §3.1, §3.2, §4.2, §4.3, §7.1, §7.5, §7.6, §8.3, §8.6, §8.8 を D11/D12/D13 に合わせて一括更新 |
+| L9. ArchitectureSpec §3.9 接続マップ図 | 2026-02-27 | `position_act ← VirtualMotorCore` を `position_act ← DriverAdapter.positionRel` に更新 |
+| L10. ExperimentLogger module-spec マッピング | 2026-02-27 | `loadPosition/loadVelocity/motorCurrentAct` を DriverAdapter 経由に更新 |
+| L11. DriverAdapter module-spec 変数名不一致 | 2026-02-27 | `currentActualValue` → `torqueActualValue` に統一 |
+| L12. ExperimentProcedure §4 `enableCurrentOut` 不一致 | 2026-02-27 | トルクゲート記述を MAIN `CASE modeState` による状態ごとの制御に更新 |
+| L13. TechnicalReference §1.2 リセット疑似コード | 2026-02-27 | レベルトリガからエッジ検出方式に更新 |
+| L14. ExperimentProcedure §3.3 リセットテーブル | 2026-02-27 | ExperimentSequencer の検出方式を「エッジ」に更新、M14 欄注を削除 |
 | VirtualMotorCore に `resetReq` 入力がない | 2026-02-27 | 設計決定: 実機モータードライバにもソフトウェアリセット（位置/速度ゼロ復帰）機能はないため、VirtualMotorCore は実機同等の仕様として `resetReq` を持たない。実験間の初期化は ControllerCore の `positionOffset := positionAct` による相対位置補正で対応する |
 | H3. `motor_current_act` は SIL で 0 埋め | 2026-02-27 | D13: VirtualMotorCore に `torqueActualValue` (‰ rated, INT) 出力を追加。DriverAdapter で A 変換後 ExperimentLogger の `motorCurrentAct` に接続。SIL でも飽和後の実電流が記録可能 |
 | M15. DriverAdapter にリセット入力がない | 2026-02-27 | D12: 相対位置化を ControllerCore → DriverAdapter に移管。`GVL_DRV.resetReq AT %I*` を追加し、エッジ検出で `positionOffsetRad := positionRad` をキャプチャ。ControllerCore / ExperimentLogger と同一のエッジ検出方式で統一 |
+| M14. ExperimentSequencer のリセットがレベルセンシティブ | 2026-02-27 | `PRG_ExperimentSequencer` に `resetReqPrev` を導入しエッジ検出に修正。ControllerCore / ExperimentLogger / DriverAdapter と統一 |
 
 </details>

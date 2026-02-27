@@ -1178,6 +1178,7 @@
 			</OwnerB>
 			<OwnerB Name="TIXC^ControllerCore^ControllerCore_Obj1 (Module1)">
 				<Link VarA="VirtualMotorTask Inputs^GVL_DRV.controlInput" VarB="Outputs^controlInput"/>
+				<Link VarA="VirtualMotorTask Outputs^GVL_DRV.positionRel" VarB="Inputs^positionAct"/>
 			</OwnerB>
 			<OwnerB Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
 				<Link VarA="VirtualMotorTask Outputs^GVL_DRV.currentAct" VarB="Inputs^motorCurrentAct"/>

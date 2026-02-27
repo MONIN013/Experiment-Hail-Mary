@@ -17,9 +17,9 @@ ExperimentLogger is a binary file logger for experiment data. In current SIL ope
 | `error` | `LREAL` | ControllerCore | `ref - loadPosition` |
 | `motorPosition` | `LREAL` | (Phase 4) | SIL: unconnected (0) |
 | `motorVelocity` | `LREAL` | (Phase 4) | SIL: unconnected (0) |
-| `motorCurrentAct` | `LREAL` | (Phase 4) | SIL: unconnected (0) |
-| `loadPosition` | `LREAL` | ControllerCore `positionRel` | zero-based per run |
-| `loadVelocity` | `LREAL` | VirtualMotor1 `velocityOut` | SIL load velocity |
+| `motorCurrentAct` | `LREAL` | DriverAdapter `currentAct` (D13) | motor current (SIL: via VirtualMotorCore → DriverAdapter) |
+| `loadPosition` | `LREAL` | DriverAdapter `positionRel` (D12) | zero-based per run |
+| `loadVelocity` | `LREAL` | DriverAdapter `velocityAct` (D11) | SIL load velocity |
 | `resetReq` | `BOOL` | ModeManager | reset edge |
 | `loggingReq` | `BOOL` | ModeManager `experimentActiveOut` | auto logging trigger |
 
@@ -45,6 +45,7 @@ Primary control path is `Inputs.loggingReq`. `LogControl.logging` is kept for ba
 4. On `resetReq` rising edge: close session safely and reset runtime state.
 
 ## Mapping (SIL)
-- `loadPosition <- ControllerCore.Outputs.positionRel`
-- `loadVelocity <- VirtualMotorCore.Outputs.VirtualMotor1Outputs.velocityOut`
-- `motorPosition/motorVelocity/motorCurrentAct` are unconnected in SIL (0-fill).
+- `loadPosition <- DriverAdapter.positionRel` (D12: ControllerCore.positionRel から変更)
+- `loadVelocity <- DriverAdapter.velocityAct` (D11: VirtualMotorCore.velocityOut から変更)
+- `motorCurrentAct <- DriverAdapter.currentAct` (D13: SIL でも接続済み)
+- `motorPosition/motorVelocity` are unconnected in SIL (0-fill).

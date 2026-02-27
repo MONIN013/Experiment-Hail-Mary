@@ -64,6 +64,5 @@ protected:
 	double m_NotchS2;
 	double m_ResoS1;
 	double m_ResoS2;
-	double m_positionOffset;
 	bool m_prevResetReq;
 };

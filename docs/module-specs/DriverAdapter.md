@@ -146,7 +146,7 @@ END_VAR
 (* ══════════════════════
 positionRad          := DINT_TO_LREAL(GVL_DRV.positionActualValue) * TWO_PI_INV_RES;
 GVL_DRV.velocityAct  := DINT_TO_LREAL(GVL_DRV.velocityActualValue) * TWO_PI_INV_RES;
-GVL_DRV.currentAct   := INT_TO_LREAL(GVL_DRV.currentActualValue) * RATED_CURRENT_DIV_1000;
+GVL_DRV.currentAct   := INT_TO_LREAL(GVL_DRV.torqueActualValue) * RATED_CURRENT_DIV_1000;
 
 (* ═══════════════════════════════════════════════════════════════ *)
 (*  2. リセット — 相対位置オフセットキャプチャ (エッジ検出)       *)
@@ -272,7 +272,7 @@ DriverAdapter 内部ロジックの変更は不要。tsproj の `<Mappings>` 変
   │  [Drive → 工学単位]                                                │
   │  positionActualValue (DINT) ─── ×TWO_PI_INV_RES ─── positionRad  │
   │  velocityActualValue (DINT) ─── ×TWO_PI_INV_RES ─── velocityAct  │
-  │  currentActualValue (INT) ────── ×RATED_CURRENT_DIV_1000 ── currentAct│
+  │  torqueActualValue (INT) ────── ×RATED_CURRENT_DIV_1000 ── currentAct│
   │                                                                    │
   │  [相対位置化]                                                      │
   │  positionRad ─── (−positionOffsetRad) ─── positionRel ──► CC/Logger│

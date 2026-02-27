@@ -4,6 +4,7 @@
 #pragma hdrstop
 
 #include <math.h>
+#include <limits>
 
 #include "Module1.h"
 #include "VirtualMotorCoreVersion.h"
@@ -14,6 +15,10 @@ const double kPi = 3.14159265358979323846;
 const double kTwoPi = 2.0 * kPi;
 const double kDefaultRatedTorqueNm = 0.318;
 const ULONG kDefaultEncoderResolution = 8388608UL;
+const double kLongMaxAsDouble = static_cast<double>(std::numeric_limits<LONG>::max());
+const double kLongMinAsDouble = static_cast<double>(std::numeric_limits<LONG>::min());
+const double kShortMaxAsDouble = static_cast<double>(std::numeric_limits<SHORT>::max());
+const double kShortMinAsDouble = static_cast<double>(std::numeric_limits<SHORT>::min());
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -195,7 +200,7 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 	{
 		StepVirtualMotor(0, m_Inputs.VirtualMotor1Inputs.targetTorque);
 	}
-	else if (m_Axis[0].driveState == EDriveState::SWITCH_ON_DISABLED)
+	else
 	{
 		m_Axis[0].velocity = 0.0;
 	}
@@ -203,7 +208,7 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 	{
 		StepVirtualMotor(1, m_Inputs.VirtualMotor2Inputs.targetTorque);
 	}
-	else if (m_Axis[1].driveState == EDriveState::SWITCH_ON_DISABLED)
+	else
 	{
 		m_Axis[1].velocity = 0.0;
 	}
@@ -249,13 +254,13 @@ double CModule1::ClampSymmetric(double value, double limit)
 LONG CModule1::SaturatingRoundToDint(double value)
 {
 	const double rounded = (value >= 0.0) ? floor(value + 0.5) : ceil(value - 0.5);
-	if (rounded > 2147483647.0)
+	if (rounded > kLongMaxAsDouble)
 	{
-		return 2147483647L;
+		return std::numeric_limits<LONG>::max();
 	}
-	if (rounded < -2147483648.0)
+	if (rounded < kLongMinAsDouble)
 	{
-		return static_cast<LONG>(-2147483647L - 1L);
+		return std::numeric_limits<LONG>::min();
 	}
 	return static_cast<LONG>(rounded);
 }
@@ -263,13 +268,13 @@ LONG CModule1::SaturatingRoundToDint(double value)
 SHORT CModule1::SaturatingRoundToInt(double value)
 {
 	const double rounded = (value >= 0.0) ? floor(value + 0.5) : ceil(value - 0.5);
-	if (rounded > 32767.0)
+	if (rounded > kShortMaxAsDouble)
 	{
-		return 32767;
+		return std::numeric_limits<SHORT>::max();
 	}
-	if (rounded < -32768.0)
+	if (rounded < kShortMinAsDouble)
 	{
-		return -32768;
+		return std::numeric_limits<SHORT>::min();
 	}
 	return static_cast<SHORT>(rounded);
 }
