@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="E_ModeState" Id="{a1c3e7f0-2b4d-4e8a-9f6c-d5a0b3c1e7f2}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_ModeState :
+(
+    IDLE := 0,              // Servo OFF / initial
+    RESETTING := 10,        // Reset pulse active — no experiment transitions allowed
+    SERVO_READY := 20,      // Servo ON + drive OPERATION_ENABLED, awaiting experiment
+    RUNNING := 30,          // Experiment active
+    DONE := 40              // Playback complete, awaiting rearm
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

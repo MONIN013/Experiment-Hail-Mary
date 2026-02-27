@@ -319,6 +319,16 @@ DriverAdapter.Outputs.load_velocity                        ──►  Experiment
 > `error` は ControllerCore の Data Area Output として公開する。
 > Phase 1–3 では motor_position / motor_velocity / motor_torque_act は取得不可 (ゼロ埋め)。
 
+**制御信号 (ロギング制御 + fast-path 停止):**
+
+```
+ModeManager.experimentActiveOut                            ──►  ExperimentLogger.Inputs.loggingReq       (ファイル open/close 制御、PlcTask 経由)
+ExperimentSequencer.playbackDone                           ──►  ExperimentLogger.Inputs.playbackDone     (同一タスク fast-path、即時記録停止) [H6 対応予定]
+```
+
+> `loggingReq` は PlcTask (10 ms) 経由のため、再生完了からロギング停止まで最大 ~11 ms (1 ms 時) / ~81 サンプル (8 kHz 時) の遅延がある。
+> `playbackDone` を同一 VirtualMotorTask 内でマッピングすることで、記録停止を 1 スキャン以内に収める。→ [OpenIssues.md H6](OpenIssues.md)
+
 ### 3.8 DriverAdapter ↔ EtherCAT Drive (Phase 4)
 
 ```
@@ -559,6 +569,8 @@ END_TYPE
 - **Producer (RT側):** 毎サイクル `ST_LogRecord` を内部バッファに追記。バッファ満杯゛にディスクへ flush
 - **実験終了時:** 残余バッファを最終 flush し、ファイルをクローズ
 - **MATLAB 側:** ADS 経由でファイルパス・ステータスを取得し、実験後にファイルを読み出す
+
+> **ログ終端精度 (H6):** 現行の `loggingReq` は ModeManager (PlcTask 10 ms) 経由で制御されるため、ExperimentSequencer が `playbackDone = TRUE` を発行してからロガーが記録を停止するまでに最大 ~81 サンプル (8 kHz 時) のゼロ値テールが混入しうる。`Inputs.playbackDone` を同一タスク内でマッピングし、レコード書き込みの即時停止に使用する設計を予定。→ [OpenIssues.md H6](OpenIssues.md)
 
 ---
 

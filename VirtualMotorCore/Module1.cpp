@@ -183,9 +183,17 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 	{
 		StepVirtualMotor(0, m_Inputs.VirtualMotor1Inputs.currentIn);
 	}
+	else if (m_Axis[0].driveState == EDriveState::SWITCH_ON_DISABLED)
+	{
+		m_Axis[0].velocity = 0.0;
+	}
 	if (m_Axis[1].driveState == EDriveState::OPERATION_ENABLED)
 	{
 		StepVirtualMotor(1, m_Inputs.VirtualMotor2Inputs.currentIn);
+	}
+	else if (m_Axis[1].driveState == EDriveState::SWITCH_ON_DISABLED)
+	{
+		m_Axis[1].velocity = 0.0;
 	}
 
 	m_Outputs.VirtualMotor1Outputs.positionOut = m_Axis[0].position;

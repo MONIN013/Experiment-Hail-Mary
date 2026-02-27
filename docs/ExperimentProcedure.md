@@ -198,6 +198,12 @@ enableTorqueOut := enableEffective AND driveReady
 │                                   → experimentActive = FALSE          │
 │                                   → experimentState = STATE_DONE (3)  │
 │                                                                       │
+│  ※ ⑥の playbackDone → experimentActive は                            │
+│     クロスタスク(1ms→10ms→1ms)のため最大~11ms遅延。                   │
+│     ExperimentLogger のログ停止にこの遅延が波及する。                   │
+│     8kHz運用時は最大~81サンプルの余剰ゼロ記録。                        │
+│     → H6 fast-path 対応で解消予定。                                    │
+│                                                                       │
 │  ⑦ modeFlags = 0x0000            ModeManager: サーボ無効化            │
 │                                   → SWITCH_ON_DISABLED                │
 │                                   experimentState = STATE_IDLE (0)    │

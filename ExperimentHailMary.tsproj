@@ -273,14 +273,14 @@
 				<Task Id="4" Priority="1" CycleTime="10000" AmsPort="351" Affinity="#x00000008" AdtTasks="true">
 					<Name>VirtualMotorTask</Name>
 				</Task>
-				<Task Id="8" Priority="2" CycleTime="10000" AmsPort="355" AdtTasks="true">
+				<Task Id="8" Priority="2" CycleTime="100000" AmsPort="355" AdtTasks="true">
 					<Name>StateTask</Name>
 				</Task>
 			</Tasks>
 		</System>
 		<Plc>
 			<Project GUID="{FCFF5180-937F-4F0E-915A-7CF7E9CA7F30}" Name="StateMachineControl" PrjFilePath="StateMachineControl\StateMachineControl.plcproj" TmcFilePath="StateMachineControl\StateMachineControl.tmc" ReloadTmc="true" AmsPort="852" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{909DC8D7-322A-A86A-DB3B-97B2FE3A82E3}" TmcPath="StateMachineControl\StateMachineControl.tmc">
+				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{9E21BD55-2D05-A51B-257C-3C2302D751B7}" TmcPath="StateMachineControl\StateMachineControl.tmc">
 					<Name>StateMachineControl Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -327,7 +327,7 @@
 								<OTCID>#x02010080</OTCID>
 							</ManualConfig>
 							<Priority>2</Priority>
-							<CycleTime>1000000</CycleTime>
+							<CycleTime>10000000</CycleTime>
 						</Context>
 					</Contexts>
 					<TaskPouOids>
@@ -336,7 +336,7 @@
 				</Instance>
 			</Project>
 			<Project GUID="{54AD89C8-6B39-47E6-B85F-F4753C89F02E}" Name="ExperimentSequencer" PrjFilePath="ExperimentSequencer\ExperimentSequencer.plcproj" TmcFilePath="ExperimentSequencer\ExperimentSequencer.tmc" ReloadTmc="true" AmsPort="853" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{F63705FD-599A-E533-40FE-7A632B062ABF}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
+				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{B43A75FC-2082-74E9-3CC2-C4B08E61F1FE}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
 					<Name>ExperimentSequencer Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -1092,17 +1092,12 @@
 	<Mappings>
 		<MappingInfo Identifier="{00000000-2001-0850-0020-500810000101}" Id="#x02030050"/>
 		<MappingInfo Identifier="{00000000-2001-0850-0020-500820000101}" Id="#x02030060"/>
-		<MappingInfo Identifier="{00000000-2001-0850-0020-500830000101}" Id="#x02030070"/>
 		<MappingInfo Identifier="{00000000-0040-0201-1000-010120000101}" Id="#x02030090"/>
-		<MappingInfo Identifier="{00000000-0040-0201-1000-010130000101}" Id="#x020300a0"/>
-		<MappingInfo Identifier="{00000000-0040-0201-2000-010130000101}" Id="#x020300b0"/>
 		<MappingInfo Identifier="{00000000-2081-0850-8020-500800205008}" Id="#x02030010"/>
 		<MappingInfo Identifier="{00000000-2081-0850-8020-500820000101}" Id="#x02030020"/>
-		<MappingInfo Identifier="{00000000-2081-0850-8020-500830000101}" Id="#x02030030"/>
-		<MappingInfo Identifier="{08502001-2041-0850-0020-500840205008}" Id="#x02030080" Watchdog="04000000040000000400000004000000"/>
-		<MappingInfo Identifier="{02010040-2041-0850-2000-010140205008}" Id="#x020300c0" Watchdog="04000000040000000400000004000000"/>
-		<MappingInfo Identifier="{02010040-2041-0850-3000-010140205008}" Id="#x020300d0" Watchdog="04000000040000000400000004000000"/>
-		<MappingInfo Identifier="{08502081-2041-0850-8020-500840205008}" Id="#x02030040" Watchdog="04000000040000000400000004000000"/>
+		<MappingInfo Identifier="{08502001-2041-0850-0020-500840205008}" Id="#x02030080" Watchdog="28000000040000000400000004000000"/>
+		<MappingInfo Identifier="{02010040-2041-0850-2000-010140205008}" Id="#x020300c0" Watchdog="28000000040000000400000004000000"/>
+		<MappingInfo Identifier="{08502081-2041-0850-8020-500840205008}" Id="#x02030040" Watchdog="28000000040000000400000004000000"/>
 		<OwnerA Name="TIPC^DriverAdapter^DriverAdapter Instance">
 			<OwnerB Name="TIPC^ExperimentSequencer^ExperimentSequencer Instance">
 				<Link VarA="VirtualMotorTask Inputs^GVL_DRV.distValue" VarB="VirtualMotorTask Outputs^GVL_SEQ.distValue"/>

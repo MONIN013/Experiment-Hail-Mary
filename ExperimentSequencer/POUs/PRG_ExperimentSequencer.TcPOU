@@ -10,6 +10,8 @@ VAR
     ffValueLocal : LREAL := 0.0;
     distValueLocal : LREAL := 0.0;
     cmdActivePrev : BOOL := FALSE;
+    resetReqPrev : BOOL := FALSE;
+    resetEdge : BOOL := FALSE;
     startEdge : BOOL := FALSE;
     playbackRunning : BOOL := FALSE;
     rearmRequired : BOOL := FALSE;
@@ -24,7 +26,9 @@ END_VAR
     <Implementation>
       <ST><![CDATA[sampleEmittedThisScan := FALSE;
 
-IF GVL_SEQ.resetReq THEN
+resetEdge := GVL_SEQ.resetReq AND NOT resetReqPrev;
+
+IF resetEdge THEN
     GVL_SEQ.idx := 0;
     GVL_SEQ.refValue := 0.0;
     GVL_SEQ.ffValue := 0.0;
@@ -133,6 +137,7 @@ IF sampleEmittedThisScan THEN
 END_IF
 
 cmdActivePrev := GVL_SEQ.experimentActive;
+resetReqPrev := GVL_SEQ.resetReq;
 ]]></ST>
     </Implementation>
   </POU>

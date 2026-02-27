@@ -1,6 +1,6 @@
 # 未解決課題一覧 — ExperimentHailMary
 
-> **最終更新:** 2026-02-27 (H4/H5 解消: modeFlags 所有権再設計 + reset/heartbeat 強化)  
+> **最終更新:** 2026-02-27 (H6 追加: playbackDone→loggingReq クロスタスク遅延)  
 > **目的:** プロジェクト全体の未解決課題を一元管理する。  
 > **参照:** [ArchitectureSpec.md](ArchitectureSpec.md) / [ExperimentProcedure.md](ExperimentProcedure.md) / [TechnicalReference.md](TechnicalReference.md)
 
@@ -13,6 +13,56 @@
 ---
 
 ## High — 機能不全またはバグ
+
+### H6. `playbackDone` → `loggingReq` のクロスタスク遅延によるログ終端誤差
+
+**対象:** `ExperimentHailMary.tsproj` Mapping、`ExperimentLogger/Module1.cpp` L265、`StateMachineControl/POUs/MAIN.TcPOU` L159  
+**現状:** ExperimentLogger の `Inputs.loggingReq` は `MAIN.experimentActiveOut`（PlcTask 10 ms）から I/O Mapping で供給されている。ExperimentSequencer が `playbackDone = TRUE` を発行してからロガーの `loggingReq` が `FALSE` になるまで、以下のラウンドトリップが発生する:
+
+```
+ExperimentSequencer (VirtualMotorTask)  ─ playbackDone = TRUE ─►
+    I/O Mapping (VirtualMotorTask Out → PlcTask In)            … 最大 10 ms
+ModeManager / MAIN (PlcTask 10 ms)     ─ experimentActiveOut = FALSE ─►
+    I/O Mapping (PlcTask Out → VirtualMotorTask In)            … 最大 1 ms / 125 µs
+ExperimentLogger (VirtualMotorTask)    ─ loggingReq goes FALSE
+```
+
+**最悪遅延と余剰サンプル数:**
+
+| フェーズ | 制御周期 | PlcTask | ラウンドトリップ最悪 | 余剰ゼロサンプル |
+|---|---|---|---|---|
+| Phase 1–3 | 1 ms | 10 ms | ~11 ms | ~11 サンプル |
+| Phase 4 | 125 µs (8 kHz) | 10 ms | ~10.125 ms | **~81 サンプル** |
+
+ExperimentSequencer は `playbackRunning := FALSE` と同時に出力を 0 にするため、余剰サンプルのデータ値自体はゼロだが、ログ長が `tableLen` と一致しなくなり、MATLAB 側でのトリム処理が必要になる。8 kHz 運用で 81 サンプル（約 10 ms）の不定長テールは FRF 解析のウィンドウ設計に影響する。
+
+**stateTask を高速化できない理由:** ModeManager は CiA 402 状態遷移・watchdog・ADS ハンドシェイクなど低頻度ロジックを担当しており、125 µs で回す必要性がない。PlcTask を高速化するとリアルタイム負荷が増加し、Phase 4 の EtherCAT DC 同期設計に影響を与える。
+
+**提案 — 同一タスク内 fast-path 停止信号:**
+
+ExperimentSequencer の `GVL_SEQ.playbackDone` を同一 VirtualMotorTask 内で ExperimentLogger に直接マッピングし、ModeManager ラウンドトリップを迂回する。
+
+1. ExperimentLogger に `Inputs.playbackDone` (`BOOL`) を追加する（`ExperimentLoggerServices.h`, `ExperimentLogger.tmc`）。
+2. tsproj に `GVL_SEQ.playbackDone → ExperimentLogger.Inputs.playbackDone` マッピングを追加する（同一タスク内マッピング＝同一スキャンで反映）。
+3. `Module1.cpp` の記録判定を変更:
+   ```cpp
+   // 現行: loggingCmd のみ
+   const bool loggingCmd = (m_Inputs.loggingReq != false) || (m_LogControl.logging != false);
+   // 改修: playbackDone で即時抑止
+   const bool fastStop = (m_Inputs.playbackDone != false);
+   const bool loggingCmd = ((m_Inputs.loggingReq != false) || (m_LogControl.logging != false)) && !fastStop;
+   ```
+4. `loggingReq`（ModeManager 経由）はファイルのオープン/クローズ制御に引き続き使用する。`playbackDone` はレコード書き込みの即時停止のみを担当する。これにより ModeManager の状態管理権限を維持しつつ、ログ終端の精度を 1 スキャン以内に保証する。
+
+**代替案（不採用理由）:**
+
+- **(B) ExperimentSequencer が `loggingReq` を直接駆動:** ModeManager の状態管理責務と衝突し、層分離の原則に反する。
+- **(C) Logger が `tableLen` / `idx` を受け取り自前カウント:** I/O ポート追加 + カウントロジックの重複。Sequencer の内部状態に Logger が依存する結合が生じる。
+- **(D) PlcTask を 1 ms に高速化:** CiA 402 やハンドシェイクに不必要。RT 負荷増大。
+
+**関連:** M6（`LogControl.logging` 非推奨互換パス）、ExperimentProcedure.md §6 の実験完了フロー
+
+---
 
 ### H3. `motor_torque_act` は SIL で 0 埋め（設計決定済み）
 
@@ -30,7 +80,7 @@
 **対象:** `ExperimentLogger/Module1.cpp` L266  
 **現状:** `loggingCmd = (m_Inputs.loggingReq != false) || (m_LogControl.logging != false)` — 旧手動制御 `LogControl.logging` が OR されたまま残っている。`Inputs.loggingReq` による自動制御への移行は完了済み（M3 解決）だが、旧互換パスが残存しているため、意図しない手動操作でロギングが開始されるリスクがある。  
 **提案:** `LogControl.logging` の OR 分岐を削除し、`Inputs.loggingReq` のみで制御。合わせて `ExperimentLogger.tmc` の `LogControl.logging` パラメータも撤去する。  
-**関連ドキュメント:** `docs/ExperimentLogger.md` L37-39, `docs/TechnicalReference.md` L399/L735/L815, `docs/ExperimentProcedure.md` L210/L216, `docs/ArchitectureSpec.md` L483 — いずれも "(deprecated)" / "(非推奨)" 表記で残っている。コード撤去と同時にドキュメントからも互換制御の記載を削除すること。
+**関連ドキュメント:** `docs/module-specs/ExperimentLogger.md` L37-39, `docs/TechnicalReference.md` L399/L735/L815, `docs/ExperimentProcedure.md` L210/L216, `docs/ArchitectureSpec.md` L483 — いずれも "(deprecated)" / "(非推奨)" 表記で残っている。コード撤去と同時にドキュメントからも互換制御の記載を削除すること。
 
 ### M7. `modeFlags` の UINT/UDINT 型フォールバック
 
