@@ -4,7 +4,6 @@
 
 #include "ExperimentLoggerInterfaces.h"
 #include "TcFileAccessInterfaces.h"
-#include <vector>
 
 class CModule1 
 	: public ITComObject
@@ -89,6 +88,7 @@ protected:
 
 	static const ULONG kBufferRecords = 8000;
 	static const ULONGLONG kDefaultTimestampStepNs = 1000000ULL;
+	static const ULONG kTimestampInitSkipCycles = 10;
 
 	enum class EFileFsmState
 	{
@@ -100,7 +100,8 @@ protected:
 		ERROR
 	};
 
-	std::vector<LogRecord> m_logBuffer;
+	LogRecord m_logBuffer[kBufferRecords];
+	char m_openPathBuffer[512];
 	ITcFileAccessAsyncPtr m_spFileAccessAsync;
 	TcFileHandle m_fileHandle;
 	bool m_isLoggingActive;
@@ -116,4 +117,6 @@ protected:
 	UINT m_pendingWriteBytes;
 	UINT m_lastWriteBytes;
 	ULONGLONG m_timestampStepNsRuntime;
+	ULONG m_cycleCounter;
+	ULONG m_bootDiagStage;
 };

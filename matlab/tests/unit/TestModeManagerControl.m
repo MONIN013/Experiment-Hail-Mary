@@ -11,7 +11,7 @@ classdef TestModeManagerControl < matlab.unittest.TestCase
       testCase.verifyEqual(string(ctrl.experimentStateSymbol), "GVL_MODE.experimentState");
     end
 
-    function resolveSymbolsFallsBackToGvlSeqModeFlags(testCase)
+    function resolveSymbolsErrorsWhenGvlModeModeFlagsMissing(testCase)
       t = MockAdsTransport();
       seed_plc_state(t);
       if isKey(t.scalarMap, "GVL_MODE.modeFlags")
@@ -19,9 +19,8 @@ classdef TestModeManagerControl < matlab.unittest.TestCase
       end
       symbols = experiment.VirtualMotorSymbols.from_defaults();
 
-      ctrl = experiment.ModeManagerControl.resolve_symbols(t, symbols);
-
-      testCase.verifyEqual(string(ctrl.modeFlagsSymbol), "GVL_SEQ.modeFlags");
+      testCase.verifyError(@() experiment.ModeManagerControl.resolve_symbols(t, symbols), ...
+        "experiment:modecontrol:invalidConfig");
     end
 
     function modeflagsTypeFallsBackToU32(testCase)
@@ -77,15 +76,41 @@ classdef TestModeManagerControl < matlab.unittest.TestCase
       testCase.verifyTrue(ready);
       testCase.verifyFalse(diag.experiment_active);
     end
+
+    function requestResetAndWaitAckSucceeds(testCase)
+      ctrl_t = MockAdsTransport();
+      seed_control_state(ctrl_t);
+      symbols = experiment.VirtualMotorSymbols.from_defaults();
+      ctrl = experiment.ModeManagerControl.resolve_symbols(ctrl_t, symbols);
+
+      [acked, diag] = experiment.ModeManagerControl.request_reset_and_wait_ack(ctrl_t, ctrl, 0.05);
+
+      testCase.verifyTrue(acked);
+      testCase.verifyGreaterThan(diag.counter_after, diag.counter_before);
+    end
+
+    function requestResetAndWaitAckTimesOutWithoutAck(testCase)
+      ctrl_t = MockAdsTransport();
+      seed_control_state(ctrl_t);
+      ctrl_t.autoResetAck = false;
+      symbols = experiment.VirtualMotorSymbols.from_defaults();
+      ctrl = experiment.ModeManagerControl.resolve_symbols(ctrl_t, symbols);
+
+      [acked, diag] = experiment.ModeManagerControl.request_reset_and_wait_ack(ctrl_t, ctrl, 0.01);
+
+      testCase.verifyFalse(acked);
+      testCase.verifyEqual(diag.counter_after, diag.counter_before);
+    end
   end
 end
 
 function seed_plc_state(t)
-t.scalarMap("GVL_SEQ.modeFlags") = uint32(0);
 t.scalarMap("GVL_SEQ.experimentActive") = false;
 t.scalarMap("GVL_MODE.modeFlags") = uint32(0);
 t.scalarMap("GVL_MODE.experimentActive") = false;
 t.scalarMap("GVL_MODE.experimentState") = uint32(0);
+t.scalarMap("GVL_MODE.resetReq") = false;
+t.scalarMap("GVL_MODE.resetAckCounter") = uint32(0);
 t.scalarMap("GVL_SEQ.idx") = uint32(0);
 t.scalarMap("GVL_SEQ_LOG.wrIdx") = uint32(0);
 t.scalarMap("GVL_SEQ_LOG.overflow") = false;
@@ -95,11 +120,15 @@ t.scalarMap("GVL_SEQ.refValue") = 0.0;
 t.scalarMap("GVL_SEQ.ffValue") = 0.0;
 t.scalarMap("GVL_SEQ.distValue") = 0.0;
 t.scalarMap("GVL_SEQ_LOG.controlInputTap") = 0.0;
-t.scalarMap("GVL_SEQ_LOG.positionActTap") = 0.0;
+t.scalarMap("GVL_SEQ_LOG.positionRelTap") = 0.0;
 end
 
 function seed_control_state(t)
 t.scalarMap("GVL_MODE.modeFlags") = uint32(0);
 t.scalarMap("GVL_MODE.experimentActive") = false;
 t.scalarMap("GVL_MODE.experimentState") = uint32(0);
+t.scalarMap("GVL_MODE.resetReq") = false;
+t.scalarMap("GVL_MODE.resetAckCounter") = uint32(0);
 end
+
+

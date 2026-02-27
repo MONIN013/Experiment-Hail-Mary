@@ -64,7 +64,7 @@ metrics.acceptance.logNot_overflowed = ~metrics.log.overflow;
 metrics.notes = {
   "ExperimentSequencer contract: ref/ff/dist table replay (target_torque is produced in DriverAdapter and recorded in logs)."
   "ControllerCore contract: controlInput = u_fb + ffValue."
-  "VirtualMotorCore position is logged via GVL_SEQ_LOG.positionActTap."
+  "VirtualMotorCore position is logged via GVL_SEQ_LOG.positionRelTap."
 };
 end
 

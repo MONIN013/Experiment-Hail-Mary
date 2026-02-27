@@ -24,7 +24,7 @@ classdef SystemConfig
     CTRL_PREFIX        = "ControllerCore_Obj1 (Module1)."
 
     % --- ModeManager ---
-    MODE_FLAGS_SYMBOL  = "GVL_SEQ.modeFlags"   % modeFlags 書込み先
+    MODE_FLAGS_SYMBOL  = "GVL_MODE.modeFlags"  % modeFlags 正規書込み先
 
     % --- ログ / テーブル ---
     LOG_N              = 200000  % GVL_SEQ_LOG リングバッファサイズ
@@ -50,3 +50,4 @@ classdef SystemConfig
     end
   end
 end
+

@@ -26,11 +26,11 @@ END_VAR
     <Implementation>
       <ST><![CDATA[servoEnableReq := (GVL_MODE.modeFlags AND GVL_MODE.MODEF_SERVO_ENABLE) <> 0;
 experimentStartReq := (GVL_MODE.modeFlags AND GVL_MODE.MODEF_EXPERIMENT_START_REQ) <> 0;
-resetReq := (GVL_MODE.modeFlags AND GVL_MODE.MODEF_RESET_REQ) <> 0;
+resetReq := GVL_MODE.resetReq;
 resetEdge := resetReq AND NOT resetReqPrev;
 resetReqPrev := resetReq;
 resetOut := resetEdge;
-(* modeFlags is mapped input; RESET_REQ bit is cleared by the ADS writer after pulse. *)
+(* resetReq is latched by ADS writer; PLC owns clear+ack after resetEdge. *)
 
 enableEffective := enable AND servoEnableReq;
 
@@ -53,6 +53,8 @@ END_IF
 
 IF resetEdge THEN
     doneLatched := FALSE;
+    GVL_MODE.resetReq := FALSE;
+    GVL_MODE.resetAckCounter := GVL_MODE.resetAckCounter + 1;
 END_IF
 
 IF NOT enableEffective THEN

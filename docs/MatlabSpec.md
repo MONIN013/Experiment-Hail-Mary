@@ -21,6 +21,9 @@ MATLAB からは **ADS 通信**（.NET Interop 経由 `TcAdsClient`）でパラ�
 
 依存方向: `+experiment` → `+twincat_ads` （逆依存なし）
 
+> Reset 制御は `modeFlags` パルス方式を廃止し、`GVL_MODE.resetReq` / `GVL_MODE.resetAckCounter` のハンドシェイク方式を使用する。  
+> MATLAB は `resetReq=TRUE` を書き込み、`resetAckCounter` の更新を待つ。`resetReq` のクリアは TwinCAT 側が行う。
+
 ---
 
 ## §2 SystemConfig
@@ -42,7 +45,7 @@ MATLAB からは **ADS 通信**（.NET Interop 経由 `TcAdsClient`）でパラ�
 | `TASK_RATE_HZ` | double | `1000` | VirtualMotorTask 周期 [Hz] |
 | `VM_PREFIX` | string | `"VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter."` | VM パラメータシンボルプレフィクス |
 | `CTRL_PREFIX` | string | `"ControllerCore_Obj1 (Module1)."` | Controller パラメータシンボルプレフィクス |
-| `MODE_FLAGS_SYMBOL` | string | `"GVL_SEQ.modeFlags"` | modeFlags 書込み先シンボル |
+| `MODE_FLAGS_SYMBOL` | string | `"GVL_MODE.modeFlags"` | modeFlags 正規書込み先シンボル |
 | `LOG_N` | double | `200000` | GVL_SEQ_LOG リングバッファサイズ |
 | `TABLE_MAX_N` | double | `100000` | refTable / ffTable / distTable 最大長 |
 

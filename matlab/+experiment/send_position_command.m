@@ -67,7 +67,12 @@ t_run = tic;
 write_mode_flags(mode_flags_transport, ctrl, uint32(0));
 plc_transport.write_scalar(plc_symbols.idx, uint32(0), t.u32);
 plc_transport.write_scalar(plc_symbols.tableLen, uint32(0), t.u32);
-pulse_reset(mode_flags_transport, ctrl, 0.02);
+[reset_acked, reset_diag] = request_reset_and_wait_ack(ctrl_transport, ctrl, cfg.reset_timeout_s);
+if ~reset_acked
+  error("experiment:position_command:resetAckTimeout", ...
+    "Timed out waiting reset acknowledgement (resetAckCounter before=%g after=%g).", ...
+    reset_diag.counter_before, reset_diag.counter_after);
+end
 
 [idle_ready, idle_diag] = wait_for_reset_idle(plc_transport, ctrl_transport, plc_symbols, ctrl, cfg.reset_timeout_s);
 if ~idle_ready
@@ -321,8 +326,9 @@ function write_mode_flags(plc_transport, ctrl, value)
 experiment.ModeManagerControl.write_mode_flags(plc_transport, ctrl, value);
 end
 
-function pulse_reset(plc_transport, ctrl, pulse_seconds)
-experiment.ModeManagerControl.pulse_reset(plc_transport, ctrl, pulse_seconds);
+function [acked, diag] = request_reset_and_wait_ack(control_transport, ctrl, timeout_s)
+[acked, diag] = experiment.ModeManagerControl.request_reset_and_wait_ack( ...
+  control_transport, ctrl, timeout_s);
 end
 
 function [mode_flags_transport, owns_mode_flags_transport] = resolve_mode_flags_transport( ...
@@ -354,11 +360,13 @@ end
 function [ctrl, mode_flags_symbol] = resolve_mode_flags_symbol(cfg, mode_flags_transport, ctrl, plc_symbols)
 if isempty(strtrim(cfg.mode_flags_symbol))
   mode_flags_symbol = char(string(ctrl.modeFlagsSymbol));
+  assert_supported_mode_flags_symbol(mode_flags_symbol);
   return;
 end
 
 mode_t = experiment.ModeManagerControl.modeflags_type(plc_symbols.types);
 mode_flags_symbol = char(string(cfg.mode_flags_symbol));
+assert_supported_mode_flags_symbol(mode_flags_symbol);
 current_value = mode_flags_transport.read_scalar(mode_flags_symbol, mode_t);
 mode_flags_transport.write_scalar(mode_flags_symbol, cast_modeflags_value(mode_t, current_value), mode_t);
 ctrl.modeFlagsSymbol = mode_flags_symbol;
@@ -371,13 +379,21 @@ has_explicit_modeflags = ~isempty(strtrim(cfg.mode_flags_symbol)) || ...
 if same_transport || has_explicit_modeflags
   return;
 end
-if string(ctrl.modeFlagsSymbol) ~= "GVL_MODE.modeFlags"
+if string(ctrl.modeFlagsSymbol) == "GVL_MODE.modeFlags"
   return;
 end
 invalid_config([ ...
-  'Split-port configuration detected (ams_port=%d, control_ams_port=%d) with implicit modeFlags target ''%s''. ' ...
-  'Explicit mode_flags_symbol/mode_flags transport is required. Example: mode_flags_symbol=''GVL_SEQ.modeFlags'', mode_flags_ams_port=%d.'], ...
-  double(cfg.ams_port), double(cfg.control_ams_port), char(string(ctrl.modeFlagsSymbol)), double(cfg.ams_port));
+  'Split-port configuration detected (ams_port=%d, control_ams_port=%d) but resolved modeFlags target is ''%s''. ' ...
+  'Only ''GVL_MODE.modeFlags'' is supported. Set mode_flags_symbol=''GVL_MODE.modeFlags'' and use control transport/port 852.'], ...
+  double(cfg.ams_port), double(cfg.control_ams_port), char(string(ctrl.modeFlagsSymbol)));
+end
+
+function assert_supported_mode_flags_symbol(mode_flags_symbol)
+if string(mode_flags_symbol) ~= "GVL_MODE.modeFlags"
+  invalid_config([ ...
+    "Unsupported mode_flags_symbol '%s'. " + ...
+    "Only 'GVL_MODE.modeFlags' is supported."], char(string(mode_flags_symbol)));
+end
 end
 
 function v = cast_modeflags_value(net_type, value)

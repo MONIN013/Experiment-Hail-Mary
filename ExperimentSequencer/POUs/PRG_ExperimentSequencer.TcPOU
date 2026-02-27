@@ -122,7 +122,7 @@ IF sampleEmittedThisScan THEN
     GVL_SEQ_LOG.logDistValue[logWriteIdx] := GVL_SEQ.distValue;
     GVL_SEQ_LOG.logControlInput[logWriteIdx] := GVL_SEQ_LOG.controlInputTap;
     GVL_SEQ_LOG.logTargetTorque[logWriteIdx] := targetTorqueLocal;
-    GVL_SEQ_LOG.logPositionAct[logWriteIdx] := GVL_SEQ_LOG.positionActTap;
+    GVL_SEQ_LOG.logPositionAct[logWriteIdx] := GVL_SEQ_LOG.positionRelTap;
     GVL_SEQ_LOG.logT[logWriteIdx] := GVL_SEQ_LOG.tNs;
     GVL_SEQ_LOG.logIdx[logWriteIdx] := loggedIdx;
 
@@ -137,3 +137,4 @@ cmdActivePrev := GVL_SEQ.experimentActive;
     </Implementation>
   </POU>
 </TcPlcObject>
+

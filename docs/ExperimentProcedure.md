@@ -28,19 +28,21 @@
 
 `GVL_MODE.modeFlags` は `UINT` 型のビットフィールドで、ADS から書き込むことで各機能を制御する。
 **Port 852** (`StateMachineControl`) でアクセス。
-ただし MATLAB の `send_position_command` を分離ポート構成（data=`853`, control=`852`）で使う場合は、実効入力経路に合わせて `modeFlags` 書込み先を明示指定する（例: `GVL_SEQ.modeFlags` / Port 853）。
+状態制御の経路は `GVL_MODE.modeFlags`（実験開始/停止）と `GVL_MODE.resetReq`（リセット要求）を使用する。
 
 | ビット | 定数名 | 値 | 意味 |
 |---|---|---|---|
 | bit 0 | `MODEF_SERVO_ENABLE` | `16#0001` | サーボ有効化リクエスト |
 | bit 1 | `MODEF_EXPERIMENT_START_REQ` | `16#0002` | 実験開始リクエスト |
-| bit 2 | `MODEF_RESET_REQ` | `16#0004` | ワンショットリセットリクエスト |
+| bit 2 | `MODEF_RESET_REQ` | `16#0004` | **非推奨**（reset は `GVL_MODE.resetReq` を使用） |
 
 ### 2.2 状態監視変数
 
 | 変数 | 型 | 方向 | 説明 |
 |---|---|---|---|
 | `GVL_MODE.modeFlags` | `UINT` | ADS → PLC | 上記ビットフィールドで機能リクエストを投入 |
+| `GVL_MODE.resetReq` | `BOOL` | ADS → PLC | リセット要求（MATLAB は `TRUE` を書くだけ） |
+| `GVL_MODE.resetAckCounter` | `UDINT` | PLC → ADS (読取) | reset 受理ごとに +1 |
 | `GVL_MODE.experimentActive` | `BOOL` | PLC → ADS (読取) | ModeManager が管理する実験実行中フラグ |
 | `GVL_MODE.experimentState` | `UINT` | PLC → ADS (読取) | 現在の実験状態 |
 
@@ -60,10 +62,10 @@
 ### 3.1 全体フロー
 
 ```
- ①  リセット         modeFlags := MODEF_RESET_REQ (16#0004)
-                       → ワンショット : ModeManager が立ち上がりエッジで resetOut パルスを生成
+ ①  リセット要求      resetReq := TRUE
+                       → ModeManager が受理して resetOut パルスを生成
                        → ExperimentSequencer / ControllerCore / ExperimentLogger の内部状態がクリア
-                       → MATLAB 側で MODEF_RESET_REQ ビットをクリア
+                       → ModeManager が resetReq を FALSE に戻し、resetAckCounter を +1
 
  ②  テーブル書込      GVL_SEQ.refTable[], ffTable[], distTable[], tableLen を ADS 書込 (Port 853)
 
@@ -91,12 +93,16 @@
 #### リセット処理
 
 ```
-resetReq       := (modeFlags AND MODEF_RESET_REQ) <> 0
+resetReq       := GVL_MODE.resetReq
 resetEdge      := resetReq AND NOT resetReqPrev   ← 立ち上がりエッジ検出
 resetOut       := resetEdge                        ← ワンショットパルス出力 (AT %Q*)
                                                       → ExperimentSequencer.resetReq にリンク
                                                       → ControllerCore.Inputs.resetReq にリンク
                                                       → ExperimentLogger.Inputs.resetReq にリンク
+IF resetEdge THEN
+    GVL_MODE.resetReq := FALSE;
+    GVL_MODE.resetAckCounter := GVL_MODE.resetAckCounter + 1;
+END_IF
 ```
 
 #### サーボ有効化 → CiA 402 状態遷移
@@ -144,8 +150,8 @@ enableTorqueOut := enableEffective AND driveReady
 │           ADS 操作                TwinCAT モジュール内部動作           │
 ├───────────────────────────────────────────────────────────────────────┤
 │                                                                       │
-│  ① modeFlags = 0x0004            ModeManager: resetEdge → resetOut   │
-│    (RESET_REQ)                    ExperimentSequencer: idx=0, ログクリア│
+│  ① resetReq = TRUE                ModeManager: resetEdge → resetOut   │
+│    (RESET REQUEST)                ExperimentSequencer: idx=0, ログクリア│
 │                                   ControllerCore: biquad 状態クリア    │
 │                                                                       │
 │  ② refTable[], ffTable[],         GVL_SEQ にテーブルデータ格納        │
@@ -187,6 +193,8 @@ enableTorqueOut := enableEffective AND driveReady
 | 操作 | Port | シンボル | データ型 | R/W |
 |------|------|----------|----------|-----|
 | **フラグ操作** | 852 | `GVL_MODE.modeFlags` | `UINT` | W |
+| **リセット要求** | 852 | `GVL_MODE.resetReq` | `BOOL` | W |
+| **リセットACK** | 852 | `GVL_MODE.resetAckCounter` | `UDINT` | R |
 | **状態監視** | 852 | `GVL_MODE.experimentState` | `UINT` | R |
 | **テーブル書込** | 853 | `GVL_SEQ.refTable` / `ffTable` / `distTable` | `LREAL[]` | W |
 | **テーブル長** | 853 | `GVL_SEQ.tableLen` | `UDINT` | W |
@@ -196,7 +204,7 @@ enableTorqueOut := enableEffective AND driveReady
 | **ログ読出し** | 853 | `GVL_SEQ_LOG.wrIdx` / `rdIdx` / `log*` | — | R/W |
 
 > 全シンボルの完全な一覧は [TechnicalReference.md](TechnicalReference.md) §8 を参照。
-> `send_position_command` の分離ポート運用では、状態監視（`GVL_MODE.experimentState`, 852）と `modeFlags` 書込み先（例: `GVL_SEQ.modeFlags`, 853）が異なる場合があるため、MATLAB 側で `mode_flags_symbol` / `mode_flags_ams_port` を明示指定する。
+> `send_position_command` の `mode_flags_symbol` は `GVL_MODE.modeFlags` のみサポートされる。
 
 ---
 
@@ -207,13 +215,13 @@ enableTorqueOut := enableEffective AND driveReady
      ADS Write: LogControl.filePath = "C:\ExperimentData\run_001.bin"
 
 ② ロギング開始
-     ADS Write: LogControl.logging = TRUE
+     ADS Write: LogControl.logging = TRUE  (互換手動制御 / 通常不要)
 
 ③ ステータス監視 (任意)
      ADS Read: LogStatus.recordsWritten / fileSizeKb / errorCode
 
 ④ ロギング停止
-     ADS Write: LogControl.logging = FALSE
+     ADS Write: LogControl.logging = FALSE (互換手動制御 / 通常不要)
 
 ⑤ ファイル読み出し (実験後)
      ターゲット PC からバイナリファイルを取得

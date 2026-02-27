@@ -280,7 +280,7 @@
 		</System>
 		<Plc>
 			<Project GUID="{FCFF5180-937F-4F0E-915A-7CF7E9CA7F30}" Name="StateMachineControl" PrjFilePath="StateMachineControl\StateMachineControl.plcproj" TmcFilePath="StateMachineControl\StateMachineControl.tmc" ReloadTmc="true" AmsPort="852" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{9620A183-69DB-0A7A-D4A3-949330D8D023}" TmcPath="StateMachineControl\StateMachineControl.tmc">
+				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{9F5E3E0F-7E2D-F412-1459-9FB3A55DD7D1}" TmcPath="StateMachineControl\StateMachineControl.tmc">
 					<Name>StateMachineControl Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -340,7 +340,7 @@
 				</Instance>
 			</Project>
 			<Project GUID="{54AD89C8-6B39-47E6-B85F-F4753C89F02E}" Name="ExperimentSequencer" PrjFilePath="ExperimentSequencer\ExperimentSequencer.plcproj" TmcFilePath="ExperimentSequencer\ExperimentSequencer.tmc" ReloadTmc="true" AmsPort="853" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{DEBEDF8D-752D-7976-65FB-12E979F23E80}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
+				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{F63705FD-599A-E533-40FE-7A632B062ABF}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
 					<Name>ExperimentSequencer Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -356,10 +356,6 @@
 						<Var>
 							<Name>GVL_SEQ.distValue</Name>
 							<Type>LREAL</Type>
-						</Var>
-						<Var>
-							<Name>GVL_SEQ.modeFlags</Name>
-							<Type>UINT</Type>
 						</Var>
 						<Var>
 							<Name>GVL_SEQ.playbackDone</Name>
@@ -381,7 +377,7 @@
 							<Type>LREAL</Type>
 						</Var>
 						<Var>
-							<Name>GVL_SEQ_LOG.positionActTap</Name>
+							<Name>GVL_SEQ_LOG.positionRelTap</Name>
 							<Type>LREAL</Type>
 						</Var>
 					</Vars>
@@ -769,7 +765,7 @@
 								<AreaNo AreaType="OutputSrc">1</AreaNo>
 								<Name>Outputs</Name>
 								<ContextId>1</ContextId>
-								<ByteSize>16</ByteSize>
+								<ByteSize>24</ByteSize>
 								<Symbol CreateSymbol="true">
 									<Name>controlInput</Name>
 									<BitSize>64</BitSize>
@@ -781,6 +777,12 @@
 									<BitSize>64</BitSize>
 									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
 									<BitOffs>64</BitOffs>
+								</Symbol>
+								<Symbol CreateSymbol="true">
+									<Name>positionRel</Name>
+									<BitSize>64</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
+									<BitOffs>128</BitOffs>
 								</Symbol>
 							</DataArea>
 						</DataAreas>
@@ -858,7 +860,7 @@
 							</Value>
 							<Value>
 								<Name>EnableParams.enablePid</Name>
-								<EnumText>FALSE</EnumText>
+								<EnumText>TRUE</EnumText>
 							</Value>
 							<Value>
 								<Name>EnableParams.enableLead</Name>
@@ -902,7 +904,7 @@
 					</TmcDesc>
 				</Instance>
 			</Project>
-			<Project GUID="{C71206DC-4213-420E-9368-4499CDF50D92}" Name="ExperimentLogger" PrjFilePath="ExperimentLogger\ExperimentLogger.vcxproj" TmcFilePath="ExperimentLogger\ExperimentLogger.tmc">
+			<Project Disabled="true" GUID="{C71206DC-4213-420E-9368-4499CDF50D92}" Name="ExperimentLogger" PrjFilePath="ExperimentLogger\ExperimentLogger.vcxproj" TmcFilePath="ExperimentLogger\ExperimentLogger.tmc">
 				<Instance Id="#x01010030" KeepUnrestoredLinks="2" AutoReloadTmc="true" ClassFactoryId="C++ Module Vendor|ExperimentLogger|0.0.0.1">
 					<Name>ExperimentLogger_Obj1 (Module1)</Name>
 					<TmcDesc GUID="{7F0005F6-007A-4E79-8B14-A232008F0DD2}" ClassFactoryId="C++ Module Vendor|ExperimentLogger|0.0.0.1">
@@ -971,7 +973,7 @@
 								<AreaNo AreaType="InputDst">0</AreaNo>
 								<Name>Inputs</Name>
 								<ContextId>1</ContextId>
-								<ByteSize>81</ByteSize>
+								<ByteSize>82</ByteSize>
 								<Symbol CreateSymbol="true">
 									<Name>torqueCmd</Name>
 									<BitSize>64</BitSize>
@@ -1038,6 +1040,12 @@
 									<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
 									<BitOffs>640</BitOffs>
 								</Symbol>
+								<Symbol CreateSymbol="true">
+									<Name>loggingReq</Name>
+									<BitSize>8</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
+									<BitOffs>648</BitOffs>
+								</Symbol>
 							</DataArea>
 							<DataArea>
 								<AreaNo AreaType="OutputSrc">1</AreaNo>
@@ -1088,17 +1096,11 @@
 	<Mappings>
 		<MappingInfo Identifier="{00000000-2001-0850-0020-500810000101}" Id="#x02030050"/>
 		<MappingInfo Identifier="{00000000-2001-0850-0020-500820000101}" Id="#x02030060"/>
-		<MappingInfo Identifier="{00000000-2001-0850-0020-500830000101}" Id="#x02030070"/>
 		<MappingInfo Identifier="{00000000-0040-0201-1000-010120000101}" Id="#x02030090"/>
-		<MappingInfo Identifier="{00000000-0040-0201-1000-010130000101}" Id="#x020300a0"/>
-		<MappingInfo Identifier="{00000000-0040-0201-2000-010130000101}" Id="#x020300b0"/>
 		<MappingInfo Identifier="{00000000-2081-0850-8020-500800205008}" Id="#x02030010"/>
-		<MappingInfo Identifier="{00000000-2081-0850-8020-500810000101}" Id="#x020300e0"/>
 		<MappingInfo Identifier="{00000000-2081-0850-8020-500820000101}" Id="#x02030020"/>
-		<MappingInfo Identifier="{00000000-2081-0850-8020-500830000101}" Id="#x02030030"/>
 		<MappingInfo Identifier="{08502001-2041-0850-0020-500840205008}" Id="#x02030080" Watchdog="04000000040000000400000004000000"/>
 		<MappingInfo Identifier="{02010040-2041-0850-2000-010140205008}" Id="#x020300c0" Watchdog="04000000040000000400000004000000"/>
-		<MappingInfo Identifier="{02010040-2041-0850-3000-010140205008}" Id="#x020300d0" Watchdog="04000000040000000400000004000000"/>
 		<MappingInfo Identifier="{08502081-2041-0850-8020-500840205008}" Id="#x02030040" Watchdog="04000000040000000400000004000000"/>
 		<OwnerA Name="TIPC^DriverAdapter^DriverAdapter Instance">
 			<OwnerB Name="TIPC^ExperimentSequencer^ExperimentSequencer Instance">
@@ -1127,20 +1129,17 @@
 			<OwnerB Name="TIPC^StateMachineControl^StateMachineControl Instance">
 				<Link VarA="VirtualMotorTask Inputs^GVL_SEQ.experimentActive" VarB="PlcTask Outputs^MAIN.experimentActiveOut"/>
 				<Link VarA="VirtualMotorTask Inputs^GVL_SEQ.resetReq" VarB="PlcTask Outputs^MAIN.resetOut"/>
-				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.modeFlags" VarB="PlcTask Inputs^GVL_MODE.modeFlags"/>
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.playbackDone" VarB="PlcTask Inputs^MAIN.seqPlaybackDone"/>
 			</OwnerB>
 			<OwnerB Name="TIXC^ControllerCore^ControllerCore_Obj1 (Module1)">
 				<Link VarA="VirtualMotorTask Inputs^GVL_SEQ_LOG.controlInputTap" VarB="Outputs^controlInput"/>
+				<Link VarA="VirtualMotorTask Inputs^GVL_SEQ_LOG.positionRelTap" VarB="Outputs^positionRel"/>
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.ffValue" VarB="Inputs^ffValue"/>
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.refValue" VarB="Inputs^refValue"/>
 			</OwnerB>
 			<OwnerB Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.ffValue" VarB="Inputs^ffValue"/>
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.refValue" VarB="Inputs^refValue"/>
-			</OwnerB>
-			<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">
-				<Link VarA="VirtualMotorTask Inputs^GVL_SEQ_LOG.positionActTap" VarB="Outputs^VirtualMotor1Outputs^positionOut"/>
 			</OwnerB>
 		</OwnerA>
 		<OwnerA Name="TIPC^StateMachineControl^StateMachineControl Instance">
@@ -1148,6 +1147,7 @@
 				<Link VarA="PlcTask Outputs^MAIN.resetOut" VarB="Inputs^resetReq"/>
 			</OwnerB>
 			<OwnerB Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
+				<Link VarA="PlcTask Outputs^MAIN.experimentActiveOut" VarB="Inputs^loggingReq"/>
 				<Link VarA="PlcTask Outputs^MAIN.resetOut" VarB="Inputs^resetReq"/>
 			</OwnerB>
 		</OwnerA>
@@ -1155,6 +1155,7 @@
 			<OwnerB Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
 				<Link VarA="Outputs^controlInput" VarB="Inputs^controlInput"/>
 				<Link VarA="Outputs^error" VarB="Inputs^error"/>
+				<Link VarA="Outputs^positionRel" VarB="Inputs^loadPosition"/>
 			</OwnerB>
 			<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">
 				<Link VarA="Inputs^positionAct" VarB="Outputs^VirtualMotor1Outputs^positionOut"/>
@@ -1162,10 +1163,7 @@
 		</OwnerA>
 		<OwnerA Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
 			<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">
-				<Link VarA="Inputs^loadPosition" VarB="Outputs^VirtualMotor2Outputs^positionOut"/>
-				<Link VarA="Inputs^loadVelocity" VarB="Outputs^VirtualMotor2Outputs^velocityOut"/>
-				<Link VarA="Inputs^motorPosition" VarB="Outputs^VirtualMotor1Outputs^positionOut"/>
-				<Link VarA="Inputs^motorVelocity" VarB="Outputs^VirtualMotor1Outputs^velocityOut"/>
+				<Link VarA="Inputs^loadVelocity" VarB="Outputs^VirtualMotor1Outputs^velocityOut"/>
 			</OwnerB>
 		</OwnerA>
 	</Mappings>

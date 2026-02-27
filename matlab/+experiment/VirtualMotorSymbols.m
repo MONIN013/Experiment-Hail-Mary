@@ -1,6 +1,8 @@
 classdef VirtualMotorSymbols
   properties
     reset
+    modeResetReq
+    modeResetAckCounter
     experimentActive
     experimentState
     tableLen
@@ -119,12 +121,14 @@ classdef VirtualMotorSymbols
       t = twincat_ads.AdsTransport.net_types();
       out = experiment.VirtualMotorSymbols();
       out.reset = "GVL_SEQ.resetReq";
+      out.modeResetReq = "GVL_MODE.resetReq";
+      out.modeResetAckCounter = "GVL_MODE.resetAckCounter";
       out.experimentActive = "GVL_SEQ.experimentActive";
       out.experimentState = "GVL_MODE.experimentState";
       out.tableLen = "GVL_SEQ.tableLen";
       out.idx = "GVL_SEQ.idx";
-      out.modeFlags = "GVL_SEQ.modeFlags";
-      out.modeFlagsCandidates = ["GVL_MODE.modeFlags"; "GVL_SEQ.modeFlags"];
+      out.modeFlags = "GVL_MODE.modeFlags";
+      out.modeFlagsCandidates = ["GVL_MODE.modeFlags"];
       out.experimentStateCandidates = ["GVL_MODE.experimentState"];
       out.refTable = "GVL_SEQ.refTable";
       out.ffTable = "GVL_SEQ.ffTable";
@@ -133,7 +137,7 @@ classdef VirtualMotorSymbols
       out.ffValue = "GVL_SEQ.ffValue";
       out.distValue = "GVL_SEQ.distValue";
       out.controlInput = "GVL_SEQ_LOG.controlInputTap";
-      out.positionActLog = "GVL_SEQ_LOG.positionActTap";
+      out.positionActLog = "GVL_SEQ_LOG.positionRelTap";
       out.log = struct( ...
         "wrIdx", "GVL_SEQ_LOG.wrIdx", ...
         "rdIdx", "GVL_SEQ_LOG.rdIdx", ...
@@ -165,4 +169,5 @@ classdef VirtualMotorSymbols
     end
   end
 end
+
 

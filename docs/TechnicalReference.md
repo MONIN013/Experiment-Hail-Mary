@@ -279,7 +279,7 @@ position_next := position + dt * velocity_next
 | `rdIdx` | `UDINT` | 読み出しインデックス (ADS からインクリメント) |
 | `overflow` | `BOOL` | `wrIdx - rdIdx > LOG_N` 時に `TRUE` |
 | `controlInputTap` | `LREAL` (`AT %I*`) | ControllerCore.controlInput のタップ接続 |
-| `positionActTap` | `LREAL` (`AT %I*`) | VirtualMotorCore.positionOut のタップ接続 |
+| `positionRelTap` | `LREAL` (`AT %I*`) | ControllerCore.positionRel のタップ接続 |
 
 ### 5.2 ログ配列 (各 `ARRAY[0..LOG_N-1]`)
 
@@ -291,7 +291,7 @@ position_next := position + dt * velocity_next
 | `logDistValue` | `LREAL[]` | ExperimentSequencer 出力 distValue |
 | `logControlInput` | `LREAL[]` | ControllerCore 出力 (`controlInputTap`) |
 | `logTargetTorque` | `LREAL[]` | `controlInputTap + distValue` (DriverAdapter 相当の合計トルク) |
-| `logPositionAct` | `LREAL[]` | VirtualMotorCore 出力 (`positionActTap`) |
+| `logPositionAct` | `LREAL[]` | ControllerCore 出力 (`positionRelTap`) ※互換名 |
 | `logT` | `ULINT[]` | タイムスタンプ [ns] |
 | `logIdx` | `UDINT[]` | テーブルインデックス |
 
@@ -311,7 +311,7 @@ logFfValue[wrPos]      := GVL_SEQ.ffValue
 logDistValue[wrPos]    := GVL_SEQ.distValue
 logControlInput[wrPos] := controlInputTap       ← TcCOM からのタップ入力
 logTargetTorque[wrPos] := controlInputTap + GVL_SEQ.distValue
-logPositionAct[wrPos]  := positionActTap         ← TcCOM からのタップ入力
+logPositionAct[wrPos]  := positionRelTap         ← TcCOM からのタップ入力
 logT[wrPos]            := tNs
 logIdx[wrPos]          := idx - 1                ← 出力済みインデックス
 
@@ -376,12 +376,12 @@ GVL_SEQ_LOG のリングバッファ (§5) が ADS ポーリング前提の暫�
 | `motorPosition` | `LREAL` | (Phase 4: EtherCAT) | Motor 側実位置 [rad] |
 | `motorVelocity` | `LREAL` | (Phase 4: EtherCAT) | Motor 側実速度 [rad/s] |
 | `motorTorqueAct` | `LREAL` | (Phase 4: EtherCAT) | Motor 実トルク [Nm] |
-| `loadPosition` | `LREAL` | VirtualMotorCore `positionOut` | Load 側実位置 [rad] |
-| `loadVelocity` | `LREAL` | VirtualMotorCore `velocityOut` | Load 側実速度 [rad/s] |
+| `loadPosition` | `LREAL` | ControllerCore `positionRel` | Load 側実位置 (相対位置) [rad] |
+| `loadVelocity` | `LREAL` | VirtualMotorCore `VirtualMotor1Outputs.velocityOut` | Load 側実速度 [rad/s] |
 | `resetReq` | `BOOL` | ModeManager `resetOut` | リセット要求 |
 
 > Phase 1–3 (SIL) では `motorPosition`, `motorVelocity`, `motorTorqueAct` は 0 (未接続)。  
-> `loadPosition` / `loadVelocity` に VirtualMotorCore の出力 (1 慣性近似) が入る。
+> `loadPosition` は ControllerCore.positionRel、`loadVelocity` は VirtualMotorCore Axis1 速度出力を使用する。
 
 #### 出力 (OutputSrc)
 
@@ -396,7 +396,7 @@ GVL_SEQ_LOG のリングバッファ (§5) が ADS ポーリング前提の暫�
 | ADS シンボル | 型 | 説明 |
 |---|---|---|
 | `ExperimentLogger_Obj1 (Module1).LogControl.filePath` | `STRING(255)` | 出力ファイルパス (デフォルト: `C:\ExperimentData\experiment_logger.bin`) |
-| `ExperimentLogger_Obj1 (Module1).LogControl.logging` | `BOOL` | ロギング開始/停止コマンド |
+| `ExperimentLogger_Obj1 (Module1).LogControl.logging` | `BOOL` | 互換用の手動ロギング開始/停止コマンド（非推奨） |
 
 ### 6.4 LogRecord バイナリフォーマット
 
@@ -557,7 +557,7 @@ VirtualMotorCore.Outputs.statusWord1        ──►  GVL_DRV.statusWord     (%
 VirtualMotorCore.Outputs.VirtualMotor1Outputs.positionOut
                                             ──►  ControllerCore.Inputs.positionAct
 VirtualMotorCore.Outputs.VirtualMotor1Outputs.positionOut
-                                            ──►  GVL_SEQ_LOG.positionActTap (%I*)
+                                            ──►  GVL_SEQ_LOG.positionRelTap (%I*)
 ```
 
 ### 7.6 各モジュール → ExperimentLogger (Phase 3〜)
@@ -570,8 +570,8 @@ ControllerCore.Outputs.controlInput                         ──►  Experimen
 ControllerCore.Outputs.error                                ──►  ExperimentLogger.Inputs.error
 VirtualMotorCore.Outputs.VirtualMotor1Outputs.positionOut   ──►  ExperimentLogger.Inputs.motorPosition
 VirtualMotorCore.Outputs.VirtualMotor1Outputs.velocityOut   ──►  ExperimentLogger.Inputs.motorVelocity
-VirtualMotorCore.Outputs.VirtualMotor2Outputs.positionOut   ──►  ExperimentLogger.Inputs.loadPosition
-VirtualMotorCore.Outputs.VirtualMotor2Outputs.velocityOut   ──►  ExperimentLogger.Inputs.loadVelocity
+ControllerCore.Outputs.positionRel                          ──►  ExperimentLogger.Inputs.loadPosition
+VirtualMotorCore.Outputs.VirtualMotor1Outputs.velocityOut   ──►  ExperimentLogger.Inputs.loadVelocity
 ModeManager.resetOut                                        ──►  ExperimentLogger.Inputs.resetReq
 ```
 
@@ -627,12 +627,14 @@ ModeManager.resetOut                                        ──►  Experimen
 
 | ADS シンボル名 | 型 | Size (B) | R/W | 説明 |
 |---|---|---|---|---|
-| `GVL_MODE.modeFlags` | `UINT` | 2 | **W** | ビットフラグ一括制御 |
+| `GVL_MODE.modeFlags` | `UINT` | 2 | **W** | ビットフラグ一括制御（reset ビットは非推奨） |
+| `GVL_MODE.resetReq` | `BOOL` | 1 | **W** | リセット要求（ADS が TRUE を書込み、PLC が受理後 FALSE に戻す） |
+| `GVL_MODE.resetAckCounter` | `UDINT` | 4 | R | reset 受理カウンタ（受理ごとに +1） |
 | `GVL_MODE.experimentActive` | `BOOL` | 1 | R | 実験実行中フラグ (ModeManager 出力) |
 | `GVL_MODE.experimentState` | `UINT` | 2 | R | 状態値 0–3 |
 | `GVL_MODE.MODEF_SERVO_ENABLE` | `UINT` | 2 | R | 定数 `16#0001` |
 | `GVL_MODE.MODEF_EXPERIMENT_START_REQ` | `UINT` | 2 | R | 定数 `16#0002` |
-| `GVL_MODE.MODEF_RESET_REQ` | `UINT` | 2 | R | 定数 `16#0004` |
+| `GVL_MODE.MODEF_RESET_REQ` | `UINT` | 2 | R | 定数 `16#0004`（非推奨） |
 | `GVL_MODE.STATE_IDLE` | `UINT` | 2 | R | 定数 `0` |
 | `GVL_MODE.STATE_READY` | `UINT` | 2 | R | 定数 `1` |
 | `GVL_MODE.STATE_RUNNING` | `UINT` | 2 | R | 定数 `2` |
@@ -678,7 +680,6 @@ ModeManager.resetOut                                        ──►  Experimen
 | `GVL_SEQ.playbackDone` | `BOOL` | 1 | `AT %Q*` | R | 再生完了フラグ |
 | `GVL_SEQ.resetReq` | `BOOL` | 1 | `AT %I*` | R | リセット要求入力 |
 | `GVL_SEQ.experimentActive` | `BOOL` | 1 | `AT %I*` | R | 実験実行中入力 |
-| `GVL_SEQ.modeFlags` | `UINT` | 2 | `AT %Q*` | R/W | モード制御フラグ |
 
 #### GVL_SEQ_LOG (リングバッファログ)
 
@@ -733,7 +734,7 @@ Port 351 は VirtualMotorTask に紐付く C++ TcCOM インスタンスのシン
 | ADS シンボル名 | 型 | Size (B) | R/W | 説明 |
 |---|---|---|---|---|
 | `ExperimentLogger_Obj1 (Module1).LogControl.filePath` | `STRING(255)` | 256 | **W** | 出力ファイルパス |
-| `ExperimentLogger_Obj1 (Module1).LogControl.logging` | `BOOL` | 1 | **W** | ロギング開始/停止 |
+| `ExperimentLogger_Obj1 (Module1).LogControl.logging` | `BOOL` | 1 | **W** | 互換用手動ロギング開始/停止（非推奨） |
 | `ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.recordsWritten` | `UDINT` | 4 | R | 書き込み済みレコード数 |
 | `ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.fileSizeKb` | `UDINT` | 4 | R | ファイルサイズ [KB] |
 | `ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.errorCode` | `UDINT` | 4 | R | エラーコード |
@@ -766,8 +767,10 @@ ADS Write:  Port=853  Symbol="GVL_SEQ.tableLen"    Data=UDINT
 
 ```
 ADS Write:  Port=852  Symbol="GVL_MODE.modeFlags"  Data=UINT
+ADS Write:  Port=852  Symbol="GVL_MODE.resetReq"   Data=BOOL (TRUE)
+ADS Read:   Port=852  Symbol="GVL_MODE.resetAckCounter" → UDINT
 
- リセット:          0x0004
+ リセット:          `GVL_MODE.resetReq := TRUE`（`modeFlags` bit2 は非推奨）
  サーボ有効:        0x0001
  実験開始:          0x0003  (SERVO | START)
  停止:              0x0000
@@ -813,7 +816,7 @@ ADS Write:  Port=853  Symbol="GVL_SEQ_LOG.rdIdx"            ← rdIdx 更新
 
 ```
 ADS Write:  Port=351  Symbol="ExperimentLogger_Obj1 (Module1).LogControl.filePath"  Data=STRING
-ADS Write:  Port=351  Symbol="ExperimentLogger_Obj1 (Module1).LogControl.logging"   Data=BOOL
+ADS Write:  Port=351  Symbol="ExperimentLogger_Obj1 (Module1).LogControl.logging"   Data=BOOL  (互換手動制御)
 ADS Read:   Port=351  Symbol="ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.recordsWritten"  → UDINT
 ADS Read:   Port=351  Symbol="ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.errorCode"       → UDINT
 ```
@@ -864,7 +867,7 @@ ExperimentSequencer → ExperimentLogger
   GVL_SEQ.refValue              → ExperimentLogger.Inputs.refValue
 
 ExperimentSequencer ← VirtualMotorCore
-  GVL_SEQ_LOG.positionActTap    ← VirtualMotorCore.Outputs.VirtualMotor1Outputs.positionOut
+  GVL_SEQ_LOG.positionRelTap    ← ControllerCore.Outputs.positionRel
 
 StateMachineControl → ControllerCore
   MAIN.resetOut                 → ControllerCore.Inputs.resetReq
@@ -880,10 +883,10 @@ ControllerCore ← VirtualMotorCore
   ControllerCore.Inputs.positionAct    ← VirtualMotorCore.Outputs.VirtualMotor1Outputs.positionOut
 
 ExperimentLogger ← VirtualMotorCore
-  ExperimentLogger.Inputs.loadPosition    ← VirtualMotorCore.Outputs.VirtualMotor2Outputs.positionOut
-  ExperimentLogger.Inputs.loadVelocity    ← VirtualMotorCore.Outputs.VirtualMotor2Outputs.velocityOut
-  ExperimentLogger.Inputs.motorPosition   ← VirtualMotorCore.Outputs.VirtualMotor1Outputs.positionOut
-  ExperimentLogger.Inputs.motorVelocity   ← VirtualMotorCore.Outputs.VirtualMotor1Outputs.velocityOut
+  ExperimentLogger.Inputs.loadPosition    ← ControllerCore.Outputs.positionRel
+  ExperimentLogger.Inputs.loadVelocity    ← VirtualMotorCore.Outputs.VirtualMotor1Outputs.velocityOut
 ```
 
-> Motor1 出力 → `motorPosition`/`motorVelocity`、Motor2 出力 → `loadPosition`/`loadVelocity` にリンク。
+> SIL では `loadPosition` は ControllerCore.positionRel、`loadVelocity` は VirtualMotor1Outputs.velocityOut を使用する。`motorPosition`/`motorVelocity` は未接続（0埋め）。
+
+

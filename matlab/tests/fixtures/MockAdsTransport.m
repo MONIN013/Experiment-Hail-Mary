@@ -8,6 +8,7 @@ classdef MockAdsTransport < twincat_ads.IAdsTransport
     arraySliceErrorMap
     operations
     forceStartTrue = false
+    autoResetAck = true
   end
 
   methods
@@ -62,6 +63,13 @@ classdef MockAdsTransport < twincat_ads.IAdsTransport
       key = char(string(symbol));
       obj.operations(end + 1, 1) = "write_scalar:" + string(key);
       obj.scalarMap(key) = value;
+      if obj.autoResetAck && strcmp(key, "GVL_MODE.resetReq") && logical(value)
+        ack_key = "GVL_MODE.resetAckCounter";
+        if isKey(obj.scalarMap, ack_key)
+          obj.scalarMap(ack_key) = uint32(double(obj.scalarMap(ack_key)) + 1);
+        end
+        obj.scalarMap(key) = false;
+      end
     end
 
     function values = read_array(obj, symbol, ~, n)

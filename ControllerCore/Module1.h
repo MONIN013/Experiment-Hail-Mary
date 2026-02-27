@@ -37,7 +37,7 @@ protected:
 	HRESULT AddModuleToCaller();
 	VOID RemoveModuleFromCaller();
 	void ResetRuntimeState();
-	double StepController(double refValue, double ffValue, double positionAct);
+	double StepController(double refValue, double ffValue, double positionRel);
 	double ApplyPid(double error);
 	double ApplyBiquad(double x, double b0, double b1, double b2, double a1, double a2, double& s1, double& s2);
 
@@ -64,5 +64,6 @@ protected:
 	double m_NotchS2;
 	double m_ResoS1;
 	double m_ResoS2;
+	double m_positionOffset;
 	bool m_prevResetReq;
 };

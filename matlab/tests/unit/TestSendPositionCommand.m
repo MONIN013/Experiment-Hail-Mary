@@ -20,6 +20,7 @@ classdef TestSendPositionCommand < matlab.unittest.TestCase
       testCase.verifyThat(joined, matlab.unittest.constraints.ContainsSubstring("write_array:GVL_SEQ.distTable"));
       testCase.verifyThat(joined, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_SEQ.tableLen"));
       testCase.verifyThat(joined, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_MODE.modeFlags"));
+      testCase.verifyThat(joined, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_MODE.resetReq"));
       testCase.verifyEqual(string(out.host.mode_flags_symbol), "GVL_MODE.modeFlags");
       testCase.verifyFalse(out.host.servo_ready_check_supported);
       testCase.verifyEqual(double(out.host.control_ams_port), 851);
@@ -127,25 +128,36 @@ classdef TestSendPositionCommand < matlab.unittest.TestCase
       testCase.verifyEmpty(out.raw.logPositionAct);
     end
 
-    function fallsBackToGvlSeqModeFlagsWhenGvlModeMissing(testCase)
+    function errorsWhenGvlModeModeFlagsMissing(testCase)
       plc = MockAdsTransport();
       seed_plc_state(plc);
       remove(plc.scalarMap, "GVL_MODE.modeFlags");
-      plc.set_scalar_read_sequence("GVL_SEQ.experimentActive", [false; false; true; true; false]);
 
-      out = experiment.send_position_command( ...
+      testCase.verifyError(@() experiment.send_position_command( ...
         "ams_net_id", "192.168.10.3.1.1", ...
         "ref_profile", [0.1; 0.2], ...
         "plc_transport", plc, ...
         "validate_symbols", false, ...
         "read_logs", false, ...
         "done_timeout_s", 0.05, ...
-        "reset_timeout_s", 0.05);
+        "reset_timeout_s", 0.05), ...
+        "experiment:position_command:invalidConfig");
+    end
 
-      joined = strjoin(plc.operations, "|");
-      testCase.verifyEqual(string(out.host.mode_flags_symbol), "GVL_SEQ.modeFlags");
-      testCase.verifyThat(joined, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_SEQ.modeFlags"));
-      testCase.verifyTrue(out.host.done);
+    function errorsWhenResetAckTimesOut(testCase)
+      plc = MockAdsTransport();
+      seed_plc_state(plc);
+      plc.autoResetAck = false;
+
+      testCase.verifyError(@() experiment.send_position_command( ...
+        "ams_net_id", "192.168.10.3.1.1", ...
+        "ref_profile", [0.1; 0.2], ...
+        "plc_transport", plc, ...
+        "validate_symbols", false, ...
+        "read_logs", false, ...
+        "done_timeout_s", 0.05, ...
+        "reset_timeout_s", 0.01), ...
+        "experiment:position_command:resetAckTimeout");
     end
 
     function noServoReadyTimeoutWhenExperimentStateUnavailable(testCase)
@@ -180,8 +192,9 @@ classdef TestSendPositionCommand < matlab.unittest.TestCase
       ctrl = MockAdsTransport();
       seed_plc_state(plc);
       seed_control_state(ctrl);
+      ctrl.set_scalar_read_sequence("GVL_MODE.experimentState", uint32([0; 1; 2; 3]));
 
-      testCase.verifyError(@() experiment.send_position_command( ...
+      out = experiment.send_position_command( ...
         "ams_net_id", "192.168.10.3.1.1", ...
         "ams_port", 853, ...
         "control_ams_port", 852, ...
@@ -191,18 +204,22 @@ classdef TestSendPositionCommand < matlab.unittest.TestCase
         "validate_symbols", false, ...
         "read_logs", false, ...
         "done_timeout_s", 0.05, ...
-        "reset_timeout_s", 0.05), ...
-        "experiment:position_command:invalidConfig");
+        "reset_timeout_s", 0.05);
+
+      ctrl_ops = strjoin(ctrl.operations, "|");
+      testCase.verifyThat(ctrl_ops, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_MODE.modeFlags"));
+      testCase.verifyEqual(string(out.host.mode_flags_symbol), "GVL_MODE.modeFlags");
+      testCase.verifyEqual(double(out.host.control_ams_port), 852);
+      testCase.verifyTrue(out.host.done);
     end
 
-    function splitPortsExplicitModeFlagsUsesDataTransport(testCase)
+    function splitPortsRejectsLegacyModeFlagsSymbol(testCase)
       plc = MockAdsTransport();
       ctrl = MockAdsTransport();
       seed_plc_state(plc);
       seed_control_state(ctrl);
-      ctrl.set_scalar_read_sequence("GVL_MODE.experimentState", uint32([0; 1; 2; 3]));
 
-      out = experiment.send_position_command( ...
+      testCase.verifyError(@() experiment.send_position_command( ...
         "ams_net_id", "192.168.10.3.1.1", ...
         "ams_port", 853, ...
         "control_ams_port", 852, ...
@@ -214,16 +231,8 @@ classdef TestSendPositionCommand < matlab.unittest.TestCase
         "validate_symbols", false, ...
         "read_logs", false, ...
         "done_timeout_s", 0.05, ...
-        "reset_timeout_s", 0.05);
-
-      plc_ops = strjoin(plc.operations, "|");
-      ctrl_ops = strjoin(ctrl.operations, "|");
-      testCase.verifyThat(plc_ops, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_SEQ.modeFlags"));
-      testCase.verifyThat(ctrl_ops, matlab.unittest.constraints.ContainsSubstring("read_scalar:GVL_MODE.experimentState"));
-      testCase.verifyEqual(string(out.host.mode_flags_symbol), "GVL_SEQ.modeFlags");
-      testCase.verifyTrue(out.host.servo_ready_check_supported);
-      testCase.verifyEqual(double(out.host.control_ams_port), 852);
-      testCase.verifyTrue(out.host.done);
+        "reset_timeout_s", 0.05), ...
+        "experiment:position_command:invalidConfig");
     end
 
     function defaultsControlPortTo852WhenDataPortIs853(testCase)
@@ -268,15 +277,16 @@ end
 function seed_plc_state(t)
 t.scalarMap("GVL_SEQ.resetReq") = false;
 t.scalarMap("GVL_SEQ.experimentActive") = false;
-t.scalarMap("GVL_SEQ.modeFlags") = uint32(0);
 t.scalarMap("GVL_MODE.modeFlags") = uint32(0);
+t.scalarMap("GVL_MODE.resetReq") = false;
+t.scalarMap("GVL_MODE.resetAckCounter") = uint32(0);
 t.scalarMap("GVL_SEQ.tableLen") = uint32(0);
 t.scalarMap("GVL_SEQ.idx") = uint32(0);
 t.scalarMap("GVL_SEQ.refValue") = 0.0;
 t.scalarMap("GVL_SEQ.ffValue") = 0.0;
 t.scalarMap("GVL_SEQ.distValue") = 0.0;
 t.scalarMap("GVL_SEQ_LOG.controlInputTap") = 0.0;
-t.scalarMap("GVL_SEQ_LOG.positionActTap") = 0.0;
+t.scalarMap("GVL_SEQ_LOG.positionRelTap") = 0.0;
 t.scalarMap("GVL_SEQ_LOG.wrIdx") = uint32(0);
 t.scalarMap("GVL_SEQ_LOG.rdIdx") = uint32(0);
 t.scalarMap("GVL_SEQ_LOG.overflow") = false;
@@ -287,6 +297,8 @@ end
 function seed_control_state(t)
 t.scalarMap("GVL_MODE.modeFlags") = uint32(0);
 t.scalarMap("GVL_MODE.experimentState") = uint32(0);
+t.scalarMap("GVL_MODE.resetReq") = false;
+t.scalarMap("GVL_MODE.resetAckCounter") = uint32(0);
 end
 
 function seed_log_arrays(t)
@@ -300,3 +312,5 @@ t.arrayMap("GVL_SEQ_LOG.logPositionAct") = [0.0; 0.01; 0.02];
 t.arrayMap("GVL_SEQ_LOG.logT") = uint64([1000; 2000; 3000]);
 t.arrayMap("GVL_SEQ_LOG.logIdx") = uint32([0; 1; 2]);
 end
+
+

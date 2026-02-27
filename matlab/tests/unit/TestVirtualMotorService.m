@@ -31,6 +31,7 @@ classdef TestVirtualMotorService < matlab.unittest.TestCase
       testCase.verifyFalse(contains(plc_joined, "write_scalar:GVL_SEQ.resetReq"));
       testCase.verifyFalse(contains(plc_joined, "write_scalar:GVL_SEQ.idx"));
       testCase.verifyThat(ctrl_joined, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_MODE.modeFlags"));
+      testCase.verifyThat(ctrl_joined, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_MODE.resetReq"));
     end
 
     function streamingModeDrainsLogsDuringRun(testCase)
@@ -153,7 +154,7 @@ t.scalarMap("GVL_SEQ.refValue") = 0.0;
 t.scalarMap("GVL_SEQ.ffValue") = 0.0;
 t.scalarMap("GVL_SEQ.distValue") = 0.0;
 t.scalarMap("GVL_SEQ_LOG.controlInputTap") = 0.0;
-t.scalarMap("GVL_SEQ_LOG.positionActTap") = 0.0;
+t.scalarMap("GVL_SEQ_LOG.positionRelTap") = 0.0;
 t.scalarMap("GVL_SEQ_LOG.wrIdx") = uint32(0);
 t.scalarMap("GVL_SEQ_LOG.rdIdx") = uint32(0);
 t.scalarMap("GVL_SEQ_LOG.overflow") = false;
@@ -165,6 +166,8 @@ function seedControlScalars(t)
 t.scalarMap("GVL_MODE.modeFlags") = uint32(0);
 t.scalarMap("GVL_MODE.experimentActive") = false;
 t.scalarMap("GVL_MODE.experimentState") = uint32(0);
+t.scalarMap("GVL_MODE.resetReq") = false;
+t.scalarMap("GVL_MODE.resetAckCounter") = uint32(0);
 end
 
 function seedPlcLogArrays(t)
@@ -204,4 +207,6 @@ t.scalarMap(strcat(base, 'EnableParams.enableLead')) = false;
 t.scalarMap(strcat(base, 'EnableParams.enableNotch')) = false;
 t.scalarMap(strcat(base, 'EnableParams.enableReso')) = false;
 end
+
+
 

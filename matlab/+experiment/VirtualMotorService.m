@@ -85,7 +85,12 @@ classdef VirtualMotorService < handle
 
       obj.write_mode_flags(ctrl, uint32(0));
       obj.plc_transport.write_scalar(plc_symbols.tableLen, uint32(0), t.u32);
-      obj.pulse_reset_via_modeflags(ctrl, 0.02);
+      [reset_acked, reset_diag] = obj.request_reset_and_wait_ack(ctrl, cfg.reset_timeout_s);
+      if ~reset_acked
+        error("experiment:service:resetAckTimeout", ...
+          "Timed out waiting reset acknowledgement (resetAckCounter before=%g after=%g).", ...
+          reset_diag.counter_before, reset_diag.counter_after);
+      end
 
       idle_ready = obj.wait_for_reset_idle(plc_symbols, ctrl, cfg.reset_timeout_s);
       if ~idle_ready
@@ -241,8 +246,9 @@ classdef VirtualMotorService < handle
       experiment.ModeManagerControl.write_mode_flags(obj.control_transport, ctrl, value);
     end
 
-    function pulse_reset_via_modeflags(obj, ctrl, pulse_seconds)
-      experiment.ModeManagerControl.pulse_reset(obj.control_transport, ctrl, pulse_seconds);
+    function [acked, diag] = request_reset_and_wait_ack(obj, ctrl, timeout_s)
+      [acked, diag] = experiment.ModeManagerControl.request_reset_and_wait_ack( ...
+        obj.control_transport, ctrl, timeout_s);
     end
 
     function done = wait_until_done(obj, symbols, ctrl, timeout_s)

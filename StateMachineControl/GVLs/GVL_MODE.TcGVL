@@ -5,7 +5,7 @@
 VAR_GLOBAL CONSTANT
     MODEF_SERVO_ENABLE : UINT := 16#0001;          (* bit0 *)
     MODEF_EXPERIMENT_START_REQ : UINT := 16#0002;  (* bit1 *)
-    MODEF_RESET_REQ : UINT := 16#0004;             (* bit2 one-shot integrated reset request *)
+    MODEF_RESET_REQ : UINT := 16#0004;             (* bit2 deprecated: reset is handled by resetReq/resetAckCounter *)
     MODEF_RESET_SEQ_REQ : UINT := MODEF_RESET_REQ; (* deprecated alias for compatibility *)
 
     STATE_IDLE : UINT := 0;
@@ -17,6 +17,8 @@ END_VAR
 VAR_GLOBAL
     {attribute 'linkalways'}
     modeFlags AT %I* : UINT := 0;
+    resetReq : BOOL := FALSE;
+    resetAckCounter : UDINT := 0;
     experimentActive : BOOL := FALSE;
     experimentState : UINT := STATE_IDLE;
 END_VAR]]></Declaration>

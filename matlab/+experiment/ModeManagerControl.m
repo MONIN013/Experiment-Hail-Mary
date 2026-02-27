@@ -9,6 +9,8 @@ classdef ModeManagerControl
         "modeFlagsSymbol", "", ...
         "experimentStateSymbol", "", ...
         "experimentActiveSymbol", "GVL_MODE.experimentActive", ...
+        "resetReqSymbol", string(plc_symbols.modeResetReq), ...
+        "resetAckCounterSymbol", string(plc_symbols.modeResetAckCounter), ...
         "MODEF_SERVO_ENABLE", uint32(hex2dec("0001")), ...
         "MODEF_EXPERIMENT_START_REQ", uint32(hex2dec("0002")), ...
         "MODEF_RESET_REQ", uint32(hex2dec("0004")), ...
@@ -35,6 +37,14 @@ classdef ModeManagerControl
       if strlength(string(ctrl.modeFlagsSymbol)) == 0
         error(error_id, "No writable modeFlags ADS symbol found. Tried: %s", strjoin(mode_candidates, ", "));
       end
+      try
+        control_transport.read_scalar(ctrl.resetAckCounterSymbol, t.u32);
+        reset_req_current = logical(control_transport.read_scalar(ctrl.resetReqSymbol, t.bool));
+        control_transport.write_scalar(ctrl.resetReqSymbol, reset_req_current, t.bool);
+      catch
+        error(error_id, "No reset handshake ADS symbols found. Required: %s, %s", ...
+          char(string(ctrl.resetReqSymbol)), char(string(ctrl.resetAckCounterSymbol)));
+      end
 
       state_candidates = strings(0, 1);
       if isprop(plc_symbols, "experimentStateCandidates") && ~isempty(plc_symbols.experimentStateCandidates)
@@ -57,14 +67,31 @@ classdef ModeManagerControl
     function write_mode_flags(control_transport, ctrl, value)
       t = twincat_ads.AdsTransport.net_types();
       mode_t = experiment.ModeManagerControl.modeflags_type(t);
+      if bitand(uint32(value), uint32(ctrl.MODEF_RESET_REQ)) ~= 0
+        error("experiment:modecontrol:invalidConfig", ...
+          "MODEF_RESET_REQ in modeFlags is no longer supported. Use resetReq/resetAckCounter handshake.");
+      end
       control_transport.write_scalar( ...
         ctrl.modeFlagsSymbol, experiment.ModeManagerControl.cast_modeflags_value(mode_t, value), mode_t);
     end
 
-    function pulse_reset(control_transport, ctrl, pulse_seconds)
-      experiment.ModeManagerControl.write_mode_flags(control_transport, ctrl, ctrl.MODEF_RESET_REQ);
-      pause(pulse_seconds);
-      experiment.ModeManagerControl.write_mode_flags(control_transport, ctrl, uint32(0));
+    function [acked, diag] = request_reset_and_wait_ack(control_transport, ctrl, timeout_s)
+      t = twincat_ads.AdsTransport.net_types();
+      t0 = tic;
+      acked = false;
+      diag = struct("counter_before", NaN, "counter_after", NaN);
+      counter_before = uint32(control_transport.read_scalar(ctrl.resetAckCounterSymbol, t.u32));
+      control_transport.write_scalar(ctrl.resetReqSymbol, true, t.bool);
+      diag.counter_before = double(counter_before);
+      while toc(t0) < timeout_s
+        counter_after = uint32(control_transport.read_scalar(ctrl.resetAckCounterSymbol, t.u32));
+        diag.counter_after = double(counter_after);
+        if counter_after ~= counter_before
+          acked = true;
+          return;
+        end
+        pause(0.01);
+      end
     end
 
     function [ready, diag] = wait_for_reset_idle(plc_transport, control_transport, plc_symbols, ctrl, timeout_s)

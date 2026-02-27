@@ -144,12 +144,12 @@ Phase 4 (125 µs = 8 kHz):
 
 | パラメータ名 | データ型 | デフォルト | 説明 |
 |---|---|---|---|
-| `EnableParams.enablePid` | `boolean` | `false` | PID ブロックの有効/バイパス |
+| `EnableParams.enablePid` | `boolean` | `true` | PID ブロックの有効/バイパス |
 | `EnableParams.enableLead` | `boolean` | `false` | Lead Compensator の有効/バイパス |
 | `EnableParams.enableNotch` | `boolean` | `false` | Notch Filter の有効/バイパス |
 | `EnableParams.enableReso` | `boolean` | `false` | 位相最適共振フィルタの有効/バイパス |
 
-> **注記:** `enablePid` のデフォルトは実装上 `false`（memset ゼロ初期化）。MATLAB 側で実験開始前に明示的に `true` を設定すること。
+> **注記:** `enablePid` のデフォルトは実装上 `true`。MATLAB 側で明示設定しても後方互換で問題ない。
 
 > **bypass 動作:** `enable = false` のとき、そのブロックの出力は入力をそのまま通過 (ゲイン 1)。  
 > FB チェーン: `error → [PID] → [Lead] → [Notch] → [Reso] → u_fb → (+ff_value) → control_input`  
@@ -480,7 +480,7 @@ GVL_SEQ.tableLen           → UDINT
 
 ```
 ExperimentLogger_Obj1 (Module1).LogControl.filePath          → STRING(255)
-ExperimentLogger_Obj1 (Module1).LogControl.logging           → BOOL
+ExperimentLogger_Obj1 (Module1).LogControl.logging           → BOOL (互換手動制御 / 非推奨)
 ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.recordsWritten → UDINT
 ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.fileSizeKb    → UDINT
 ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.errorCode     → UDINT

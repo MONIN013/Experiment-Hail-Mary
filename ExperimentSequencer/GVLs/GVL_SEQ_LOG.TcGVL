@@ -17,7 +17,7 @@ VAR_GLOBAL
     controlInputTap AT %I* : LREAL := 0.0;
 
     {attribute 'linkalways'}
-    positionActTap AT %I* : LREAL := 0.0;
+    positionRelTap AT %I* : LREAL := 0.0;
 
     logSeq : ARRAY[0..LOG_N - 1] OF UDINT;
     logRefValue : ARRAY[0..LOG_N - 1] OF LREAL;
@@ -31,3 +31,4 @@ VAR_GLOBAL
 END_VAR]]></Declaration>
   </GVL>
 </TcPlcObject>
+
