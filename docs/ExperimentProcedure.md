@@ -16,7 +16,7 @@
 | **StateMachineControl** (ModeManager) | PLC ST | PlcTask1 (10 ms) | CiA 402 状態遷移 + フラグ管理 + 実験開始/停止制御 |
 | **ExperimentSequencer** | PLC ST | VirtualMotorTask (1 ms) | テーブルリプレイ + リングバッファログ記録 |
 | **ControllerCore** | C++ TcCOM | VirtualMotorTask (1 ms) | 誤差計算 + FB Chain + FF 付加 |
-| **DriverAdapter** | PLC ST | VirtualMotorTask (1 ms) | 外乱加算 + CW/SW 中継 + トルクゲート |
+| **DriverAdapter** | PLC ST | VirtualMotorTask (1 ms) | Raw/工学単位変換 + 相対位置化 + 外乱加算 + CW/SW 中継 + トルクゲート |
 | **VirtualMotorCore** | C++ TcCOM | VirtualMotorTask (1 ms) | 仮想モーター物理シミュレーション (CiA 402 内蔵) |
 | **ExperimentLogger** | C++ TcCOM | VirtualMotorTask (1 ms) | バイナリファイルロギング (8kHz × 100s 対応、非同期 I/O) |
 
@@ -65,7 +65,7 @@
 ```
  ①  リセット要求      resetReq := TRUE
                        → ModeManager が受理して resetOut パルスを生成
-                       → ExperimentSequencer / ControllerCore / ExperimentLogger の内部状態がクリア
+                       → ExperimentSequencer / ControllerCore / ExperimentLogger / DriverAdapter の内部状態がクリア
                        → ModeManager が resetReq を FALSE に戻し、resetAckCounter を +1
 
  ②  テーブル書込      GVL_SEQ.refTable[], ffTable[], distTable[], tableLen を ADS 書込 (Port 853)
@@ -100,6 +100,7 @@ resetOut       := resetEdge                        ← ワンショットパル�
                                                       → ExperimentSequencer.resetReq にリンク
                                                       → ControllerCore.Inputs.resetReq にリンク
                                                       → ExperimentLogger.Inputs.resetReq にリンク
+                                                      → DriverAdapter.resetReq にリンク (D12)
 IF resetEdge THEN
     GVL_MODE.experimentActive := FALSE;
     GVL_MODE.resetReq := FALSE;
@@ -115,10 +116,10 @@ END_IF
 |---|---|---|---|---|
 | **StateMachineControl** | `GVL_MODE.resetReq` | エッジ | `doneLatched` / `experimentActive` クリア, `resetAckCounter` +1, `resetOut` パルス生成 | heartbeat timeout 時に `modeFlags := 0` を自動実行 |
 | **ExperimentSequencer** | `GVL_SEQ.resetReq` (`AT %I*`) | **レベル** | `idx`/`refValue`/`ffValue`/`distValue`/`playbackDone` クリア, `GVL_SEQ_LOG` リセット | エッジ検出不統一 (M14) |
-| **ControllerCore** | `Inputs.resetReq` | エッジ | biquad 内部状態クリア, `positionOffset := positionAct` | — |
+| **ControllerCore** | `Inputs.resetReq` | エッジ | biquad 内部状態クリア | 相対位置化は DriverAdapter に移管済み (D12) |
 | **ExperimentLogger** | `Inputs.resetReq` | エッジ | ファイルクローズ, `bufferCount`/`seq`/`recordsWritten` 等クリア | — |
-| **VirtualMotorCore** | **なし** | — | — | 設計決定: 実機同等。`position`/`velocity` は実験間で carry-over する。ControllerCore の `positionOffset` で相対位置は補正される |
-| **DriverAdapter** | **なし** | — | — | 組み合わせ回路のため影響なし。Phase 4 拡張時に要検討 (M15) |
+| **VirtualMotorCore** | **なし** | — | — | 設計決定: 実機同等。`position`/`velocity` は実験間で carry-over する。DriverAdapter の `positionOffsetRad` で相対位置は補正される |
+| **DriverAdapter** | `GVL_DRV.resetReq` (`AT %I*`) | エッジ | `positionOffsetRad := positionRad` (現在位置キャプチャ) | 相対位置化を担当 (D12、M15 解消) |
 
 > **注意:** `send_position_command` / `VirtualMotorService` は `wait_for_reset_idle` タイムアウト時に warning 続行せず **error で停止** する。
 > `hostHeartbeatCounter` の更新が 500 ms 以上停止すると ModeManager watchdog が `modeFlags := 0` を実行する。
@@ -155,8 +156,8 @@ statusWord → F_DecodeDriveState → driveState に応じて controlWord を生
 #### トルクゲート
 
 ```
-enableTorqueOut := enableEffective AND driveReady
-  → DriverAdapter: enableTorqueOutput = FALSE 時に target_torque := 0.0
+enableCurrentOut := enableEffective AND driveReady
+  → DriverAdapter: enableCurrentOutput = FALSE 時に target_torque := 0.0
 ```
 
 ---
@@ -171,6 +172,8 @@ enableTorqueOut := enableEffective AND driveReady
 │  ① resetReq = TRUE                ModeManager: resetEdge → resetOut   │
 │    (RESET REQUEST)                ExperimentSequencer: idx=0, ログクリア│
 │                                   ControllerCore: biquad 状態クリア    │
+│                                   DriverAdapter: positionOffsetRad     │
+│                                     := positionRad (相対位置リセット) │
 │                                                                       │
 │  ② refTable[], ffTable[],         GVL_SEQ にテーブルデータ格納        │
 │     distTable[], tableLen                                             │
@@ -190,8 +193,10 @@ enableTorqueOut := enableEffective AND driveReady
 │     毎スキャン (1 ms):                                                 │
 │       ExperimentSequencer → ref/ff/dist → ControllerCore              │
 │       ControllerCore → controlInput → DriverAdapter                   │
-│       DriverAdapter → targetTorque → VirtualMotorCore                 │
-│       VirtualMotorCore → positionOut → ControllerCore (FB)            │
+│       DriverAdapter → targetTorque (‰ rated, INT) → VirtualMotorCore │
+│       VirtualMotorCore → positionActualValue (pulses) → DriverAdapter │
+│       DriverAdapter: raw→rad変換 + 相対位置化 → positionRel           │
+│       DriverAdapter.positionRel → ControllerCore (FB)                 │
 │                                                                       │
 │  ⑥ (自動)                        idx >= tableLen                      │
 │                                   → playbackDone = TRUE               │

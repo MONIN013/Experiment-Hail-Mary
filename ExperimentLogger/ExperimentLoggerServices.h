@@ -53,14 +53,14 @@ typedef struct _Module1LogControl
 #pragma pack(push,1)
 typedef struct _Module1Inputs
 {
-	double torqueCmd;
+	double currentCmd;
 	double refValue;
 	double ffValue;
 	double controlInput;
 	double error;
 	double motorPosition;
 	double motorVelocity;
-	double motorTorqueAct;
+	double motorCurrentAct;
 	double loadPosition;
 	double loadVelocity;
 	bool resetReq;

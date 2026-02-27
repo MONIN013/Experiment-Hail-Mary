@@ -10,14 +10,14 @@ ExperimentLogger is a binary file logger for experiment data. In current SIL ope
 ## Inputs
 | Name | Type | Source | Notes |
 |---|---|---|---|
-| `torqueCmd` | `LREAL` | DriverAdapter | command torque |
+| `currentCmd` | `LREAL` | DriverAdapter | command current |
 | `refValue` | `LREAL` | ExperimentSequencer | reference |
 | `ffValue` | `LREAL` | ExperimentSequencer | feedforward |
 | `controlInput` | `LREAL` | ControllerCore | controller output |
 | `error` | `LREAL` | ControllerCore | `ref - loadPosition` |
 | `motorPosition` | `LREAL` | (Phase 4) | SIL: unconnected (0) |
 | `motorVelocity` | `LREAL` | (Phase 4) | SIL: unconnected (0) |
-| `motorTorqueAct` | `LREAL` | (Phase 4) | SIL: unconnected (0) |
+| `motorCurrentAct` | `LREAL` | (Phase 4) | SIL: unconnected (0) |
 | `loadPosition` | `LREAL` | ControllerCore `positionRel` | zero-based per run |
 | `loadVelocity` | `LREAL` | VirtualMotor1 `velocityOut` | SIL load velocity |
 | `resetReq` | `BOOL` | ModeManager | reset edge |
@@ -47,4 +47,4 @@ Primary control path is `Inputs.loggingReq`. `LogControl.logging` is kept for ba
 ## Mapping (SIL)
 - `loadPosition <- ControllerCore.Outputs.positionRel`
 - `loadVelocity <- VirtualMotorCore.Outputs.VirtualMotor1Outputs.velocityOut`
-- `motorPosition/motorVelocity/motorTorqueAct` are unconnected in SIL (0-fill).
+- `motorPosition/motorVelocity/motorCurrentAct` are unconnected in SIL (0-fill).

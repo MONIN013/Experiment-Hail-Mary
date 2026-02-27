@@ -1,6 +1,6 @@
 # 未解決課題一覧 — ExperimentHailMary
 
-> **最終更新:** 2026-02-27 (H6 追加: playbackDone→loggingReq クロスタスク遅延)  
+> **最終更新:** 2026-02-27 (D11/D12/D13: DriverAdapter ドライバ差異吸収設計、H3/M15 解消、M16/M17 追加)  
 > **目的:** プロジェクト全体の未解決課題を一元管理する。  
 > **参照:** [ArchitectureSpec.md](ArchitectureSpec.md) / [ExperimentProcedure.md](ExperimentProcedure.md) / [TechnicalReference.md](TechnicalReference.md)
 
@@ -49,8 +49,7 @@ ExperimentSequencer の `GVL_SEQ.playbackDone` を同一 VirtualMotorTask 内で
    // 現行: loggingCmd のみ
    const bool loggingCmd = (m_Inputs.loggingReq != false) || (m_LogControl.logging != false);
    // 改修: playbackDone で即時抑止
-   const bool fastStop = (m_Inputs.playbackDone != false);
-   const bool loggingCmd = ((m_Inputs.loggingReq != false) || (m_LogControl.logging != false)) && !fastStop;
+   const bool loggingCmd = m_Inputs.loggingReq && !m_Inputs.playbackDone;
    ```
 4. `loggingReq`（ModeManager 経由）はファイルのオープン/クローズ制御に引き続き使用する。`playbackDone` はレコード書き込みの即時停止のみを担当する。これにより ModeManager の状態管理権限を維持しつつ、ログ終端の精度を 1 スキャン以内に保証する。
 
@@ -64,12 +63,12 @@ ExperimentSequencer の `GVL_SEQ.playbackDone` を同一 VirtualMotorTask 内で
 
 ---
 
-### H3. `motor_torque_act` は SIL で 0 埋め（設計決定済み）
+### ~~H3. `motor_current_act` は SIL で 0 埋め（設計決定済み）~~ → 解消 (D13)
 
-**現状:** Phase 1–3 (SIL) では実機トルク信号ソースがないため、ExperimentLogger の `motorTorqueAct` は 0 埋め運用（ArchitectureSpec に明記済み）。
-
-**残課題（改善検討）:**
-1. 0 埋めのまま運用継続（現状維持）
+**解消:** VirtualMotorCore に `torqueActualValue` (‰ rated, INT) 出力を追加 (D13)。
+DriverAdapter で A に変換後、ExperimentLogger の `motorCurrentAct` に接続。
+SIL でも飽和後の実電流が記録可能となる。
+→ 解消済みセクションに移動。
 
 ---
 
@@ -137,12 +136,28 @@ PLC 側 `GVL_MODE.modeFlags` は `UINT` (16bit) で定義されているため�
 **関連:** M13（MATLAB の直接クリアとの競合）  
 **提案:** `resetReqPrev : BOOL` を導入しエッジ検出に統一する。
 
-### M15. DriverAdapter にリセット入力がない（Phase 4 拡張リスク）
+### ~~M15. DriverAdapter にリセット入力がない（Phase 4 拡張リスク）~~ → 解消 (D12)
 
-**対象:** `DriverAdapter/POUs/PRG_DriverAdapter.TcPOU`, `DriverAdapter/GVLs/GVL_DRV.TcGVL`  
-**現状:** DriverAdapter は純粋な組み合わせ回路（`targetTorque := controlInput + distValue`、`controlWordOut := controlWordIn` 等）であり、内部状態を持たないため、リセット入力は定義されていない。  
-**Phase 4 リスク:** Phase 4 で EtherCAT PDO I/O が追加される際、DriverAdapter に状態変数（例: 前スキャンのフォルト状態、通信タイムアウトカウンタ）が追加される可能性がある。その時点で `resetReq` 入力がないと、リセット経路の追加が後回しになるリスクがある。  
-**提案:** Phase 4 設計時に `GVL_DRV.resetReq AT %I*` の追加を検討項目として記録する。現時点では対応不要。
+**解消:** D12 により相対位置化を DriverAdapter に移管。
+`GVL_DRV.resetReq AT %I*` を追加し、エッジ検出で `positionOffsetRad := positionRad` をキャプチャ。
+ControllerCore / ExperimentLogger と同一のエッジ検出方式で統一。
+→ 解消済みセクションに移動。
+
+### M16. VirtualMotor の `torqueConstant` パラメータと `ratedTorque` の関係整理
+
+**対象:** `VirtualMotorCore/VirtualMotorCoreServices.h`, `VirtualMotorCore/Module1.cpp`  
+**現状:** 旧方式では入力が `currentIn` [A] であったため `torqueConstant` [N·m/A] が必要だった。D11 で入力が `targetTorque` [‰ rated] に変更されるため、入力→内部 Nm 変換は `ratedTorque` で行う。`torqueConstant` の役割を再検討する必要がある。  
+**提案:**  
+- (A) `torqueConstant` を廃止し、`ratedTorque` に一本化。電流指令モードは将来対応時に再追加  
+- (B) `torqueConstant` を保持し、内部シミュレーションの物理定数として使用。`targetTorque` 入力の変換には使わない  
+**関連:** D11, [module-specs/VirtualMotorCore.md](module-specs/VirtualMotorCore.md) §2.3
+
+### M17. ExperimentLogger の `loadPosition` マッピング元変更の検証
+
+**対象:** `ExperimentHailMary.tsproj` Mapping, `ExperimentLogger/ExperimentLoggerServices.h`  
+**現状:** D12 により `loadPosition` のマッピング元が `ControllerCore.Outputs.positionRel` から `DriverAdapter.positionRel` に変更される。tsproj の Mapping 整合性を確認する必要がある。  
+**提案:** 実装時に tsproj Mapping を更新し、ADS Discovery で接続を確認する。  
+**関連:** D12, M4 (解消済み)
 
 ---
 
@@ -192,7 +207,7 @@ PLC 側 `GVL_MODE.modeFlags` は `UINT` (16bit) で定義されているため�
 | リセット時 `tableLen := 0` 問題 | 2026-02-25 | リセット処理から `tableLen := 0` を除去 |
 | ControllerCore `resetReq` 入力なし | 2026-02-25 | `ControllerCoreServices.h` に追加 + エッジ検出実装 |
 | ExperimentLogger `resetReq` 入力なし | 2026-02-25 | `ExperimentLoggerServices.h` に追加 + エッジ検出実装 |
-| `GVL_DRV.enableTorqueOutput` AT リンク不足 | 2026-02-25 | `AT %I*` 追加済み |
+| `GVL_DRV.enableCurrentOutput` AT リンク不足 | 2026-02-25 | `AT %I*` 追加済み |
 | `kTimestampStepNs` 固定値問題 | 2026-02-26 | タスク周期自動取得に変更 |
 | `GVL_MODE.modeFlags` に `AT %I*` なし | 2026-02-26 | `AT %I*` 追加済み |
 | MAIN の `modeFlags` 自己クリア問題 | 2026-02-26 | ADS writer がクリアする方式に変更 |
@@ -203,5 +218,7 @@ PLC 側 `GVL_MODE.modeFlags` は `UINT` (16bit) で定義されているため�
 | ControllerCore の TMC Reload 未実施 (`C3`) | 2026-02-26 | `run_ads_discovery_demo.m` 再確認で Port 351 に `PID/Notch/Lead/Reso/EnableParams` が表示されることを確認 |
 | `PIDParams` に `CreateSymbol` 属性が未設定 (`H1`) | 2026-02-26 | `ControllerCore/ControllerCore.tmc` で `PIDParams` が `CreateSymbol="true"` になっていることを確認 |
 | VirtualMotorCore に `resetReq` 入力がない | 2026-02-27 | 設計決定: 実機モータードライバにもソフトウェアリセット（位置/速度ゼロ復帰）機能はないため、VirtualMotorCore は実機同等の仕様として `resetReq` を持たない。実験間の初期化は ControllerCore の `positionOffset := positionAct` による相対位置補正で対応する |
+| H3. `motor_current_act` は SIL で 0 埋め | 2026-02-27 | D13: VirtualMotorCore に `torqueActualValue` (‰ rated, INT) 出力を追加。DriverAdapter で A 変換後 ExperimentLogger の `motorCurrentAct` に接続。SIL でも飽和後の実電流が記録可能 |
+| M15. DriverAdapter にリセット入力がない | 2026-02-27 | D12: 相対位置化を ControllerCore → DriverAdapter に移管。`GVL_DRV.resetReq AT %I*` を追加し、エッジ検出で `positionOffsetRad := positionRad` をキャプチャ。ControllerCore / ExperimentLogger と同一のエッジ検出方式で統一 |
 
 </details>

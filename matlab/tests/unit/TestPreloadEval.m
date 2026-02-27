@@ -50,7 +50,7 @@ raw.logRefValue = ref;
 raw.logFfValue = ff;
 raw.logDistValue = dist;
 raw.logControlInput = u;
-raw.logTargetTorque = tau;
+raw.logTargetCurrent = tau;
 raw.logPositionAct = [0.0; 0.1; 0.2];
 raw.logT = zeros(3, 1);
 

@@ -11,7 +11,7 @@ function log_data = read_experiment_logs(transport)
 %     .logFfValue       — double FF値
 %     .logDistValue     — double 外乱値
 %     .logControlInput  — double 制御出力
-%     .logTargetTorque  — double 合計トルク
+%     .logTargetCurrent — double 合計電流
 %     .logPositionAct   — double 実位置
 %     .logT             — uint64 タイムスタンプ [ns]
 %     .logIdx           — uint32 テーブルインデックス
@@ -40,7 +40,7 @@ function log_data = read_experiment_logs(transport)
       log_data.logFfValue      = double(transport.read_array(symbols.log.logFfValue, t.double, valid_n));
       log_data.logDistValue    = double(transport.read_array(symbols.log.logDistValue, t.double, valid_n));
       log_data.logControlInput = double(transport.read_array(symbols.log.logControlInput, t.double, valid_n));
-      log_data.logTargetTorque = double(transport.read_array(symbols.log.logTargetTorque, t.double, valid_n));
+      log_data.logTargetCurrent = double(transport.read_array(symbols.log.logTargetCurrent, t.double, valid_n));
       log_data.logPositionAct  = double(transport.read_array(symbols.log.logPositionAct, t.double, valid_n));
       try
         log_data.logT = double(transport.read_array(symbols.log.logT, t.u64, valid_n));
@@ -71,7 +71,7 @@ function out = empty_log()
     "logFfValue",      zeros(0, 1), ...
     "logDistValue",    zeros(0, 1), ...
     "logControlInput", zeros(0, 1), ...
-    "logTargetTorque", zeros(0, 1), ...
+    "logTargetCurrent", zeros(0, 1), ...
     "logPositionAct",  zeros(0, 1), ...
     "logT",            zeros(0, 1), ...
     "logIdx",          zeros(0, 1), ...

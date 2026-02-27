@@ -132,14 +132,14 @@ if ~isempty(out.raw.logRefValue) && ~isempty(out.raw.logPositionAct)
 
   nexttile;
   plot(t, out.raw.logControlInput, "m-", "LineWidth", 1.1); hold on;
-  if ~isempty(out.raw.logTargetTorque)
-    plot(t, out.raw.logTargetTorque, "r--", "LineWidth", 0.9);
-    legend("controlInput", "targetTorque", "Location", "best");
+  if ~isempty(out.raw.logTargetCurrent)
+    plot(t, out.raw.logTargetCurrent, "r--", "LineWidth", 0.9);
+    legend("controlInput", "targetCurrent", "Location", "best");
   else
     legend("controlInput", "Location", "best");
   end
   hold off;
-  grid on; xlabel("Time [s]"); ylabel("Current / Torque");
+  grid on; xlabel("Time [s]"); ylabel("Current [A]");
   title("Controller Output");
 end
 
@@ -157,7 +157,7 @@ end
 function print_count_eval(ev)
 fprintf("Counts: input=%d, seq=%d, ref=%d, ff=%d, dist=%d, u=%d, tau=%d, pos=%d\n", ...
   ev.input_count, ev.log_seq_count, ev.log_ref_count, ev.log_ff_count, ev.log_dist_count, ...
-  ev.log_control_input_count, ev.log_target_torque_count, ev.log_position_count);
+  ev.log_control_input_count, ev.log_target_current_count, ev.log_position_count);
 fprintf("Check: components=%s, input-ref=%s, input-pos=%s, overall=%s\n", ...
   passfail(ev.log_component_counts_match), ...
   passfail(ev.input_count_matches_log_ref), ...

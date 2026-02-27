@@ -8,7 +8,7 @@ VAR
     seqPlaybackDone AT%I* : BOOL; // Sequencer playback done (latched)
     experimentActiveOut AT%Q* : BOOL; // ModeManager experiment active output
     resetOut AT%Q* : BOOL; // One-shot reset pulse output
-    enableTorqueOut AT%Q* : BOOL; // Torque enable gate output
+    enableCurrentOut AT%Q* : BOOL; // Current enable gate output
 
     enable : BOOL := TRUE;
 
@@ -201,31 +201,31 @@ CASE modeState OF
     E_ModeState.IDLE:
         experimentActiveOut := FALSE;
         resetOut := FALSE;
-        enableTorqueOut := FALSE;
+        enableCurrentOut := FALSE;
         GVL_MODE.experimentState := GVL_MODE.STATE_IDLE;
 
     E_ModeState.RESETTING:
         experimentActiveOut := FALSE;
         resetOut := TRUE;
-        enableTorqueOut := FALSE;
+        enableCurrentOut := FALSE;
         GVL_MODE.experimentState := GVL_MODE.STATE_IDLE;
 
     E_ModeState.SERVO_READY:
         experimentActiveOut := FALSE;
         resetOut := FALSE;
-        enableTorqueOut := TRUE;
+        enableCurrentOut := TRUE;
         GVL_MODE.experimentState := GVL_MODE.STATE_READY;
 
     E_ModeState.RUNNING:
         experimentActiveOut := TRUE;
         resetOut := FALSE;
-        enableTorqueOut := TRUE;
+        enableCurrentOut := TRUE;
         GVL_MODE.experimentState := GVL_MODE.STATE_RUNNING;
 
     E_ModeState.DONE:
         experimentActiveOut := FALSE;
         resetOut := FALSE;
-        enableTorqueOut := FALSE;
+        enableCurrentOut := FALSE;
         GVL_MODE.experimentState := GVL_MODE.STATE_DONE;
 END_CASE
 

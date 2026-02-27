@@ -8,7 +8,7 @@ log_ref = col(raw, "logRefValue");
 log_ff = col(raw, "logFfValue");
 log_dist = col(raw, "logDistValue");
 log_u = col(raw, "logControlInput");
-logTau = col(raw, "logTargetTorque");
+logTau = col(raw, "logTargetCurrent");
 log_pos = col(raw, "logPositionAct");
 
 n_cmd = numel(ref_cmd);

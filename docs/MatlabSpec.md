@@ -122,7 +122,7 @@ ControllerCore の biquad フィルタパラメータ (4 段カスケード) を
 - **transport:** `twincat_ads.IAdsTransport` (Port = `SEQ_PORT`)
 - **戻り値:** struct with fields:
   - `logSeq`, `logRefValue`, `logFfValue`, `logDistValue`
-  - `logControlInput`, `logTargetTorque`, `logPositionAct`
+  - `logControlInput`, `logTargetCurrent`, `logPositionAct`
   - `logT` (uint64 → double), `logIdx`
   - `wrIdx`, `overflow`
 - 読出し失敗時は warning + 空 struct 返却

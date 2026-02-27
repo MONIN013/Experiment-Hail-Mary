@@ -169,7 +169,7 @@ function seedLogArrays(tr, n)
     tr.arrayMap("GVL_SEQ_LOG.logFfValue") = zeros(n, 1);
     tr.arrayMap("GVL_SEQ_LOG.logDistValue") = zeros(n, 1);
     tr.arrayMap("GVL_SEQ_LOG.logControlInput") = ones(n, 1);
-    tr.arrayMap("GVL_SEQ_LOG.logTargetTorque") = ones(n, 1);
+    tr.arrayMap("GVL_SEQ_LOG.logTargetCurrent") = ones(n, 1);
     tr.arrayMap("GVL_SEQ_LOG.logPositionAct") = (0:n-1)' * 0.01;
     tr.arrayMap("GVL_SEQ_LOG.logT") = uint64((1:n)' * 1000);
     tr.arrayMap("GVL_SEQ_LOG.logIdx") = uint32((0:n-1)');
@@ -179,7 +179,7 @@ function seedLogArrays(tr, n)
     tr.arrayMap("GVL_SEQ_LOG.logFfValue") = [];
     tr.arrayMap("GVL_SEQ_LOG.logDistValue") = [];
     tr.arrayMap("GVL_SEQ_LOG.logControlInput") = [];
-    tr.arrayMap("GVL_SEQ_LOG.logTargetTorque") = [];
+    tr.arrayMap("GVL_SEQ_LOG.logTargetCurrent") = [];
     tr.arrayMap("GVL_SEQ_LOG.logPositionAct") = [];
     tr.arrayMap("GVL_SEQ_LOG.logT") = uint64([]);
     tr.arrayMap("GVL_SEQ_LOG.logIdx") = uint32([]);

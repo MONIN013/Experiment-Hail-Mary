@@ -11,7 +11,7 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 
 ### 設計原則
 
-1. **状態依存出力**: 出力 (`experimentActive`, `resetOut`, `enableTorqueOut`, `experimentState`) は FSM 状態のみで決定する
+1. **状態依存出力**: 出力 (`experimentActive`, `resetOut`, `enableCurrentOut`, `experimentState`) は FSM 状態のみで決定する
 2. **入力 Latch→Clear**: MATLAB が ADS 経由で set した要求フラグ (`resetReq`) は、PLC が立ち上がりエッジを検出し状態遷移を完了した後に **PLC 側で 0 クリア** する
 3. **排他的状態遷移**: `RESETTING` 状態中は実験開始への遷移を一切許可しない
 4. **Watchdog 保護**: Heartbeat タイムアウト時は `IDLE` に強制遷移し全出力を安全側に倒す
@@ -104,7 +104,7 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 | `ctrlWord` | `UINT` | DriverAdapter (I/O Mapping) | CiA 402 ControlWord (FB_StateMachineControl 出力) |
 | `experimentActiveOut` | `BOOL` | ExperimentSequencer / ExperimentLogger (I/O Mapping) | 実験アクティブ |
 | `resetOut` | `BOOL` | ExperimentSequencer / ExperimentLogger (I/O Mapping) | リセットパルス |
-| `enableTorqueOut` | `BOOL` | DriverAdapter (I/O Mapping) | トルクイネーブルゲート |
+| `enableCurrentOut` | `BOOL` | DriverAdapter (I/O Mapping) | 電流イネーブルゲート |
 | `GVL_MODE.experimentActive` | `BOOL` | MATLAB (ADS Read) | 実験アクティブ (ADS 読出し用) |
 | `GVL_MODE.experimentState` | `UINT` | MATLAB (ADS Read) | FSM 状態 (IDLE=0, READY=1, RUNNING=2, DONE=3) |
 | `GVL_MODE.resetAckCounter` | `UDINT` | MATLAB (ADS Read) | リセット ACK カウンタ |
@@ -113,7 +113,7 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 
 ## State-Dependent Output Table
 
-| FSM State | `experimentActive` | `resetOut` | `enableTorqueOut` | `experimentState` |
+| FSM State | `experimentActive` | `resetOut` | `enableCurrentOut` | `experimentState` |
 |---|---|---|---|---|
 | `IDLE` | FALSE | FALSE | FALSE | `STATE_IDLE` (0) |
 | `RESETTING` | FALSE | TRUE (*pulse*) | FALSE | `STATE_IDLE` (0) |

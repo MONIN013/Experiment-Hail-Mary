@@ -520,10 +520,10 @@ bool CModule1::AppendCurrentInputsAsRecord()
 	rec.tNs = static_cast<ULONGLONG>(m_seq) * m_timestampStepNsRuntime;
 	rec.motorPosition = m_Inputs.motorPosition;
 	rec.motorVelocity = m_Inputs.motorVelocity;
-	rec.motorTorqueAct = m_Inputs.motorTorqueAct;
+	rec.motorCurrentAct = m_Inputs.motorCurrentAct;
 	rec.loadPosition = m_Inputs.loadPosition;
 	rec.loadVelocity = m_Inputs.loadVelocity;
-	rec.torqueCmd = m_Inputs.torqueCmd;
+	rec.currentCmd = m_Inputs.currentCmd;
 	rec.error = m_Inputs.error;
 	rec.refValue = m_Inputs.refValue;
 	rec.ffValue = m_Inputs.ffValue;

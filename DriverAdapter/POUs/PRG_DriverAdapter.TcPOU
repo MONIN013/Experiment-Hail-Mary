@@ -3,14 +3,14 @@
   <POU Name="PRG_DriverAdapter" Id="{2b6eb1d8-78de-49a3-a5f1-da880c0ef4fc}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM PRG_DriverAdapter
 VAR
-    targetTorqueLocal : LREAL := 0.0;
+    targetCurrentLocal : LREAL := 0.0;
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[targetTorqueLocal := GVL_DRV.controlInput + GVL_DRV.distValue;
+      <ST><![CDATA[targetCurrentLocal := GVL_DRV.controlInput + GVL_DRV.distValue;
 
-IF GVL_DRV.enableTorqueOutput THEN
-    GVL_DRV.targetTorque := targetTorqueLocal;
+IF GVL_DRV.enableCurrentOutput THEN
+    GVL_DRV.targetTorque := targetCurrentLocal;
 ELSE
     GVL_DRV.targetTorque := 0.0;
 END_IF

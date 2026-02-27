@@ -47,7 +47,7 @@ classdef TestVirtualMotorService < matlab.unittest.TestCase
       plc.arrayMap("GVL_SEQ_LOG.logFfValue") = [0.0; 0.0; 0.0];
       plc.arrayMap("GVL_SEQ_LOG.logDistValue") = [0.0; 0.0; 0.0];
       plc.arrayMap("GVL_SEQ_LOG.logControlInput") = [1.0; 1.1; 1.2];
-      plc.arrayMap("GVL_SEQ_LOG.logTargetTorque") = [1.0; 1.1; 1.2];
+      plc.arrayMap("GVL_SEQ_LOG.logTargetCurrent") = [1.0; 1.1; 1.2];
       plc.arrayMap("GVL_SEQ_LOG.logPositionAct") = [0.0; 0.01; 0.02];
       plc.arrayMap("GVL_SEQ_LOG.logT") = uint64([1000; 2000; 3000]);
       plc.arrayMap("GVL_SEQ_LOG.logIdx") = uint32([0; 1; 2]);
@@ -203,7 +203,7 @@ t.arrayMap("GVL_SEQ_LOG.logRefValue") = [];
 t.arrayMap("GVL_SEQ_LOG.logFfValue") = [];
 t.arrayMap("GVL_SEQ_LOG.logDistValue") = [];
 t.arrayMap("GVL_SEQ_LOG.logControlInput") = [];
-t.arrayMap("GVL_SEQ_LOG.logTargetTorque") = [];
+t.arrayMap("GVL_SEQ_LOG.logTargetCurrent") = [];
 t.arrayMap("GVL_SEQ_LOG.logPositionAct") = [];
 t.arrayMap("GVL_SEQ_LOG.logT") = uint64([]);
 t.arrayMap("GVL_SEQ_LOG.logIdx") = uint32([]);

@@ -25,7 +25,7 @@ VAR_GLOBAL
     controlWordIn AT %I* : UINT := 0;
 
     {attribute 'linkalways'}
-    enableTorqueOutput AT %I* : BOOL := TRUE;
+    enableCurrentOutput AT %I* : BOOL := TRUE;
 END_VAR]]></Declaration>
   </GVL>
 </TcPlcObject>

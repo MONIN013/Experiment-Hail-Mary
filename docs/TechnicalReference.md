@@ -171,7 +171,7 @@ s2 = b2 * x - a2 * y
 | `distValue` | `LREAL` | `AT %I*` | ExperimentSequencer→PLC | 外乱値 [Nm] |
 | `statusWord` | `UINT` | `AT %I*` | VirtualMotorCore→PLC | CiA 402 StatusWord |
 | `controlWordIn` | `UINT` | `AT %I*` | ModeManager→PLC | CiA 402 ControlWord |
-| `enableTorqueOutput` | `BOOL` | `AT %I*` | ModeManager→PLC | トルク出力ゲート |
+| `enableCurrentOutput` | `BOOL` | `AT %I*` | ModeManager→PLC | 電流出力ゲート |
 | `targetTorque` | `LREAL` | `AT %Q*` | PLC→VirtualMotorCore | 最終トルク出力 [Nm] |
 | `controlWordOut` | `UINT` | `AT %Q*` | PLC→VirtualMotorCore | CW 中継 |
 | `statusWordOut` | `UINT` | `AT %Q*` | PLC→ModeManager | SW 中継 |
@@ -179,10 +179,10 @@ s2 = b2 * x - a2 * y
 ### 3.2 PRG_DriverAdapter 処理 (毎スキャン 1 ms)
 
 ```
-targetTorqueLocal := controlInput + distValue        ← 外乱加算
+targetCurrentLocal := controlInput + distValue        ← 外乱加算
 
-IF enableTorqueOutput THEN
-    targetTorque := targetTorqueLocal                ← ゲートオープン
+IF enableCurrentOutput THEN
+    targetTorque := targetCurrentLocal                ← ゲートオープン
 ELSE
     targetTorque := 0.0                              ← ゲートクローズ (安全)
 END_IF
@@ -191,7 +191,7 @@ controlWordOut := controlWordIn                      ← CW スルー
 statusWordOut  := statusWord                         ← SW スルー
 ```
 
-> `enableTorqueOutput` は ModeManager が `enableEffective AND driveReady` 時のみ `TRUE` を出力する。  
+> `enableCurrentOutput` は ModeManager が `enableEffective AND driveReady` 時のみ `TRUE` を出力する。  
 > ドライブが `OPERATION_ENABLED` に到達するまでトルクは出力されない。
 
 ---
@@ -290,7 +290,7 @@ position_next := position + dt * velocity_next
 | `logFfValue` | `LREAL[]` | ExperimentSequencer 出力 ffValue |
 | `logDistValue` | `LREAL[]` | ExperimentSequencer 出力 distValue |
 | `logControlInput` | `LREAL[]` | ControllerCore 出力 (`controlInputTap`) |
-| `logTargetTorque` | `LREAL[]` | `controlInputTap + distValue` (DriverAdapter 相当の合計トルク) |
+| `logTargetCurrent` | `LREAL[]` | `controlInputTap + distValue` (DriverAdapter 相当の合計電流) |
 | `logPositionAct` | `LREAL[]` | ControllerCore 出力 (`positionRelTap`) ※互換名 |
 | `logT` | `ULINT[]` | タイムスタンプ [ns] |
 | `logIdx` | `UDINT[]` | テーブルインデックス |
@@ -310,7 +310,7 @@ logRefValue[wrPos]     := GVL_SEQ.refValue
 logFfValue[wrPos]      := GVL_SEQ.ffValue
 logDistValue[wrPos]    := GVL_SEQ.distValue
 logControlInput[wrPos] := controlInputTap       ← TcCOM からのタップ入力
-logTargetTorque[wrPos] := controlInputTap + GVL_SEQ.distValue
+logTargetCurrent[wrPos] := controlInputTap + GVL_SEQ.distValue
 logPositionAct[wrPos]  := positionRelTap         ← TcCOM からのタップ入力
 logT[wrPos]            := tNs
 logIdx[wrPos]          := idx - 1                ← 出力済みインデックス
@@ -368,19 +368,19 @@ GVL_SEQ_LOG のリングバッファ (§5) が ADS ポーリング前提の暫�
 
 | ポート | 型 | ソース | 説明 |
 |---|---|---|---|
-| `torqueCmd` | `LREAL` | DriverAdapter `targetTorque` | 指令トルク [Nm] → Motor 側 |
+| `currentCmd` | `LREAL` | DriverAdapter `targetTorque` | 指令電流 [A] → Motor 側 |
 | `refValue` | `LREAL` | ExperimentSequencer `refValue` | 位置指令 [rad] |
 | `ffValue` | `LREAL` | ExperimentSequencer `ffValue` | FF 信号 [Nm] |
 | `controlInput` | `LREAL` | ControllerCore `controlInput` | 制御出力 [Nm] |
 | `error` | `LREAL` | ControllerCore `error` | 位置誤差 [rad] |
 | `motorPosition` | `LREAL` | (Phase 4: EtherCAT) | Motor 側実位置 [rad] |
 | `motorVelocity` | `LREAL` | (Phase 4: EtherCAT) | Motor 側実速度 [rad/s] |
-| `motorTorqueAct` | `LREAL` | (Phase 4: EtherCAT) | Motor 実トルク [Nm] |
+| `motorCurrentAct` | `LREAL` | (Phase 4: EtherCAT) | Motor 実電流 [A] |
 | `loadPosition` | `LREAL` | ControllerCore `positionRel` | Load 側実位置 (相対位置) [rad] |
 | `loadVelocity` | `LREAL` | VirtualMotorCore `VirtualMotor1Outputs.velocityOut` | Load 側実速度 [rad/s] |
 | `resetReq` | `BOOL` | ModeManager `resetOut` | リセット要求 |
 
-> Phase 1–3 (SIL) では `motorPosition`, `motorVelocity`, `motorTorqueAct` は 0 (未接続)。  
+> Phase 1–3 (SIL) では `motorPosition`, `motorVelocity`, `motorCurrentAct` は 0 (未接続)。  
 > `loadPosition` は ControllerCore.positionRel、`loadVelocity` は VirtualMotorCore Axis1 速度出力を使用する。
 
 #### 出力 (OutputSrc)
@@ -410,10 +410,10 @@ Offset   Size  型          フィールド
   8       8    ULONGLONG   tNs              タイムスタンプ [ns] = seq × cycleTime
  16       8    double      motorPosition    Motor 側実位置 [rad]
  24       8    double      motorVelocity    Motor 側実速度 [rad/s]
- 32       8    double      motorTorqueAct   Motor 実トルク [Nm]
+ 32       8    double      motorCurrentAct  Motor 実電流 [A]
  40       8    double      loadPosition     Load 側実位置 [rad]
  48       8    double      loadVelocity     Load 側実速度 [rad/s]
- 56       8    double      torqueCmd        指令トルク [Nm]
+ 56       8    double      currentCmd       指令電流 [A]
  64       8    double      error            位置誤差 [rad]
  72       8    double      refValue         位置指令 [rad]
  80       8    double      ffValue          FF 信号 [Nm]
@@ -522,7 +522,7 @@ Offset   Size  型          フィールド
 MAIN.resetOut            (%Q*)  ──►  GVL_SEQ.resetReq           (%I*)
 MAIN.resetOut            (%Q*)  ──►  ControllerCore.Inputs.resetReq
 MAIN.experimentActiveOut (%Q*)  ──►  GVL_SEQ.experimentActive   (%I*)
-MAIN.enableTorqueOut     (%Q*)  ──►  GVL_DRV.enableTorqueOutput (%I*)
+MAIN.enableCurrentOut     (%Q*)  ──►  GVL_DRV.enableCurrentOutput (%I*)
 MAIN.ctrlWord            (%Q*)  ──►  GVL_DRV.controlWordIn      (%I*)
 GVL_DRV.statusWordOut    (%Q*)  ──►  MAIN.statWord              (%I*)
 GVL_SEQ.playbackDone     (%Q*)  ──►  MAIN.seqPlaybackDone       (%I*)
@@ -563,7 +563,7 @@ VirtualMotorCore.Outputs.VirtualMotor1Outputs.positionOut
 ### 7.6 各モジュール → ExperimentLogger (Phase 3〜)
 
 ```
-DriverAdapter.targetTorque                                  ──►  ExperimentLogger.Inputs.torqueCmd
+DriverAdapter.targetTorque                                  ──►  ExperimentLogger.Inputs.currentCmd
 ExperimentSequencer.refValue                                ──►  ExperimentLogger.Inputs.refValue
 ExperimentSequencer.ffValue                                 ──►  ExperimentLogger.Inputs.ffValue
 ControllerCore.Outputs.controlInput                         ──►  ExperimentLogger.Inputs.controlInput
@@ -616,7 +616,7 @@ ModeManager.resetOut                                        ──►  Experimen
 | `GVL_DRV.distValue` | `LREAL` | 8 | `AT %I*` | R | ExperimentSequencer 外乱値 |
 | `GVL_DRV.statusWord` | `UINT` | 2 | `AT %I*` | R | VirtualMotorCore StatusWord |
 | `GVL_DRV.controlWordIn` | `UINT` | 2 | `AT %I*` | R | ModeManager ControlWord |
-| `GVL_DRV.enableTorqueOutput` | `BOOL` | 1 | `AT %I*` | R | ModeManager トルクゲート |
+| `GVL_DRV.enableCurrentOutput` | `BOOL` | 1 | `AT %I*` | R | ModeManager 電流ゲート |
 | `GVL_DRV.targetTorque` | `LREAL` | 8 | `AT %Q*` | R | 最終トルク出力 → VirtualMotorCore |
 | `GVL_DRV.controlWordOut` | `UINT` | 2 | `AT %Q*` | R | CW 中継 → VirtualMotorCore |
 | `GVL_DRV.statusWordOut` | `UINT` | 2 | `AT %Q*` | R | SW 中継 → ModeManager |
@@ -647,7 +647,7 @@ ModeManager.resetOut                                        ──►  Experimen
 | `MAIN.ctrlWord` | `UINT` | 2 | `AT %Q*` | R | CiA 402 ControlWord 出力 |
 | `MAIN.experimentActiveOut` | `BOOL` | 1 | `AT %Q*` | R | experimentActive 出力 |
 | `MAIN.resetOut` | `BOOL` | 1 | `AT %Q*` | R | ワンショットリセットパルス |
-| `MAIN.enableTorqueOut` | `BOOL` | 1 | `AT %Q*` | R | トルクゲート出力 |
+| `MAIN.enableCurrentOut` | `BOOL` | 1 | `AT %Q*` | R | 電流ゲート出力 |
 | `MAIN.statWord` | `UINT` | 2 | `AT %I*` | R | StatusWord 入力 |
 | `MAIN.seqPlaybackDone` | `BOOL` | 1 | `AT %I*` | R | Sequencer 完了入力 |
 | `MAIN.enable` | `BOOL` | 1 | — | R | サーボ有効フラグ (内部) |
@@ -696,7 +696,7 @@ ModeManager.resetOut                                        ──►  Experimen
 | `GVL_SEQ_LOG.logFfValue` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: FF 値 |
 | `GVL_SEQ_LOG.logDistValue` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 外乱値 |
 | `GVL_SEQ_LOG.logControlInput` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 制御出力 |
-| `GVL_SEQ_LOG.logTargetTorque` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 合計トルク |
+| `GVL_SEQ_LOG.logTargetCurrent` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 合計電流 |
 | `GVL_SEQ_LOG.logPositionAct` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 実位置 |
 | `GVL_SEQ_LOG.logT` | `ARRAY[0..199999] OF ULINT` | 1,600,000 | R | ログ: タイムスタンプ |
 | `GVL_SEQ_LOG.logIdx` | `ARRAY[0..199999] OF UDINT` | 800,000 | R | ログ: テーブルインデックス |
@@ -836,14 +836,14 @@ DriverAdapter ← ExperimentSequencer
 
 DriverAdapter ← StateMachineControl
   GVL_DRV.controlWordIn         ← MAIN.ctrlWord
-  GVL_DRV.enableTorqueOutput    ← MAIN.enableTorqueOut
+  GVL_DRV.enableCurrentOutput    ← MAIN.enableCurrentOut
   GVL_DRV.statusWordOut         → MAIN.statWord
 
 DriverAdapter ← ControllerCore
   GVL_DRV.controlInput          ← ControllerCore.Outputs.controlInput
 
 DriverAdapter → ExperimentLogger
-  GVL_DRV.targetTorque          → ExperimentLogger.Inputs.torqueCmd
+  GVL_DRV.targetTorque          → ExperimentLogger.Inputs.currentCmd
 
 DriverAdapter → VirtualMotorCore
   GVL_DRV.statusWord            ← VirtualMotorCore.Outputs.statusWord1

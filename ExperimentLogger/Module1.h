@@ -74,10 +74,10 @@ protected:
 		ULONGLONG tNs;
 		double motorPosition;
 		double motorVelocity;
-		double motorTorqueAct;
+		double motorCurrentAct;
 		double loadPosition;
 		double loadVelocity;
-		double torqueCmd;
+		double currentCmd;
 		double error;
 		double refValue;
 		double ffValue;

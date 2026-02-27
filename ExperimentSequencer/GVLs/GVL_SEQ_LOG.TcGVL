@@ -24,7 +24,7 @@ VAR_GLOBAL
     logFfValue : ARRAY[0..LOG_N - 1] OF LREAL;
     logDistValue : ARRAY[0..LOG_N - 1] OF LREAL;
     logControlInput : ARRAY[0..LOG_N - 1] OF LREAL;
-    logTargetTorque : ARRAY[0..LOG_N - 1] OF LREAL;
+    logTargetCurrent : ARRAY[0..LOG_N - 1] OF LREAL;
     logPositionAct : ARRAY[0..LOG_N - 1] OF LREAL;
     logT : ARRAY[0..LOG_N - 1] OF ULINT;
     logIdx : ARRAY[0..LOG_N - 1] OF UDINT;
