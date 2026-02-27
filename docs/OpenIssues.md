@@ -156,6 +156,7 @@ ControllerCore / ExperimentLogger と同一のエッジ検出方式で統一。
 
 **対象:** `ExperimentHailMary.tsproj` Mapping, `ExperimentLogger/ExperimentLoggerServices.h`  
 **現状:** D12 により `loadPosition` のマッピング元が `ControllerCore.Outputs.positionRel` から `DriverAdapter.positionRel` に変更される。tsproj の Mapping 整合性を確認する必要がある。  
+**進捗 (2026-02-27):** PLC先行適用として `ExperimentHailMary.tsproj` のマッピングを `DriverAdapter` 出力基準に更新済み。`loadPosition <- GVL_DRV.positionRel`、`loadVelocity <- GVL_DRV.velocityAct`、`motorCurrentAct <- GVL_DRV.currentAct` を設定。VirtualMotorCore 側の新I/F反映完了後に最終統合確認を行う。  
 **提案:** 実装時に tsproj Mapping を更新し、ADS Discovery で接続を確認する。  
 **関連:** D12, M4 (解消済み)
 

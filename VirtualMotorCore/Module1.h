@@ -46,7 +46,11 @@ protected:
 	HRESULT AddModuleToCaller();
 	VOID RemoveModuleFromCaller();
 	static double ClampSymmetric(double value, double limit);
-	void StepVirtualMotor(int axisIndex, double currentIn);
+	static LONG SaturatingRoundToDint(double value);
+	static SHORT SaturatingRoundToInt(double value);
+	static double EffectiveRatedTorque(const ST_VirtualMotorParams& params);
+	static ULONG EffectiveEncoderResolution(const ST_VirtualMotorParams& params);
+	void StepVirtualMotor(int axisIndex, SHORT targetTorquePermille);
 	void UpdateDriveState(int axisIndex, USHORT controlWord);
 	USHORT ComposeStatusWord(int axisIndex) const;
 	void ResetRuntimeState();
@@ -57,6 +61,7 @@ protected:
 	{
 		double position;
 		double velocity;
+		double lastAppliedTorqueNm;
 		EDriveState driveState;
 		bool faultResetBitWasSet;
 		bool internalFault;

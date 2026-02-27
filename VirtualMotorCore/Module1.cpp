@@ -3,8 +3,18 @@
 #include "TcPch.h"
 #pragma hdrstop
 
+#include <math.h>
+
 #include "Module1.h"
 #include "VirtualMotorCoreVersion.h"
+
+namespace
+{
+const double kPi = 3.14159265358979323846;
+const double kTwoPi = 2.0 * kPi;
+const double kDefaultRatedTorqueNm = 0.318;
+const ULONG kDefaultEncoderResolution = 8388608UL;
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // CModule1
@@ -178,10 +188,12 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 
 	UpdateDriveState(0, m_Inputs.controlWord1);
 	UpdateDriveState(1, m_Inputs.controlWord2);
+	m_Axis[0].lastAppliedTorqueNm = 0.0;
+	m_Axis[1].lastAppliedTorqueNm = 0.0;
 
 	if (m_Axis[0].driveState == EDriveState::OPERATION_ENABLED)
 	{
-		StepVirtualMotor(0, m_Inputs.VirtualMotor1Inputs.currentIn);
+		StepVirtualMotor(0, m_Inputs.VirtualMotor1Inputs.targetTorque);
 	}
 	else if (m_Axis[0].driveState == EDriveState::SWITCH_ON_DISABLED)
 	{
@@ -189,19 +201,28 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 	}
 	if (m_Axis[1].driveState == EDriveState::OPERATION_ENABLED)
 	{
-		StepVirtualMotor(1, m_Inputs.VirtualMotor2Inputs.currentIn);
+		StepVirtualMotor(1, m_Inputs.VirtualMotor2Inputs.targetTorque);
 	}
 	else if (m_Axis[1].driveState == EDriveState::SWITCH_ON_DISABLED)
 	{
 		m_Axis[1].velocity = 0.0;
 	}
-
-	m_Outputs.VirtualMotor1Outputs.positionOut = m_Axis[0].position;
-	m_Outputs.VirtualMotor1Outputs.velocityOut = m_Axis[0].velocity;
 	m_Outputs.statusWord1 = ComposeStatusWord(0);
-	m_Outputs.VirtualMotor2Outputs.positionOut = m_Axis[1].position;
-	m_Outputs.VirtualMotor2Outputs.velocityOut = m_Axis[1].velocity;
 	m_Outputs.statusWord2 = ComposeStatusWord(1);
+
+	const ST_VirtualMotorParams& axis0Params = AxisParams(0);
+	const double axis0Scale = static_cast<double>(EffectiveEncoderResolution(axis0Params)) / kTwoPi;
+	m_Outputs.VirtualMotor1Outputs.positionActualValue = SaturatingRoundToDint(m_Axis[0].position * axis0Scale);
+	m_Outputs.VirtualMotor1Outputs.velocityActualValue = SaturatingRoundToDint(m_Axis[0].velocity * axis0Scale);
+	m_Outputs.VirtualMotor1Outputs.torqueActualValue = SaturatingRoundToInt(
+		(m_Axis[0].lastAppliedTorqueNm / EffectiveRatedTorque(axis0Params)) * 1000.0);
+
+	const ST_VirtualMotorParams& axis1Params = AxisParams(1);
+	const double axis1Scale = static_cast<double>(EffectiveEncoderResolution(axis1Params)) / kTwoPi;
+	m_Outputs.VirtualMotor2Outputs.positionActualValue = SaturatingRoundToDint(m_Axis[1].position * axis1Scale);
+	m_Outputs.VirtualMotor2Outputs.velocityActualValue = SaturatingRoundToDint(m_Axis[1].velocity * axis1Scale);
+	m_Outputs.VirtualMotor2Outputs.torqueActualValue = SaturatingRoundToInt(
+		(m_Axis[1].lastAppliedTorqueNm / EffectiveRatedTorque(axis1Params)) * 1000.0);
 
 	return hr;
 }
@@ -225,6 +246,44 @@ double CModule1::ClampSymmetric(double value, double limit)
 	return value;
 }
 
+LONG CModule1::SaturatingRoundToDint(double value)
+{
+	const double rounded = (value >= 0.0) ? floor(value + 0.5) : ceil(value - 0.5);
+	if (rounded > 2147483647.0)
+	{
+		return 2147483647L;
+	}
+	if (rounded < -2147483648.0)
+	{
+		return static_cast<LONG>(-2147483647L - 1L);
+	}
+	return static_cast<LONG>(rounded);
+}
+
+SHORT CModule1::SaturatingRoundToInt(double value)
+{
+	const double rounded = (value >= 0.0) ? floor(value + 0.5) : ceil(value - 0.5);
+	if (rounded > 32767.0)
+	{
+		return 32767;
+	}
+	if (rounded < -32768.0)
+	{
+		return -32768;
+	}
+	return static_cast<SHORT>(rounded);
+}
+
+double CModule1::EffectiveRatedTorque(const ST_VirtualMotorParams& params)
+{
+	return (params.ratedTorque > 0.0) ? params.ratedTorque : kDefaultRatedTorqueNm;
+}
+
+ULONG CModule1::EffectiveEncoderResolution(const ST_VirtualMotorParams& params)
+{
+	return (params.encoderResolution > 0UL) ? params.encoderResolution : kDefaultEncoderResolution;
+}
+
 ST_VirtualMotorParams& CModule1::AxisParams(int axisIndex)
 {
 	return (axisIndex == 0) ? m_VirtualMotor1Parameter : m_VirtualMotor2Parameter;
@@ -235,21 +294,22 @@ const ST_VirtualMotorParams& CModule1::AxisParams(int axisIndex) const
 	return (axisIndex == 0) ? m_VirtualMotor1Parameter : m_VirtualMotor2Parameter;
 }
 
-void CModule1::StepVirtualMotor(int axisIndex, double currentIn)
+void CModule1::StepVirtualMotor(int axisIndex, SHORT targetTorquePermille)
 {
 	AxisRuntimeState& axis = m_Axis[axisIndex];
 	const ST_VirtualMotorParams& params = AxisParams(axisIndex);
 
 	if (params.mass <= 0.0 || params.taskDtNs == 0)
 	{
+		axis.lastAppliedTorqueNm = 0.0;
 		return;
 	}
 
 	const double kVelocityZeroThreshold = 1e-6;
 	const double dtS = static_cast<double>(params.taskDtNs) * 1e-9;
 	const double dNonNeg = (params.damping < 0.0) ? 0.0 : params.damping;
-	const double ktAbs = (params.torqueConstant < 0.0) ? -params.torqueConstant : params.torqueConstant;
-	const double tauCmdRequest = ktAbs * currentIn;
+	const double ratedTorque = EffectiveRatedTorque(params);
+	const double tauCmdRequest = (static_cast<double>(targetTorquePermille) / 1000.0) * ratedTorque;
 	const double tauLimitAbs = (params.tauLimit < 0.0) ? -params.tauLimit : params.tauLimit;
 	if (tauLimitAbs > 0.0 && (tauCmdRequest > tauLimitAbs || tauCmdRequest < -tauLimitAbs))
 	{
@@ -257,8 +317,8 @@ void CModule1::StepVirtualMotor(int axisIndex, double currentIn)
 		axis.driveState = EDriveState::FAULT;
 	}
 
-	const double appliedCurrent = axis.internalFault ? 0.0 : currentIn;
-	const double tauCmd = ktAbs * appliedCurrent;
+	const double appliedTargetTorquePermille = axis.internalFault ? 0.0 : static_cast<double>(targetTorquePermille);
+	const double tauCmd = (appliedTargetTorquePermille / 1000.0) * ratedTorque;
 	const double tauSat = ClampSymmetric(tauCmd, params.tauLimit);
 
 	const double vNextUnclamped = axis.velocity + (dtS / params.mass) * (tauSat - dNonNeg * axis.velocity);
@@ -278,6 +338,7 @@ void CModule1::StepVirtualMotor(int axisIndex, double currentIn)
 
 	axis.velocity = vNext;
 	axis.position = xNext;
+	axis.lastAppliedTorqueNm = tauSat;
 }
 
 void CModule1::ResetRuntimeState()
@@ -286,6 +347,7 @@ void CModule1::ResetRuntimeState()
 	{
 		m_Axis[i].position = 0.0;
 		m_Axis[i].velocity = 0.0;
+		m_Axis[i].lastAppliedTorqueNm = 0.0;
 		m_Axis[i].driveState = EDriveState::SWITCH_ON_DISABLED;
 		m_Axis[i].faultResetBitWasSet = false;
 		m_Axis[i].internalFault = false;
@@ -293,10 +355,12 @@ void CModule1::ResetRuntimeState()
 
 	m_Outputs.statusWord1 = ComposeStatusWord(0);
 	m_Outputs.statusWord2 = ComposeStatusWord(1);
-	m_Outputs.VirtualMotor1Outputs.positionOut = 0.0;
-	m_Outputs.VirtualMotor1Outputs.velocityOut = 0.0;
-	m_Outputs.VirtualMotor2Outputs.positionOut = 0.0;
-	m_Outputs.VirtualMotor2Outputs.velocityOut = 0.0;
+	m_Outputs.VirtualMotor1Outputs.positionActualValue = 0;
+	m_Outputs.VirtualMotor1Outputs.velocityActualValue = 0;
+	m_Outputs.VirtualMotor1Outputs.torqueActualValue = 0;
+	m_Outputs.VirtualMotor2Outputs.positionActualValue = 0;
+	m_Outputs.VirtualMotor2Outputs.velocityActualValue = 0;
+	m_Outputs.VirtualMotor2Outputs.torqueActualValue = 0;
 }
 
 void CModule1::UpdateDriveState(int axisIndex, USHORT controlWord)

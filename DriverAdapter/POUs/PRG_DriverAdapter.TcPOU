@@ -3,16 +3,46 @@
   <POU Name="PRG_DriverAdapter" Id="{2b6eb1d8-78de-49a3-a5f1-da880c0ef4fc}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM PRG_DriverAdapter
 VAR
-    targetCurrentLocal : LREAL := 0.0;
+    positionRad : LREAL := 0.0;
+    targetCurrentA : LREAL := 0.0;
+    targetPermilleReal : LREAL := 0.0;
+    targetPermilleRounded : DINT := 0;
+    positionOffsetRad : LREAL := 0.0;
+    resetReqPrev : BOOL := FALSE;
+    resetEdge : BOOL := FALSE;
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[targetCurrentLocal := GVL_DRV.controlInput + GVL_DRV.distValue;
+      <ST><![CDATA[positionRad := DINT_TO_LREAL(GVL_DRV.positionActualValue) * GVL_DRV.TWO_PI_INV_RES;
+GVL_DRV.velocityAct := DINT_TO_LREAL(GVL_DRV.velocityActualValue) * GVL_DRV.TWO_PI_INV_RES;
+GVL_DRV.currentAct := INT_TO_LREAL(GVL_DRV.torqueActualValue) * GVL_DRV.RATED_CURRENT_DIV_1000;
+
+resetEdge := GVL_DRV.resetReq AND NOT resetReqPrev;
+IF resetEdge THEN
+    positionOffsetRad := positionRad;
+END_IF
+resetReqPrev := GVL_DRV.resetReq;
+
+GVL_DRV.positionRel := positionRad - positionOffsetRad;
+
+targetCurrentA := GVL_DRV.controlInput + GVL_DRV.distValue;
 
 IF GVL_DRV.enableCurrentOutput THEN
-    GVL_DRV.targetTorque := targetCurrentLocal;
+    targetPermilleReal := targetCurrentA * GVL_DRV.RATED_CURRENT_INV_X1000;
+    IF targetPermilleReal >= 0.0 THEN
+        targetPermilleRounded := LREAL_TO_DINT(targetPermilleReal + 0.5);
+    ELSE
+        targetPermilleRounded := LREAL_TO_DINT(targetPermilleReal - 0.5);
+    END_IF
+    IF targetPermilleRounded > 32767 THEN
+        GVL_DRV.targetTorque := 32767;
+    ELSIF targetPermilleRounded < -32768 THEN
+        GVL_DRV.targetTorque := -32768;
+    ELSE
+        GVL_DRV.targetTorque := DINT_TO_INT(targetPermilleRounded);
+    END_IF
 ELSE
-    GVL_DRV.targetTorque := 0.0;
+    GVL_DRV.targetTorque := 0;
 END_IF
 
 GVL_DRV.controlWordOut := GVL_DRV.controlWordIn;
