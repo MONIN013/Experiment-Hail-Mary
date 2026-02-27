@@ -105,6 +105,22 @@ IF resetEdge THEN
 END_IF
 ```
 
+#### リセット処理の既知制約
+
+各モジュールのリセット対応状況を以下にまとめる。詳細は [OpenIssues.md](OpenIssues.md) を参照。
+
+| モジュール | resetReq 入力 | 検出方式 | リセット内容 | 既知制約 |
+|---|---|---|---|---|
+| **StateMachineControl** | `GVL_MODE.resetReq` | エッジ | `doneLatched` クリア, `resetAckCounter` +1, `resetOut` パルス生成 | `experimentActive` を直接クリアしない (H5) |
+| **ExperimentSequencer** | `GVL_SEQ.resetReq` (`AT %I*`) | **レベル** | `idx`/`refValue`/`ffValue`/`distValue`/`playbackDone` クリア, `GVL_SEQ_LOG` リセット | エッジ検出不統一 (M14) |
+| **ControllerCore** | `Inputs.resetReq` | エッジ | biquad 内部状態クリア, `positionOffset := positionAct` | — |
+| **ExperimentLogger** | `Inputs.resetReq` | エッジ | ファイルクローズ, `bufferCount`/`seq`/`recordsWritten` 等クリア | — |
+| **VirtualMotorCore** | **なし** | — | — | 設計決定: 実機同等。`position`/`velocity` は実験間で carry-over する。ControllerCore の `positionOffset` で相対位置は補正される |
+| **DriverAdapter** | **なし** | — | — | 組み合わせ回路のため影響なし。Phase 4 拡張時に要検討 (M15) |
+
+> **注意:** リセット要求は `modeFlags := 0`（サーボ無効化）**の後に** 発行すること。  
+> サーボ有効状態のままリセットすると `experimentActive` が即座にクリアされない可能性がある (H5)。
+
 #### サーボ有効化 → CiA 402 状態遷移
 
 ```

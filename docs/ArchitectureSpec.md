@@ -451,8 +451,6 @@ TMC 定義により Data Area を ADS シンボルとして公開する。
 
 > **注記:** テーブル (`refTable`, `ffTable`, `distTable`, `tableLen`) は
 > ControllerCore に含めない。ExperimentSequencer PLC 側 GVL を参照。
->
-> **注記:** `PIDParams` のみ `CreateSymbol` 属性が未設定。→ [OpenIssues.md](OpenIssues.md) H1
 
 ### 4.2 VirtualMotorCore
 

@@ -1,6 +1,6 @@
 # 未解決課題一覧 — ExperimentHailMary
 
-> **最終更新:** 2026-02-27 (フラグ Set/Clear 責任分担の不整合追記)  
+> **最終更新:** 2026-02-27 (リセット処理の不整合・実験間初期化の課題追記)  
 > **目的:** プロジェクト全体の未解決課題を一元管理する。  
 > **参照:** [ArchitectureSpec.md](ArchitectureSpec.md) / [ExperimentProcedure.md](ExperimentProcedure.md) / [TechnicalReference.md](TechnicalReference.md)
 
@@ -28,6 +28,25 @@
 2. TwinCAT `MAIN` に `modeFlags` のクリアロジックを追加する（例: 実験完了時に `EXPERIMENT_START_REQ` ビットをクリア）
 3. ADS 通信切断検出（ウォッチドッグ/タイムアウト）による `modeFlags` 自動クリア機構の導入を検討する
 4. MATLAB 側の cleanup からは `modeFlags := 0` の書き込みを削除し、TwinCAT 側のクリア完了を待つ方式に移行する
+
+### H5. リセット後 `experimentActive` / `experimentState` が即座にクリアされない可能性
+
+**対象:** `StateMachineControl/POUs/MAIN.TcPOU` L54-57, L60-74  
+**現状:** `resetEdge` 発生時に `doneLatched := FALSE` と `GVL_MODE.resetReq := FALSE` はクリアされるが、`experimentActive` は直接クリアされない。`experimentActive` が `FALSE` になるのは以下のいずれかの条件:
+- `enableEffective = FALSE`（`modeFlags` でサーボ無効化済みの場合）
+- `seqPlaybackDone = TRUE`（テーブル再生完了済みの場合）
+
+リセット要求は通常 `modeFlags := 0`（サーボ無効化）の後に発行されるため `enableEffective = FALSE` → `experimentActive = FALSE` となるが、以下の不整合がある:
+1. MATLAB の `send_position_command.m` L67 で `modeFlags := 0` と `resetReq := TRUE` を **別々の ADS 書込み** で発行するため、タイミング次第で `resetEdge` が `experimentActive = TRUE` の状態で処理される可能性がある
+2. `resetEdge` 時に `experimentActive` を明示的にクリアしないため、リセット完了後も `experimentState = STATE_RUNNING` が 1 スキャン以上残留する可能性がある
+3. MATLAB の `wait_for_reset_idle` は `experimentActive = FALSE` を待つが、タイムアウト時は **warning のみで続行** する（`send_position_command.m` L77-81）
+
+**リスク:** リセット後に `experimentActive = TRUE` が残留した状態でテーブル書き込み → サーボ有効化が行われると、意図しない再生開始や状態遷移の競合が発生する。  
+**関連:** M13（MATLAB が `GVL_SEQ.idx` を直接クリア — ハンドシェイク迂回）  
+**提案:**
+1. `MAIN` の `resetEdge` 処理に `GVL_MODE.experimentActive := FALSE` を追加する
+2. `modeFlags` のクリアと `resetReq` の発行順序を仕様として明文化する（例: `modeFlags := 0` → `experimentActive = FALSE` を確認 → `resetReq := TRUE`）
+3. `wait_for_reset_idle` のタイムアウトを warning ではなく error に昇格するか、リトライ機構を追加する
 
 ### H3. `motor_torque_act` は SIL で 0 埋め（設計決定済み）
 
@@ -93,33 +112,29 @@ PLC 側 `GVL_MODE.modeFlags` は `UINT` (16bit) で定義されているため�
 **現状:** `t.u16` フィールドが存在しなければ `t.u32` にフォールバックして `MAIN.statWord`, `MAIN.ctrlWord` を読んでいる。PLC 側はこれらを `UINT` (16bit) で定義しており、`u32` で読むと型不一致リスクがある。  
 **提案:** M7 と同様、型定義を統一してフォールバックを廃止する。
 
+### M14. ExperimentSequencer のリセットがレベルセンシティブ（エッジ検出不統一）
+
+**対象:** `ExperimentSequencer/POUs/PRG_ExperimentSequencer.TcPOU` L27  
+**現状:** `IF GVL_SEQ.resetReq THEN` — エッジ検出なしのレベルトリガでリセットブロックを実行している。一方、ControllerCore (`Module1.cpp` L205) と ExperimentLogger (`Module1.cpp` L258) は `(m_Inputs.resetReq != false) && !m_prevResetReq` でエッジ検出を行っている。  
+`resetOut` は 10 ms PlcTask (ModeManager) から出力されるワンショットパルスだが、ExperimentSequencer は 1 ms VirtualMotorTask で動作するため、パルスが約 10 スキャン間 `TRUE` として見える。結果としてリセットブロックが最大 10 回冗長実行される。  
+**影響:** 現在のリセット処理はべき等（`idx := 0`, `refValue := 0.0` 等の代入）のため実害は少ないが、将来リセット処理にカウンタ操作や非べき等なロジックが追加された場合にバグの原因となる。また、他モジュールとの検出方式の不統一はコードレビュー時の混乱を招く。  
+**関連:** M13（MATLAB の直接クリアとの競合）  
+**提案:** `resetReqPrev : BOOL` を導入しエッジ検出に統一する。
+
+### M15. DriverAdapter にリセット入力がない（Phase 4 拡張リスク）
+
+**対象:** `DriverAdapter/POUs/PRG_DriverAdapter.TcPOU`, `DriverAdapter/GVLs/GVL_DRV.TcGVL`  
+**現状:** DriverAdapter は純粋な組み合わせ回路（`targetTorque := controlInput + distValue`、`controlWordOut := controlWordIn` 等）であり、内部状態を持たないため、リセット入力は定義されていない。  
+**Phase 4 リスク:** Phase 4 で EtherCAT PDO I/O が追加される際、DriverAdapter に状態変数（例: 前スキャンのフォルト状態、通信タイムアウトカウンタ）が追加される可能性がある。その時点で `resetReq` 入力がないと、リセット経路の追加が後回しになるリスクがある。  
+**提案:** Phase 4 設計時に `GVL_DRV.resetReq AT %I*` の追加を検討項目として記録する。現時点では対応不要。
+
 ---
 
 ## Low — 品質改善・ドキュメント整備
 
-### L1. `MODEF_RESET_SEQ_REQ` 非推奨エイリアス未撤去
-
-**対象:** `StateMachineControl/GVLs/GVL_MODE.TcGVL` — `MODEF_RESET_SEQ_REQ` は `MODEF_RESET_REQ` と同値の旧名。MATLAB 側で参照がないことを確認後に削除。
-
-### L2. ArchitectureSpec §4.1 旧表記指摘の残骸（清掃）
-
-**現状:** 旧指摘（`PIDParams.notch_b0` 等）は現行 `ArchitectureSpec.md` では解消済み。未解決課題一覧から削除または解決済みへ移動する。
-
-### L3. ArchitectureSpec §4.2 VirtualMotorCore 命名差の旧指摘（清掃）
-
-**現状:** 旧指摘（`VirtualMotorParameter.M`, `.D`, `.Kt` 等）は現行 `ArchitectureSpec.md` では解消済み。未解決課題一覧から削除または解決済みへ移動する。
-
 ### L4. 暫定 SIL ログ (`GVL_SEQ_LOG`) 撤去計画
 
 **影響:** Phase 3 の ExperimentLogger 本格運用開始後、GVL_SEQ_LOG リングバッファは不要になる。ExperimentSequencer のメモリ使用量削減のため撤去計画が必要。
-
-### L5. VirtualMotorCore Axis 2 の ADS シンボル公開
-
-**影響:** `VirtualMotor2Inputs`, `controlWord2`, `VirtualMotor2Outputs`, `statusWord2` が Port 351 で公開されているが Axis 2 は未使用。不要な ADS 公開を削減すべき。
-
-### L6. ExperimentLogger の一部 Inputs に不要な `CreateSymbol`
-
-**対象:** `ExperimentLogger.tmc` — `Inputs.torqueCmd`, `Inputs.refValue`, `Inputs.resetReq` に `CreateSymbol="true"` が設定されているが、I/O リンク専用のため ADS 公開は不要。
 
 ### L7. `VirtualMotorService.wait_until_done_streaming` のストリーミング失敗時フォールバック
 
@@ -137,19 +152,6 @@ PLC 側 `GVL_MODE.modeFlags` は `UINT` (16bit) で定義されているため�
 - `ControllerCore/Module1.cpp` L134/L150/L177/L190 — 同上
 
 **提案:** リソースファイルの LegalCopyright / ProductName を適切な値に置換する。C++ の TODO コメントは TwinCAT テンプレートの残骸であり、カスタム初期化が不要であれば削除するか、明示的に "No additional initialization needed" に書き換える。
-
-### L10. `MockAdsTransport` が `modeFlags` の TwinCAT 側クリア動作を模擬していない
-
-**対象:** `matlab/tests/fixtures/MockAdsTransport.m` L66  
-**現状:** `MockAdsTransport` は `GVL_MODE.resetReq` に `TRUE` が書き込まれた際に即座にクリア＋カウンタ更新を行うが、`modeFlags` に対しては何もしない（書き込まれた値がそのまま残る）。実機で TwinCAT 側が `modeFlags` をクリアする設計に移行した場合、Mock がその振る舞いをシミュレートしないとテストの忠実度が低下する。  
-また `resetReq` の即座クリアも実機のスキャンサイクル遅延（≥1ms）を反映しておらず、タイミング依存のバグがテストで検出されない可能性がある。  
-**提案:** H4 の修正に合わせて、Mock に `modeFlags` の自動クリア動作を追加する。`resetReq` についても遅延クリアオプション（例: 次回 `read_scalar` まで値を保持）の導入を検討する。
-
-### L9. `send_position_command.m` — `GVL_SEQ.modeFlags` 拒否テストの保守
-
-**対象:** `matlab/tests/unit/TestSendPositionCommand.m` L199-220 `splitPortsRejectsLegacyModeFlagsSymbol`  
-**現状:** `GVL_SEQ.modeFlags` を渡すとエラーになることを検証するテスト。`GVL_SEQ.modeFlags` 自体は PLC から削除済み（解決済み課題参照）。テスト自体は防御的で有用だが、テスト名の "Legacy" はもはや存在しないシンボルへの参照。  
-**提案:** テストは維持しつつ、名前を `rejectsUnsupportedModeFlagsSymbol` 等に変更し、コメントに経緯を追記する。
 
 ---
 
@@ -182,6 +184,7 @@ PLC 側 `GVL_MODE.modeFlags` は `UINT` (16bit) で定義されているため�
 | ExperimentLogger 向け tsproj Mapping 未定義 / `ControllerCore.Outputs.error` 反映未確認 (`H2`+`H4`) | 2026-02-26 | 主要 Mapping および `Outputs.error → Inputs.error` を tsproj で確認済み |
 | ControllerCore の TMC Reload 未実施 (`C3`) | 2026-02-26 | `run_ads_discovery_demo.m` 再確認で Port 351 に `PID/Notch/Lead/Reso/EnableParams` が表示されることを確認 |
 | `PIDParams` に `CreateSymbol` 属性が未設定 (`H1`) | 2026-02-26 | `ControllerCore/ControllerCore.tmc` で `PIDParams` が `CreateSymbol="true"` になっていることを確認 |
+| VirtualMotorCore に `resetReq` 入力がない | 2026-02-27 | 設計決定: 実機モータードライバにもソフトウェアリセット（位置/速度ゼロ復帰）機能はないため、VirtualMotorCore は実機同等の仕様として `resetReq` を持たない。実験間の初期化は ControllerCore の `positionOffset := positionAct` による相対位置補正で対応する |
 
 </details>
 
