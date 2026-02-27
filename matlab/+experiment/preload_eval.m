@@ -32,8 +32,6 @@ end
 metrics.input_waveform = compare_exact_waveform(ref_cmd, log_ref, cfg);
 metrics.ff_waveform = compare_exact_waveform(ff_cmd, log_ff, cfg);
 metrics.dist_waveform = compare_exact_waveform(dist_cmd, log_dist, cfg);
-metrics.comparison.current_command_vs_plc = metrics.input_waveform; % compatibility alias
-
 metrics.torque_sum = compare_torque_sum(log_u, log_dist, logTau);
 metrics.position_diag = build_position_diag(log_pos, cfg);
 

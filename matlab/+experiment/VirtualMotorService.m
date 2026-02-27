@@ -2,10 +2,11 @@ classdef VirtualMotorService < handle
   properties (Access = private)
     plc_transport
     vm_transport
+    control_transport
   end
 
   methods
-    function obj = VirtualMotorService(plc_transport, vm_transport)
+    function obj = VirtualMotorService(plc_transport, vm_transport, control_transport)
       if ~isa(plc_transport, "twincat_ads.IAdsTransport")
         error("experiment:service:invalidDependency", ...
           "plc_transport must implement twincat_ads.IAdsTransport.");
@@ -14,8 +15,16 @@ classdef VirtualMotorService < handle
         error("experiment:service:invalidDependency", ...
           "vm_transport must implement twincat_ads.IAdsTransport.");
       end
+      if nargin < 3 || isempty(control_transport)
+        control_transport = plc_transport;
+      end
+      if ~isa(control_transport, "twincat_ads.IAdsTransport")
+        error("experiment:service:invalidDependency", ...
+          "control_transport must implement twincat_ads.IAdsTransport.");
+      end
       obj.plc_transport = plc_transport;
       obj.vm_transport = vm_transport;
+      obj.control_transport = control_transport;
     end
 
     function out = run(obj, cfg)
@@ -31,14 +40,15 @@ classdef VirtualMotorService < handle
       twincat_ads.SymbolBrowser.validate_symbols(obj.vm_transport, vm_symbols.vmRequiredProbes);
       twincat_ads.SymbolBrowser.validate_symbols(obj.vm_transport, controller_symbols.controllerRequiredProbes);
       t = plc_symbols.types;
+      ctrl = obj.resolve_control_symbols(plc_symbols);
 
       vmParams = struct();
       vmParams.m = cfg.m;
       vmParams.d = cfg.d;
       vmParams.kt = cfg.kt;
-      vmParams.tauLimit = cfg.tauLimit;
-      vmParams.velLimit = cfg.velLimit;
-      vmParams.taskDtNs = cfg.taskDtNs;
+      vmParams.tauLimit = cfg.tau_limit;
+      vmParams.velLimit = cfg.vel_limit;
+      vmParams.taskDtNs = cfg.task_dt_ns;
       obj.write_vmParams(vm_symbols, vmParams);
       obj.write_controllerParams(controller_symbols, cfg);
 
@@ -73,12 +83,11 @@ classdef VirtualMotorService < handle
           "ref_profile length (%d) exceeds table_max_n (%d).", table_n, cfg.table_max_n);
       end
 
-      obj.plc_transport.write_scalar(plc_symbols.experimentActive, false, t.bool);
-      obj.plc_transport.write_scalar(plc_symbols.idx, uint32(0), t.u32);
+      obj.write_mode_flags(ctrl, uint32(0));
       obj.plc_transport.write_scalar(plc_symbols.tableLen, uint32(0), t.u32);
-      obj.pulse_reset(plc_symbols, 0.02);
+      obj.pulse_reset_via_modeflags(ctrl, 0.02);
 
-      idle_ready = obj.wait_for_reset_idle(plc_symbols, cfg.reset_timeout_s);
+      idle_ready = obj.wait_for_reset_idle(plc_symbols, ctrl, cfg.reset_timeout_s);
       if ~idle_ready
         warning("experiment:service:resetSyncTimeout", ...
           "Timed out waiting reset idle state (wrIdx==0, idx==0, experimentActive==FALSE).");
@@ -88,16 +97,17 @@ classdef VirtualMotorService < handle
       obj.plc_transport.write_array(plc_symbols.ffTable, ff_profile, t.double);
       obj.plc_transport.write_array(plc_symbols.distTable, dist_profile, t.double);
       obj.plc_transport.write_scalar(plc_symbols.tableLen, uint32(table_n), t.u32);
-      obj.plc_transport.write_scalar(plc_symbols.experimentActive, true, t.bool);
+      obj.write_mode_flags(ctrl, uint32(ctrl.MODEF_SERVO_ENABLE));
+      obj.write_mode_flags(ctrl, uint32(bitor(ctrl.MODEF_SERVO_ENABLE, ctrl.MODEF_EXPERIMENT_START_REQ)));
 
       if cfg.wait_for_done && cfg.log_stream_enable
-        [done, log_data, host_log_stats] = obj.wait_until_done_streaming(plc_symbols, cfg);
+        [done, log_data, host_log_stats] = obj.wait_until_done_streaming(plc_symbols, ctrl, cfg);
         log_read_time = host_log_stats.log_read_time_s_total;
         if ~done
           warning("experiment:service:timeout", "Timed out waiting for experiment completion.");
         end
       elseif cfg.wait_for_done
-        done = obj.wait_until_done(plc_symbols, cfg.done_timeout_s);
+        done = obj.wait_until_done(plc_symbols, ctrl, cfg.done_timeout_s);
         if ~done
           warning("experiment:service:timeout", "Timed out waiting for experiment completion.");
         end
@@ -106,7 +116,7 @@ classdef VirtualMotorService < handle
           pause(min(0.05, cfg.hold_seconds / 10 + eps));
         end
       end
-      obj.plc_transport.write_scalar(plc_symbols.experimentActive, false, t.bool);
+      obj.write_mode_flags(ctrl, uint32(0));
       elapsed_s = toc(t_run);
 
       position_last = obj.plc_transport.read_scalar(plc_symbols.positionActLog, t.double);
@@ -117,7 +127,7 @@ classdef VirtualMotorService < handle
       raw.controlInput_last = double(controlInput_last);
 
       if ~(cfg.wait_for_done && cfg.log_stream_enable && host_log_stats.log_stream_enabled)
-        [log_data, log_read_time] = obj.read_upper_logs(plc_symbols, cfg.logN);
+        [log_data, log_read_time] = obj.read_upper_logs(plc_symbols, cfg.log_n);
       end
       raw.logSeq = log_data.logSeq;
       raw.logRefValue = log_data.logRefValue;
@@ -128,8 +138,6 @@ classdef VirtualMotorService < handle
       raw.logPositionAct = log_data.logPositionAct;
       raw.logT = log_data.logT;
       raw.logIdx = log_data.logIdx;
-      raw.log_i = raw.logRefValue; % compatibility alias (old plotting/tests)
-      raw.log_x = raw.logPositionAct; % compatibility alias
       raw.log_wrIdx = log_data.wrIdx;
       raw.log_overflow = log_data.overflow;
       if isempty(raw.logTargetTorque)
@@ -156,6 +164,8 @@ classdef VirtualMotorService < handle
       host.log_stream_fallback_used = logical(host_log_stats.log_stream_fallback_used);
       host.log_stream_error_identifier = char(string(host_log_stats.log_stream_error_identifier));
       host.log_stream_error_message = char(string(host_log_stats.log_stream_error_message));
+      host.control_mode_flags_symbol = char(string(ctrl.modeFlagsSymbol));
+      host.control_experiment_state_symbol = char(string(ctrl.experimentStateSymbol));
 
       cfg_struct = cfg.to_struct();
       metrics = experiment.preload_eval(raw, cmd, cfg_struct);
@@ -193,66 +203,61 @@ classdef VirtualMotorService < handle
     function write_controllerParams(obj, symbols, cfg)
       t = symbols.types;
       p = symbols.controllerParams;
-      obj.vm_transport.write_scalar(p.pidB0, cfg.pidB0, t.double);
-      obj.vm_transport.write_scalar(p.pidB1, cfg.pidB1, t.double);
-      obj.vm_transport.write_scalar(p.pidB2, cfg.pidB2, t.double);
-      obj.vm_transport.write_scalar(p.pidA1, cfg.pidA1, t.double);
-      obj.vm_transport.write_scalar(p.pidA2, cfg.pidA2, t.double);
+      obj.vm_transport.write_scalar(p.pidB0, cfg.pid_b0, t.double);
+      obj.vm_transport.write_scalar(p.pidB1, cfg.pid_b1, t.double);
+      obj.vm_transport.write_scalar(p.pidB2, cfg.pid_b2, t.double);
+      obj.vm_transport.write_scalar(p.pidA1, cfg.pid_a1, t.double);
+      obj.vm_transport.write_scalar(p.pidA2, cfg.pid_a2, t.double);
 
-      obj.vm_transport.write_scalar(p.leadB0, cfg.leadB0, t.double);
-      obj.vm_transport.write_scalar(p.leadB1, cfg.leadB1, t.double);
-      obj.vm_transport.write_scalar(p.leadB2, cfg.leadB2, t.double);
-      obj.vm_transport.write_scalar(p.leadA1, cfg.leadA1, t.double);
-      obj.vm_transport.write_scalar(p.leadA2, cfg.leadA2, t.double);
+      obj.vm_transport.write_scalar(p.leadB0, cfg.lead_b0, t.double);
+      obj.vm_transport.write_scalar(p.leadB1, cfg.lead_b1, t.double);
+      obj.vm_transport.write_scalar(p.leadB2, cfg.lead_b2, t.double);
+      obj.vm_transport.write_scalar(p.leadA1, cfg.lead_a1, t.double);
+      obj.vm_transport.write_scalar(p.leadA2, cfg.lead_a2, t.double);
 
-      obj.vm_transport.write_scalar(p.notchB0, cfg.notchB0, t.double);
-      obj.vm_transport.write_scalar(p.notchB1, cfg.notchB1, t.double);
-      obj.vm_transport.write_scalar(p.notchB2, cfg.notchB2, t.double);
-      obj.vm_transport.write_scalar(p.notchA1, cfg.notchA1, t.double);
-      obj.vm_transport.write_scalar(p.notchA2, cfg.notchA2, t.double);
-      obj.vm_transport.write_scalar(p.resoB0, cfg.resoB0, t.double);
-      obj.vm_transport.write_scalar(p.resoB1, cfg.resoB1, t.double);
-      obj.vm_transport.write_scalar(p.resoB2, cfg.resoB2, t.double);
-      obj.vm_transport.write_scalar(p.resoA1, cfg.resoA1, t.double);
-      obj.vm_transport.write_scalar(p.resoA2, cfg.resoA2, t.double);
+      obj.vm_transport.write_scalar(p.notchB0, cfg.notch_b0, t.double);
+      obj.vm_transport.write_scalar(p.notchB1, cfg.notch_b1, t.double);
+      obj.vm_transport.write_scalar(p.notchB2, cfg.notch_b2, t.double);
+      obj.vm_transport.write_scalar(p.notchA1, cfg.notch_a1, t.double);
+      obj.vm_transport.write_scalar(p.notchA2, cfg.notch_a2, t.double);
+      obj.vm_transport.write_scalar(p.resoB0, cfg.reso_b0, t.double);
+      obj.vm_transport.write_scalar(p.resoB1, cfg.reso_b1, t.double);
+      obj.vm_transport.write_scalar(p.resoB2, cfg.reso_b2, t.double);
+      obj.vm_transport.write_scalar(p.resoA1, cfg.reso_a1, t.double);
+      obj.vm_transport.write_scalar(p.resoA2, cfg.reso_a2, t.double);
 
-      obj.vm_transport.write_scalar(p.enablePid, cfg.enablePid, t.bool);
-      obj.vm_transport.write_scalar(p.enableLead, cfg.enableLead, t.bool);
-      obj.vm_transport.write_scalar(p.enableNotch, cfg.enableNotch, t.bool);
-      obj.vm_transport.write_scalar(p.enableReso, cfg.enableReso, t.bool);
+      obj.vm_transport.write_scalar(p.enablePid, cfg.enable_pid, t.bool);
+      obj.vm_transport.write_scalar(p.enableLead, cfg.enable_lead, t.bool);
+      obj.vm_transport.write_scalar(p.enableNotch, cfg.enable_notch, t.bool);
+      obj.vm_transport.write_scalar(p.enableReso, cfg.enable_reso, t.bool);
     end
 
-    function pulse_reset(obj, symbols, pulse_seconds)
-      t = symbols.types;
-      obj.plc_transport.write_scalar(symbols.reset, true, t.bool);
-      pause(pulse_seconds);
-      obj.plc_transport.write_scalar(symbols.reset, false, t.bool);
+    function ctrl = resolve_control_symbols(obj, symbols)
+      ctrl = experiment.ModeManagerControl.resolve_symbols( ...
+        obj.control_transport, symbols, "experiment:service:invalidConfig");
     end
 
-    function done = wait_until_done(obj, symbols, timeout_s)
-      t = symbols.types;
-      t0 = tic;
-      done = false;
-      while toc(t0) < timeout_s
-        try
-          exp_active = logical(obj.plc_transport.read_scalar(symbols.experimentActive, t.bool));
-          done = ~exp_active;
-        catch
-          done = false;
-        end
-        if done
-          return;
-        end
-        pause(0.01);
-      end
+    function write_mode_flags(obj, ctrl, value)
+      experiment.ModeManagerControl.write_mode_flags(obj.control_transport, ctrl, value);
     end
 
-    function [done, log_data, host_stats] = wait_until_done_streaming(obj, symbols, cfg)
+    function pulse_reset_via_modeflags(obj, ctrl, pulse_seconds)
+      experiment.ModeManagerControl.pulse_reset(obj.control_transport, ctrl, pulse_seconds);
+    end
+
+    function done = wait_until_done(obj, symbols, ctrl, timeout_s)
+      done = experiment.ModeManagerControl.wait_until_done( ...
+        obj.control_transport, obj.plc_transport, symbols, ctrl, timeout_s);
+    end
+
+    function [done, log_data, host_stats] = wait_until_done_streaming(obj, symbols, ctrl, cfg)
       t = symbols.types;
       t0 = tic;
       done = false;
       ring_n = obj.read_log_ring_capacity(symbols, cfg);
       state = obj.init_log_stream_state();
+      state_supported = strlength(string(ctrl.experimentStateSymbol)) > 0;
+      seen_active = false;
       host_stats = struct( ...
         "log_read_time_s_total", 0, ...
         "log_stream_cycles", 0, ...
@@ -266,7 +271,6 @@ classdef VirtualMotorService < handle
         try
           wrIdx = double(obj.plc_transport.read_scalar(symbols.log.wrIdx, t.u32));
           plc_overflow = logical(obj.plc_transport.read_scalar(symbols.log.overflow, t.bool));
-          exp_active = logical(obj.plc_transport.read_scalar(symbols.experimentActive, t.bool));
           [state, local_overflow] = obj.drain_log_ring_to_host(symbols, cfg, ring_n, state, wrIdx);
           if local_overflow && cfg.log_warn_on_overflow && ~state.overflow_warned
             warning("experiment:service:logOverflow", ...
@@ -275,7 +279,8 @@ classdef VirtualMotorService < handle
           end
           state.overflow = state.overflow || plc_overflow || local_overflow;
           host_stats.log_stream_cycles = host_stats.log_stream_cycles + 1;
-          done = ~exp_active;
+          [done, state_supported, seen_active] = experiment.ModeManagerControl.poll_done( ...
+            obj.control_transport, obj.plc_transport, symbols, ctrl, t, state_supported, seen_active);
           if done
             try
               wrIdx_final = double(obj.plc_transport.read_scalar(symbols.log.wrIdx, t.u32));
@@ -314,7 +319,7 @@ classdef VirtualMotorService < handle
           warning("experiment:service:logUnavailable", ...
             "Streaming log read failed; falling back to non-streaming read (%s: %s).", ...
             string(e.identifier), string(e.message));
-          done = obj.wait_until_done(symbols, max(0, cfg.done_timeout_s - toc(t0)));
+          done = obj.wait_until_done(symbols, ctrl, max(0, cfg.done_timeout_s - toc(t0)));
           host_stats.log_stream_enabled = false;
           host_stats.log_stream_fallback_used = true;
           log_data = struct( ...
@@ -362,24 +367,9 @@ classdef VirtualMotorService < handle
       log_data.overflow = logical(state.overflow);
     end
 
-    function ready = wait_for_reset_idle(obj, symbols, timeout_s)
-      t = symbols.types;
-      t0 = tic;
-      ready = false;
-      while toc(t0) < timeout_s
-        try
-          wrIdx = double(obj.plc_transport.read_scalar(symbols.log.wrIdx, t.u32));
-          idx = double(obj.plc_transport.read_scalar(symbols.idx, t.u32));
-          exp_active = logical(obj.plc_transport.read_scalar(symbols.experimentActive, t.bool));
-          ready = (wrIdx == 0) && (idx == 0) && (~exp_active);
-        catch
-          ready = false;
-        end
-        if ready
-          return;
-        end
-        pause(0.01);
-      end
+    function ready = wait_for_reset_idle(obj, symbols, ctrl, timeout_s)
+      [ready, ~] = experiment.ModeManagerControl.wait_for_reset_idle( ...
+        obj.plc_transport, obj.control_transport, symbols, ctrl, timeout_s);
     end
 
     function ring_n = read_log_ring_capacity(obj, symbols, cfg)
@@ -387,10 +377,10 @@ classdef VirtualMotorService < handle
       try
         ring_n = double(obj.plc_transport.read_scalar(symbols.log.logN, t.u32));
       catch
-        ring_n = double(cfg.logN);
+        ring_n = double(cfg.log_n);
       end
       if ~(isfinite(ring_n) && ring_n > 0)
-        ring_n = double(cfg.logN);
+        ring_n = double(cfg.log_n);
       end
     end
 

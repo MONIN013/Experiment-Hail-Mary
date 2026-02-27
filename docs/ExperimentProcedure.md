@@ -26,8 +26,9 @@
 
 ### 2.1 `modeFlags` ビットフィールド定義
 
-`GVL_MODE.modeFlags` は `UINT` 型のビットフィールドで、ADS から書き込むことで各機能を制御する。  
+`GVL_MODE.modeFlags` は `UINT` 型のビットフィールドで、ADS から書き込むことで各機能を制御する。
 **Port 852** (`StateMachineControl`) でアクセス。
+ただし MATLAB の `send_position_command` を分離ポート構成（data=`853`, control=`852`）で使う場合は、実効入力経路に合わせて `modeFlags` 書込み先を明示指定する（例: `GVL_SEQ.modeFlags` / Port 853）。
 
 | ビット | 定数名 | 値 | 意味 |
 |---|---|---|---|
@@ -195,6 +196,7 @@ enableTorqueOut := enableEffective AND driveReady
 | **ログ読出し** | 853 | `GVL_SEQ_LOG.wrIdx` / `rdIdx` / `log*` | — | R/W |
 
 > 全シンボルの完全な一覧は [TechnicalReference.md](TechnicalReference.md) §8 を参照。
+> `send_position_command` の分離ポート運用では、状態監視（`GVL_MODE.experimentState`, 852）と `modeFlags` 書込み先（例: `GVL_SEQ.modeFlags`, 853）が異なる場合があるため、MATLAB 側で `mode_flags_symbol` / `mode_flags_ams_port` を明示指定する。
 
 ---
 

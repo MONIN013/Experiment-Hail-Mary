@@ -2,6 +2,7 @@ classdef RunConfig
   properties
     ams_net_id = ""
     ams_port = 851
+    control_ams_port = []
     module_ams_port = 351
     vm_param_symbol_prefix = ""
     controller_param_symbol_prefix = ""
@@ -71,6 +72,7 @@ classdef RunConfig
       p = inputParser;
       p.addParameter("ams_net_id", "", @(x) ischar(x) || isstring(x));
       p.addParameter("ams_port", 851, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("control_ams_port", [], @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
       p.addParameter("module_ams_port", 351, @(x) isnumeric(x) && isscalar(x));
       p.addParameter("vm_param_symbol_prefix", "", @(x) ischar(x) || isstring(x));
       p.addParameter("controller_param_symbol_prefix", "", @(x) ischar(x) || isstring(x));
@@ -151,8 +153,19 @@ classdef RunConfig
       out = obj;
       out.ams_net_id = char(string(out.ams_net_id));
       out.ads_assembly = char(string(out.ads_assembly));
+      out.ams_port = double(out.ams_port);
+      out.module_ams_port = double(out.module_ams_port);
       out.vm_param_symbol_prefix = char(string(out.vm_param_symbol_prefix));
       out.controller_param_symbol_prefix = char(string(out.controller_param_symbol_prefix));
+      if isempty(out.control_ams_port)
+        if out.ams_port == 853
+          out.control_ams_port = 852;
+        else
+          out.control_ams_port = out.ams_port;
+        end
+      else
+        out.control_ams_port = double(out.control_ams_port);
+      end
       out.ref_profile = double(out.ref_profile(:));
       out.ff_profile = double(out.ff_profile(:));
       out.dist_profile = double(out.dist_profile(:));

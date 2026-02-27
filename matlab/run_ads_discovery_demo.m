@@ -4,7 +4,7 @@ restoredefaultpath;
 addpath(genpath(base_dir));
 
 ams_net_id = "192.168.10.3.1.1";
-ports = [851 351];
+ports = [851 852 853 351];
 connect_timeout_ms = 1000;
 
 fprintf("[%s] Starting ADS discovery\n", string(datetime("now")));

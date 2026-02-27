@@ -141,6 +141,7 @@ classdef AdsTransport < twincat_ads.IAdsTransport
         "bool", "System.Boolean", ...
         "double", "System.Double", ...
         "single", "System.Single", ...
+        "u16", "System.UInt16", ...
         "u32", "System.UInt32", ...
         "u64", "System.UInt64");
     end
@@ -242,6 +243,8 @@ classdef AdsTransport < twincat_ads.IAdsTransport
           n = 4;
         case {"System.Int32", "System.UInt32"}
           n = 4;
+        case {"System.UInt16"}
+          n = 2;
         case {"System.Double", "System.Int64", "System.UInt64"}
           n = 8;
         otherwise
@@ -263,6 +266,8 @@ classdef AdsTransport < twincat_ads.IAdsTransport
           values = double(typecast(bytes, "int32")).';
         case "System.UInt32"
           values = double(typecast(bytes, "uint32")).';
+        case "System.UInt16"
+          values = double(typecast(bytes, "uint16")).';
         case "System.Int64"
           values = double(typecast(bytes, "int64")).';
         case "System.UInt64"
@@ -346,6 +351,10 @@ classdef AdsTransport < twincat_ads.IAdsTransport
         value = uint32(o);
         return;
       end
+      if isa(o, "System.UInt16")
+        value = uint16(o);
+        return;
+      end
       if isa(o, "System.Int32")
         value = int32(o);
         return;
@@ -373,6 +382,8 @@ classdef AdsTransport < twincat_ads.IAdsTransport
           net_value = int32(value);
         case "System.UInt32"
           net_value = uint32(value);
+        case "System.UInt16"
+          net_value = uint16(value);
         case "System.Int64"
           net_value = int64(value);
         case "System.UInt64"

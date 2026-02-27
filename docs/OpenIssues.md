@@ -14,15 +14,6 @@
 
 ## High — 機能不全またはバグ
 
-### H1. `PIDParams` に `CreateSymbol` 属性が未設定
-
-**影響:** PIDParams のみが ADS シンボルブラウズで見えない。他の `*Params` は `CreateSymbol="true"` が設定済み。
-
-| 作業 | 内容 | 対象ファイル |
-|------|------|------------|
-| 1 | TMC で `PIDParams` DataArea に `CreateSymbol="true"` を追加 | `ControllerCore/ControllerCore.tmc` |
-| 2 | C++ リビルド + TMC Reload + Activate | GUI |
-
 ### H3. `motor_torque_act` は SIL で 0 埋め（設計決定済み）
 
 **現状:** Phase 1–3 (SIL) では実機トルク信号ソースがないため、ExperimentLogger の `motorTorqueAct` は 0 埋め運用（ArchitectureSpec に明記済み）。
@@ -45,13 +36,17 @@
 
 ### M2. ADS アクセスが ModeManager-only 設計に非準拠
 
-**影響:** MATLAB が `GVL_SEQ` に直接状態制御シンボル (`experimentActive`, `resetReq`, `idx`) を書き込む構造が残存。
+**進捗 (2026-02-26):** `RunConfig` / `run_virtualmotor` / `VirtualMotorService` は ModeManager-only 制御へ修正済み。旧主要フローでの `GVL_SEQ` 直接状態制御書込み（`experimentActive`, `resetReq`, `idx`）は廃止。
+
+**進捗 (追記):** `send_position_command.m` / `VirtualMotorService` 間の ModeManager 制御 helper は共通化済み（`experiment.ModeManagerControl`）。主要 MATLAB 単体テストで回帰確認済み。
+
+**残課題:** 補助API/README/デモの整理レベル（重複実装は解消済み）。`M2` を解決済みに移す条件は「主要回帰テスト pass を維持し、運用上の直接状態制御再導入がないこと」。
 
 **あるべき姿:**
 - 状態制御は `GVL_MODE.modeFlags` **のみ** で ModeManager 経由
 - テーブル・パラメータ・ログは大容量/別ポートのため直接アクセスを維持
 
-**対象:** MATLAB `+experiment/RunConfig.m` 等の ADS 接続先修正 + ExperimentSequencer の `GVL_SEQ.idx` への直接書込み廃止。
+**対象（残）:** MATLAB の補助API/デモ/ドキュメントで状態制御経路の一貫性を維持する軽微整理。
 
 ### M3. `LogControl.logging` と ModeManager の連携未定義
 
@@ -119,5 +114,6 @@
 | ExperimentLogger の CyclicCaller 未設定 (`C2`) | 2026-02-26 | `CyclicCaller` が `#x02010040` (VirtualMotorTask) に設定済み |
 | ExperimentLogger 向け tsproj Mapping 未定義 / `ControllerCore.Outputs.error` 反映未確認 (`H2`+`H4`) | 2026-02-26 | 主要 Mapping および `Outputs.error → Inputs.error` を tsproj で確認済み |
 | ControllerCore の TMC Reload 未実施 (`C3`) | 2026-02-26 | `run_ads_discovery_demo.m` 再確認で Port 351 に `PID/Notch/Lead/Reso/EnableParams` が表示されることを確認 |
+| `PIDParams` に `CreateSymbol` 属性が未設定 (`H1`) | 2026-02-26 | `ControllerCore/ControllerCore.tmc` で `PIDParams` が `CreateSymbol=\"true\"` になっていることを確認（一覧更新漏れを解消） |
 
 </details>

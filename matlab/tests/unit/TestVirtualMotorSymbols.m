@@ -3,6 +3,8 @@ classdef TestVirtualMotorSymbols < matlab.unittest.TestCase
     function fromDefaultsBuildsGvlExpContract(testCase)
       s = experiment.VirtualMotorSymbols.from_defaults();
       testCase.verifyEqual(string(s.reset), "GVL_SEQ.resetReq");
+      testCase.verifyEqual(string(s.experimentState), "GVL_MODE.experimentState");
+      testCase.verifyEqual(string(s.modeFlagsCandidates(:)), ["GVL_MODE.modeFlags"; "GVL_SEQ.modeFlags"]);
       testCase.verifyEqual(string(s.refTable), "GVL_SEQ.refTable");
       testCase.verifyEqual(string(s.log.logRefValue), "GVL_SEQ_LOG.logRefValue");
       testCase.verifyGreaterThanOrEqual(size(s.plcRequiredProbes, 1), 6);
@@ -12,8 +14,8 @@ classdef TestVirtualMotorSymbols < matlab.unittest.TestCase
       vm = experiment.VirtualMotorSymbols.from_vm_prefix("VirtualMotorCore_Obj1 (Module1).VirtualMotorParameter.");
       cc = experiment.VirtualMotorSymbols.from_controller_prefix("ControllerCore_Obj1 (Module1).");
       testCase.verifyEqual(string(vm.vmParams.m), "VirtualMotorCore_Obj1 (Module1).VirtualMotorParameter.M");
-      testCase.verifyEqual(string(cc.controllerParams.pidB0), "ControllerCore_Obj1 (Module1).PIDParams.notchB0");
-      testCase.verifyEqual(string(cc.controllerParams.leadB0), "ControllerCore_Obj1 (Module1).LeadParams.notchB0");
+      testCase.verifyEqual(string(cc.controllerParams.pidB0), "ControllerCore_Obj1 (Module1).PIDParams.pidB0");
+      testCase.verifyEqual(string(cc.controllerParams.leadB0), "ControllerCore_Obj1 (Module1).LeadParams.leadB0");
       testCase.verifyEqual(string(cc.controllerParams.enableReso), "ControllerCore_Obj1 (Module1).EnableParams.enableReso");
     end
   end

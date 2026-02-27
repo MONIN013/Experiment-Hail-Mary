@@ -127,9 +127,10 @@ matlab/
 | ファイル | 説明 |
 |---|---|
 | `RunConfig` | 実験パラメータのバリューオブジェクト（`ams_net_id`, モデルパラメータ, ADS設定等） |
+| `ModeManagerControl` | ModeManager (`GVL_MODE.modeFlags`) 制御の共通 helper（symbol 解決、reset/start/stop、完了待ち） |
 | `VirtualMotorSymbols` | PLCシンボル名コントラクト。`from_defaults()` (PLC側) / `from_prefix(prefix)` (C++モジュール側) |
 | `VirtualMotorService` | 実験オーケストレーター: シンボル解決→パラメータ書き込み→実行→ログ読み取り→評価→保存 |
-| `run_virtualmotor` | コンポジションルート: `RunConfig` → `AdsTransport` ×2 → `VirtualMotorService` を組み立てて実行 |
+| `run_virtualmotor` | コンポジションルート: `RunConfig` → `AdsTransport`（data:853 / control:852 / module:351）を組み立てて `VirtualMotorService` を実行 |
 | `preload_eval` | 実験結果の定量評価（入力波形一致、サンプリング品質、RMSE、相関係数、合否判定） |
 | `simulate_position` | 前進オイラー法 1DOF 回転モデル: $\tau = \text{clamp}(K_t \cdot I,\; \tau_\text{limit})$, $v_{k+1} = v_k + \frac{T_s}{M}(\tau - D \cdot v_k)$, $x_{k+1} = x_k + T_s \cdot v_{k+1}$ |
 
@@ -201,6 +202,18 @@ out = experiment.send_position_command( ...
 - 351番ポートや module prefix 指定は不要（PLC 851番のみ）
 - `ff_profile` / `dist_profile` は省略時ゼロ埋め
 - ログは非ストリーミングの上位読み取り（`GVL_SEQ_LOG.*`）を使用
+- 分離ポート構成（例: data=`853`, control=`852`）では `modeFlags` 書込み先を明示指定する:
+
+```matlab
+out = experiment.send_position_command( ...
+  "ams_net_id", "192.168.10.3.1.1", ...
+  "ams_port", 853, ...
+  "control_ams_port", 852, ...
+  "mode_flags_symbol", "GVL_SEQ.modeFlags", ...
+  "mode_flags_ams_port", 853, ...
+  "ref_profile", ref_profile, ...
+  "task_rate_hz", 1000);
+```
 
 実行例は `matlab/run_position_command_demo.m` を参照。
 
