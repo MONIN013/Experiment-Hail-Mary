@@ -43,27 +43,27 @@ typedef struct _ST_VirtualMotorParams
 const GUID GUID_ST_VirtualMotorParams = {0x7CF95A33, 0x8192, 0x4358, {0x82, 0x61, 0x51, 0xC0, 0xA8, 0xD0, 0xCB, 0xF5}};
 #endif // !defined(_TC_TYPE_7CF95A33_8192_4358_8261_51C0A8D0CBF5_INCLUDED_)
 
-#if !defined(_TC_TYPE_D27DC1B7_F0A6_4309_9297_D3E9F02AB56B_INCLUDED_)
-#define _TC_TYPE_D27DC1B7_F0A6_4309_9297_D3E9F02AB56B_INCLUDED_
+#if !defined(_TC_TYPE_C7D9D453_404E_418E_8096_3E282F7CA354_INCLUDED_)
+#define _TC_TYPE_C7D9D453_404E_418E_8096_3E282F7CA354_INCLUDED_
 typedef struct _ST_VirtualMotorInputs
 {
-	WORD targetTorque;
+	SHORT targetTorque;
 } ST_VirtualMotorInputs, *PST_VirtualMotorInputs;
-const GUID GUID_ST_VirtualMotorInputs = {0xD27DC1B7, 0xF0A6, 0x4309, {0x92, 0x97, 0xD3, 0xE9, 0xF0, 0x2A, 0xB5, 0x6B}};
-#endif // !defined(_TC_TYPE_D27DC1B7_F0A6_4309_9297_D3E9F02AB56B_INCLUDED_)
+const GUID GUID_ST_VirtualMotorInputs = {0xC7D9D453, 0x404E, 0x418E, {0x80, 0x96, 0x3E, 0x28, 0x2F, 0x7C, 0xA3, 0x54}};
+#endif // !defined(_TC_TYPE_C7D9D453_404E_418E_8096_3E282F7CA354_INCLUDED_)
 
-#if !defined(_TC_TYPE_FBEFA272_A779_4D81_B85D_42716697605A_INCLUDED_)
-#define _TC_TYPE_FBEFA272_A779_4D81_B85D_42716697605A_INCLUDED_
+#if !defined(_TC_TYPE_5AECBA81_EEEF_4B36_843B_FE37D1BA46C9_INCLUDED_)
+#define _TC_TYPE_5AECBA81_EEEF_4B36_843B_FE37D1BA46C9_INCLUDED_
 #pragma pack(push,1)
 typedef struct _ST_VirtualMotorOutputs
 {
-	DWORD positionActualValue;
-	DWORD velocityActualValue;
-	WORD torqueActualValue;
+	LONG positionActualValue;
+	LONG velocityActualValue;
+	SHORT torqueActualValue;
 } ST_VirtualMotorOutputs, *PST_VirtualMotorOutputs;
 #pragma pack(pop)
-const GUID GUID_ST_VirtualMotorOutputs = {0xFBEFA272, 0xA779, 0x4D81, {0xB8, 0x5D, 0x42, 0x71, 0x66, 0x97, 0x60, 0x5A}};
-#endif // !defined(_TC_TYPE_FBEFA272_A779_4D81_B85D_42716697605A_INCLUDED_)
+const GUID GUID_ST_VirtualMotorOutputs = {0x5AECBA81, 0xEEEF, 0x4B36, {0x84, 0x3B, 0xFE, 0x37, 0xD1, 0xBA, 0x46, 0xC9}};
+#endif // !defined(_TC_TYPE_5AECBA81_EEEF_4B36_843B_FE37D1BA46C9_INCLUDED_)
 
 typedef struct _Module1Inputs
 {

@@ -59,36 +59,37 @@
 			</Hides>
 		</DataType>
 		<DataType>
-			<Name GUID="{D27DC1B7-F0A6-4309-9297-D3E9F02AB56B}">ST_VirtualMotorInputs</Name>
+			<Name GUID="{C7D9D453-404E-418E-8096-3E282F7CA354}">ST_VirtualMotorInputs</Name>
 			<BitSize>16</BitSize>
 			<SubItem>
 				<Name>targetTorque</Name>
-				<Type GUID="{18071995-0000-0000-0000-000000000004}">WORD</Type>
+				<Type GUID="{18071995-0000-0000-0000-000000000006}">INT</Type>
 				<BitSize>16</BitSize>
 				<BitOffs>0</BitOffs>
 			</SubItem>
 			<Hides>
 				<Hide GUID="{830E765E-E3EB-4FD6-8EC3-C0D3345CAEBA}"/>
+				<Hide GUID="{D27DC1B7-F0A6-4309-9297-D3E9F02AB56B}"/>
 			</Hides>
 		</DataType>
 		<DataType>
-			<Name GUID="{FBEFA272-A779-4D81-B85D-42716697605A}">ST_VirtualMotorOutputs</Name>
+			<Name GUID="{5AECBA81-EEEF-4B36-843B-FE37D1BA46C9}">ST_VirtualMotorOutputs</Name>
 			<BitSize>80</BitSize>
 			<SubItem>
 				<Name>positionActualValue</Name>
-				<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+				<Type GUID="{18071995-0000-0000-0000-000000000009}">DINT</Type>
 				<BitSize>32</BitSize>
 				<BitOffs>0</BitOffs>
 			</SubItem>
 			<SubItem>
 				<Name>velocityActualValue</Name>
-				<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+				<Type GUID="{18071995-0000-0000-0000-000000000009}">DINT</Type>
 				<BitSize>32</BitSize>
 				<BitOffs>32</BitOffs>
 			</SubItem>
 			<SubItem>
 				<Name>torqueActualValue</Name>
-				<Type GUID="{18071995-0000-0000-0000-000000000004}">WORD</Type>
+				<Type GUID="{18071995-0000-0000-0000-000000000006}">INT</Type>
 				<BitSize>16</BitSize>
 				<BitOffs>64</BitOffs>
 			</SubItem>
@@ -96,6 +97,7 @@
 				<Hide GUID="{BFC6ACC0-51F9-4334-ADDA-169B9F320B23}"/>
 				<Hide GUID="{C0683341-5BAE-4C43-8224-7D274A9AE924}"/>
 				<Hide GUID="{72455936-C643-4EA1-8EBE-D1021078BA71}"/>
+				<Hide GUID="{FBEFA272-A779-4D81-B85D-42716697605A}"/>
 			</Hides>
 		</DataType>
 		<DataType>
@@ -575,7 +577,7 @@
 								<Symbol>
 									<Name>VirtualMotor1Inputs</Name>
 									<BitSize>16</BitSize>
-									<BaseType GUID="{D27DC1B7-F0A6-4309-9297-D3E9F02AB56B}">ST_VirtualMotorInputs</BaseType>
+									<BaseType GUID="{C7D9D453-404E-418E-8096-3E282F7CA354}">ST_VirtualMotorInputs</BaseType>
 									<BitOffs>0</BitOffs>
 								</Symbol>
 								<Symbol>
@@ -587,7 +589,7 @@
 								<Symbol>
 									<Name>VirtualMotor2Inputs</Name>
 									<BitSize>16</BitSize>
-									<BaseType GUID="{D27DC1B7-F0A6-4309-9297-D3E9F02AB56B}">ST_VirtualMotorInputs</BaseType>
+									<BaseType GUID="{C7D9D453-404E-418E-8096-3E282F7CA354}">ST_VirtualMotorInputs</BaseType>
 									<BitOffs>32</BitOffs>
 								</Symbol>
 								<Symbol>
@@ -605,13 +607,13 @@
 								<Symbol>
 									<Name>VirtualMotor1Outputs</Name>
 									<BitSize>80</BitSize>
-									<BaseType GUID="{FBEFA272-A779-4D81-B85D-42716697605A}">ST_VirtualMotorOutputs</BaseType>
+									<BaseType GUID="{5AECBA81-EEEF-4B36-843B-FE37D1BA46C9}">ST_VirtualMotorOutputs</BaseType>
 									<BitOffs>0</BitOffs>
 								</Symbol>
 								<Symbol>
 									<Name>VirtualMotor2Outputs</Name>
 									<BitSize>80</BitSize>
-									<BaseType GUID="{FBEFA272-A779-4D81-B85D-42716697605A}">ST_VirtualMotorOutputs</BaseType>
+									<BaseType GUID="{5AECBA81-EEEF-4B36-843B-FE37D1BA46C9}">ST_VirtualMotorOutputs</BaseType>
 									<BitOffs>80</BitOffs>
 								</Symbol>
 								<Symbol>

@@ -698,7 +698,6 @@ if (m_enable_pid)
 else
   out = in;          // スルー (ゲイン 1)
 ```
-```
 
 Lead / Notch / Reso も同様。bypass 時はフィルタ内部状態をリセットせず保持する  
 (再 enable 時にトランジェントが不要な場合は、MATLAB 側から ADS 経由で内部状態リセットコマンドを発行)。
