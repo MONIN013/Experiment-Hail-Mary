@@ -49,7 +49,7 @@ classdef TestWriteHelpers < matlab.unittest.TestCase
     function writeVmParamsWritesAllFields(testCase)
       tr = MockAdsTransport();
       seedModuleDefaults(tr);
-      params = struct("m", 1.0, "d", 6.0, "rated_torque", 0.1, "tau_limit", 100, "vel_limit", 10);
+      params = struct("m", 1.0, "d", 6.0, "rated_current", 0.1, "max_permille", 750, "tau_limit", 100, "vel_limit", 10);
       experiment.write_vm_params(tr, params);
 
       sys = experiment.SystemConfig;
@@ -57,6 +57,7 @@ classdef TestWriteHelpers < matlab.unittest.TestCase
       testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'mass')), 1.0);
       testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'damping')), 6.0);
       testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'ratedTorque')), 0.1);
+      testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'maxPermille')), 750.0);
       testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'tauLimit')), 100.0);
       testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'velLimit')), 10.0);
       testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'taskDtNs')), uint64(1000000));
@@ -141,6 +142,7 @@ function seedModuleDefaults(tr)
   tr.scalarMap(strcat(vm_prefix, 'mass')) = 0.0;
   tr.scalarMap(strcat(vm_prefix, 'damping')) = 0.0;
   tr.scalarMap(strcat(vm_prefix, 'ratedTorque')) = 0.0;
+  tr.scalarMap(strcat(vm_prefix, 'maxPermille')) = 0.0;
   tr.scalarMap(strcat(vm_prefix, 'tauLimit')) = 0.0;
   tr.scalarMap(strcat(vm_prefix, 'velLimit')) = 0.0;
   tr.scalarMap(strcat(vm_prefix, 'taskDtNs')) = uint64(0);

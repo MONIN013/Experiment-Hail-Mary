@@ -23,9 +23,7 @@ function write_vm_params(transport, params)
   transport.write_scalar(vm.m, double(params.m), t.double);
   transport.write_scalar(vm.d, double(params.d), t.double);
   transport.write_scalar(vm.ratedTorque, double(params.rated_current), t.double);
-  if isfield(symbols.vmParams, 'maxPermille')
-    transport.write_scalar(vm.maxPermille, double(params.max_permille), t.double);
-  end
+  transport.write_scalar(vm.maxPermille, double(params.max_permille), t.double);
   transport.write_scalar(vm.tauLimit, double(params.tau_limit), t.double);
   transport.write_scalar(vm.velLimit, double(params.vel_limit), t.double);
   transport.write_scalar(vm.taskDtNs, sys.task_dt_ns(), t.u64);

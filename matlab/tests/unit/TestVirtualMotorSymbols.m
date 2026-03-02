@@ -18,6 +18,7 @@ classdef TestVirtualMotorSymbols < matlab.unittest.TestCase
       cc = experiment.VirtualMotorSymbols.from_controller_prefix("ControllerCore_Obj1 (Module1).");
       testCase.verifyEqual(string(vm.vmParams.m), "VirtualMotorCore_Obj1 (Module1).VirtualMotorParameter.mass");
       testCase.verifyEqual(string(vm.vmParams.ratedTorque), "VirtualMotorCore_Obj1 (Module1).VirtualMotorParameter.ratedTorque");
+      testCase.verifyTrue(any(string(vm.vmRequiredProbes(:, 1)) == string(vm.vmParams.maxPermille)));
       testCase.verifyEqual(string(cc.controllerParams.pidB0), "ControllerCore_Obj1 (Module1).PIDParams.pidB0");
       testCase.verifyEqual(string(cc.controllerParams.leadB0), "ControllerCore_Obj1 (Module1).LeadParams.leadB0");
       testCase.verifyEqual(string(cc.controllerParams.enableReso), "ControllerCore_Obj1 (Module1).EnableParams.enableReso");

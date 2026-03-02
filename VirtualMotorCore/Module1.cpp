@@ -5,7 +5,6 @@
 
 #include <math.h>
 #include <limits>
-
 #include "Module1.h"
 #include "VirtualMotorCoreVersion.h"
 

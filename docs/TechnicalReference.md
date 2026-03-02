@@ -423,10 +423,13 @@ GVL_SEQ_LOG のリングバッファ (§5) が ADS ポーリング前提の暫�
 | `loadPosition` | `LREAL` | DriverAdapter `positionRel` (D12) | Load 側実位置 (相対位置) [rad] |
 | `loadVelocity` | `LREAL` | DriverAdapter `velocityAct` (D11) | Load 側実速度 [rad/s] |
 | `resetReq` | `BOOL` | ModeManager `resetOut` | リセット要求 |
+| `loggingReq` | `BOOL` | ModeManager `experimentActiveOut` | ファイル open/close 制御 |
+| `playbackDone` | `BOOL` | ExperimentSequencer `GVL_SEQ.playbackDone` | 同一タスク fast-path でレコード追記停止 |
 
 > Phase 1–3 (SIL) では `motorPosition`, `motorVelocity` は 0 (未接続)。  
 > `loadPosition` は DriverAdapter.positionRel (D12)、`loadVelocity` は DriverAdapter.velocityAct (D11)、
-> `motorCurrentAct` は DriverAdapter.currentAct (D13) を使用する。
+> `motorCurrentAct` は DriverAdapter.currentAct (D13) を使用する。  
+> `loggingReq` はファイル open/close を担当し、`playbackDone` はレコード追記のみを即時停止する。
 
 #### 出力 (OutputSrc)
 
@@ -518,7 +521,7 @@ Offset   Size  型          フィールド
      WRITE_WAIT → PollAsyncOp() → 完了なら bytesWritten 加算, bufferCount=0, FSM=ACTIVE
      CLOSE_WAIT → PollAsyncOp() → 完了なら fileHandle=0, FSM=IDLE
 
-5. レコード追記 (logging=TRUE & FSM=ACTIVE & !sessionFailed):
+5. レコード追記 (`loggingReq=TRUE` & `playbackDone=FALSE` & FSM=ACTIVE & !sessionFailed):
      LogRecord を内部バッファに追記
      bufferCount >= kBufferRecords (8000) → StartAsyncWrite
        → FSM: ACTIVE → WRITE_WAIT
@@ -573,6 +576,7 @@ MAIN.enableCurrentOut     (%Q*)  ──►  GVL_DRV.enableCurrentOutput (%I*)
 MAIN.ctrlWord            (%Q*)  ──►  GVL_DRV.controlWordIn      (%I*)
 GVL_DRV.statusWordOut    (%Q*)  ──►  MAIN.statWord              (%I*)
 GVL_SEQ.playbackDone     (%Q*)  ──►  MAIN.seqPlaybackDone       (%I*)
+GVL_SEQ.playbackDone     (%Q*)  ──►  ExperimentLogger.Inputs.playbackDone
 ```
 
 ### 7.2 ExperimentSequencer → ControllerCore
@@ -629,6 +633,7 @@ GVL_DRV.positionRel                                         ──►  Experimen
 GVL_DRV.velocityAct                                         ──►  ExperimentLogger.Inputs.loadVelocity     ← D11: DriverAdapter 経由
 ModeManager.resetOut                                        ──►  ExperimentLogger.Inputs.resetReq
 ModeManager.experimentActiveOut                             ──►  ExperimentLogger.Inputs.loggingReq
+ExperimentSequencer.playbackDone                            ──►  ExperimentLogger.Inputs.playbackDone
 ```
 
 > D12: `loadPosition` のソースを `ControllerCore.positionRel` → `GVL_DRV.positionRel` に変更。

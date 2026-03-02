@@ -32,16 +32,24 @@ for i = 1:numel(status_list)
   fprintf("  %s: %d\n", s, c);
 end
 
-disp("=== Tsymbols (all) ===");
+% Auto-generated TwinCAT symbols are filtered out.
+% Top-level names starting with '_' or matching known system namespaces are excluded.
+autogen_prefixes = ["_", "TwinCAT_SystemInfoVarList", "AlarmManager"];
+
+disp("=== Tsymbols (user-defined only) ===");
 for k = 1:numel(ports)
   p = int32(ports(k));
   t_port = t_symbols(t_symbols.Port == p, :);
-  bad_count = sum(t_port.Status ~= "ok");
-  fprintf("\n--- Port %d : %d rows (non-ok=%d) ---\n", p, height(t_port), bad_count);
-  if any(t_port.Status ~= "ok")
-    disp(t_port(t_port.Status ~= "ok", {'Name', 'Status', 'ErrorMessage'}));
+  top_names = extractBefore(t_port.Name + ".", ".");
+  mask = ~startsWith(top_names, autogen_prefixes);
+  t_user = t_port(mask, :);
+  bad_count = sum(t_user.Status ~= "ok");
+  fprintf("\n--- Port %d : %d user rows (of %d total, non-ok=%d) ---\n", ...
+    p, height(t_user), height(t_port), bad_count);
+  if any(t_user.Status ~= "ok")
+    disp(t_user(t_user.Status ~= "ok", {'Name', 'Status', 'ErrorMessage'}));
   end
-  disp(t_port);
+  disp(t_user);
 end
 
 if isempty(t_symbols)

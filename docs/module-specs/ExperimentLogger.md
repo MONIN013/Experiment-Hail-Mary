@@ -5,7 +5,7 @@
 > AMS Port: 351
 
 ## Summary
-ExperimentLogger is a binary file logger for experiment data. In current SIL operation, logging is controlled automatically by ModeManager via `Inputs.loggingReq`.
+ExperimentLogger is a binary file logger for experiment data. In current SIL operation, `Inputs.loggingReq` controls file open/close via ModeManager, and `Inputs.playbackDone` provides a same-task fast path that stops record appends immediately when playback completes.
 
 ## Inputs
 | Name | Type | Source | Notes |
@@ -22,6 +22,7 @@ ExperimentLogger is a binary file logger for experiment data. In current SIL ope
 | `loadVelocity` | `LREAL` | DriverAdapter `velocityAct` (D11) | SIL load velocity |
 | `resetReq` | `BOOL` | ModeManager | reset edge |
 | `loggingReq` | `BOOL` | ModeManager `experimentActiveOut` | auto logging trigger |
+| `playbackDone` | `BOOL` | ExperimentSequencer `GVL_SEQ.playbackDone` | same-task write-stop fast path |
 
 ## Outputs
 | Name | Type | Notes |
@@ -35,16 +36,18 @@ ExperimentLogger is a binary file logger for experiment data. In current SIL ope
 |---|---|---|
 | `ExperimentLogger_Obj1 (Module1).LogControl.filePath` | `STRING(255)` | output path |
 
-Logging control is `Inputs.loggingReq` only (manual compatibility flag was removed).
+`Inputs.loggingReq` controls file open/close. `Inputs.playbackDone` suppresses new record appends immediately without taking over session close ownership from ModeManager.
 
 ## Runtime Behavior
 1. On `loggingReq` rising edge: open file and start logging.
-2. While active: append one record per cycle.
-3. On `loggingReq` falling edge: flush remaining buffer and close file.
-4. On `resetReq` rising edge: close session safely and reset runtime state.
+2. While active and `playbackDone = FALSE`: append one record per cycle.
+3. On `playbackDone = TRUE`: stop appending within the same task scan.
+4. On `loggingReq` falling edge: flush remaining buffer and close file.
+5. On `resetReq` rising edge: close session safely and reset runtime state.
 
 ## Mapping (SIL)
 - `loadPosition <- DriverAdapter.positionRel` (D12: ControllerCore.positionRel から変更)
 - `loadVelocity <- DriverAdapter.velocityAct` (D11: VirtualMotorCore.velocityOut から変更)
 - `motorCurrentAct <- DriverAdapter.currentAct` (D13: SIL でも接続済み)
+- `playbackDone <- ExperimentSequencer.GVL_SEQ.playbackDone` (H6: same-task fast-path stop)
 - `motorPosition/motorVelocity` are unconnected in SIL (0-fill).

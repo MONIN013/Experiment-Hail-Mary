@@ -3,7 +3,7 @@
 	<DataTypes>
 		<DataType>
 			<Name GUID="{7CF95A33-8192-4358-8261-51C0A8D0CBF5}">ST_VirtualMotorParams</Name>
-			<BitSize>448</BitSize>
+			<BitSize>512</BitSize>
 			<SubItem>
 				<Name>mass</Name>
 				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
@@ -35,16 +35,22 @@
 				<BitOffs>256</BitOffs>
 			</SubItem>
 			<SubItem>
+				<Name>maxPermille</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>320</BitOffs>
+			</SubItem>
+			<SubItem>
 				<Name>taskDtNs</Name>
 				<Type GUID="{18071995-0000-0000-0000-00000000000B}">ULINT</Type>
 				<BitSize>64</BitSize>
-				<BitOffs>320</BitOffs>
+				<BitOffs>384</BitOffs>
 			</SubItem>
 			<SubItem>
 				<Name>encoderResolution</Name>
 				<Type GUID="{18071995-0000-0000-0000-000000000008}">UDINT</Type>
 				<BitSize>32</BitSize>
-				<BitOffs>384</BitOffs>
+				<BitOffs>448</BitOffs>
 			</SubItem>
 			<Hides>
 				<Hide GUID="{AD65C9B8-FC86-4AF1-817D-BF58D4446348}"/>
@@ -413,7 +419,7 @@
 				</Instance>
 			</Project>
 			<Project GUID="{08913967-7B51-43CA-BB9A-1E6358DD9FAA}" Name="DriverAdapter" PrjFilePath="DriverAdapter\DriverAdapter.plcproj" TmcFilePath="DriverAdapter\DriverAdapter.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{C6D6AEBB-F249-6C7E-8404-7E63897F8A36}" TmcPath="DriverAdapter\DriverAdapter.tmc">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{43EE23A7-658B-61AC-7A10-6BD75A7B30F6}" TmcPath="DriverAdapter\DriverAdapter.tmc">
 					<Name>DriverAdapter Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -547,14 +553,14 @@
 							</Parameter>
 							<Parameter CreateSymbol="true">
 								<Name>VirtualMotor1Parameter</Name>
-								<BitSize>448</BitSize>
+								<BitSize>512</BitSize>
 								<BaseType GUID="{7CF95A33-8192-4358-8261-51C0A8D0CBF5}">ST_VirtualMotorParams</BaseType>
 								<PTCID>#x00000001</PTCID>
 								<ContextId>1</ContextId>
 							</Parameter>
 							<Parameter>
 								<Name>VirtualMotor2Parameter</Name>
-								<BitSize>448</BitSize>
+								<BitSize>512</BitSize>
 								<BaseType GUID="{7CF95A33-8192-4358-8261-51C0A8D0CBF5}">ST_VirtualMotorParams</BaseType>
 								<PTCID>#x00000002</PTCID>
 								<ContextId>1</ContextId>
@@ -655,6 +661,10 @@
 								<Value>0</Value>
 							</Value>
 							<Value>
+								<Name>VirtualMotor1Parameter.maxPermille</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
 								<Name>VirtualMotor1Parameter.taskDtNs</Name>
 								<Value>0</Value>
 							</Value>
@@ -680,6 +690,10 @@
 							</Value>
 							<Value>
 								<Name>VirtualMotor2Parameter.ratedTorque</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>VirtualMotor2Parameter.maxPermille</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
@@ -1012,7 +1026,7 @@
 								<AreaNo AreaType="InputDst">0</AreaNo>
 								<Name>Inputs</Name>
 								<ContextId>1</ContextId>
-								<ByteSize>82</ByteSize>
+								<ByteSize>83</ByteSize>
 								<Symbol>
 									<Name>currentCmd</Name>
 									<BitSize>64</BitSize>
@@ -1085,6 +1099,12 @@
 									<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
 									<BitOffs>648</BitOffs>
 								</Symbol>
+								<Symbol CreateSymbol="true">
+									<Name>playbackDone</Name>
+									<BitSize>8</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
+									<BitOffs>656</BitOffs>
+								</Symbol>
 							</DataArea>
 							<DataArea>
 								<AreaNo AreaType="OutputSrc">1</AreaNo>
@@ -1139,6 +1159,8 @@
 		<OwnerA Name="TIPC^DriverAdapter^DriverAdapter Instance">
 			<OwnerB Name="TIPC^ExperimentSequencer^ExperimentSequencer Instance">
 				<Link VarA="VirtualMotorTask Inputs^GVL_DRV.distValue" VarB="VirtualMotorTask Outputs^GVL_SEQ.distValue"/>
+				<Link VarA="VirtualMotorTask Outputs^GVL_DRV.currentAct" VarB="VirtualMotorTask Inputs^GVL_SEQ_LOG.controlInputTap"/>
+				<Link VarA="VirtualMotorTask Outputs^GVL_DRV.positionRel" VarB="VirtualMotorTask Inputs^GVL_SEQ_LOG.positionRelTap"/>
 			</OwnerB>
 			<OwnerB Name="TIPC^StateMachineControl^StateMachineControl Instance">
 				<Link VarA="VirtualMotorTask Inputs^GVL_DRV.controlWordIn" VarB="PlcTask Outputs^MAIN.ctrlWord"/>
@@ -1173,12 +1195,12 @@
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.playbackDone" VarB="PlcTask Inputs^MAIN.seqPlaybackDone"/>
 			</OwnerB>
 			<OwnerB Name="TIXC^ControllerCore^ControllerCore_Obj1 (Module1)">
-				<Link VarA="VirtualMotorTask Inputs^GVL_SEQ_LOG.controlInputTap" VarB="Outputs^controlInput"/>
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.ffValue" VarB="Inputs^ffValue"/>
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.refValue" VarB="Inputs^refValue"/>
 			</OwnerB>
 			<OwnerB Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.ffValue" VarB="Inputs^ffValue"/>
+				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.playbackDone" VarB="Inputs^playbackDone"/>
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.refValue" VarB="Inputs^refValue"/>
 			</OwnerB>
 		</OwnerA>

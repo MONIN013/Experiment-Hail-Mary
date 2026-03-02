@@ -213,9 +213,9 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 │                                                                       │
 │  ※ ⑥の playbackDone → experimentActive は                            │
 │     クロスタスク(1ms→10ms→1ms)のため最大~11ms遅延。                   │
-│     ExperimentLogger のログ停止にこの遅延が波及する。                   │
-│     8kHz運用時は最大~81サンプルの余剰ゼロ記録。                        │
-│     → H6 fast-path 対応で解消予定。                                    │
+│     ただし ExperimentLogger は playbackDone を同一タスク内で           │
+│     直接受け、レコード追記を即時停止する。                             │
+│     そのため 8kHz運用時の余剰ゼロ記録は H6 fast-path で抑止される。     │
 │                                                                       │
 │  ⑦ modeFlags = 0x0000            ModeManager: サーボ無効化            │
 │                                   → SWITCH_ON_DISABLED                │
@@ -259,7 +259,8 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
      ADS Read: LogStatus.recordsWritten / fileSizeKb / errorCode
 
 ④ ロギング停止
-     `experimentActiveOut` FALSE で自動停止
+     `playbackDone` でレコード追記を即時停止し、
+     その後 `experimentActiveOut` FALSE で flush + close
 
 ⑤ ファイル読み出し (実験後)
      ターゲット PC からバイナリファイルを取得

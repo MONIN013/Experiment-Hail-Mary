@@ -263,6 +263,8 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 	}
 
 	const bool loggingCmd = (m_Inputs.loggingReq != false);
+	const bool playbackDone = (m_Inputs.playbackDone != false);
+	const bool allowAppend = loggingCmd && !playbackDone;
 	bool risingEdge = loggingCmd && !m_prevLoggingCommand;
 	bool fallingEdge = !loggingCmd && m_prevLoggingCommand;
 	if (resetEdge)
@@ -338,7 +340,7 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 	}
 	m_bootDiagStage = 3;
 
-	if (loggingCmd && m_fileFsmState == EFileFsmState::ACTIVE && !m_sessionFailed)
+	if (allowAppend && m_fileFsmState == EFileFsmState::ACTIVE && !m_sessionFailed)
 	{
 		if (!AppendCurrentInputsAsRecord())
 		{

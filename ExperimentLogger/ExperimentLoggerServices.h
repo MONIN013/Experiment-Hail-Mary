@@ -64,6 +64,7 @@ typedef struct _Module1Inputs
 	double loadVelocity;
 	bool resetReq;
 	bool loggingReq;
+	bool playbackDone;
 } Module1Inputs, *PModule1Inputs;
 #pragma pack(pop)
 

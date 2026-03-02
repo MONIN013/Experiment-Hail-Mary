@@ -159,7 +159,7 @@ Phase 4 (125 µs = 8 kHz):
 | `EnableParams.enableNotch` | `boolean` | `false` | Notch Filter の有効/バイパス |
 | `EnableParams.enableReso` | `boolean` | `false` | 位相最適共振フィルタの有効/バイパス |
 
-> **注記:** `enablePid` のデフォルトは実装上 `true`。MATLAB 側で明示設定しても後方互換で問題ない。
+> **注記:** `enablePid` のデフォルトは実装上 `true`。MATLAB 側では常に正規フィールド `EnableParams.enablePid` を明示設定する。
 
 > **bypass 動作:** `enable = false` のとき、そのブロックの出力は入力をそのまま通過 (ゲイン 1)。  
 > FB チェーン: `error → [PID] → [Lead] → [Notch] → [Reso] → u_fb → (+ff_value) → control_input`  
@@ -368,11 +368,11 @@ ControllerCore.error                                       ──►  Experiment
 
 ```
 ModeManager.experimentActiveOut                            ──►  ExperimentLogger.Inputs.loggingReq       (ファイル open/close 制御、PlcTask 経由)
-ExperimentSequencer.playbackDone                           ──►  ExperimentLogger.Inputs.playbackDone     (同一タスク fast-path、即時記録停止) [H6 対応予定]
+ExperimentSequencer.playbackDone                           ──►  ExperimentLogger.Inputs.playbackDone     (同一タスク fast-path、即時記録停止)
 ```
 
-> `loggingReq` は PlcTask (10 ms) 経由のため、再生完了からロギング停止まで最大 ~11 ms (1 ms 時) / ~81 サンプル (8 kHz 時) の遅延がある。
-> `playbackDone` を同一 VirtualMotorTask 内でマッピングすることで、記録停止を 1 スキャン以内に収める。→ [OpenIssues.md H6](OpenIssues.md)
+> `loggingReq` は引き続きファイル open/close の制御に使用する。
+> `playbackDone` は同一 VirtualMotorTask 内で logger に直接マッピングし、レコード追記のみを 1 スキャン以内に停止させる。
 
 ### 3.8 DriverAdapter ↔ EtherCAT Drive (Phase 4)
 
@@ -623,7 +623,7 @@ END_TYPE
 - **実験終了時:** 残余バッファを最終 flush し、ファイルをクローズ
 - **MATLAB 側:** ADS 経由でファイルパス・ステータスを取得し、実験後にファイルを読み出す
 
-> **ログ終端精度 (H6):** 現行の `loggingReq` は ModeManager (PlcTask 10 ms) 経由で制御されるため、ExperimentSequencer が `playbackDone = TRUE` を発行してからロガーが記録を停止するまでに最大 ~81 サンプル (8 kHz 時) のゼロ値テールが混入しうる。`Inputs.playbackDone` を同一タスク内でマッピングし、レコード書き込みの即時停止に使用する設計を予定。→ [OpenIssues.md H6](OpenIssues.md)
+> **ログ終端精度 (H6):** `loggingReq` は ModeManager (PlcTask 10 ms) 経由のままファイル open/close を担う。一方で `Inputs.playbackDone` を同一タスク内でマッピングし、ExperimentSequencer が `playbackDone = TRUE` を発行したスキャンでレコード追記を停止することで、クロスタスク遅延由来のゼロ値テール混入を防ぐ。
 
 ---
 

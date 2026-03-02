@@ -163,7 +163,15 @@ classdef AdsTransport < twincat_ads.IAdsTransport
       array_type = elem_type.MakeArrayType();
       dims = NET.createArray("System.Int32", 1);
       dims(1) = int32(n_double);
-      o = c.ReadAny(handle, array_type, dims);
+      try
+        o = c.ReadAny(handle, array_type, dims);
+      catch e
+        if obj.should_fallback_array_read(e, net_type)
+          values = obj.read_array_slice_via_index_offset(symbol, net_type, 0, n_double);
+          return;
+        end
+        rethrow(e);
+      end
 
       if isnumeric(o) || islogical(o)
         values = double(o(:));
@@ -180,6 +188,17 @@ classdef AdsTransport < twincat_ads.IAdsTransport
 
       error("twincat_ads:type:unsupported", ...
         "Unexpected ADS array read return type for symbol '%s'.", string(symbol));
+    end
+
+    function tf = should_fallback_array_read(~, err, net_type_name)
+      tf = false;
+      if char(string(net_type_name)) ~= "System.UInt64"
+        return;
+      end
+      if ~contains(string(err.identifier), "MATLAB:NET:CLRException:MethodInvoke")
+        return;
+      end
+      tf = contains(string(err.message), "Unable to marshal type 'System.UInt64[]'");
     end
 
     function values = read_array_slice_via_index_offset(obj, symbol, net_type, start_idx, n)
