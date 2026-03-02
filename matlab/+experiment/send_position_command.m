@@ -1,5 +1,5 @@
 function out = send_position_command(varargin)
-cfg = parse_config(varargin{:});
+cfg = experiment.PositionCommandConfig.from_varargin(varargin{:});
 plc_symbols = experiment.VirtualMotorSymbols.from_defaults();
 plc_transport = [];
 ctrl_transport = [];
@@ -212,108 +212,6 @@ if owns_transport
     plc_transport.disconnect();
   catch
   end
-end
-end
-
-function cfg = parse_config(varargin)
-p = inputParser;
-p.addParameter("ams_net_id", "", @(x) ischar(x) || isstring(x));
-p.addParameter("ams_port", 851, @(x) isnumeric(x) && isscalar(x));
-p.addParameter("task_rate_hz", 1000, @(x) isnumeric(x) && isscalar(x));
-p.addParameter("ref_profile", [], @(x) isnumeric(x));
-p.addParameter("ff_profile", [], @(x) isnumeric(x));
-p.addParameter("dist_profile", [], @(x) isnumeric(x));
-p.addParameter("wait_for_done", true, @(x) islogical(x) || isnumeric(x));
-p.addParameter("done_timeout_s", 30.0, @(x) isnumeric(x) && isscalar(x) && x > 0);
-p.addParameter("reset_timeout_s", 5.0, @(x) isnumeric(x) && isscalar(x) && x > 0);
-p.addParameter("host_heartbeat_enable", true, @(x) islogical(x) || isnumeric(x));
-p.addParameter("host_heartbeat_period_s", 0.1, @(x) isnumeric(x) && isscalar(x) && x > 0);
-p.addParameter("hold_seconds", NaN, @(x) isnumeric(x) && isscalar(x) && (isnan(x) || x >= 0));
-p.addParameter("table_max_n", 100000, @(x) isnumeric(x) && isscalar(x) && x > 0);
-p.addParameter("log_n", 200000, @(x) isnumeric(x) && isscalar(x) && x > 0);
-p.addParameter("ads_assembly", "", @(x) ischar(x) || isstring(x));
-p.addParameter("read_logs", true, @(x) islogical(x) || isnumeric(x));
-p.addParameter("validate_symbols", true, @(x) islogical(x) || isnumeric(x));
-p.addParameter("plc_transport", [], @(x) isempty(x) || isa(x, "twincat_ads.IAdsTransport"));
-p.addParameter("control_ams_port", [], @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
-p.addParameter("control_transport", [], @(x) isempty(x) || isa(x, "twincat_ads.IAdsTransport"));
-p.addParameter("mode_flags_symbol", "", @(x) ischar(x) || isstring(x));
-p.addParameter("mode_flags_ams_port", [], @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
-p.addParameter("mode_flags_transport", [], @(x) isempty(x) || isa(x, "twincat_ads.IAdsTransport"));
-p.parse(varargin{:});
-
-cfg = p.Results;
-cfg.ams_net_id = char(string(cfg.ams_net_id));
-cfg.ams_port = double(cfg.ams_port);
-cfg.task_rate_hz = double(cfg.task_rate_hz);
-cfg.ref_profile = double(cfg.ref_profile(:));
-cfg.ff_profile = double(cfg.ff_profile(:));
-cfg.dist_profile = double(cfg.dist_profile(:));
-cfg.wait_for_done = logical(cfg.wait_for_done);
-cfg.done_timeout_s = double(cfg.done_timeout_s);
-cfg.reset_timeout_s = double(cfg.reset_timeout_s);
-cfg.host_heartbeat_enable = logical(cfg.host_heartbeat_enable);
-cfg.host_heartbeat_period_s = double(cfg.host_heartbeat_period_s);
-cfg.table_max_n = double(cfg.table_max_n);
-cfg.log_n = double(cfg.log_n);
-cfg.ads_assembly = char(string(cfg.ads_assembly));
-cfg.read_logs = logical(cfg.read_logs);
-cfg.validate_symbols = logical(cfg.validate_symbols);
-cfg.mode_flags_symbol = char(string(cfg.mode_flags_symbol));
-if isempty(cfg.control_ams_port)
-  cfg.control_ams_port = [];
-else
-  cfg.control_ams_port = double(cfg.control_ams_port);
-end
-if isempty(cfg.mode_flags_ams_port)
-  cfg.mode_flags_ams_port = [];
-else
-  cfg.mode_flags_ams_port = double(cfg.mode_flags_ams_port);
-end
-
-if isempty(strtrim(cfg.ams_net_id))
-  invalid_config("ams_net_id is required.");
-end
-if isempty(cfg.ref_profile)
-  invalid_config("ref_profile is required and must not be empty.");
-end
-if ~(isfinite(cfg.task_rate_hz) && cfg.task_rate_hz > 0)
-  invalid_config("task_rate_hz must be > 0.");
-end
-if numel(cfg.ref_profile) > cfg.table_max_n
-  invalid_config("ref_profile length (%d) exceeds table_max_n (%d).", ...
-    numel(cfg.ref_profile), cfg.table_max_n);
-end
-if isempty(cfg.ff_profile)
-  cfg.ff_profile = zeros(size(cfg.ref_profile));
-end
-if isempty(cfg.dist_profile)
-  cfg.dist_profile = zeros(size(cfg.ref_profile));
-end
-if numel(cfg.ff_profile) ~= numel(cfg.ref_profile)
-  invalid_config("ff_profile length must match ref_profile length.");
-end
-if numel(cfg.dist_profile) ~= numel(cfg.ref_profile)
-  invalid_config("dist_profile length must match ref_profile length.");
-end
-
-if isnan(cfg.hold_seconds)
-  cfg.hold_seconds = numel(cfg.ref_profile) / cfg.task_rate_hz;
-else
-  cfg.hold_seconds = double(cfg.hold_seconds);
-end
-
-if isempty(cfg.control_ams_port)
-  if cfg.ams_port == 853
-    cfg.control_ams_port = 852;
-  else
-    cfg.control_ams_port = cfg.ams_port;
-  end
-end
-
-if (~isempty(cfg.mode_flags_transport) || ~isempty(cfg.mode_flags_ams_port)) && ...
-    isempty(strtrim(cfg.mode_flags_symbol))
-  invalid_config("mode_flags_symbol is required when mode_flags_transport or mode_flags_ams_port is specified.");
 end
 end
 

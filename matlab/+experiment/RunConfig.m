@@ -1,9 +1,9 @@
 classdef RunConfig
   properties
     ams_net_id = ""
-    ams_port = 851
+    ams_port = []
     control_ams_port = []
-    module_ams_port = 351
+    module_ams_port = []
     vm_param_symbol_prefix = ""
     controller_param_symbol_prefix = ""
 
@@ -16,7 +16,7 @@ classdef RunConfig
     reset_timeout_s = 5.0
     host_heartbeat_enable = true
     host_heartbeat_period_s = 0.1
-    table_max_n = uint32(100000)
+    table_max_n = []
 
     m = 0.01
     d = 0.1
@@ -24,8 +24,8 @@ classdef RunConfig
     max_permille = 0.0
     tau_limit = 5.0
     vel_limit = 100.0
-    task_rate_hz = 1000
-    task_dt_ns = uint64(1000000)
+    task_rate_hz = []
+    task_dt_ns = uint64(0)
 
     pid_b0 = 0.0
     pid_b1 = 0.0
@@ -52,7 +52,7 @@ classdef RunConfig
     enable_notch = false
     enable_reso = false
 
-    log_n = 200000
+    log_n = []
     log_stream_enable = true
     log_poll_period_s = 0.05
     log_chunk_n = 8192
@@ -73,12 +73,13 @@ classdef RunConfig
   methods (Static)
     function out = from_varargin(varargin)
       p = inputParser;
-      p.addParameter("ams_net_id", "", @(x) ischar(x) || isstring(x));
-      p.addParameter("ams_port", 851, @(x) isnumeric(x) && isscalar(x));
+      defaults = experiment.SystemConfig.run_defaults();
+      p.addParameter("ams_net_id", defaults.ams_net_id, @(x) ischar(x) || isstring(x));
+      p.addParameter("ams_port", defaults.ams_port, @(x) isnumeric(x) && isscalar(x));
       p.addParameter("control_ams_port", [], @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
-      p.addParameter("module_ams_port", 351, @(x) isnumeric(x) && isscalar(x));
-      p.addParameter("vm_param_symbol_prefix", "", @(x) ischar(x) || isstring(x));
-      p.addParameter("controller_param_symbol_prefix", "", @(x) ischar(x) || isstring(x));
+      p.addParameter("module_ams_port", defaults.module_ams_port, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("vm_param_symbol_prefix", defaults.vm_param_symbol_prefix, @(x) ischar(x) || isstring(x));
+      p.addParameter("controller_param_symbol_prefix", defaults.controller_param_symbol_prefix, @(x) ischar(x) || isstring(x));
       p.addParameter("ref_profile", [], @(x) isnumeric(x));
       p.addParameter("ff_profile", [], @(x) isnumeric(x));
       p.addParameter("dist_profile", [], @(x) isnumeric(x));
@@ -88,14 +89,14 @@ classdef RunConfig
       p.addParameter("reset_timeout_s", 5.0, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("host_heartbeat_enable", true, @(x) islogical(x) || isnumeric(x));
       p.addParameter("host_heartbeat_period_s", 0.1, @(x) isnumeric(x) && isscalar(x) && x > 0);
-      p.addParameter("table_max_n", 100000, @(x) isnumeric(x) && isscalar(x) && x > 0);
+      p.addParameter("table_max_n", defaults.table_max_n, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("m", 0.01, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("d", 0.1, @(x) isnumeric(x) && isscalar(x));
       p.addParameter("rated_current", 1.2, @(x) isnumeric(x) && isscalar(x));
       p.addParameter("max_permille", 0.0, @(x) isnumeric(x) && isscalar(x) && x >= 0);
       p.addParameter("tau_limit", 5.0, @(x) isnumeric(x) && isscalar(x) && x >= 0);
       p.addParameter("vel_limit", 100.0, @(x) isnumeric(x) && isscalar(x) && x >= 0);
-      p.addParameter("task_rate_hz", 1000, @(x) isnumeric(x) && isscalar(x) && x > 0);
+      p.addParameter("task_rate_hz", defaults.task_rate_hz, @(x) isnumeric(x) && isscalar(x) && x > 0);
 
       p.addParameter("pid_b0", 0.0, @(x) isnumeric(x) && isscalar(x));
       p.addParameter("pid_b1", 0.0, @(x) isnumeric(x) && isscalar(x));
@@ -122,7 +123,7 @@ classdef RunConfig
       p.addParameter("enable_notch", false, @(x) islogical(x) || isnumeric(x));
       p.addParameter("enable_reso", false, @(x) islogical(x) || isnumeric(x));
 
-      p.addParameter("log_n", 200000, @(x) isnumeric(x) && isscalar(x) && x > 0);
+      p.addParameter("log_n", defaults.log_n, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("log_stream_enable", true, @(x) islogical(x) || isnumeric(x));
       p.addParameter("log_poll_period_s", 0.05, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("log_chunk_n", 8192, @(x) isnumeric(x) && isscalar(x) && x > 0);
@@ -141,12 +142,18 @@ classdef RunConfig
     end
 
     function out = from_struct(s)
-      out = experiment.RunConfig();
+      defaults = experiment.SystemConfig.run_defaults();
+      seeded = defaults;
       f = fieldnames(s);
+      for k = 1:numel(f)
+        seeded.(f{k}) = s.(f{k});
+      end
+      out = experiment.RunConfig();
+      f = fieldnames(seeded);
       for k = 1:numel(f)
         key = f{k};
         if isprop(out, key)
-          out.(key) = s.(key);
+          out.(key) = seeded.(key);
         end
       end
       out = out.normalize();
@@ -156,16 +163,19 @@ classdef RunConfig
 
   methods
     function out = normalize(obj)
+      sys = experiment.SystemConfig;
       out = obj;
       out.ams_net_id = char(string(out.ams_net_id));
       out.ads_assembly = char(string(out.ads_assembly));
       out.ams_port = double(out.ams_port);
       out.module_ams_port = double(out.module_ams_port);
+      out.task_rate_hz = double(out.task_rate_hz);
+      out.log_n = double(out.log_n);
       out.vm_param_symbol_prefix = char(string(out.vm_param_symbol_prefix));
       out.controller_param_symbol_prefix = char(string(out.controller_param_symbol_prefix));
       if isempty(out.control_ams_port)
-        if out.ams_port == 853
-          out.control_ams_port = 852;
+        if out.ams_port == double(sys.SEQ_PORT)
+          out.control_ams_port = double(sys.CONTROL_PORT);
         else
           out.control_ams_port = out.ams_port;
         end

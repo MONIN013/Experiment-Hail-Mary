@@ -52,8 +52,8 @@ typedef struct _ST_VirtualMotorInputs
 const GUID GUID_ST_VirtualMotorInputs = {0xC7D9D453, 0x404E, 0x418E, {0x80, 0x96, 0x3E, 0x28, 0x2F, 0x7C, 0xA3, 0x54}};
 #endif // !defined(_TC_TYPE_C7D9D453_404E_418E_8096_3E282F7CA354_INCLUDED_)
 
-#if !defined(_TC_TYPE_5AECBA81_EEEF_4B36_843B_FE37D1BA46C9_INCLUDED_)
-#define _TC_TYPE_5AECBA81_EEEF_4B36_843B_FE37D1BA46C9_INCLUDED_
+#if !defined(_TC_TYPE_F5B9D60D_B8CC_462F_9282_62AA3154A401_INCLUDED_)
+#define _TC_TYPE_F5B9D60D_B8CC_462F_9282_62AA3154A401_INCLUDED_
 #pragma pack(push,1)
 typedef struct _ST_VirtualMotorOutputs
 {
@@ -62,8 +62,8 @@ typedef struct _ST_VirtualMotorOutputs
 	SHORT torqueActualValue;
 } ST_VirtualMotorOutputs, *PST_VirtualMotorOutputs;
 #pragma pack(pop)
-const GUID GUID_ST_VirtualMotorOutputs = {0x5AECBA81, 0xEEEF, 0x4B36, {0x84, 0x3B, 0xFE, 0x37, 0xD1, 0xBA, 0x46, 0xC9}};
-#endif // !defined(_TC_TYPE_5AECBA81_EEEF_4B36_843B_FE37D1BA46C9_INCLUDED_)
+const GUID GUID_ST_VirtualMotorOutputs = {0xF5B9D60D, 0xB8CC, 0x462F, {0x92, 0x82, 0x62, 0xAA, 0x31, 0x54, 0xA4, 0x01}};
+#endif // !defined(_TC_TYPE_F5B9D60D_B8CC_462F_9282_62AA3154A401_INCLUDED_)
 
 typedef struct _Module1Inputs
 {

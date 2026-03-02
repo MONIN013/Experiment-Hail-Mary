@@ -35,6 +35,31 @@ classdef TestVirtualMotorService < matlab.unittest.TestCase
       testCase.verifyThat(ctrl_joined, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_MODE.hostHeartbeatCounter"));
     end
 
+    function configOverridesDriveExplicitPrefixesAndTaskDt(testCase)
+      plc = MockAdsTransport();
+      module = MockAdsTransport();
+      control = MockAdsTransport();
+      seedPlcScalars(plc);
+      seedControlScalars(control);
+      seedVmScalars(module, "VmOverride.");
+      seedControllerScalars(module, "CtrlOverride.");
+      svc = experiment.VirtualMotorService(plc, module, control);
+
+      cfg = experiment.RunConfig.from_varargin( ...
+        "ref_profile", [0.1; 0.2], ...
+        "vm_param_symbol_prefix", "VmOverride.", ...
+        "controller_param_symbol_prefix", "CtrlOverride.", ...
+        "task_rate_hz", 2000, ...
+        "wait_for_done", false, ...
+        "hold_seconds", 0.0, ...
+        "log_require_complete", false, ...
+        "save_path", fullfile(tempdir, "ehm_test_override_contract.mat"));
+
+      svc.run(cfg);
+      testCase.verifyEqual(module.scalarMap("VmOverride.taskDtNs"), uint64(500000));
+      testCase.verifyEqual(module.scalarMap("CtrlOverride.EnableParams.enablePid"), true);
+    end
+
     function streamingModeDrainsLogsDuringRun(testCase)
       plc = MockAdsTransport();
       module = MockAdsTransport();
@@ -235,4 +260,3 @@ t.scalarMap(strcat(base, 'EnableParams.enableLead')) = false;
 t.scalarMap(strcat(base, 'EnableParams.enableNotch')) = false;
 t.scalarMap(strcat(base, 'EnableParams.enableReso')) = false;
 end
-

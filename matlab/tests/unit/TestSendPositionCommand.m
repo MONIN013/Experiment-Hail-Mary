@@ -25,7 +25,7 @@ classdef TestSendPositionCommand < matlab.unittest.TestCase
       testCase.verifyFalse(contains(joined, "write_scalar:GVL_SEQ.idx"));
       testCase.verifyEqual(string(out.host.mode_flags_symbol), "GVL_MODE.modeFlags");
       testCase.verifyFalse(out.host.servo_ready_check_supported);
-      testCase.verifyEqual(double(out.host.control_ams_port), 851);
+      testCase.verifyEqual(double(out.host.control_ams_port), 852);
       testCase.verifyTrue(out.host.done);
       testCase.verifyFalse(out.host.timed_out);
     end

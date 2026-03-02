@@ -75,8 +75,8 @@ mod_transport.connect(ams_net_id, module_port);
 fprintf("Connected: SEQ=%d, CTRL=%d, MODULE=%d\n", seq_port, control_port, module_port);
 
 %% パラメータ書込み
-experiment.write_vm_params(mod_transport, vm_params);
-experiment.write_controller_params(mod_transport, ctrl_params);
+experiment.write_vm_params(mod_transport, char(sys.VM_PREFIX), vm_params, experiment.SystemConfig.task_dt_ns());
+experiment.write_controller_params(mod_transport, char(sys.CTRL_PREFIX), ctrl_params);
 fprintf("VM params: m=%.2f d=%.2f rated_current=%.2f\n", vm_params.m, vm_params.d, vm_params.rated_current);
 fprintf("Controller: Kp=%.1f (pid_b0), enable_pid=true\n", Kp);
 

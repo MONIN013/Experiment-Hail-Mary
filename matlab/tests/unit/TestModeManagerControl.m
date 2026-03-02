@@ -38,7 +38,7 @@ classdef TestModeManagerControl < matlab.unittest.TestCase
       ctrl = experiment.ModeManagerControl.resolve_symbols(ctrl_t, symbols);
       ctrl_t.set_scalar_read_sequence("GVL_MODE.experimentState", uint32([0; 1; 2; 3]));
 
-      done = experiment.ModeManagerControl.wait_until_done(ctrl_t, plc, symbols, ctrl, 0.05);
+      done = experiment.ModeManagerControl.wait_until_done(ctrl_t, plc, symbols, ctrl, 0.1);
 
       joined = strjoin(ctrl_t.operations, "|");
       testCase.verifyTrue(done);

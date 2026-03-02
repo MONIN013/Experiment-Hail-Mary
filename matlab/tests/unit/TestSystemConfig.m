@@ -45,5 +45,23 @@ classdef TestSystemConfig < matlab.unittest.TestCase
       testCase.verifyClass(sys.MODE_FLAGS_SYMBOL, 'string');
       testCase.verifyTrue(contains(sys.MODE_FLAGS_SYMBOL, "modeFlags"));
     end
+
+    function runDefaultsExposeEnvironmentOwnedFields(testCase)
+      defaults = experiment.SystemConfig.run_defaults();
+      testCase.verifyEqual(string(defaults.ams_net_id), experiment.SystemConfig.AMS_NET_ID);
+      testCase.verifyEqual(defaults.ams_port, double(experiment.SystemConfig.SEQ_PORT));
+      testCase.verifyEqual(defaults.module_ams_port, double(experiment.SystemConfig.MODULE_PORT));
+      testCase.verifyEqual(string(defaults.vm_param_symbol_prefix), experiment.SystemConfig.VM_PREFIX);
+      testCase.verifyEqual(string(defaults.controller_param_symbol_prefix), experiment.SystemConfig.CTRL_PREFIX);
+      testCase.verifyEqual(double(defaults.log_n), double(experiment.SystemConfig.LOG_N));
+    end
+
+    function positionCommandDefaultsExposeEnvironmentOwnedFields(testCase)
+      defaults = experiment.SystemConfig.position_command_defaults();
+      testCase.verifyEqual(string(defaults.ams_net_id), experiment.SystemConfig.AMS_NET_ID);
+      testCase.verifyEqual(defaults.ams_port, double(experiment.SystemConfig.SEQ_PORT));
+      testCase.verifyEqual(double(defaults.log_n), double(experiment.SystemConfig.LOG_N));
+      testCase.verifyEqual(string(defaults.mode_flags_symbol), experiment.SystemConfig.MODE_FLAGS_SYMBOL);
+    end
   end
 end

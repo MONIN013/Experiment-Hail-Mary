@@ -1,7 +1,7 @@
-function write_ref_table(transport, ref_profile)
+function write_ref_table(transport, ref_profile, table_max_n)
 % write_ref_table  位置指令テーブルを GVL_SEQ に書き込む。
 %
-%   experiment.write_ref_table(transport, ref_profile)
+%   experiment.write_ref_table(transport, ref_profile, table_max_n)
 %
 %   transport    — 接続済み twincat_ads.IAdsTransport (Port = SystemConfig.SEQ_PORT)
 %   ref_profile  — double 列ベクトル [N×1]
@@ -10,18 +10,18 @@ function write_ref_table(transport, ref_profile)
 %     GVL_SEQ.refTable  ← ref_profile
 %     GVL_SEQ.tableLen  ← numel(ref_profile)
 %
-%   TABLE_MAX_N を超過した場合はエラーを投げる。
+%   table_max_n を超過した場合はエラーを投げる。
 
   arguments
     transport   twincat_ads.IAdsTransport
     ref_profile (:,1) double
+    table_max_n (1,1) double {mustBePositive}
   end
 
-  sys = experiment.SystemConfig;
   n = numel(ref_profile);
-  if n > sys.TABLE_MAX_N
+  if n > table_max_n
     error("experiment:write_ref_table:tooLong", ...
-      "ref_profile length (%d) exceeds TABLE_MAX_N (%d).", n, sys.TABLE_MAX_N);
+      "ref_profile length (%d) exceeds table_max_n (%d).", n, table_max_n);
   end
 
   symbols = experiment.VirtualMotorSymbols.from_defaults();

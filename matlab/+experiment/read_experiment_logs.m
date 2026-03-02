@@ -1,7 +1,7 @@
-function log_data = read_experiment_logs(transport)
+function log_data = read_experiment_logs(transport, log_n)
 % read_experiment_logs  GVL_SEQ_LOG からログを一括読み出す（上位読み取り方式）。
 %
-%   log_data = experiment.read_experiment_logs(transport)
+%   log_data = experiment.read_experiment_logs(transport, log_n)
 %
 %   transport — 接続済み twincat_ads.IAdsTransport (Port = SystemConfig.SEQ_PORT)
 %
@@ -20,12 +20,11 @@ function log_data = read_experiment_logs(transport)
 
   arguments
     transport twincat_ads.IAdsTransport
+    log_n (1,1) double {mustBePositive}
   end
 
-  sys = experiment.SystemConfig;
   symbols = experiment.VirtualMotorSymbols.from_defaults();
   t = symbols.types;
-  log_n = sys.LOG_N;
 
   log_data = empty_log();
 

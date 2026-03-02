@@ -44,16 +44,26 @@ classdef VirtualMotorService < handle
       heartbeat_state = experiment.ModeManagerControl.init_heartbeat( ...
         obj.control_transport, ctrl, cfg.host_heartbeat_enable, cfg.host_heartbeat_period_s);
 
-      vmParams = struct();
-      vmParams.m = cfg.m;
-      vmParams.d = cfg.d;
-      vmParams.ratedTorque = cfg.rated_current;
-      vmParams.maxPermille = cfg.max_permille;
-      vmParams.tauLimit = cfg.tau_limit;
-      vmParams.velLimit = cfg.vel_limit;
-      vmParams.taskDtNs = cfg.task_dt_ns;
-      obj.write_vmParams(vm_symbols, vmParams);
-      obj.write_controllerParams(controller_symbols, cfg);
+      vm_params = struct( ...
+        "m", cfg.m, ...
+        "d", cfg.d, ...
+        "rated_current", cfg.rated_current, ...
+        "max_permille", cfg.max_permille, ...
+        "tau_limit", cfg.tau_limit, ...
+        "vel_limit", cfg.vel_limit);
+      controller_params = struct( ...
+        "pid_b0", cfg.pid_b0, "pid_b1", cfg.pid_b1, "pid_b2", cfg.pid_b2, ...
+        "pid_a1", cfg.pid_a1, "pid_a2", cfg.pid_a2, ...
+        "lead_b0", cfg.lead_b0, "lead_b1", cfg.lead_b1, "lead_b2", cfg.lead_b2, ...
+        "lead_a1", cfg.lead_a1, "lead_a2", cfg.lead_a2, ...
+        "notch_b0", cfg.notch_b0, "notch_b1", cfg.notch_b1, "notch_b2", cfg.notch_b2, ...
+        "notch_a1", cfg.notch_a1, "notch_a2", cfg.notch_a2, ...
+        "reso_b0", cfg.reso_b0, "reso_b1", cfg.reso_b1, "reso_b2", cfg.reso_b2, ...
+        "reso_a1", cfg.reso_a1, "reso_a2", cfg.reso_a2, ...
+        "enable_pid", cfg.enable_pid, "enable_lead", cfg.enable_lead, ...
+        "enable_notch", cfg.enable_notch, "enable_reso", cfg.enable_reso);
+      experiment.write_vm_params(obj.vm_transport, cfg.vm_param_symbol_prefix, vm_params, cfg.task_dt_ns);
+      experiment.write_controller_params(obj.vm_transport, cfg.controller_param_symbol_prefix, controller_params);
 
       ref_profile = cfg.ref_profile(:);
       ff_profile = cfg.ff_profile(:);
@@ -103,10 +113,9 @@ classdef VirtualMotorService < handle
           "Timed out waiting reset idle state (wrIdx==0, idx==0, experimentActive==FALSE).");
       end
 
-      obj.plc_transport.write_array(plc_symbols.refTable, ref_profile, t.double);
-      obj.plc_transport.write_array(plc_symbols.ffTable, ff_profile, t.double);
-      obj.plc_transport.write_array(plc_symbols.distTable, dist_profile, t.double);
-      obj.plc_transport.write_scalar(plc_symbols.tableLen, uint32(table_n), t.u32);
+      experiment.write_ref_table(obj.plc_transport, ref_profile, double(cfg.table_max_n));
+      experiment.write_ff_table(obj.plc_transport, ff_profile, table_n);
+      experiment.write_dist_table(obj.plc_transport, dist_profile, table_n);
       obj.write_mode_flags(ctrl, uint32(ctrl.MODEF_SERVO_ENABLE));
       obj.write_mode_flags(ctrl, uint32(bitor(ctrl.MODEF_SERVO_ENABLE, ctrl.MODEF_EXPERIMENT_START_REQ)));
 
@@ -141,7 +150,9 @@ classdef VirtualMotorService < handle
       raw.controlInput_last = double(controlInput_last);
 
       if ~(cfg.wait_for_done && cfg.log_stream_enable && host_log_stats.log_stream_enabled)
-        [log_data, log_read_time] = obj.read_upper_logs(plc_symbols, cfg.log_n);
+        t_read = tic;
+        log_data = experiment.read_experiment_logs(obj.plc_transport, double(cfg.log_n));
+        log_read_time = toc(t_read);
       end
       raw.logSeq = log_data.logSeq;
       raw.logRefValue = log_data.logRefValue;
@@ -206,49 +217,6 @@ classdef VirtualMotorService < handle
   end
 
   methods (Access = private)
-    function write_vmParams(obj, symbols, params)
-      t = symbols.types;
-      obj.vm_transport.write_scalar(symbols.vmParams.m, params.m, t.double);
-      obj.vm_transport.write_scalar(symbols.vmParams.d, params.d, t.double);
-      obj.vm_transport.write_scalar(symbols.vmParams.ratedTorque, params.ratedTorque, t.double);
-      obj.vm_transport.write_scalar(symbols.vmParams.maxPermille, params.maxPermille, t.double);
-      obj.vm_transport.write_scalar(symbols.vmParams.tauLimit, params.tauLimit, t.double);
-      obj.vm_transport.write_scalar(symbols.vmParams.velLimit, params.velLimit, t.double);
-      obj.vm_transport.write_scalar(symbols.vmParams.taskDtNs, uint64(params.taskDtNs), t.u64);
-    end
-
-    function write_controllerParams(obj, symbols, cfg)
-      t = symbols.types;
-      p = symbols.controllerParams;
-      obj.vm_transport.write_scalar(p.pidB0, cfg.pid_b0, t.double);
-      obj.vm_transport.write_scalar(p.pidB1, cfg.pid_b1, t.double);
-      obj.vm_transport.write_scalar(p.pidB2, cfg.pid_b2, t.double);
-      obj.vm_transport.write_scalar(p.pidA1, cfg.pid_a1, t.double);
-      obj.vm_transport.write_scalar(p.pidA2, cfg.pid_a2, t.double);
-
-      obj.vm_transport.write_scalar(p.leadB0, cfg.lead_b0, t.double);
-      obj.vm_transport.write_scalar(p.leadB1, cfg.lead_b1, t.double);
-      obj.vm_transport.write_scalar(p.leadB2, cfg.lead_b2, t.double);
-      obj.vm_transport.write_scalar(p.leadA1, cfg.lead_a1, t.double);
-      obj.vm_transport.write_scalar(p.leadA2, cfg.lead_a2, t.double);
-
-      obj.vm_transport.write_scalar(p.notchB0, cfg.notch_b0, t.double);
-      obj.vm_transport.write_scalar(p.notchB1, cfg.notch_b1, t.double);
-      obj.vm_transport.write_scalar(p.notchB2, cfg.notch_b2, t.double);
-      obj.vm_transport.write_scalar(p.notchA1, cfg.notch_a1, t.double);
-      obj.vm_transport.write_scalar(p.notchA2, cfg.notch_a2, t.double);
-      obj.vm_transport.write_scalar(p.resoB0, cfg.reso_b0, t.double);
-      obj.vm_transport.write_scalar(p.resoB1, cfg.reso_b1, t.double);
-      obj.vm_transport.write_scalar(p.resoB2, cfg.reso_b2, t.double);
-      obj.vm_transport.write_scalar(p.resoA1, cfg.reso_a1, t.double);
-      obj.vm_transport.write_scalar(p.resoA2, cfg.reso_a2, t.double);
-
-      obj.vm_transport.write_scalar(p.enablePid, cfg.enable_pid, t.bool);
-      obj.vm_transport.write_scalar(p.enableLead, cfg.enable_lead, t.bool);
-      obj.vm_transport.write_scalar(p.enableNotch, cfg.enable_notch, t.bool);
-      obj.vm_transport.write_scalar(p.enableReso, cfg.enable_reso, t.bool);
-    end
-
     function ctrl = resolve_control_symbols(obj, symbols)
       ctrl = experiment.ModeManagerControl.resolve_symbols( ...
         obj.control_transport, symbols, "experiment:service:invalidConfig");

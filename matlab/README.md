@@ -24,6 +24,12 @@
 - 代表例: `RunConfig.from_varargin`, `VirtualMotorSymbols.from_defaults`, `IAdsTransport.read_scalar`, `SymbolBrowser.discover_ports_and_symbols`
 - 旧 `camelCase` 名を呼び出すコードはすべて更新が必要
 
+## 破壊的変更（2026-03-02）
+
+- `SystemConfig` は環境 default の所有者のみを担当し、runtime config は保持しない
+- `send_position_command` は `PositionCommandConfig` を canonical config とする
+- helper は hidden `SystemConfig` 依存を廃止し、prefix / limit / `task_dt_ns` / `log_n` を引数で受け取る
+
 ## 現状の問題点
 
 | 問題 | 具体例 |
@@ -49,6 +55,7 @@ matlab/
 │
 ├── +experiment/                     ← プロジェクト固有コード
 │   ├── RunConfig.m                  ← 実験パラメータ設定
+│   ├── PositionCommandConfig.m      ← PLC-only 実行設定
 │   ├── VirtualMotorSymbols.m        ← PLCシンボル名コントラクト
 │   ├── VirtualMotorService.m        ← 実験オーケストレーター
 │   ├── run_virtualmotor.m           ← コンポジションルート関数
@@ -126,7 +133,8 @@ matlab/
 
 | ファイル | 説明 |
 |---|---|
-| `RunConfig` | 実験パラメータのバリューオブジェクト（`ams_net_id`, モデルパラメータ, ADS設定等） |
+| `RunConfig` | フル実験実行の runtime config。環境 default は `SystemConfig.run_defaults()` から取得 |
+| `PositionCommandConfig` | `send_position_command` 用の PLC-only runtime config |
 | `ModeManagerControl` | ModeManager (`GVL_MODE.modeFlags`) 制御の共通 helper（symbol 解決、reset/start/stop、完了待ち） |
 | `VirtualMotorSymbols` | PLCシンボル名コントラクト。`from_defaults()` (PLC側) / `from_prefix(prefix)` (C++モジュール側) |
 | `VirtualMotorService` | 実験オーケストレーター: シンボル解決→パラメータ書き込み→実行→ログ読み取り→評価→保存 |
@@ -140,6 +148,13 @@ matlab/
 |---|---|
 | `run_preload_and_plot.m` | 正弦波電流プロファイル生成 → `experiment.run_virtualmotor` 実行 → 3段プロット＋サマリー表示 |
 | `run_ads_discovery_demo.m` | ADS接続テスト用デモ。`twincat_ads.SymbolBrowser.discover_ports_and_symbols` を呼び、ポート接続状態とシンボル一覧をコンソール表示 |
+
+### 設定所有
+
+- `SystemConfig`: 環境固定の default 値のみを所有
+- `RunConfig`: `VirtualMotorService` / `run_virtualmotor` の runtime config を所有
+- `PositionCommandConfig`: `send_position_command` の runtime config を所有
+- helper は caller が所有する設定を明示引数で受け取る
 
 ## 命名規則
 
@@ -199,7 +214,7 @@ out = experiment.send_position_command( ...
   "task_rate_hz", 1000);
 ```
 
-- 351番ポートや module prefix 指定は不要（PLC 851番のみ）
+- 351番ポートや module prefix 指定は不要（ADS ポートは `SystemConfig` default を使用）
 - `ff_profile` / `dist_profile` は省略時ゼロ埋め
 - ログは非ストリーミングの上位読み取り（`GVL_SEQ_LOG.*`）を使用
 - 分離ポート構成（例: data=`853`, control=`852`）でも modeFlags は `GVL_MODE.modeFlags`（Port 852）を使用する:
@@ -222,9 +237,10 @@ out = experiment.send_position_command( ...
 | **fixtures** | `MockAdsTransport` | `twincat_ads.IAdsTransport` のモック（`containers.Map` で値保持、操作ログ記録） |
 | **contract** | `TestSymbolBrowserContract` | シンボル検証: 欠損シンボルでエラー、全存在でパス |
 | **contract** | `TestTransportContract` | モックトランスポートのラウンドトリップ（スカラー・配列） |
-| **unit** | `TestRunConfig` | 必須フィールドバリデーション、デフォルト値 |
+| **unit** | `TestRunConfig` | SystemConfig 由来 default と runtime override |
+| **unit** | `TestPositionCommandConfig` | `send_position_command` 用 config 契約 |
 | **unit** | `TestSymbolTraversal` | BFS走査ロジック: 名前フォールバック、フィルタ、重複除去、配列展開抑止 |
-| **unit** | `TestVirtualMotorService` | プロファイルフロー操作順序、タイムアウト警告、ログ欠損時の空配列 |
+| **unit** | `TestVirtualMotorService` | helper 契約反映後の実験フローとログ処理 |
 | **unit** | `TestVirtualMotorSymbols` | `from_prefix` / `from_defaults` が正しいシンボル名を生成するか |
 
 ## ADS 通信フロー

@@ -1,9 +1,10 @@
-function write_controller_params(transport, params)
+function write_controller_params(transport, controller_param_symbol_prefix, params)
 % write_controller_params  ControllerCore の biquad フィルタパラメータを Port 351 に書き込む。
 %
-%   experiment.write_controller_params(transport, params)
+%   experiment.write_controller_params(transport, controller_param_symbol_prefix, params)
 %
 %   transport — 接続済み twincat_ads.IAdsTransport (Port = SystemConfig.MODULE_PORT)
+%   controller_param_symbol_prefix — ControllerCore prefix
 %   params    — struct or RunConfig with fields:
 %               pid_b0..pid_a2, lead_b0..lead_a2, notch_b0..notch_a2, reso_b0..reso_a2,
 %               enable_pid, enable_lead, enable_notch, enable_reso
@@ -15,11 +16,11 @@ function write_controller_params(transport, params)
 
   arguments
     transport twincat_ads.IAdsTransport
+    controller_param_symbol_prefix {mustBeTextScalar}
     params    struct
   end
 
-  sys = experiment.SystemConfig;
-  symbols = experiment.VirtualMotorSymbols.from_controller_prefix(sys.CTRL_PREFIX);
+  symbols = experiment.VirtualMotorSymbols.from_controller_prefix(char(string(controller_param_symbol_prefix)));
   t = symbols.types;
   p = symbols.controllerParams;
 
