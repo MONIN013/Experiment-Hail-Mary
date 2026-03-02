@@ -76,8 +76,8 @@
 | Pid 系 | `pidB0`, `pidB1`, `pidA1` (~~`PID_b0`~~ は廃止) |
 | 物理量 | `tauLimit`, `velLimit`, `taskDtNs` (~~`M`~~, ~~`D`~~ → `mass`, `damping`) |
 
-> **移行メモ:** 物理量 1文字記号 (`M`, `D`, `Kt`) はコメントで物理的意味を補記し、
-> フィールド名は説明的な camelCase (`mass`, `damping`, `torqueConstant`) に移行する。
+> **移行メモ:** 物理量 1文字記号 (`M`, `D`) はコメントで物理的意味を補記し、
+> フィールド名は説明的な camelCase (`mass`, `damping`, `ratedTorque`) に移行する。
 > TMC 変更は I/O マッピング再設定を伴うため Phase 単位で計画的に行う。
 
 ### 1.6 マクロ / #define

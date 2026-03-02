@@ -20,7 +20,8 @@ classdef RunConfig
 
     m = 0.01
     d = 0.1
-    kt = 1.0
+    rated_current = 1.2
+    max_permille = 0.0
     tau_limit = 5.0
     vel_limit = 100.0
     task_rate_hz = 1000
@@ -90,7 +91,8 @@ classdef RunConfig
       p.addParameter("table_max_n", 100000, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("m", 0.01, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("d", 0.1, @(x) isnumeric(x) && isscalar(x));
-      p.addParameter("kt", 1.0, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("rated_current", 1.2, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("max_permille", 0.0, @(x) isnumeric(x) && isscalar(x) && x >= 0);
       p.addParameter("tau_limit", 5.0, @(x) isnumeric(x) && isscalar(x) && x >= 0);
       p.addParameter("vel_limit", 100.0, @(x) isnumeric(x) && isscalar(x) && x >= 0);
       p.addParameter("task_rate_hz", 1000, @(x) isnumeric(x) && isscalar(x) && x > 0);

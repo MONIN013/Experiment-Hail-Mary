@@ -160,7 +160,7 @@ pd = struct("available", ~isempty(log_pos), "sample_count", uint32(numel(log_pos
 if isempty(log_pos)
   return;
 end
-if isfield(cfg, "m") && isfield(cfg, "d") && isfield(cfg, "kt") && isfield(cfg, "tauLimit") && isfield(cfg, "velLimit") && isfield(cfg, "task_rate_hz")
+if isfield(cfg, "m") && isfield(cfg, "d") && isfield(cfg, "rated_current") && isfield(cfg, "tauLimit") && isfield(cfg, "velLimit") && isfield(cfg, "task_rate_hz")
   pd.velocity_est = [0.0; diff(log_pos) * double(cfg.task_rate_hz)];
 else
   pd.velocity_est = zeros(numel(log_pos), 1);

@@ -16,8 +16,8 @@
 | 変数 | 型 | リンク | 方向 | 説明 |
 |---|---|---|---|---|
 | `refTable` | `LREAL[0..99999]` | — | ADS→PLC | 位置指令テーブル [rad] |
-| `ffTable` | `LREAL[0..99999]` | — | ADS→PLC | FF テーブル [Nm] |
-| `distTable` | `LREAL[0..99999]` | — | ADS→PLC | 外乱テーブル [Nm] |
+| `ffTable` | `LREAL[0..99999]` | — | ADS→PLC | FF テーブル [A] |
+| `distTable` | `LREAL[0..99999]` | — | ADS→PLC | 外乱テーブル [A] |
 | `tableLen` | `UDINT` | — | ADS→PLC | テーブル有効長 |
 | `tableLenClamped` | `UDINT` | — | PLC内部 | min(tableLen, N_*_MAX) にクランプ済み |
 | `idx` | `UDINT` | — | PLC内部 (ADS読取可) | 現在の再生インデックス |
@@ -104,7 +104,7 @@ END_IF
 | ポート | 型 | ソース | 説明 |
 |---|---|---|---|
 | `refValue` | `LREAL` | ExperimentSequencer `GVL_SEQ.refValue` | 位置指令 [rad] |
-| `ffValue` | `LREAL` | ExperimentSequencer `GVL_SEQ.ffValue` | FF 信号 [Nm] |
+| `ffValue` | `LREAL` | ExperimentSequencer `GVL_SEQ.ffValue` | FF 信号 [A] |
 | `positionAct` | `LREAL` | DriverAdapter `positionRel` | Load 側相対位置 [rad]（Adapter で raw→rad 変換+相対位置化済み）|
 | `resetReq` | `BOOL` | ModeManager `resetOut` | リセット要求 |
 
@@ -112,7 +112,7 @@ END_IF
 
 | ポート | 型 | 宛先 | 説明 |
 |---|---|---|---|
-| `controlInput` | `LREAL` | DriverAdapter `GVL_DRV.controlInput` + ログ (`GVL_SEQ_LOG.controlInputTap`) | 制御出力 [Nm] |
+| `controlInput` | `LREAL` | DriverAdapter `GVL_DRV.controlInput` + ログ (`GVL_SEQ_LOG.controlInputTap`) | 制御出力 [A] |
 | `error` | `LREAL` | (ログ用) | 位置誤差 $e = \text{refValue} - \text{positionAct}$ |
 
 ### 2.2 CycleUpdate 処理 (毎スキャン 1 ms)
@@ -174,8 +174,8 @@ s2 = b2 * x - a2 * y
 | `positionActualValue` | `DINT` | `AT %I*` | VirtualMotorCore/EtherCAT→PLC | 実位置 [pulses] |
 | `velocityActualValue` | `DINT` | `AT %I*` | VirtualMotorCore/EtherCAT→PLC | 実速度 [pulses/s] |
 | `torqueActualValue` | `INT` | `AT %I*` | VirtualMotorCore/EtherCAT→PLC | 実トルク [‰ rated] |
-| `controlInput` | `LREAL` | `AT %I*` | ControllerCore→PLC | 制御出力 [Nm] |
-| `distValue` | `LREAL` | `AT %I*` | ExperimentSequencer→PLC | 外乱値 [Nm] |
+| `controlInput` | `LREAL` | `AT %I*` | ControllerCore→PLC | 制御出力 [A] |
+| `distValue` | `LREAL` | `AT %I*` | ExperimentSequencer→PLC | 外乱値 [A] |
 | `statusWord` | `UINT` | `AT %I*` | VirtualMotorCore→PLC | CiA 402 StatusWord |
 | `controlWordIn` | `UINT` | `AT %I*` | ModeManager→PLC | CiA 402 ControlWord |
 | `enableCurrentOutput` | `BOOL` | `AT %I*` | ModeManager→PLC | 電流出力ゲート |
@@ -205,8 +205,9 @@ resetReqPrev := resetReq
 (* 3. 相対位置化 *)
 positionRel := positionRad - positionOffsetRad
 
-(* 4. 工学単位 → Drive 変換 (外乱加算 + 電流ゲート + 飽和) *)
+(* 4. 工学単位 → Drive 変換 (電流クランプ + 外乱加算 + 電流ゲート + 飽和) *)
 targetCurrentA := controlInput + distValue
+targetCurrentA := Clamp(targetCurrentA, ±MAX_CURRENT_A)  ← モーター保護クランプ
 
 IF enableCurrentOutput THEN
     targetTorque := LREAL_TO_INT(targetCurrentA * RATED_CURRENT_INV_X1000)
@@ -265,7 +266,13 @@ ControlWord ビット解釈:
 ```
 入力: targetTorque (= ‰ rated, INT from DriverAdapter)
 
-ratedTorque := EffectiveRatedTorque(params)     ← パラメータから取得 (デフォルト 0.318 Nm)
+ratedTorque := EffectiveRatedTorque(params)     ← パラメータから取得 (デフォルト 1.2 Nm)
+
+(* maxPermille チェック: 入力レベル保護 *)
+IF maxPermille > 0 AND |targetTorquePermille| > maxPermille THEN
+    internalFault := TRUE → FAULT
+END_IF
+
 tauCmd := (targetTorquePermille / 1000.0) * ratedTorque
 torqueSat := Clamp(tauCmd, ±tauLimit)
   ※ |tauCmd| > tauLimit → internalFault → FAULT 状態に遷移
@@ -291,11 +298,11 @@ position_next := position + dt * velocity_next
 |---|---|---|
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.mass` | `LREAL` | 慣性 [kg⋅m²] |
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.damping` | `LREAL` | 粘性 [N⋅m⋅s/rad] |
-| `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.torqueConstant` | `LREAL` | トルク定数 [Nm/A] |
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.tauLimit` | `LREAL` | トルクリミット [Nm] |
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.velLimit` | `LREAL` | 速度リミット [rad/s] |
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.taskDtNs` | `ULINT` | タスク周期 [ns] |
-| `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.ratedTorque` | `LREAL` | 定格トルク [Nm] (D11 追加、デフォルト 0.318) |
+| `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.ratedTorque` | `LREAL` | 定格トルク [Nm] (D11 追加、デフォルト 1.2、kt=1 前提で RATED_CURRENT と同一値) |
+| `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.maxPermille` | `LREAL` | 入力指令上限 [‰ rated] (0.0 = 無制限、超過時 Fault) |
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.encoderResolution` | `ULONG` | エンコーダ分解能 [pulses/rev] (D11 追加、デフォルト 8388608) |
 
 > `VirtualMotor1Parameter` は `CreateSymbol="true"` でシンボルブラウズ可 (ADS Discovery 確認済み)。  
@@ -316,7 +323,7 @@ position_next := position + dt * velocity_next
 | `rdIdx` | `UDINT` | 読み出しインデックス (ADS からインクリメント) |
 | `overflow` | `BOOL` | `wrIdx - rdIdx > LOG_N` 時に `TRUE` |
 | `controlInputTap` | `LREAL` (`AT %I*`) | ControllerCore.controlInput のタップ接続 |
-| `positionRelTap` | `LREAL` (`AT %I*`) | ControllerCore.positionRel のタップ接続 |
+| `positionRelTap` | `LREAL` (`AT %I*`) | DriverAdapter.positionRel のタップ接続 |
 
 ### 5.2 ログ配列 (各 `ARRAY[0..LOG_N-1]`)
 
@@ -328,7 +335,7 @@ position_next := position + dt * velocity_next
 | `logDistValue` | `LREAL[]` | ExperimentSequencer 出力 distValue |
 | `logControlInput` | `LREAL[]` | ControllerCore 出力 (`controlInputTap`) |
 | `logTargetCurrent` | `LREAL[]` | `controlInputTap + distValue` (DriverAdapter 相当の合計電流) |
-| `logPositionAct` | `LREAL[]` | ControllerCore 出力 (`positionRelTap`) ※互換名 |
+| `logPositionAct` | `LREAL[]` | DriverAdapter 出力 (`positionRelTap`) ※互換名 |
 | `logT` | `ULINT[]` | タイムスタンプ [ns] |
 | `logIdx` | `UDINT[]` | テーブルインデックス |
 
@@ -407,8 +414,8 @@ GVL_SEQ_LOG のリングバッファ (§5) が ADS ポーリング前提の暫�
 |---|---|---|---|
 | `currentCmd` | `LREAL` | DriverAdapter `targetTorque` | 指令電流 [A] → Motor 側 |
 | `refValue` | `LREAL` | ExperimentSequencer `refValue` | 位置指令 [rad] |
-| `ffValue` | `LREAL` | ExperimentSequencer `ffValue` | FF 信号 [Nm] |
-| `controlInput` | `LREAL` | ControllerCore `controlInput` | 制御出力 [Nm] |
+| `ffValue` | `LREAL` | ExperimentSequencer `ffValue` | FF 信号 [A] |
+| `controlInput` | `LREAL` | ControllerCore `controlInput` | 制御出力 [A] |
 | `error` | `LREAL` | ControllerCore `error` | 位置誤差 [rad] |
 | `motorPosition` | `LREAL` | (Phase 4: EtherCAT) | Motor 側実位置 [rad] |
 | `motorVelocity` | `LREAL` | (Phase 4: EtherCAT) | Motor 側実速度 [rad/s] |
@@ -434,7 +441,6 @@ GVL_SEQ_LOG のリングバッファ (§5) が ADS ポーリング前提の暫�
 | ADS シンボル | 型 | 説明 |
 |---|---|---|
 | `ExperimentLogger_Obj1 (Module1).LogControl.filePath` | `STRING(255)` | 出力ファイルパス (デフォルト: `C:\ExperimentData\experiment_logger.bin`) |
-| `ExperimentLogger_Obj1 (Module1).LogControl.logging` | `BOOL` | 互換用の手動ロギング開始/停止コマンド（非推奨） |
 
 ### 6.4 LogRecord バイナリフォーマット
 
@@ -454,8 +460,8 @@ Offset   Size  型          フィールド
  56       8    double      currentCmd       指令電流 [A]
  64       8    double      error            位置誤差 [rad]
  72       8    double      refValue         位置指令 [rad]
- 80       8    double      ffValue          FF 信号 [Nm]
- 88       8    double      controlInput     制御出力 [Nm]
+ 80       8    double      ffValue          FF 信号 [A]
+ 88       8    double      controlInput     制御出力 [A]
 ------   ----
          96 bytes / record
 ```
@@ -729,8 +735,8 @@ ModeManager.experimentActiveOut                             ──►  Experimen
 | ADS シンボル名 | 型 | Size (B) | リンク | R/W | 説明 |
 |---|---|---|---|---|---|
 | `GVL_SEQ.refTable` | `ARRAY[0..99999] OF LREAL` | 800,000 | — | **W** | 位置指令テーブル [rad] |
-| `GVL_SEQ.ffTable` | `ARRAY[0..99999] OF LREAL` | 800,000 | — | **W** | FF テーブル [Nm] |
-| `GVL_SEQ.distTable` | `ARRAY[0..99999] OF LREAL` | 800,000 | — | **W** | 外乱テーブル [Nm] |
+| `GVL_SEQ.ffTable` | `ARRAY[0..99999] OF LREAL` | 800,000 | — | **W** | FF テーブル [A] |
+| `GVL_SEQ.distTable` | `ARRAY[0..99999] OF LREAL` | 800,000 | — | **W** | 外乱テーブル [A] |
 | `GVL_SEQ.tableLen` | `UDINT` | 4 | — | **W** | テーブル有効長 |
 | `GVL_SEQ.idx` | `UDINT` | 4 | — | R | 現在の再生インデックス |
 | `GVL_SEQ.refValue` | `LREAL` | 8 | `AT %Q*` | R | 現在の ref 出力 |
@@ -791,7 +797,6 @@ Port 351 は VirtualMotorTask に紐付く C++ TcCOM インスタンスのシン
 | ADS シンボル名 | 型 | Size (B) | R/W | 説明 |
 |---|---|---|---|---|
 | `ExperimentLogger_Obj1 (Module1).LogControl.filePath` | `STRING(255)` | 256 | **W** | 出力ファイルパス |
-| `ExperimentLogger_Obj1 (Module1).LogControl.logging` | `BOOL` | 1 | **W** | 互換用手動ロギング開始/停止（非推奨） |
 | `ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.recordsWritten` | `UDINT` | 4 | R | 書き込み済みレコード数 |
 | `ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.fileSizeKb` | `UDINT` | 4 | R | ファイルサイズ [KB] |
 | `ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.errorCode` | `UDINT` | 4 | R | エラーコード |
@@ -802,10 +807,12 @@ Port 351 は VirtualMotorTask に紐付く C++ TcCOM インスタンスのシン
 |---|---|---|---|---|
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.mass` | `LREAL` | 8 | **W** | 慣性 [kg⋅m²] |
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.damping` | `LREAL` | 8 | **W** | 粘性 [N⋅m⋅s/rad] |
-| `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.torqueConstant` | `LREAL` | 8 | **W** | トルク定数 [Nm/A] |
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.tauLimit` | `LREAL` | 8 | **W** | トルクリミット [Nm] |
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.velLimit` | `LREAL` | 8 | **W** | 速度リミット [rad/s] |
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.taskDtNs` | `ULINT` | 8 | **W** | タスク周期 [ns] |
+| `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.ratedTorque` | `LREAL` | 8 | **W** | 定格トルク [Nm] (kt=1: =RATED_CURRENT) |
+| `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.maxPermille` | `LREAL` | 8 | **W** | 入力上限 [‰ rated] (0=無制限) |
+| `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.encoderResolution` | `ULONG` | 4 | **W** | エンコーダ分解能 [pulses/rev] |
 
 ---
 
@@ -869,11 +876,11 @@ ADS Read:   Port=853  Symbol="GVL_SEQ_LOG.logRefValue"      → LREAL[200000]  (
 ADS Write:  Port=853  Symbol="GVL_SEQ_LOG.rdIdx"            ← rdIdx 更新
 ```
 
-#### ⑦ ExperimentLogger 制御 → Port 351
+#### ⑦ ExperimentLogger 制御
 
 ```
 ADS Write:  Port=351  Symbol="ExperimentLogger_Obj1 (Module1).LogControl.filePath"  Data=STRING
-ADS Write:  Port=351  Symbol="ExperimentLogger_Obj1 (Module1).LogControl.logging"   Data=BOOL  (互換手動制御)
+（開始/停止は ModeManager `experimentActiveOut` → `Inputs.loggingReq` の自動制御）
 ADS Read:   Port=351  Symbol="ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.recordsWritten"  → UDINT
 ADS Read:   Port=351  Symbol="ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.errorCode"       → UDINT
 ```

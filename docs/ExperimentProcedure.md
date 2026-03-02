@@ -188,7 +188,7 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 │     を ADS 書込                                                       │
 │                                                                       │
 │  ③ TcCOM パラメータ ADS 書込     ControllerCore: biquad 係数更新      │
-│                                   VirtualMotorCore: mass/damping/torqueConstant 等更新 │
+│                                   VirtualMotorCore: mass/damping/ratedTorque 等更新 │
 │                                                                       │
 │  ④ modeFlags = 0x0001            ModeManager: サーボ有効化            │
 │    (SERVO_ENABLE)                 CiA 402 → OPERATION_ENABLED         │
@@ -237,7 +237,7 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 | **テーブル長** | 853 | `GVL_SEQ.tableLen` | `UDINT` | W |
 | **フィルタ係数** | 351 | `ControllerCore_Obj1 (Module1).*Params.*` | `LREAL` | W |
 | **VM パラメータ** | 351 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.*` | `LREAL` | W |
-| **ログ制御** | 351 | `ExperimentLogger_Obj1 (Module1).LogControl.*` | — | W |
+| **ログ制御** | 852 | `MAIN.experimentActiveOut` → `Inputs.loggingReq` | `BOOL` | Auto |
 | **ログ読出し** | 853 | `GVL_SEQ_LOG.wrIdx` / `rdIdx` / `log*` | — | R/W |
 
 > 全シンボルの完全な一覧は [TechnicalReference.md](TechnicalReference.md) §8 を参照。
@@ -252,13 +252,14 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
      ADS Write: LogControl.filePath = "C:\ExperimentData\run_001.bin"
 
 ② ロギング開始
-     ADS Write: LogControl.logging = TRUE  (互換手動制御 / 通常不要)
+     ModeManager が `experimentActiveOut` を TRUE にすると
+     `Inputs.loggingReq` 経由で自動開始
 
 ③ ステータス監視 (任意)
      ADS Read: LogStatus.recordsWritten / fileSizeKb / errorCode
 
 ④ ロギング停止
-     ADS Write: LogControl.logging = FALSE (互換手動制御 / 通常不要)
+     `experimentActiveOut` FALSE で自動停止
 
 ⑤ ファイル読み出し (実験後)
      ターゲット PC からバイナリファイルを取得

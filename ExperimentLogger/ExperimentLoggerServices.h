@@ -46,7 +46,6 @@ const GUID GUID_STRING255 = {0x18071995, 0x0000, 0x0000, {0x00, 0x00, 0x00, 0x01
 typedef struct _Module1LogControl
 {
 	STRING255 filePath;
-	bool logging;
 } Module1LogControl, *PModule1LogControl;
 #pragma pack(pop)
 

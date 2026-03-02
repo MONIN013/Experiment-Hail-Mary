@@ -208,7 +208,6 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 		ResetRuntimeState();
 	}
 
-	m_Outputs.positionRel = m_Inputs.positionAct;
 	m_Outputs.error = m_Inputs.refValue - m_Inputs.positionAct;
 
 	const double u = StepController(

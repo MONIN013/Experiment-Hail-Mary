@@ -67,7 +67,6 @@ control_runtime_diag = struct();
 t_run = tic;
 
 write_mode_flags(mode_flags_transport, ctrl, uint32(0));
-plc_transport.write_scalar(plc_symbols.idx, uint32(0), t.u32);
 plc_transport.write_scalar(plc_symbols.tableLen, uint32(0), t.u32);
 [reset_acked, reset_diag, heartbeat_state] = request_reset_and_wait_ack( ...
   ctrl_transport, ctrl, cfg.reset_timeout_s, heartbeat_state);
@@ -394,12 +393,7 @@ end
 end
 
 function v = cast_modeflags_value(net_type, value)
-net_type = string(net_type);
-if net_type == "System.UInt16"
-  v = uint16(double(value));
-else
-  v = uint32(double(value));
-end
+v = uint16(double(value));
 end
 
 function [ready, diag, heartbeat_state] = wait_for_reset_idle( ...
@@ -455,11 +449,11 @@ diag = struct( ...
 diag.experimentState = try_read_scalar(ctrl_transport, "GVL_MODE.experimentState", t.u32);
 diag.experimentActive = try_read_scalar(ctrl_transport, "GVL_MODE.experimentActive", t.bool);
 diag.driveReady = try_read_scalar(ctrl_transport, "MAIN.driveReady", t.bool);
-if isfield(t, "u16")
-  u16 = t.u16;
-else
-  u16 = t.u32;
+if ~isfield(t, "u16")
+  error("experiment:position_command:invalidConfig", ...
+    "ADS net type mapping must include u16 for MAIN.driveState/statWord/ctrlWord.");
 end
+u16 = t.u16;
 diag.driveState = try_read_scalar(ctrl_transport, "MAIN.fbStateMachine.driveState", u16);
 diag.statWord = try_read_scalar(ctrl_transport, "MAIN.statWord", u16);
 diag.ctrlWord = try_read_scalar(ctrl_transport, "MAIN.ctrlWord", u16);
@@ -491,37 +485,34 @@ end
 function log_data = read_upper_logs(plc_transport, symbols, log_n)
 t = symbols.types;
 log_data = empty_log_data();
-try
-  wr_idx = plc_transport.read_scalar(symbols.log.wrIdx, t.u32);
-  overflow = plc_transport.read_scalar(symbols.log.overflow, t.bool);
-  valid_n = uint32(min(double(wr_idx), double(log_n)));
-  if valid_n > 0
-    log_data.logSeq = double(plc_transport.read_array(symbols.log.logSeq, t.u32, valid_n));
-    log_data.logRefValue = double(plc_transport.read_array(symbols.log.logRefValue, t.double, valid_n));
-    log_data.logFfValue = double(plc_transport.read_array(symbols.log.logFfValue, t.double, valid_n));
-    log_data.logDistValue = double(plc_transport.read_array(symbols.log.logDistValue, t.double, valid_n));
-    log_data.logControlInput = double(plc_transport.read_array(symbols.log.logControlInput, t.double, valid_n));
-    log_data.logTargetCurrent = double(plc_transport.read_array(symbols.log.logTargetCurrent, t.double, valid_n));
-    log_data.logPositionAct = double(plc_transport.read_array(symbols.log.logPositionAct, t.double, valid_n));
-    try
-      log_data.logT = double(plc_transport.read_array(symbols.log.logT, t.u64, valid_n));
-    catch
-      log_data.logT = zeros(double(valid_n), 1);
-    end
-    try
-      log_data.logIdx = double(plc_transport.read_array(symbols.log.logIdx, t.u32, valid_n));
-    catch
-      log_data.logIdx = zeros(0, 1);
-    end
+wr_idx = plc_transport.read_scalar(symbols.log.wrIdx, t.u32);
+overflow = plc_transport.read_scalar(symbols.log.overflow, t.bool);
+valid_n = uint32(min(double(wr_idx), double(log_n)));
+if valid_n > 0
+  log_data.logSeq = double(plc_transport.read_array(symbols.log.logSeq, t.u32, valid_n));
+  log_data.logRefValue = double(plc_transport.read_array(symbols.log.logRefValue, t.double, valid_n));
+  log_data.logFfValue = double(plc_transport.read_array(symbols.log.logFfValue, t.double, valid_n));
+  log_data.logDistValue = double(plc_transport.read_array(symbols.log.logDistValue, t.double, valid_n));
+  log_data.logControlInput = double(plc_transport.read_array(symbols.log.logControlInput, t.double, valid_n));
+  log_data.logTargetCurrent = double(plc_transport.read_array(symbols.log.logTargetCurrent, t.double, valid_n));
+  log_data.logPositionAct = double(plc_transport.read_array(symbols.log.logPositionAct, t.double, valid_n));
+  try
+    log_data.logT = double(plc_transport.read_array(symbols.log.logT, t.u64, valid_n));
+  catch e
+    error("experiment:position_command:logTimestampReadFailed", ...
+      "Failed to read log timestamps (symbol='%s', n=%u): %s: %s", ...
+      char(string(symbols.log.logT)), uint32(valid_n), string(e.identifier), string(e.message));
   end
-  log_data.wrIdx = double(wr_idx);
-  log_data.overflow = logical(overflow);
-catch e
-  log_data = empty_log_data();
-  warning("experiment:position_command:logUnavailable", ...
-    "Log read failed; keeping empty logs (%s: %s).", ...
-    string(e.identifier), string(e.message));
+  try
+    log_data.logIdx = double(plc_transport.read_array(symbols.log.logIdx, t.u32, valid_n));
+  catch e
+    error("experiment:position_command:logIndexReadFailed", ...
+      "Failed to read log indices (symbol='%s', n=%u): %s: %s", ...
+      char(string(symbols.log.logIdx)), uint32(valid_n), string(e.identifier), string(e.message));
+  end
 end
+log_data.wrIdx = double(wr_idx);
+log_data.overflow = logical(overflow);
 end
 
 function out = empty_log_data()

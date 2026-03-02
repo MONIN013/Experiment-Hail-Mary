@@ -3,10 +3,10 @@
 %  P 制御 (Kp = 180) を ControllerCore にロードし、ステップ位置指令を送信する。
 %  SystemConfig の固定パラメータを使用。
 %
-%  P 制御設計根拠 (m=1, d=6, kt=0.1):
-%    プラント: G(s) = kt / (m*s^2 + d*s) = 0.1 / (s^2 + 6s)
+%  P 制御設計根拠 (m=1, d=6, rated_current=0.1):
+%    プラント: G(s) = rated_current / (m*s^2 + d*s) = 0.1 / (s^2 + 6s)
 %    閉ループ: T(s) = 0.1*Kp / (s^2 + 6s + 0.1*Kp)
-%    zeta = d / (2*sqrt(m*kt*Kp)) = 6 / (2*sqrt(0.1*180)) = 0.707
+%    zeta = d / (2*sqrt(m*rated_current*Kp)) = 6 / (2*sqrt(0.1*180)) = 0.707
 %    omega_n = sqrt(0.1*180) = 4.24 rad/s
 %
 %  参照: docs/MatlabSpec.md
@@ -31,11 +31,12 @@ pre_step_s          = 1.0;    % リセット直後の残留を避けるため先
 
 %% VM 物理パラメータ
 vm_params = struct( ...
-  "m",         1.0, ...
-  "d",         6.0, ...
-  "kt",        0.1, ...
-  "tau_limit",  50000.0, ...
-  "vel_limit", 100.0);
+  "m",              1.0, ...
+  "d",              6.0, ...
+  "rated_current",  0.1, ...
+  "max_permille",   0.0, ...
+  "tau_limit",      50000.0, ...
+  "vel_limit",      100.0);
 
 %% P 制御パラメータ (Kp = 180, biquad 形式: y[n] = b0*x[n])
 Kp = 90;
@@ -76,7 +77,7 @@ fprintf("Connected: SEQ=%d, CTRL=%d, MODULE=%d\n", seq_port, control_port, modul
 %% パラメータ書込み
 experiment.write_vm_params(mod_transport, vm_params);
 experiment.write_controller_params(mod_transport, ctrl_params);
-fprintf("VM params: m=%.2f d=%.2f kt=%.2f\n", vm_params.m, vm_params.d, vm_params.kt);
+fprintf("VM params: m=%.2f d=%.2f rated_current=%.2f\n", vm_params.m, vm_params.d, vm_params.rated_current);
 fprintf("Controller: Kp=%.1f (pid_b0), enable_pid=true\n", Kp);
 
 %% テーブル書込み + 実験実行
@@ -127,8 +128,8 @@ if ~isempty(out.raw.logRefValue) && ~isempty(out.raw.logPositionAct)
   plot(t, out.raw.logPositionAct, "g-", "LineWidth", 1.1); hold off;
   grid on; xlabel("Time [s]"); ylabel("Position [rad]");
   legend("ref", "positionRel", "Location", "best");
-  title(sprintf("Step Response (Kp=%g, m=%.1f, d=%.1f, kt=%.2f)", ...
-    Kp, vm_params.m, vm_params.d, vm_params.kt));
+  title(sprintf("Step Response (Kp=%g, m=%.1f, d=%.1f, rated_current=%.2f)", ...
+    Kp, vm_params.m, vm_params.d, vm_params.rated_current));
 
   nexttile;
   plot(t, out.raw.logControlInput, "m-", "LineWidth", 1.1); hold on;

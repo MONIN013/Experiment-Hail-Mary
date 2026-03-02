@@ -86,14 +86,15 @@ FF テーブルを `GVL_SEQ.ffTable` へ書込む。
 
 VirtualMotorCore の物理パラメータを Port 351 に書込む。
 
-- **params:** struct with fields `m`, `d`, `kt`, `tau_limit`, `vel_limit`
+- **params:** struct with fields `m`, `d`, `rated_current`, `max_permille`, `tau_limit`, `vel_limit`
 - `taskDtNs` は `SystemConfig.task_dt_ns()` から自動取得
 
 | 書込み先 | フィールド |
 |---|---|
 | `{VM_PREFIX}mass` | `params.m` |
 | `{VM_PREFIX}damping` | `params.d` |
-| `{VM_PREFIX}torqueConstant` | `params.kt` |
+| `{VM_PREFIX}ratedTorque` | `params.rated_current` (kt=1 前提で定格トルクと同一値) |
+| `{VM_PREFIX}maxPermille` | `params.max_permille` |
 | `{VM_PREFIX}tauLimit` | `params.tau_limit` |
 | `{VM_PREFIX}velLimit` | `params.vel_limit` |
 | `{VM_PREFIX}taskDtNs` | `SystemConfig.task_dt_ns()` |

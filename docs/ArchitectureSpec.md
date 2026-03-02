@@ -81,14 +81,14 @@ Phase 4 (125 µs = 8 kHz):
 | # | ポート名 | データ型 | ソース | 説明 |
 |---|---|---|---|---|
 | 1 | `ref_value` | `double` | ExperimentSequencer | 位置指令値 (スカラ) [rad] |
-| 2 | `ff_value` | `double` | ExperimentSequencer | FF 信号 (スカラ) [Nm] |
+| 2 | `ff_value` | `double` | ExperimentSequencer | FF 信号 (スカラ) [A] |
 | 3 | `position_act` | `double` | DriverAdapter | **Load 側**相対位置 [rad]（Adapter で raw→rad 変換+相対位置化済み）|
 
 ### 2.2 出力ポート (TcCOM Data Area Output)
 
 | # | ポート名 | データ型 | 宛先 | 説明 |
 |---|---|---|---|---|
-| 1 | `control_input` | `double` | DriverAdapter | 制御出力 $u_{fb} + u_{ff}$ [Nm] |
+| 1 | `control_input` | `double` | DriverAdapter | 制御出力 $u_{fb} + u_{ff}$ [A] |
 
 ### 2.3 内部処理
 
@@ -187,8 +187,8 @@ Phase 4 (125 µs = 8 kHz):
 | 変数名 | データ型 | サイズ | 説明 |
 |---|---|---|---|
 | `ref_table` | `LREAL[]` | `[0..N_REF_MAX-1]` | 位置指令テーブル [rad] |
-| `ff_table` | `LREAL[]` | `[0..N_FF_MAX-1]` | フィードフォワードテーブル [Nm] |
-| `dist_table` | `LREAL[]` | `[0..N_DIST_MAX-1]` | 外乱テーブル [Nm] |
+| `ff_table` | `LREAL[]` | `[0..N_FF_MAX-1]` | フィードフォワードテーブル [A] |
+| `dist_table` | `LREAL[]` | `[0..N_DIST_MAX-1]` | 外乱テーブル [A] |
 | `table_len` | `UDINT` | scalar | テーブル有効長 (共通) |
 
 > `N_REF_MAX`, `N_FF_MAX`, `N_DIST_MAX` は PLC 定数として定義 (初期値: 100,000)。  
@@ -208,15 +208,15 @@ Phase 4 (125 µs = 8 kHz):
 | # | 変数名 | データ型 | 宛先 | 説明 |
 |---|---|---|---|---|
 | 1 | `ref_value` | `LREAL` | ControllerCore | 位置指令値 (スカラ) `ref_table[idx]` [rad] |
-| 2 | `ff_value` | `LREAL` | ControllerCore | FF 信号 (スカラ) `ff_table[idx]` [Nm] |
-| 3 | `dist_value` | `LREAL` | DriverAdapter | 外乱値 (スカラ) `dist_table[idx]` [Nm] |
+| 2 | `ff_value` | `LREAL` | ControllerCore | FF 信号 (スカラ) `ff_table[idx]` [A] |
+| 3 | `dist_value` | `LREAL` | DriverAdapter | 外乱値 (スカラ) `dist_table[idx]` [A] |
 
 ---
 
 ## 2B. DriverAdapter — PLC ST 仕様
 
 > **役割:** ドライバ差異吸収層。Drive (VirtualMotorCore / EtherCAT) の raw 信号 (パルス数、‰定格トルク) を
-> 工学単位 (rad, rad/s, Nm) に変換し、制御モジュール群に統一インターフェースを提供する。
+> 工学単位 (rad, rad/s, A) に変換し、制御モジュール群に統一インターフェースを提供する。
 > 外乱加算 (Dist Adder)、ControlWord / StatusWord 中継、トルクゲート、
 > および実験開始時の相対位置化を担当する。
 > Phase 1–3 では VirtualMotorCore に接続し、Phase 4 で EtherCAT PDO I/O に切り替える。
@@ -225,8 +225,9 @@ Phase 4 (125 µs = 8 kHz):
 
 ### 2B.1 機能
 
-1. **Raw → 工学単位変換** — position [pulses]→[rad], velocity [pulses/s]→[rad/s], torque [‰ rated]→[Nm]
-2. **工学単位 → Raw 変換** — targetTorque [Nm]→[‰ rated]
+1. **Raw → 工学単位変換** — position [pulses]→[rad], velocity [pulses/s]→[rad/s], torque [‰ rated]→[A]
+2. **工学単位 → Raw 変換** — targetTorque [A]→[‰ rated]
+3. **電流クランプ** — `targetCurrentA` を `±MAX_CURRENT_A` でクランプ (モーター保護)
 3. **相対位置化** — リセット時に絶対位置をキャプチャし、以降 `positionRel` として公開 (D12)
 4. **Dist Adder** — $\text{target\_torque} = \text{control\_input} + \text{dist\_value}$ (最終トルク出力 → Motor 側)
 5. **ControlWord 中継** — ModeManager が生成した `controlword` を Drive へ転送
@@ -238,7 +239,8 @@ Phase 4 (125 µs = 8 kHz):
 | 定数名 | データ型 | 例値 | 説明 |
 |---|---|---|---|
 | `ENCODER_RESOLUTION` | `UDINT` | `8388608` (2²³) | エンコーダ分解能 [pulses/rev] |
-| `RATED_CURRENT` | `LREAL` | `0.318` | 定格電流 [A] |
+| `RATED_CURRENT` | `LREAL` | `1.2` | 定格電流 [A] |
+| `MAX_CURRENT_A` | `LREAL` | `1.5` | 電流クランプ上限 [A] (モーター保護) |
 | `TWO_PI_INV_RES` | `LREAL` | (導出値) | $2\pi / \text{ENCODER\_RESOLUTION}$ [rad/pulse] |
 | `RATED_CURRENT_INV_X1000` | `LREAL` | (導出値) | $1000 / \text{RATED\_CURRENT}$ [‰/A] |
 | `RATED_CURRENT_DIV_1000` | `LREAL` | (導出値) | $\text{RATED\_CURRENT} / 1000$ [A/‰] |
@@ -258,8 +260,8 @@ Phase 4 (125 µs = 8 kHz):
 
 | # | 変数名 | データ型 | ソース | 説明 |
 |---|---|---|---|---|
-| 5 | `control_input` | `LREAL` | ControllerCore | 制御出力 $u_{fb} + u_{ff}$ [Nm] |
-| 6 | `dist_value` | `LREAL` | ExperimentSequencer | 外乱値 (スカラ) [Nm] |
+| 5 | `control_input` | `LREAL` | ControllerCore | 制御出力 $u_{fb} + u_{ff}$ [A] |
+| 6 | `dist_value` | `LREAL` | ExperimentSequencer | 外乱値 (スカラ) [A] |
 | 7 | `controlword_in` | `UINT` | ModeManager | CiA 402 ControlWord (ModeManager 生成) |
 | 8 | `enableCurrentOutput` | `BOOL` | ModeManager | 電流ゲート有効フラグ |
 | 9 | `resetReq` | `BOOL` | ModeManager | リセット要求 (エッジ検出) |
@@ -513,16 +515,16 @@ TMC 定義により Data Area を ADS シンボルとして公開する。
 ```
 VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.mass             → LREAL
 VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.damping          → LREAL
-VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.torqueConstant   → LREAL
 VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.tauLimit         → LREAL
 VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.velLimit         → LREAL
 VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.taskDtNs         → ULINT
 VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.encoderResolution → UDINT  (NEW: D11)
-VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.ratedTorque       → LREAL  (NEW: D11)
+VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.ratedTorque       → LREAL  (D11, M16で一本化、kt=1 前提で RATED_CURRENT と同一値)
+VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.maxPermille        → LREAL  (入力上限 [‰ rated], 0=無制限)
 ```
 
 > `VirtualMotor1Parameter` は `CreateSymbol="true"` で ADS Discovery 確認済み。
-> `encoderResolution` / `ratedTorque` は D11 で追加。詳細は [module-specs/VirtualMotorCore.md](module-specs/VirtualMotorCore.md) を参照。
+> `encoderResolution` / `ratedTorque` / `maxPermille` は D11 で追加。詳細は [module-specs/VirtualMotorCore.md](module-specs/VirtualMotorCore.md) を参照。
 
 ### 4.3 ExperimentSequencer (PLC ST, Port 853)
 
@@ -537,11 +539,12 @@ GVL_SEQ.tableLen           → UDINT
 
 ```
 ExperimentLogger_Obj1 (Module1).LogControl.filePath          → STRING(255)
-ExperimentLogger_Obj1 (Module1).LogControl.logging           → BOOL (互換手動制御 / 非推奨)
 ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.recordsWritten → UDINT
 ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.fileSizeKb    → UDINT
 ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.errorCode     → UDINT
 ```
+
+> ログ開始/停止は `Inputs.loggingReq`（ModeManager 連動）のみを使用する。
 
 ### 4.5 ModeManager (StateMachineControl PLC, Port 852)
 
@@ -597,8 +600,8 @@ STRUCT
   current_cmd      : LREAL;    (* 指令電流 [A] → Motor 側 *)
   error            : LREAL;    (* 位置誤差 = ref - load_position [rad] *)
   ref_value        : LREAL;    (* 指令位置 [rad] *)
-  ff_value         : LREAL;    (* フィードフォワード値 [Nm] *)
-  control_input    : LREAL;    (* FB制御出力 u_fb + u_ff [Nm] *)
+  ff_value         : LREAL;    (* フィードフォワード値 [A] *)
+  control_input    : LREAL;    (* FB制御出力 u_fb + u_ff [A] *)
 END_STRUCT
 END_TYPE
 ```
@@ -674,7 +677,8 @@ END_TYPE
   │    (resetReq edge → capture offset)                             │
   │                                                                 │
   │  [工学単位 → Drive]                                              │
-  │  controlInput + distValue → ×RATED_CURRENT_INV_X1000             │
+  │  controlInput + distValue → clamp(±MAX_CURRENT_A)                │
+  │    → ×RATED_CURRENT_INV_X1000                                   │
   │    → targetTorque (INT, ‰ rated) ─► Drive                      │
   │  enableCurrentOutput=FALSE → targetTorque := 0                    │
   │                                                                 │

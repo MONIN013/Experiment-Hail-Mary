@@ -47,7 +47,8 @@ classdef VirtualMotorService < handle
       vmParams = struct();
       vmParams.m = cfg.m;
       vmParams.d = cfg.d;
-      vmParams.kt = cfg.kt;
+      vmParams.ratedTorque = cfg.rated_current;
+      vmParams.maxPermille = cfg.max_permille;
       vmParams.tauLimit = cfg.tau_limit;
       vmParams.velLimit = cfg.vel_limit;
       vmParams.taskDtNs = cfg.task_dt_ns;
@@ -209,7 +210,8 @@ classdef VirtualMotorService < handle
       t = symbols.types;
       obj.vm_transport.write_scalar(symbols.vmParams.m, params.m, t.double);
       obj.vm_transport.write_scalar(symbols.vmParams.d, params.d, t.double);
-      obj.vm_transport.write_scalar(symbols.vmParams.kt, params.kt, t.double);
+      obj.vm_transport.write_scalar(symbols.vmParams.ratedTorque, params.ratedTorque, t.double);
+      obj.vm_transport.write_scalar(symbols.vmParams.maxPermille, params.maxPermille, t.double);
       obj.vm_transport.write_scalar(symbols.vmParams.tauLimit, params.tauLimit, t.double);
       obj.vm_transport.write_scalar(symbols.vmParams.velLimit, params.velLimit, t.double);
       obj.vm_transport.write_scalar(symbols.vmParams.taskDtNs, uint64(params.taskDtNs), t.u64);
@@ -483,14 +485,17 @@ classdef VirtualMotorService < handle
       chunk.logPositionAct = obj.read_log_component_slice(symbols.log.logPositionAct, t.double, start_ring, n1, n2);
       try
         chunk.logT = obj.read_log_component_slice(symbols.log.logT, t.u64, start_ring, n1, n2);
-      catch
-        % logT is optional for current validation/plot flow; keep capture alive if MATLAB cannot marshal UInt64[].
-        chunk.logT = zeros(double(take_n), 1);
+      catch e
+        error("experiment:service:logTimestampReadFailed", ...
+          "Failed to read streaming log timestamps (symbol='%s'): %s: %s", ...
+          char(string(symbols.log.logT)), string(e.identifier), string(e.message));
       end
       try
         chunk.logIdx = obj.read_log_component_slice(symbols.log.logIdx, t.u32, start_ring, n1, n2);
-      catch
-        chunk.logIdx = zeros(0, 1);
+      catch e
+        error("experiment:service:logIndexReadFailed", ...
+          "Failed to read streaming log indices (symbol='%s'): %s: %s", ...
+          char(string(symbols.log.logIdx)), string(e.identifier), string(e.message));
       end
       read_elapsed = toc(t_chunk);
     end
@@ -580,37 +585,34 @@ classdef VirtualMotorService < handle
         "wrIdx", 0, ...
         "overflow", false);
 
-      try
-        wrIdx = obj.plc_transport.read_scalar(symbols.log.wrIdx, t.u32);
-        overflow = obj.plc_transport.read_scalar(symbols.log.overflow, t.bool);
-        valid_n = uint32(min(double(wrIdx), logN));
-        if valid_n > 0
-          log_data.logSeq = double(obj.plc_transport.read_array(symbols.log.logSeq, t.u32, valid_n));
-          log_data.logRefValue = double(obj.plc_transport.read_array(symbols.log.logRefValue, t.double, valid_n));
-          log_data.logFfValue = double(obj.plc_transport.read_array(symbols.log.logFfValue, t.double, valid_n));
-          log_data.logDistValue = double(obj.plc_transport.read_array(symbols.log.logDistValue, t.double, valid_n));
-          log_data.logControlInput = double(obj.plc_transport.read_array(symbols.log.logControlInput, t.double, valid_n));
-          log_data.logTargetCurrent = double(obj.plc_transport.read_array(symbols.log.logTargetCurrent, t.double, valid_n));
-          log_data.logPositionAct = double(obj.plc_transport.read_array(symbols.log.logPositionAct, t.double, valid_n));
-          try
-            log_data.logT = double(obj.plc_transport.read_array(symbols.log.logT, t.u64, valid_n));
-          catch
-            % logT is optional; keep logs if TwinCAT UInt64[] cannot be marshaled in MATLAB/.NET interop.
-            log_data.logT = zeros(double(valid_n), 1);
-          end
-          try
-            log_data.logIdx = double(obj.plc_transport.read_array(symbols.log.logIdx, t.u32, valid_n));
-          catch
-            log_data.logIdx = zeros(0, 1);
-          end
+      wrIdx = obj.plc_transport.read_scalar(symbols.log.wrIdx, t.u32);
+      overflow = obj.plc_transport.read_scalar(symbols.log.overflow, t.bool);
+      valid_n = uint32(min(double(wrIdx), logN));
+      if valid_n > 0
+        log_data.logSeq = double(obj.plc_transport.read_array(symbols.log.logSeq, t.u32, valid_n));
+        log_data.logRefValue = double(obj.plc_transport.read_array(symbols.log.logRefValue, t.double, valid_n));
+        log_data.logFfValue = double(obj.plc_transport.read_array(symbols.log.logFfValue, t.double, valid_n));
+        log_data.logDistValue = double(obj.plc_transport.read_array(symbols.log.logDistValue, t.double, valid_n));
+        log_data.logControlInput = double(obj.plc_transport.read_array(symbols.log.logControlInput, t.double, valid_n));
+        log_data.logTargetCurrent = double(obj.plc_transport.read_array(symbols.log.logTargetCurrent, t.double, valid_n));
+        log_data.logPositionAct = double(obj.plc_transport.read_array(symbols.log.logPositionAct, t.double, valid_n));
+        try
+          log_data.logT = double(obj.plc_transport.read_array(symbols.log.logT, t.u64, valid_n));
+        catch e
+          error("experiment:service:logTimestampReadFailed", ...
+            "Failed to read upper-log timestamps (symbol='%s', n=%u): %s: %s", ...
+            char(string(symbols.log.logT)), uint32(valid_n), string(e.identifier), string(e.message));
         end
-        log_data.wrIdx = double(wrIdx);
-        log_data.overflow = logical(overflow);
-      catch e
-        warning("experiment:service:logUnavailable", ...
-          "Logging symbols may be absent; keeping empty logs (%s: %s).", ...
-          string(e.identifier), string(e.message));
+        try
+          log_data.logIdx = double(obj.plc_transport.read_array(symbols.log.logIdx, t.u32, valid_n));
+        catch e
+          error("experiment:service:logIndexReadFailed", ...
+            "Failed to read upper-log indices (symbol='%s', n=%u): %s: %s", ...
+            char(string(symbols.log.logIdx)), uint32(valid_n), string(e.identifier), string(e.message));
+        end
       end
+      log_data.wrIdx = double(wrIdx);
+      log_data.overflow = logical(overflow);
       read_time = toc(t_read);
     end
 

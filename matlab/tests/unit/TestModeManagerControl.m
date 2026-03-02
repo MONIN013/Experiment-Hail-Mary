@@ -23,10 +23,10 @@ classdef TestModeManagerControl < matlab.unittest.TestCase
         "experiment:modecontrol:invalidConfig");
     end
 
-    function modeflagsTypeFallsBackToU32(testCase)
+    function modeflagsTypeRequiresU16(testCase)
       s = struct("u32", "System.UInt32");
-      actual = experiment.ModeManagerControl.modeflags_type(s);
-      testCase.verifyEqual(string(actual), "System.UInt32");
+      testCase.verifyError(@() experiment.ModeManagerControl.modeflags_type(s), ...
+        "experiment:modecontrol:invalidConfig");
     end
 
     function waitUntilDoneUsesExperimentState(testCase)

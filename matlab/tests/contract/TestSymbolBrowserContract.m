@@ -17,6 +17,7 @@ classdef TestSymbolBrowserContract < matlab.unittest.TestCase
       transport.scalarMap(char(s.idx)) = uint32(0);
       transport.scalarMap(char(s.refValue)) = 0.0;
       transport.scalarMap(char(s.ffValue)) = 0.0;
+      transport.scalarMap(char(s.distValue)) = 0.0;
       transport.scalarMap(char(s.controlInput)) = 0.0;
       transport.scalarMap(char(s.positionActLog)) = 0.0;
       transport.scalarMap(char(s.log.wrIdx)) = uint32(0);
@@ -26,17 +27,13 @@ classdef TestSymbolBrowserContract < matlab.unittest.TestCase
         @()twincat_ads.SymbolBrowser.validate_symbols(transport, s.plcRequiredProbes));
     end
 
-    function collectSymbolsSkipsRowsWithMissingName(testCase)
+    function collectSymbolsErrorsOnMissingIdentity(testCase)
       symbolMissingName = MockDotNetSymbol("TypeName", "INT", "Size", int32(4));
       symbolValid = MockDotNetSymbol("Name", "GVL.mySignal", "TypeName", "REAL", "Size", int32(4));
       symbols = MockDotNetCollection({symbolMissingName, symbolValid});
 
-      testCase.verifyWarningFree(@()twincat_ads.SymbolBrowser.collect_symbols_for_test(symbols, false));
-      [names, types, sizes] = twincat_ads.SymbolBrowser.collect_symbols_for_test(symbols, false);
-
-      testCase.verifyEqual(names, "GVL.mySignal");
-      testCase.verifyEqual(types, "REAL");
-      testCase.verifyEqual(sizes, int32(4));
+      testCase.verifyError(@()twincat_ads.SymbolBrowser.collect_symbols_for_test(symbols, false), ...
+        "twincat_ads:symbolTraversal:identityUnavailable");
     end
   end
 end

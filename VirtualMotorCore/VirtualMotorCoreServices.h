@@ -32,13 +32,12 @@ typedef struct _ST_VirtualMotorParams
 {
 	double mass;
 	double damping;
-	double torqueConstant;
 	double tauLimit;
 	double velLimit;
 	double ratedTorque;
+	double maxPermille;
 	ULONGLONG taskDtNs;
 	ULONG encoderResolution;
-	unsigned char reserved1[4];
 } ST_VirtualMotorParams, *PST_VirtualMotorParams;
 const GUID GUID_ST_VirtualMotorParams = {0x7CF95A33, 0x8192, 0x4358, {0x82, 0x61, 0x51, 0xC0, 0xA8, 0xD0, 0xCB, 0xF5}};
 #endif // !defined(_TC_TYPE_7CF95A33_8192_4358_8261_51C0A8D0CBF5_INCLUDED_)
@@ -47,7 +46,7 @@ const GUID GUID_ST_VirtualMotorParams = {0x7CF95A33, 0x8192, 0x4358, {0x82, 0x61
 #define _TC_TYPE_D27DC1B7_F0A6_4309_9297_D3E9F02AB56B_INCLUDED_
 typedef struct _ST_VirtualMotorInputs
 {
-	WORD targetTorque;
+	SHORT targetTorque;
 } ST_VirtualMotorInputs, *PST_VirtualMotorInputs;
 const GUID GUID_ST_VirtualMotorInputs = {0xD27DC1B7, 0xF0A6, 0x4309, {0x92, 0x97, 0xD3, 0xE9, 0xF0, 0x2A, 0xB5, 0x6B}};
 #endif // !defined(_TC_TYPE_D27DC1B7_F0A6_4309_9297_D3E9F02AB56B_INCLUDED_)
@@ -57,9 +56,9 @@ const GUID GUID_ST_VirtualMotorInputs = {0xD27DC1B7, 0xF0A6, 0x4309, {0x92, 0x97
 #pragma pack(push,1)
 typedef struct _ST_VirtualMotorOutputs
 {
-	DWORD positionActualValue;
-	DWORD velocityActualValue;
-	WORD torqueActualValue;
+	LONG positionActualValue;
+	LONG velocityActualValue;
+	SHORT torqueActualValue;
 } ST_VirtualMotorOutputs, *PST_VirtualMotorOutputs;
 #pragma pack(pop)
 const GUID GUID_ST_VirtualMotorOutputs = {0xFBEFA272, 0xA779, 0x4D81, {0xB8, 0x5D, 0x42, 0x71, 0x66, 0x97, 0x60, 0x5A}};

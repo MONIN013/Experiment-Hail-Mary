@@ -116,22 +116,14 @@ classdef ModeManagerControl
       ready = false;
       diag = struct("wr_idx", NaN, "idx", NaN, "experiment_active", false);
       while toc(t0) < timeout_s
-        try
-          wr_idx = double(plc_transport.read_scalar(plc_symbols.log.wrIdx, t.u32));
-          idx = double(plc_transport.read_scalar(plc_symbols.idx, t.u32));
-          [ok_active, exp_active] = experiment.ModeManagerControl.try_read_experiment_active( ...
-            control_transport, plc_transport, plc_symbols, ctrl, t);
-          if ~ok_active
-            ready = false;
-          else
-            diag.wr_idx = wr_idx;
-            diag.idx = idx;
-            diag.experiment_active = logical(exp_active);
-            ready = (wr_idx == 0) && (idx == 0) && (~exp_active);
-          end
-        catch
-          ready = false;
-        end
+        wr_idx = double(plc_transport.read_scalar(plc_symbols.log.wrIdx, t.u32));
+        idx = double(plc_transport.read_scalar(plc_symbols.idx, t.u32));
+        exp_active = experiment.ModeManagerControl.try_read_experiment_active( ...
+          control_transport, ctrl, t);
+        diag.wr_idx = wr_idx;
+        diag.idx = idx;
+        diag.experiment_active = logical(exp_active);
+        ready = (wr_idx == 0) && (idx == 0) && (~exp_active);
         if ready
           return;
         end
@@ -223,48 +215,33 @@ classdef ModeManagerControl
         end
       end
 
-      [ok_active, exp_active] = experiment.ModeManagerControl.try_read_experiment_active( ...
-        control_transport, plc_transport, plc_symbols, ctrl, t);
-      if ok_active
-        seen_active = seen_active || logical(exp_active);
-        done = seen_active && (~logical(exp_active));
-      end
+      exp_active = experiment.ModeManagerControl.try_read_experiment_active( ...
+        control_transport, ctrl, t);
+      seen_active = seen_active || logical(exp_active);
+      done = seen_active && (~logical(exp_active));
     end
 
     function net_type = modeflags_type(t)
-      if isfield(t, "u16")
-        net_type = t.u16;
-      else
-        net_type = t.u32;
+      if ~isfield(t, "u16")
+        error("experiment:modecontrol:invalidConfig", ...
+          "ADS net type mapping must include u16 for GVL_MODE.modeFlags.");
       end
+      net_type = t.u16;
     end
   end
 
   methods (Static, Access = private)
-    function v = cast_modeflags_value(net_type, value)
-      net_type = string(net_type);
-      if net_type == "System.UInt16"
-        v = uint16(double(value));
-      else
-        v = uint32(double(value));
-      end
+    function v = cast_modeflags_value(~, value)
+      v = uint16(double(value));
     end
 
-    function [ok_active, exp_active] = try_read_experiment_active(control_transport, plc_transport, plc_symbols, ctrl, t)
-      ok_active = false;
-      exp_active = false;
+    function exp_active = try_read_experiment_active(control_transport, ctrl, t)
       try
         exp_active = logical(control_transport.read_scalar(ctrl.experimentActiveSymbol, t.bool));
-        ok_active = true;
-        return;
-      catch
-      end
-      try
-        exp_active = logical(plc_transport.read_scalar(plc_symbols.experimentActive, t.bool));
-        ok_active = true;
-      catch
-        ok_active = false;
-        exp_active = false;
+      catch e
+        error("experiment:modecontrol:readExperimentActiveFailed", ...
+          "Failed to read '%s' via control transport (%s: %s).", ...
+          char(string(ctrl.experimentActiveSymbol)), string(e.identifier), string(e.message));
       end
     end
   end

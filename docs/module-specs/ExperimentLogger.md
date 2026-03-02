@@ -34,9 +34,8 @@ ExperimentLogger is a binary file logger for experiment data. In current SIL ope
 | Symbol | Type | Notes |
 |---|---|---|
 | `ExperimentLogger_Obj1 (Module1).LogControl.filePath` | `STRING(255)` | output path |
-| `ExperimentLogger_Obj1 (Module1).LogControl.logging` | `BOOL` | manual compatibility control (deprecated) |
 
-Primary control path is `Inputs.loggingReq`. `LogControl.logging` is kept for backward compatibility.
+Logging control is `Inputs.loggingReq` only (manual compatibility flag was removed).
 
 ## Runtime Behavior
 1. On `loggingReq` rising edge: open file and start logging.

@@ -3,7 +3,7 @@
 	<DataTypes>
 		<DataType>
 			<Name GUID="{7CF95A33-8192-4358-8261-51C0A8D0CBF5}">ST_VirtualMotorParams</Name>
-			<BitSize>512</BitSize>
+			<BitSize>448</BitSize>
 			<SubItem>
 				<Name>mass</Name>
 				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
@@ -17,40 +17,34 @@
 				<BitOffs>64</BitOffs>
 			</SubItem>
 			<SubItem>
-				<Name>torqueConstant</Name>
+				<Name>tauLimit</Name>
 				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
 				<BitSize>64</BitSize>
 				<BitOffs>128</BitOffs>
 			</SubItem>
 			<SubItem>
-				<Name>tauLimit</Name>
+				<Name>velLimit</Name>
 				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
 				<BitSize>64</BitSize>
 				<BitOffs>192</BitOffs>
 			</SubItem>
 			<SubItem>
-				<Name>velLimit</Name>
+				<Name>ratedTorque</Name>
 				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
 				<BitSize>64</BitSize>
 				<BitOffs>256</BitOffs>
 			</SubItem>
 			<SubItem>
-				<Name>ratedTorque</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>320</BitOffs>
-			</SubItem>
-			<SubItem>
 				<Name>taskDtNs</Name>
 				<Type GUID="{18071995-0000-0000-0000-00000000000B}">ULINT</Type>
 				<BitSize>64</BitSize>
-				<BitOffs>384</BitOffs>
+				<BitOffs>320</BitOffs>
 			</SubItem>
 			<SubItem>
 				<Name>encoderResolution</Name>
 				<Type GUID="{18071995-0000-0000-0000-000000000008}">UDINT</Type>
 				<BitSize>32</BitSize>
-				<BitOffs>448</BitOffs>
+				<BitOffs>384</BitOffs>
 			</SubItem>
 			<Hides>
 				<Hide GUID="{AD65C9B8-FC86-4AF1-817D-BF58D4446348}"/>
@@ -553,14 +547,14 @@
 							</Parameter>
 							<Parameter CreateSymbol="true">
 								<Name>VirtualMotor1Parameter</Name>
-								<BitSize>512</BitSize>
+								<BitSize>448</BitSize>
 								<BaseType GUID="{7CF95A33-8192-4358-8261-51C0A8D0CBF5}">ST_VirtualMotorParams</BaseType>
 								<PTCID>#x00000001</PTCID>
 								<ContextId>1</ContextId>
 							</Parameter>
 							<Parameter>
 								<Name>VirtualMotor2Parameter</Name>
-								<BitSize>512</BitSize>
+								<BitSize>448</BitSize>
 								<BaseType GUID="{7CF95A33-8192-4358-8261-51C0A8D0CBF5}">ST_VirtualMotorParams</BaseType>
 								<PTCID>#x00000002</PTCID>
 								<ContextId>1</ContextId>
@@ -649,10 +643,6 @@
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>VirtualMotor1Parameter.torqueConstant</Name>
-								<Value>0</Value>
-							</Value>
-							<Value>
 								<Name>VirtualMotor1Parameter.tauLimit</Name>
 								<Value>0</Value>
 							</Value>
@@ -678,10 +668,6 @@
 							</Value>
 							<Value>
 								<Name>VirtualMotor2Parameter.damping</Name>
-								<Value>0</Value>
-							</Value>
-							<Value>
-								<Name>VirtualMotor2Parameter.torqueConstant</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
@@ -715,7 +701,7 @@
 				</Instance>
 			</Project>
 			<Project GUID="{01FE3380-D2A3-4A81-BD4B-E9783E511DE6}" Name="ControllerCore" PrjFilePath="ControllerCore\ControllerCore.vcxproj" TmcFilePath="ControllerCore\ControllerCore.tmc">
-				<Instance Id="#x01010020" KeepUnrestoredLinks="2" AutoReloadTmc="true" ClassFactoryId="C++ Module Vendor|ControllerCore|0.0.0.1">
+				<Instance Id="#x01010020" KeepUnrestoredLinks="2" AutoReloadTmc="true" ShowHiddenChilds="true" ClassFactoryId="C++ Module Vendor|ControllerCore|0.0.0.1">
 					<Name>ControllerCore_Obj1 (Module1)</Name>
 					<TmcDesc GUID="{0424A75D-EBD0-493B-BE31-E3FB024B65C5}" ClassFactoryId="C++ Module Vendor|ControllerCore|0.0.0.1">
 						<Name>Module1</Name>
@@ -830,7 +816,7 @@
 								<AreaNo AreaType="OutputSrc">1</AreaNo>
 								<Name>Outputs</Name>
 								<ContextId>1</ContextId>
-								<ByteSize>24</ByteSize>
+								<ByteSize>16</ByteSize>
 								<Symbol CreateSymbol="true">
 									<Name>controlInput</Name>
 									<BitSize>64</BitSize>
@@ -842,12 +828,6 @@
 									<BitSize>64</BitSize>
 									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
 									<BitOffs>64</BitOffs>
-								</Symbol>
-								<Symbol CreateSymbol="true">
-									<Name>positionRel</Name>
-									<BitSize>64</BitSize>
-									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
-									<BitOffs>128</BitOffs>
 								</Symbol>
 							</DataArea>
 						</DataAreas>
@@ -1016,18 +996,12 @@
 							</Parameter>
 							<Parameter CreateSymbol="true">
 								<Name>LogControl</Name>
-								<BitSize>2056</BitSize>
+								<BitSize>2048</BitSize>
 								<SubItem>
 									<Name>filePath</Name>
 									<Type GUID="{18071995-0000-0000-0000-0001000000FF}">STRING(255)</Type>
 									<BitSize>2048</BitSize>
 									<BitOffs>0</BitOffs>
-								</SubItem>
-								<SubItem>
-									<Name>logging</Name>
-									<Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
-									<BitSize>8</BitSize>
-									<BitOffs>2048</BitOffs>
 								</SubItem>
 								<PTCID>#x00000001</PTCID>
 								<ContextId>1</ContextId>
@@ -1141,10 +1115,6 @@
 								<Name>LogControl.filePath</Name>
 								<String></String>
 							</Value>
-							<Value>
-								<Name>LogControl.logging</Name>
-								<EnumText>FALSE</EnumText>
-							</Value>
 						</ParameterValues>
 						<InterfacePointerValues>
 							<Value>
@@ -1204,7 +1174,6 @@
 			</OwnerB>
 			<OwnerB Name="TIXC^ControllerCore^ControllerCore_Obj1 (Module1)">
 				<Link VarA="VirtualMotorTask Inputs^GVL_SEQ_LOG.controlInputTap" VarB="Outputs^controlInput"/>
-				<Link VarA="VirtualMotorTask Inputs^GVL_SEQ_LOG.positionRelTap" VarB="Outputs^positionRel"/>
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.ffValue" VarB="Inputs^ffValue"/>
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.refValue" VarB="Inputs^refValue"/>
 			</OwnerB>

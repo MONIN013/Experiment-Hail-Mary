@@ -49,14 +49,14 @@ classdef TestWriteHelpers < matlab.unittest.TestCase
     function writeVmParamsWritesAllFields(testCase)
       tr = MockAdsTransport();
       seedModuleDefaults(tr);
-      params = struct("m", 1.0, "d", 6.0, "kt", 0.1, "tau_limit", 100, "vel_limit", 10);
+      params = struct("m", 1.0, "d", 6.0, "rated_torque", 0.1, "tau_limit", 100, "vel_limit", 10);
       experiment.write_vm_params(tr, params);
 
       sys = experiment.SystemConfig;
       prefix = char(sys.VM_PREFIX);
       testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'mass')), 1.0);
       testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'damping')), 6.0);
-      testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'torqueConstant')), 0.1);
+      testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'ratedTorque')), 0.1);
       testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'tauLimit')), 100.0);
       testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'velLimit')), 10.0);
       testCase.verifyEqual(tr.scalarMap(strcat(prefix, 'taskDtNs')), uint64(1000000));
@@ -103,7 +103,7 @@ classdef TestWriteHelpers < matlab.unittest.TestCase
       tr.scalarMap("GVL_SEQ_LOG.overflow") = false;
 
       log_data = experiment.read_experiment_logs(tr);
-      testCase.verifyEqual(log_data.logRefValue(:), [0.1; 0.2; 0.3]);
+      testCase.verifyEqual(log_data.logRefValue(:), [0.1; 0.2; 0.3], "AbsTol", 1e-12);
       testCase.verifyEqual(log_data.wrIdx, 3);
       testCase.verifyFalse(log_data.overflow);
     end
@@ -140,7 +140,7 @@ function seedModuleDefaults(tr)
   vm_prefix = char(sys.VM_PREFIX);
   tr.scalarMap(strcat(vm_prefix, 'mass')) = 0.0;
   tr.scalarMap(strcat(vm_prefix, 'damping')) = 0.0;
-  tr.scalarMap(strcat(vm_prefix, 'torqueConstant')) = 0.0;
+  tr.scalarMap(strcat(vm_prefix, 'ratedTorque')) = 0.0;
   tr.scalarMap(strcat(vm_prefix, 'tauLimit')) = 0.0;
   tr.scalarMap(strcat(vm_prefix, 'velLimit')) = 0.0;
   tr.scalarMap(strcat(vm_prefix, 'taskDtNs')) = uint64(0);

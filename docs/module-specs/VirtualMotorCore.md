@@ -32,7 +32,6 @@ TcCOM Data Area として ADS シンボル公開。Build 不要で MATLAB から
 |---|---|---|---|
 | `mass` | `double` | kg·m² | 慣性モーメント (Load 側 1 慣性近似) |
 | `damping` | `double` | N·m·s/rad | 粘性減衰係数 |
-| `torqueConstant` | `double` | N·m/A | トルク定数 (**※ M16 参照**) |
 | `tauLimit` | `double` | N·m | トルク飽和リミット |
 | `velLimit` | `double` | rad/s | 速度リミット |
 | `taskDtNs` | `ULINT` | ns | タスク周期 (自動取得) |
@@ -42,25 +41,19 @@ TcCOM Data Area として ADS シンボル公開。Build 不要で MATLAB から
 | パラメータ名 | データ型 | 単位 | 例値 | 説明 |
 |---|---|---|---|---|
 | `encoderResolution` | `UDINT` | pulses/rev | `8388608` (2²³) | エンコーダ分解能。実機ドライバのエンコーダ仕様に合わせて設定 |
-| `ratedTorque` | `double` | N·m | `0.318` | 定格トルク。CiA 402 の ‰ rated 変換基準 |
+| `ratedTorque` | `double` | N·m | `1.2` | 定格トルク。CiA 402 の ‰ rated 変換基準。kt=1 前提で `RATED_CURRENT` と同一値 |
+| `maxPermille` | `double` | ‰ rated | `0.0` | 入力指令トルクの上限 [‰ rated]。`0.0` = 無制限、正値で有効化。超過時 Fault 遷移 |
 
-> **`encoderResolution` / `ratedTorque` の位置づけ:**  
-> これらは実験セットアップの物理定数であり、基本的に変化しない。  
-> ADS 注入可能な TcCOM パラメータ (`mass` / `damping` 等と同列) として提供するが、
-> 実験中に動的変更されることは想定しない。
+> **`encoderResolution` / `ratedTorque` / `maxPermille` の位置づけ:**  
+> `encoderResolution` と `ratedTorque` は実験セットアップの物理定数であり、基本的に変化しない。  
+> `maxPermille` はモーター保護のための入力レベル制限であり、MATLAB から実験ごとに注入可能。  
+> ADS 注入可能な TcCOM パラメータ (`mass` / `damping` 等と同列) として提供する。
 > DriverAdapter にも同一の値を `VAR_GLOBAL CONSTANT` として持たせる (→ [DriverAdapter.md](DriverAdapter.md) §3)。
 
-### 2.3 `torqueConstant` と `ratedTorque` の関係 (M16)
+### 2.3 `ratedTorque` への一本化 (M16 解消)
 
-旧方式では入力が `currentIn` [A] であったため `torqueConstant` [N·m/A] が必要だった。  
-新方式では入力が `targetTorque` [‰ rated] に変更されるため、入力→内部 Nm 変換は `ratedTorque` で行う。
-
-**移行方針:**
-- `torqueConstant` は物理シミュレーションの正確性のため保持する (将来の電流指令モード対応等)
-- `targetTorque` → 内部トルク変換には `ratedTorque` を使用する
-- 当面は `torqueConstant` を直接使用する内部パスは無効化する
-
-> 詳細は [OpenIssues.md M16](../OpenIssues.md) で追跡。
+`targetTorque` [‰ rated] から内部 Nm への変換は `ratedTorque` のみを使用する。  
+`torqueConstant` は 2026-02-27 の更新で I/F から削除済み。
 
 ---
 
@@ -100,6 +93,14 @@ TcCOM Data Area として ADS シンボル公開。Build 不要で MATLAB から
 内部シミュレーションは物理単位 (rad, Nm, rad/s) で計算する。I/O 境界で以下の変換を行う。
 
 ### 4.1 入力変換 (raw → 物理単位)
+
+**maxPermille チェック (入力レベル保護):**
+
+`maxPermille > 0` かつ $|\text{targetTorque}| > \text{maxPermille}$ の場合、`internalFault = true` → CiA 402 FAULT 状態に遷移する。
+これは入力指令の物理的値ではなく、‰ rated 値でのチェックであり、DriverAdapter の故障・暴走対策として機能する。
+`maxPermille = 0.0` (デフォルト) の場合、このチェックは無効化される。
+
+**トルク変換:**
 
 $$\tau_{cmd} = \frac{\text{targetTorque}}{1000} \times \text{ratedTorque} \quad [\text{Nm}]$$
 
@@ -165,9 +166,9 @@ VirtualMotorCore は実機同等の仕様として `position` / `velocity` を�
 |---|---|---|
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.mass` | `LREAL` | W |
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.damping` | `LREAL` | W |
-| `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.torqueConstant` | `LREAL` | W |
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.tauLimit` | `LREAL` | W |
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.velLimit` | `LREAL` | W |
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.taskDtNs` | `ULINT` | W |
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.encoderResolution` | `UDINT` | W |
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.ratedTorque` | `LREAL` | W |
+| `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.maxPermille` | `LREAL` | W |

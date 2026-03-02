@@ -68,5 +68,13 @@ classdef TestSymbolTraversal < matlab.unittest.TestCase
       testCase.verifyEqual(types, "ARRAY [0..1] OF LREAL");
       testCase.verifyEqual(sizes, int32(16));
     end
+
+    function collectSymbolsErrorsWhenIdentityCannotBeDerived(testCase)
+      symbol = MockDotNetSymbol("TypeName", "INT", "Size", int32(4));
+      symbols = MockDotNetCollection({symbol});
+
+      testCase.verifyError(@() twincat_ads.SymbolBrowser.collect_symbols_for_test(symbols, false), ...
+        "twincat_ads:symbolTraversal:identityUnavailable");
+    end
   end
 end

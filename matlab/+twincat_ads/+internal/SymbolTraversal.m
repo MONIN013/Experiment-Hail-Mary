@@ -126,7 +126,8 @@ classdef SymbolTraversal
         return;
       end
 
-      key = char("fallback#" + string(class(symbol)));
+      error("twincat_ads:symbolTraversal:identityUnavailable", ...
+        "Cannot derive a unique symbol identity key: RuntimeHelpers.GetHashCode unavailable and symbol name is empty.");
     end
 
     function children = collect_symbols_from_collection(collection)

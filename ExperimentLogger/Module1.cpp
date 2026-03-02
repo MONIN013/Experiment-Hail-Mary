@@ -262,7 +262,7 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 		ResetRuntimeState();
 	}
 
-	const bool loggingCmd = (m_Inputs.loggingReq != false) || (m_LogControl.logging != false);
+	const bool loggingCmd = (m_Inputs.loggingReq != false);
 	bool risingEdge = loggingCmd && !m_prevLoggingCommand;
 	bool fallingEdge = !loggingCmd && m_prevLoggingCommand;
 	if (resetEdge)

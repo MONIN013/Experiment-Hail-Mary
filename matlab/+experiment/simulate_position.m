@@ -10,7 +10,7 @@ end
 task_dt_s = 1 / cfg.task_rate_hz;
 m_pos = cfg.m;
 d_non_neg = max(0, cfg.d);
-kt_abs = abs(cfg.kt);
+kt_abs = abs(cfg.rated_current);
 tau_lim = abs(cfg.tau_limit);
 vel_lim = abs(cfg.vel_limit);
 

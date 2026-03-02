@@ -213,7 +213,7 @@ function seedVmScalars(t, prefix)
 base = char(string(prefix));
 t.scalarMap(strcat(base, 'mass')) = 1.0;
 t.scalarMap(strcat(base, 'damping')) = 1.0;
-t.scalarMap(strcat(base, 'torqueConstant')) = 1.0;
+t.scalarMap(strcat(base, 'ratedTorque')) = 1.0;
 t.scalarMap(strcat(base, 'tauLimit')) = 1.0;
 t.scalarMap(strcat(base, 'velLimit')) = 1.0;
 t.scalarMap(strcat(base, 'taskDtNs')) = uint64(1000);
@@ -234,6 +234,5 @@ t.scalarMap(strcat(base, 'EnableParams.enableLead')) = false;
 t.scalarMap(strcat(base, 'EnableParams.enableNotch')) = false;
 t.scalarMap(strcat(base, 'EnableParams.enableReso')) = false;
 end
-
 
 

@@ -4,10 +4,11 @@
     <Declaration><![CDATA[{attribute 'qualified_only'}
 VAR_GLOBAL CONSTANT
     ENCODER_RESOLUTION : UDINT := 8388608; (* pulses/rev *)
-    RATED_CURRENT : LREAL := 0.318;        (* A *)
+    RATED_CURRENT : LREAL := 1.2;          (* A — 定格電流 *)
+    MAX_CURRENT_A : LREAL := 1.5;          (* A — 電流クランプ上限 (モーター保護) *)
     TWO_PI_INV_RES : LREAL := 6.283185307179586 / 8388608.0; (* rad/pulse *)
-    RATED_CURRENT_INV_X1000 : LREAL := 1000.0 / 0.318;       (* permille/A *)
-    RATED_CURRENT_DIV_1000 : LREAL := 0.318 / 1000.0;        (* A/permille *)
+    RATED_CURRENT_INV_X1000 : LREAL := 1000.0 / 1.2;         (* permille/A *)
+    RATED_CURRENT_DIV_1000 : LREAL := 1.2 / 1000.0;          (* A/permille *)
 END_VAR
 
 VAR_GLOBAL

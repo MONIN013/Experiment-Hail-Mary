@@ -49,7 +49,8 @@ DriverAdapter の `ENCODER_RESOLUTION` / `RATED_CURRENT` を書き換えて Buil
 | 定数名 | データ型 | 例値 | 単位 | 説明 |
 |---|---|---|---|---|
 | `ENCODER_RESOLUTION` | `UDINT` | `8388608` | pulses/rev | エンコーダ分解能 (Panasonic A6B: 2²³) |
-| `RATED_CURRENT` | `LREAL` | `0.318` | A | モーター定格電流 |
+| `RATED_CURRENT` | `LREAL` | `1.2` | A | モーター定格電流 |
+| `MAX_CURRENT_A` | `LREAL` | `1.5` | A | 電流クランプ上限 (モーター保護) |
 | `TWO_PI_INV_RES` | `LREAL` | (導出値) | rad/pulse | $\frac{2\pi}{\text{ENCODER\_RESOLUTION}}$ — パルス→rad 変換定数 |
 | `RATED_CURRENT_INV_X1000` | `LREAL` | (導出値) | ‰/A | $\frac{1000}{\text{RATED\_CURRENT}}$ — A→‰rated 変換定数 |
 | `RATED_CURRENT_DIV_1000` | `LREAL` | (導出値) | A/‰ | $\frac{\text{RATED\_CURRENT}}{1000}$ — ‰rated→A 変換定数 |
@@ -61,8 +62,9 @@ DriverAdapter の `ENCODER_RESOLUTION` / `RATED_CURRENT` を書き換えて Buil
 > **Driver 変更手順:**  
 > 1. `ENCODER_RESOLUTION` を新ドライバのエンコーダ仕様に変更  
 > 2. `RATED_CURRENT` を新ドライバの定格電流に変更  
-> 3. 導出値 (`TWO_PI_INV_RES`, `RATED_CURRENT_INV_X1000`, `RATED_CURRENT_DIV_1000`) を再計算して更新  
-> 4. Build → Activate Configuration
+> 3. `MAX_CURRENT_A` を新ドライバの最大許容電流に変更  
+> 4. 導出値 (`TWO_PI_INV_RES`, `RATED_CURRENT_INV_X1000`, `RATED_CURRENT_DIV_1000`) を再計算して更新  
+> 5. Build → Activate Configuration
 
 ---
 
@@ -81,8 +83,8 @@ DriverAdapter の `ENCODER_RESOLUTION` / `RATED_CURRENT` を書き換えて Buil
 
 | # | 変数名 | データ型 | ソース | 説明 |
 |---|---|---|---|---|
-| 5 | `controlInput` | `LREAL` | ControllerCore | 制御出力 $u_{fb} + u_{ff}$ [Nm] |
-| 6 | `distValue` | `LREAL` | ExperimentSequencer | 外乱値 [Nm] |
+| 5 | `controlInput` | `LREAL` | ControllerCore | 制御出力 $u_{fb} + u_{ff}$ [A] |
+| 6 | `distValue` | `LREAL` | ExperimentSequencer | 外乱値 [A] |
 | 7 | `controlWordIn` | `UINT` | ModeManager | CiA 402 ControlWord |
 | 8 | `enableCurrentOutput` | `BOOL` | ModeManager | 電流ゲート有効フラグ |
 | 9 | `resetReq` | `BOOL` | ModeManager | リセット要求 **(新規 — M15 解決)** |
@@ -163,9 +165,16 @@ resetReqPrev := GVL_DRV.resetReq;
 GVL_DRV.positionRel := positionRad - positionOffsetRad;
 
 (* ═══════════════════════════════════════════════════════════════ *)
-(*  4. 工学単位 → Drive 変換 (外乱加算 + 電流ゲート)           *)
+(*  4. 工学単位 → Drive 変換 (電流クランプ + 外乱加算 + 電流ゲート)           *)
 (* ═══════════════════════════════════════════════════════════════ *)
 targetCurrentA := GVL_DRV.controlInput + GVL_DRV.distValue;
+
+(* Motor protection: clamp current before permille conversion *)
+IF targetCurrentA > MAX_CURRENT_A THEN
+    targetCurrentA := MAX_CURRENT_A;
+ELSIF targetCurrentA < -MAX_CURRENT_A THEN
+    targetCurrentA := -MAX_CURRENT_A;
+END_IF
 
 IF GVL_DRV.enableCurrentOutput THEN
     GVL_DRV.targetTorque := LREAL_TO_INT(targetCurrentA * RATED_CURRENT_INV_X1000);
@@ -187,7 +196,8 @@ GVL_DRV.statusWordOut  := GVL_DRV.statusWord;
 | Drive → Adapter | Position [pulses] → [rad] | $\theta_{rad} = \text{positionActualValue} \times \frac{2\pi}{\text{ENCODER\_RESOLUTION}}$ |
 | Drive → Adapter | Velocity [pulses/s] → [rad/s] | $\dot{\theta}_{rad/s} = \text{velocityActualValue} \times \frac{2\pi}{\text{ENCODER\_RESOLUTION}}$ |
 | Drive → Adapter | Current [‰ rated] → [A] | $\text{currentAct} = \text{currentActualValue} \times \frac{\text{RATED\_CURRENT}}{1000}$ |
-| Adapter → Drive | Current [A] → [‰ rated] | $\text{targetCurrent} = \text{round}(\text{currentAct} \times \frac{1000}{\text{RATED\_CURRENT}})$ |
+| Adapter → Drive | Current clamp [A] | $\text{targetCurrentA} = \text{clamp}(\text{controlInput} + \text{distValue},\; \pm\text{MAX\_CURRENT\_A})$ |
+| Adapter → Drive | Current [A] → [‰ rated] | $\text{targetCurrent} = \text{round}(\text{targetCurrentA} \times \frac{1000}{\text{RATED\_CURRENT}})$ |
 
 ### 5.3 相対位置化
 
@@ -280,8 +290,10 @@ DriverAdapter 内部ロジックの変更は不要。tsproj の `<Mappings>` 変
   │                   └── resetReq edge → capture positionRad          │
   │                                                                    │
   │  [工学単位 → Drive]                                                │
-  │  controlInput (LREAL) ──────────────────────► (+) ──► ×RATED_CURRENT│
-  │  distValue (LREAL) ────────────────────────► (+)      _INV_X1000  │
+  │  controlInput (LREAL [A]) ──────────────────► (+) ──► clamp(±MAX │
+  │  distValue (LREAL [A]) ────────────────────► (+)     _CURRENT_A)│
+  │                                                        ──► ×RATED_CURRENT│
+  │                                                             _INV_X1000  │
   │                                                        ──► target │
   │                                                          Torque   │
   │                                               (INT, ‰ rated)     │

@@ -13,7 +13,7 @@ namespace
 {
 const double kPi = 3.14159265358979323846;
 const double kTwoPi = 2.0 * kPi;
-const double kDefaultRatedTorqueNm = 0.318;
+const double kDefaultRatedTorqueNm = 1.2;
 const ULONG kDefaultEncoderResolution = 8388608UL;
 const double kLongMaxAsDouble = static_cast<double>(std::numeric_limits<LONG>::max());
 const double kLongMinAsDouble = static_cast<double>(std::numeric_limits<LONG>::min());
@@ -314,6 +314,19 @@ void CModule1::StepVirtualMotor(int axisIndex, SHORT targetTorquePermille)
 	const double dtS = static_cast<double>(params.taskDtNs) * 1e-9;
 	const double dNonNeg = (params.damping < 0.0) ? 0.0 : params.damping;
 	const double ratedTorque = EffectiveRatedTorque(params);
+
+	// maxPermille input-level protection: reject commands exceeding rated fraction
+	const double maxPerm = (params.maxPermille > 0.0) ? params.maxPermille : 0.0;
+	if (maxPerm > 0.0)
+	{
+		const double absPerm = (targetTorquePermille >= 0) ? static_cast<double>(targetTorquePermille) : static_cast<double>(-targetTorquePermille);
+		if (absPerm > maxPerm)
+		{
+			axis.internalFault = true;
+			axis.driveState = EDriveState::FAULT;
+		}
+	}
+
 	const double tauCmdRequest = (static_cast<double>(targetTorquePermille) / 1000.0) * ratedTorque;
 	const double tauLimitAbs = (params.tauLimit < 0.0) ? -params.tauLimit : params.tauLimit;
 	if (tauLimitAbs > 0.0 && (tauCmdRequest > tauLimitAbs || tauCmdRequest < -tauLimitAbs))

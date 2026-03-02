@@ -1,6 +1,6 @@
 # 未解決課題一覧 — ExperimentHailMary
 
-> **最終更新:** 2026-02-27 (M18/L9–L14 ドキュメント更新反映、D11/D12/D13 反映漏れ精査、M14 解消、L9–L14/M18–M20 追加)  
+> **最終更新:** 2026-03-02 (M21 定格電流ベース単位統一, M22 電流制限追加, MATLAB 構成レビュー欄追加、M6–M13/M16/M19/M20 解消反映、D11/D12/D13 I/F整合、MATLAB fail-fast化)  
 > **目的:** プロジェクト全体の未解決課題を一元管理する。  
 > **参照:** [ArchitectureSpec.md](ArchitectureSpec.md) / [ExperimentProcedure.md](ExperimentProcedure.md) / [TechnicalReference.md](TechnicalReference.md)
 
@@ -63,57 +63,55 @@ ExperimentSequencer の `GVL_SEQ.playbackDone` を同一 VirtualMotorTask 内で
 
 ---
 
-### ~~H3. `motor_current_act` は SIL で 0 埋め（設計決定済み）~~ → 解消 (D13)
-
-**解消:** VirtualMotorCore に `torqueActualValue` (‰ rated, INT) 出力を追加 (D13)。
-DriverAdapter で A に変換後、ExperimentLogger の `motorCurrentAct` に接続。
-SIL でも飽和後の実電流が記録可能となる。
-→ 解消済みセクションに移動。
-
----
-
 ## Medium — 設計不整合・改善（非推奨/互換性フォールバック）
 
-### M6. `LogControl.logging` 非推奨互換パスが C++ 実装に残存
+### ~~M6. `LogControl.logging` 非推奨互換パスが C++ 実装に残存~~ → 解消
+**解消 (2026-02-27):** `ExperimentLogger` の記録判定を `Inputs.loggingReq` 単独に統一し、`LogControl.logging` を Services/TMC/C++ 実装から撤去。
 
 **対象:** `ExperimentLogger/Module1.cpp` L266  
 **現状:** `loggingCmd = (m_Inputs.loggingReq != false) || (m_LogControl.logging != false)` — 旧手動制御 `LogControl.logging` が OR されたまま残っている。`Inputs.loggingReq` による自動制御への移行は完了済み（M3 解決）だが、旧互換パスが残存しているため、意図しない手動操作でロギングが開始されるリスクがある。  
 **提案:** `LogControl.logging` の OR 分岐を削除し、`Inputs.loggingReq` のみで制御。合わせて `ExperimentLogger.tmc` の `LogControl.logging` パラメータも撤去する。  
 **関連ドキュメント:** `docs/module-specs/ExperimentLogger.md` L37-39, `docs/TechnicalReference.md` L399/L735/L815, `docs/ExperimentProcedure.md` L210/L216, `docs/ArchitectureSpec.md` L483 — いずれも "(deprecated)" / "(非推奨)" 表記で残っている。コード撤去と同時にドキュメントからも互換制御の記載を削除すること。
 
-### M7. `modeFlags` の UINT/UDINT 型フォールバック
+### ~~M7. `modeFlags` の UINT/UDINT 型フォールバック~~ → 解消
+**解消 (2026-02-27):** `modeflags_type()` を `UINT` (`u16`) 固定化し、`UInt32` 互換フォールバックを撤去。
 
 **対象:** `matlab/+experiment/ModeManagerControl.m` L138-153, `matlab/+experiment/send_position_command.m` L449-453/L555-559  
 **現状:** `modeflags_type()` は `t.u16` が存在すれば `System.UInt16` を、なければ `System.UInt32` にフォールバックする。`cast_modeflags_value()` も同様に `UInt16` / `UInt32` を動的に切り替える。  
 PLC 側 `GVL_MODE.modeFlags` は `UINT` (16bit) で定義されているため、型は一意に決まるはず。`u16` フィールドの有無で判定する互換分岐は不要。  
 **提案:** `VirtualMotorSymbols.types` に常に `u16` を含めるか、`modeflags_type()` を `UINT` 固定にし、フォールバック分岐を撤去する。
 
-### M8. `send_position_command.m` の `cleanup_transports` 内デッドコード
+### ~~M8. `send_position_command.m` の `cleanup_transports` 内デッドコード~~ → 解消
+**解消 (2026-02-27):** 旧 stop 書込み互換パスのデッドコードを削除済み（現行実装は modeFlags/reset handshake のみ）。
 
 **対象:** `matlab/+experiment/send_position_command.m` L182-195  
 **現状:** `wrote_stop` を `false` で初期化し、ModeFlags 書き込み成功後に `true` に設定しているが、次の `if ~wrote_stop` ブロックは `wrote_stop = true` の直後にあるため**絶対に到達しない**。`plc_symbols.experimentActive` に `false` を書くフォールバックは実質的にデッドコード。  
 **提案:** デッドコードブロックを削除し、`wrote_stop` 変数自体も除去する。
 
-### M9. `send_position_command.m` のログ読取り `logT`/`logIdx` try-catch 互換フォールバック
+### ~~M9. `send_position_command.m` のログ読取り `logT`/`logIdx` try-catch 互換フォールバック~~ → 解消
+**解消 (2026-02-27):** `send_position_command` / `VirtualMotorService` の `logT` / `logIdx` フォールバックを撤去し、読取失敗時は明示エラー化。
 
 **対象:** `matlab/+experiment/send_position_command.m` L508-517  
 **現状:** `read_upper_logs` 内で `logT`（UInt64 配列）と `logIdx`（UInt32 配列）の読み取りを個別に try-catch で囲んでおり、失敗時に空配列を返すフォールバックがある。コメントは「MATLAB/.NET interop で UInt64[] がマーシャリングできない場合」に言及。  
 `VirtualMotorService.m` L462-472, L574-582 にも同一パターンのフォールバックが存在。  
 **提案:** 現在使用中の ADS ライブラリで UInt64 マーシャリングが正常動作するか検証し、問題がなければ try-catch フォールバックを撤去。動作しない場合は根本対応（バイト配列での手動デシリアライズ等）を行い、暗黙的な 0 埋めフォールバックを除去する。
 
-### M10. `SymbolTraversal.symbol_identity_key` の多段フォールバック
+### ~~M10. `SymbolTraversal.symbol_identity_key` の多段フォールバック~~ → 解消
+**解消 (2026-02-27):** `fallback#<class>` を廃止し、同一性キー生成不能時は `identityUnavailable` エラーを送出。
 
 **対象:** `matlab/+twincat_ads/+internal/SymbolTraversal.m` L111-131  
 **現状:** シンボル同一性キーの生成で .NET `RuntimeHelpers.GetHashCode` → `InstancePath`/`InstanceName` → `class(symbol)` の 3 段フォールバックを持つ。最終段 `fallback#<class>` はクラス名のみなので、同一型の異なるシンボルが同一キーとなり、重複除去で取りこぼす可能性がある。  
 **提案:** .NET 環境であれば `GetHashCode` が常に利用可能なはず。非 .NET 環境のサポートが不要なら最終段フォールバックを除去し、代わりにエラーとする。必要であれば `class + index` など一意性を保証するキーに改善する。
 
-### M11. `ModeManagerControl.try_read_experiment_active` の二重トランスポートフォールバック
+### ~~M11. `ModeManagerControl.try_read_experiment_active` の二重トランスポートフォールバック~~ → 解消
+**解消 (2026-02-27):** `experimentActive` 読取を `control_transport` 単一路化し、失敗時は明示エラー化。
 
 **対象:** `matlab/+experiment/ModeManagerControl.m` L157-175  
 **現状:** `experimentActive` の読み取りで、まず `control_transport` で `ctrl.experimentActiveSymbol` を試し、失敗時に `plc_transport` で `plc_symbols.experimentActive` にフォールバックする。`GVL_SEQ.modeFlags` 廃止（解決済み）後は `control_transport` 経由で `GVL_MODE.experimentActive` が常に読めるはず。  
 **提案:** plc_transport フォールバックを撤去し、control_transport 単一経路にする。
 
-### M13. MATLAB が `GVL_SEQ.idx` を直接クリアしている（ハンドシェイク迂回）
+### ~~M13. MATLAB が `GVL_SEQ.idx` を直接クリアしている（ハンドシェイク迂回）~~ → 解消
+**解消 (2026-02-27):** `send_position_command` から `GVL_SEQ.idx` 直接クリアを削除し、reset handshake に一本化。
 
 **対象:** `matlab/+experiment/send_position_command.m` L70, `ExperimentSequencer/POUs/PRG_ExperimentSequencer.TcPOU` L3-4  
 **現状:** `send_position_command.m` のリセットシーケンスで `plc_transport.write_scalar(plc_symbols.idx, uint32(0), t.u32)` により MATLAB が Port 853 経由で `GVL_SEQ.idx` を直接 0 に書き込んでいる。一方、TwinCAT 側でも `resetReq = TRUE` 時に `GVL_SEQ.idx := 0` をクリアしている。  
@@ -121,27 +119,16 @@ PLC 側 `GVL_MODE.modeFlags` は `UINT` (16bit) で定義されているため�
 **リスク:** MATLAB のダイレクト書き込みと TwinCAT の resetReq 処理が同一スキャンで競合した場合、タイミング依存の不整合が発生する可能性がある。  
 **提案:** `GVL_SEQ.idx` のクリアを `resetReq` ハンドシェイク経由に一本化し、MATLAB の直接書き込み (`write_scalar(plc_symbols.idx, ...)`) を削除する。
 
-### M12. `send_position_command.m` の `read_control_runtime_diag` 内 `u16` フォールバック
+### ~~M12. `send_position_command.m` の `read_control_runtime_diag` 内 `u16` フォールバック~~ → 解消
+**解消 (2026-02-27):** `MAIN.statWord`/`ctrlWord`/`driveState` の読取型を `u16` 固定化し、`u32` fallback を撤去。
 
 **対象:** `matlab/+experiment/send_position_command.m` L449-453  
 **現状:** `t.u16` フィールドが存在しなければ `t.u32` にフォールバックして `MAIN.statWord`, `MAIN.ctrlWord` を読んでいる。PLC 側はこれらを `UINT` (16bit) で定義しており、`u32` で読むと型不一致リスクがある。  
 **提案:** M7 と同様、型定義を統一してフォールバックを廃止する。
 
-### ~~M14. ExperimentSequencer のリセットがレベルセンシティブ（エッジ検出不統一）~~ → 解消
 
-**解消:** `PRG_ExperimentSequencer` で `resetReqPrev : BOOL` を導入し、  
-`resetEdge := GVL_SEQ.resetReq AND NOT resetReqPrev;` によるエッジ検出に修正済み。  
-ControllerCore / ExperimentLogger / DriverAdapter と同一のエッジ検出方式で統一された。  
-→ 解消済みセクションに移動。
-
-### ~~M15. DriverAdapter にリセット入力がない（Phase 4 拡張リスク）~~ → 解消 (D12)
-
-**解消:** D12 により相対位置化を DriverAdapter に移管。
-`GVL_DRV.resetReq AT %I*` を追加し、エッジ検出で `positionOffsetRad := positionRad` をキャプチャ。
-ControllerCore / ExperimentLogger と同一のエッジ検出方式で統一。
-→ 解消済みセクションに移動。
-
-### M16. VirtualMotor の `torqueConstant` パラメータと `ratedTorque` の関係整理
+### ~~M16. VirtualMotor の `torqueConstant` パラメータと `ratedTorque` の関係整理~~ → 解消
+**解消 (2026-02-27):** `torqueConstant` を VirtualMotorCore/tsproj/MATLAB 契約から削除し、`ratedTorque` に一本化。
 
 **対象:** `VirtualMotorCore/VirtualMotorCoreServices.h`, `VirtualMotorCore/Module1.cpp`  
 **現状:** 旧方式では入力が `currentIn` [A] であったため `torqueConstant` [N·m/A] が必要だった。D11 で入力が `targetTorque` [‰ rated] に変更されるため、入力→内部 Nm 変換は `ratedTorque` で行う。`torqueConstant` の役割を再検討する必要がある。  
@@ -158,12 +145,64 @@ ControllerCore / ExperimentLogger と同一のエッジ検出方式で統一。
 **提案:** 実装時に tsproj Mapping を更新し、ADS Discovery で接続を確認する。  
 **関連:** D12, M4 (解消済み)
 
-### ~~M18. TechnicalReference.md の D11/D12/D13 反映漏れ（複数箇所）~~ → 解消
+### M21. 定格電流ベース単位統一 — `RATED_CURRENT=1.2A`, `rated_torque` → `rated_current`
 
-**解消:** TechnicalReference.md の §2.1, §2.4, §3.1, §3.2, §4.2, §4.3, §7.1, §7.5, §7.6, §8.3, §8.6, §8.8 を D11/D12/D13 に合わせて一括更新済み。
-→ 解消済みセクションに移動。
+**対象:** DriverAdapter `GVL_DRV`, MATLAB `RunConfig`/`VirtualMotorService`/`simulate_position`/`preload_eval`/`write_vm_params`, VirtualMotorCore デフォルト定数, ドキュメント全般  
+**現状 (実装済み 2026-03-02):** 旧構成は `RATED_CURRENT=0.318 A` / `ratedTorque=0.318 Nm` で運用していた。MATLAB は `rated_torque` パラメータ名で VirtualMotor に注入していた。ControllerCore/ExperimentSequencer の出力はドキュメント上 [Nm] だが kt=1 前提で [A] と数値同一であった。  
+**設計決定:** kt=1 を維持し、`RATED_CURRENT=1.2 A` / `ratedTorque=1.2 Nm` に変更。VirtualMotor 外では `rated_torque` を使用せず `rated_current` に統一。制御チェーンの単位表記を [A] に統一。  
+**変更内容:**
 
-### M19. ControllerCore の `positionRel` 出力が D12「廃止」にもかかわらず残存
+| コンポーネント | 変更 |
+|---|---|
+| `GVL_DRV` | `RATED_CURRENT := 1.2`, `RATED_CURRENT_INV_X1000 := 1000.0 / 1.2`, `RATED_CURRENT_DIV_1000 := 1.2 / 1000.0` |
+| `VirtualMotorCore/Module1.cpp` | `kDefaultRatedTorqueNm = 1.2` |
+| `RunConfig.m` | `rated_torque` → `rated_current` (default `1.2`) |
+| `write_vm_params.m` | `params.rated_torque` → `params.rated_current` |
+| `VirtualMotorService.m` | `cfg.rated_torque` → `cfg.rated_current` |
+| `simulate_position.m` | `cfg.rated_torque` → `cfg.rated_current` |
+| `preload_eval.m` | `rated_torque` → `rated_current` |
+| `run_position_command_demo.m` | `kt` → `rated_current` |
+| ドキュメント | `[Nm]` → `[A]` (controlInput, distValue, ffValue, ffTable, distTable), `0.318` → `1.2` |
+
+**残タスク:** ControllerCore `ControllerCoreServices.h` のコメント内 [Nm] 表記を [A] に修正（機能変更なし）。  
+**関連:** M16 (解消), D11
+
+### M22. DriverAdapter / VirtualMotorCore への電流制限追加
+
+**対象:** DriverAdapter `GVL_DRV`/`PRG_DriverAdapter`, VirtualMotorCore `Module1.cpp`/`VirtualMotorCoreServices.h`/`VirtualMotorCore.tmc`, MATLAB `RunConfig`/`VirtualMotorService`/`write_vm_params`/`VirtualMotorSymbols`  
+**現状 (実装済み 2026-03-02):** 旧構成では DriverAdapter は INT 型の範囲 [-32768, 32767] でのみクランプ（物理的制限なし）。VirtualMotorCore は `tauLimit` [Nm] でシミュレーション内飽和 + Fault を実施していた。  
+**設計決定:**
+
+1. **DriverAdapter — `MAX_CURRENT_A` (Build 時定数):**  
+   `GVL_DRV.MAX_CURRENT_A := 1.5` [A] を追加。`PRG_DriverAdapter` で `targetCurrentA` を `±MAX_CURRENT_A` に ‰変換**前**にクランプ。INT 飽和 [-32768, 32767] は型安全のため残置。
+
+2. **VirtualMotorCore — `maxPermille` (ADS 注入パラメータ):**  
+   `ST_VirtualMotorParams.maxPermille` (`double`, デフォルト `0.0` = 無制限) を追加。`StepVirtualMotor` の先頭で `|targetTorquePermille| > maxPermille` チェック。超過時 `internalFault = true` → FAULT 遷移。既存の `tauLimit` (Nm ベース飽和 + Fault) はそのまま維持。
+
+**変更内容:**
+
+| コンポーネント | 変更 |
+|---|---|
+| `GVL_DRV` | `MAX_CURRENT_A : LREAL := 1.5` 追加 |
+| `PRG_DriverAdapter` | `targetCurrentA := clamp(targetCurrentA, ±MAX_CURRENT_A)` を ‰変換前に追加 |
+| `VirtualMotorCoreServices.h` | `ST_VirtualMotorParams` に `double maxPermille` フィールド追加 |
+| `Module1.cpp` | `StepVirtualMotor` に maxPermille チェック追加 |
+| `VirtualMotorCore.tmc` | `maxPermille` SubItem 追加, BitSize 448→512 |
+| `RunConfig.m` | `max_permille` プロパティ追加 (default `0.0`) |
+| `VirtualMotorSymbols.m` | `maxPermille` シンボル・プローブ追加 |
+| `VirtualMotorService.m` | `vmParams.maxPermille` 書込み追加 |
+| `write_vm_params.m` | `maxPermille` ADS 書込み追加 |
+| ドキュメント | DriverAdapter.md §3/§5, VirtualMotorCore.md §2/§4/§7, TechRef §3/§4, ArchSpec §2B |
+
+**設計根拠:**
+- `MAX_CURRENT_A` は Build 時定数: モーター物理仕様に依存し、ドライバ変更時に `RATED_CURRENT` と同時に再設定。実験ごとの動的変更は不要。
+- `maxPermille` は ADS 注入パラメータ: 実験条件に応じた入力レベル制限として柔軟に設定可能。DriverAdapter の故障・暴走に対する二重保護として機能。
+- `tauLimit` 維持: VirtualMotor 内部の Nm 飽和は物理シミュレーション精度のため残す。`maxPermille` は入力レベルの保護。
+
+**関連:** M21, D11
+
+### ~~M19. ControllerCore の `positionRel` 出力が D12「廃止」にもかかわらず残存~~ → 解消
+**解消 (2026-02-27):** `ControllerCore.Outputs.positionRel` を Services/TMC/tsproj/実装から撤去し、`GVL_SEQ_LOG.positionRelTap` は `GVL_DRV.positionRel` へ統一。
 
 **対象:** `ControllerCore/ControllerCoreServices.h` L109 (`Module1Outputs.positionRel`)、`ControllerCore/Module1.cpp` L210  
 **現状:** D12 の設計決定では「ControllerCore の `positionOffset` / `positionRel` 出力は廃止」とされている（ArchitectureSpec §2.3 D12 移行注記）。しかし実装では:
@@ -176,7 +215,8 @@ m_Outputs.positionRel = m_Inputs.positionAct;  // 単なるパススルー
 **提案:** tsproj Mapping を `GVL_DRV.positionRel` 基準に更新した上で、ControllerCore の `positionRel` 出力と関連コードを撤去する。TMC および tsproj の Data Area 定義も同時に変更すること。  
 **関連:** D12, M17, M18
 
-### M20. VirtualMotorCore の I/O 型が CiA 402 の符号付き型と不一致
+### ~~M20. VirtualMotorCore の I/O 型が CiA 402 の符号付き型と不一致~~ → 解消
+**解消 (2026-02-27):** `targetTorque/torqueActualValue` を `INT`、`position/velocityActualValue` を `DINT` の符号付き型に統一。
 
 **対象:** `VirtualMotorCore/VirtualMotorCoreServices.h` — `ST_VirtualMotorOutputs`, `ST_VirtualMotorInputs`  
 **現状:** CiA 402 では以下の符号付き型が規定されている:
@@ -224,26 +264,8 @@ TMC の `<SubItem>` 定義も併せて更新する。
 
 **提案:** リソースファイルの LegalCopyright / ProductName を適切な値に置換する。C++ の TODO コメントは TwinCAT テンプレートの残骸であり、カスタム初期化が不要であれば削除するか、明示的に "No additional initialization needed" に書き換える。
 
-### ~~L9. ArchitectureSpec §3.9 接続マップ図が D12 前の旧フロー~~ → 解消
 
-**解消:** §3.9 の `position_act ◄── VirtualMotorCore` を `position_act ◄── DriverAdapter.positionRel` に更新済み。
-→ 解消済みセクションに移動。
-
-### ~~L10. ExperimentLogger module-spec のマッピングソースが D12/D13 前~~ → 解消
-
-**解消:** `loadPosition ← DriverAdapter.positionRel` (D12)、`loadVelocity ← DriverAdapter.velocityAct` (D11)、`motorCurrentAct ← DriverAdapter.currentAct` (D13) に更新済み。
-→ 解消済みセクションに移動。
-
-### ~~L11. DriverAdapter module-spec の変数名不一致 (`currentActualValue` vs `torqueActualValue`)~~ → 解消
-
-**解消:** §5.1 疑似コードと§8 信号フロー図の `currentActualValue` を `torqueActualValue` に統一済み。
-→ 解消済みセクションに移動。
-
-### ~~L12. ExperimentProcedure §4 の `enableCurrentOut` 記述と MAIN 実装の不一致~~ → 解消
-
-**解消:** §4 のトルクゲート記述を MAIN `CASE modeState` による状態ごとの制御に更新済み。
-→ 解消済みセクションに移動。
-
+### L9. ArchitectureSpec.md 内の D12 反映漏れ（positionRel の接続元）
 **対象:** `docs/ArchitectureSpec.md` §3.9  
 **現状:** §3.9 の ASCII 接続マップ図で `position_act ◄──────── VirtualMotorCore (Load 側 1慣性近似)` と記載されているが、§3.4 は D12 に基づき `DriverAdapter.positionRel → ControllerCore.position_act` に更新済み。同一ドキュメント内で §3.4 と §3.9 が矛盾している。  
 **提案:** §3.9 の図を D12 反映後のフローに更新する。
@@ -266,20 +288,28 @@ TMC の `<SubItem>` 定義も併せて更新する。
 **提案:** `currentActualValue` → `torqueActualValue` に統一する。  
 **関連:** D11
 
-### ~~L12. ExperimentProcedure §4 の `enableCurrentOut` 記述と MAIN 実装の不一致~~ → 解消
+### L15. MATLAB 構成レビュー（2026-03-02）
 
-**解消:** §4 のトルクゲート記述を MAIN `CASE modeState` による状態ごとの制御に更新済み。
-→ 解消済みセクションに移動。
+**対象:** `matlab/+experiment/`, `matlab/+twincat_ads/`, `matlab/README.md`, `docs/MatlabSpec.md`, `.gitignore`  
+**現状:** MATLAB 層は `+experiment` / `+twincat_ads` への分離自体はできているが、構成全体としては以下の設計負債が残っている。
 
-### ~~L13. TechnicalReference §1.2 のリセット疑似コードが旧レベルトリガのまま~~ → 解消
+- `send_position_command.m` と `VirtualMotorService.run()` が reset handshake、table 書込み、modeFlags 制御、完了待ち、ログ読出しまでほぼ同じ実験実行フローを別実装で保持している。
+- 設定値が `SystemConfig`, `RunConfig`, 各関数のローカル default, デモスクリプトに分散しており、`851/852/853/351`, `LOG_N=200000`, `TABLE_MAX_N=100000`, `done_timeout_s=30.0`, `reset_timeout_s=5.0` などが多重定義されている。
+- `VirtualMotorSymbols` が ADS シンボル契約、required probe、型定義、既定シンボル名を同時に抱えており、契約定義と運用都合が分離されていない。
+- `ModeManagerControl` が symbol 解決 helper に加えて heartbeat policy、状態定数、done 判定、`pause(0.01)` ポーリング間隔といった実行 policy まで内包している。
+- `matlab/README.md` と `docs/MatlabSpec.md` に実装との差分がある。例として README には現状存在しない `run_preload_and_plot.m` が残存し、`run_position_command_demo.m` / `MatlabSpec.md` は `Kp=180` 前提の記述だが実装は `Kp=90`、`duration_s=3.0` になっている。
+- `matlab/simulink/` 配下に追跡対象の `.slx` と生成物が同居している一方、repo の `.gitignore` には MATLAB / Simulink 向けの除外規則がなく、ソースレビューと生成物の境界が弱い。
 
-**解消:** §1.2 のリセット処理疑似コードをエッジ検出方式 (`resetReq AND NOT resetReqPrev`) に更新済み。
-→ 解消済みセクションに移動。
+**影響:** 現状の機能不全ではないが、新規実験追加・PLC ポート変更・ModeManager 契約追加のたびに変更点が広がりやすい。仕様の単一ソースが崩れ、README/Spec を参照した運用判断を誤るリスクがある。  
+**提案:**
 
-### ~~L14. ExperimentProcedure §3.3 のリセット処理テーブルに ExperimentSequencer の検出方式が「レベル」と記載~~ → 解消
+1. 実験実行フローを 1 つの中核 API に集約し、`send_position_command` は軽量ラッパー、`VirtualMotorService` は高レベル orchestration に責務を限定する。
+2. 設定値を「環境固定値」「仕様固定値」「実験条件」に分離し、公開 API の default を一箇所に寄せる。
+3. `VirtualMotorSymbols` / `ModeManagerControl` から policy と契約定義を切り離し、symbol contract と runtime behavior を分離する。
+4. `matlab/README.md` と `docs/MatlabSpec.md` を現実装に同期し、デモ条件 (`Kp`, `duration_s`) を単一ソース化する。
+5. `matlab/simulink/` と `matlab/results/` の役割を明文化し、`.gitignore` に MATLAB / Simulink 生成物除外を追加する。
 
-**解消:** ExperimentSequencer の検出方式を「エッジ」に更新、M14 の欄注を削除済み。
-→ 解消済みセクションに移動。
+**関連:** L4, L7, `matlab/+experiment/send_position_command.m`, `matlab/+experiment/VirtualMotorService.m`, `matlab/+experiment/RunConfig.m`, `matlab/+experiment/SystemConfig.m`
 
 ---
 

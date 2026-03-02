@@ -4,11 +4,11 @@ function write_vm_params(transport, params)
 %   experiment.write_vm_params(transport, params)
 %
 %   transport — 接続済み twincat_ads.IAdsTransport (Port = SystemConfig.MODULE_PORT)
-%   params    — struct or RunConfig with fields: m, d, kt, tau_limit, vel_limit
+%   params    — struct or RunConfig with fields: m, d, rated_current, max_permille, tau_limit, vel_limit
 %               (task_rate_hz は SystemConfig から自動取得)
 %
 %   書込み先 (VirtualMotor1Parameter):
-%     .mass, .damping, .torqueConstant, .tauLimit, .velLimit, .taskDtNs
+%     .mass, .damping, .ratedTorque, .maxPermille, .tauLimit, .velLimit, .taskDtNs
 
   arguments
     transport twincat_ads.IAdsTransport
@@ -22,7 +22,10 @@ function write_vm_params(transport, params)
 
   transport.write_scalar(vm.m, double(params.m), t.double);
   transport.write_scalar(vm.d, double(params.d), t.double);
-  transport.write_scalar(vm.kt, double(params.kt), t.double);
+  transport.write_scalar(vm.ratedTorque, double(params.rated_current), t.double);
+  if isfield(symbols.vmParams, 'maxPermille')
+    transport.write_scalar(vm.maxPermille, double(params.max_permille), t.double);
+  end
   transport.write_scalar(vm.tauLimit, double(params.tau_limit), t.double);
   transport.write_scalar(vm.velLimit, double(params.vel_limit), t.double);
   transport.write_scalar(vm.taskDtNs, sys.task_dt_ns(), t.u64);

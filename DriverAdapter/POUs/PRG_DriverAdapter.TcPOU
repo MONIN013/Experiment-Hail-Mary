@@ -27,6 +27,13 @@ GVL_DRV.positionRel := positionRad - positionOffsetRad;
 
 targetCurrentA := GVL_DRV.controlInput + GVL_DRV.distValue;
 
+(* Motor protection: clamp current before permille conversion *)
+IF targetCurrentA > GVL_DRV.MAX_CURRENT_A THEN
+    targetCurrentA := GVL_DRV.MAX_CURRENT_A;
+ELSIF targetCurrentA < -GVL_DRV.MAX_CURRENT_A THEN
+    targetCurrentA := -GVL_DRV.MAX_CURRENT_A;
+END_IF
+
 IF GVL_DRV.enableCurrentOutput THEN
     targetPermilleReal := targetCurrentA * GVL_DRV.RATED_CURRENT_INV_X1000;
     IF targetPermilleReal >= 0.0 THEN

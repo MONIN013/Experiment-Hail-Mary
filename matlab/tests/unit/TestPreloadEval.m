@@ -41,7 +41,7 @@ u = [1.0; 2.0; 3.0];
 tau = u + dist;
 
 cfg = struct("task_rate_hz", 1000, "waveform_diag_abs_tol", 1e-12, "waveform_diag_preview_n", 8, ...
-  "m", 1, "d", 0.1, "kt", 0.1, "tau_limit", 5, "vel_limit", 100);
+  "m", 1, "d", 0.1, "rated_torque", 0.1, "tau_limit", 5, "vel_limit", 100);
 
 raw = struct();
 raw.log_overflow = false;
