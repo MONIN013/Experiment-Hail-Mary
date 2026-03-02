@@ -15,5 +15,6 @@
 - [#6 [L7] Make log-stream fallback quality explicit in VirtualMotorService](https://github.com/KosekiLab/Experiment-Hail-Mary/issues/6)
 - [#7 [L8] Remove or replace leftover TODO placeholders in C++ modules](https://github.com/KosekiLab/Experiment-Hail-Mary/issues/7)
 - [#8 [L15] Refactor MATLAB layer structure and configuration ownership](https://github.com/KosekiLab/Experiment-Hail-Mary/issues/8)
+- [#10 [H] playbackDone クロスタスク遅延によるトルクスパイク](https://github.com/KosekiLab/Experiment-Hail-Mary/issues/10)
 
 解決済み項目および GitHub 側に移行済みの詳細は、このファイルから削除しました。

@@ -10,6 +10,11 @@ function write_vm_params(transport, vm_param_symbol_prefix, params, task_dt_ns)
 %
 %   書込み先 (VirtualMotor1Parameter):
 %     .mass, .damping, .ratedTorque, .maxPermille, .tauLimit, .velLimit, .taskDtNs
+%
+%   外部契約は rated_current [A] で統一する。
+%   VirtualMotorCore は内部で物理トルク [Nm] を扱うため ADS シンボル名は
+%   .ratedTorque のままだが、kt = 1 前提で params.rated_current をそのまま書き込む。
+%   これは VirtualMotorCore 内部契約の例外であり、MATLAB 側の torque 契約ではない。
 
   arguments
     transport twincat_ads.IAdsTransport

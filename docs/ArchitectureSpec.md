@@ -25,7 +25,7 @@
 | 1 | **ControllerCore** | C++ TcCOM (新規) | VirtualMotorTask 1 ms → ControlTask 125 µs | 誤差計算 + FB 制御チェーン + FF 付加 (スカラ I/O、テーブル非所有) |
 | 2 | **ExperimentSequencer** | PLC ST (新規) | VirtualMotorTask 1 ms → ControlTask 125 µs | テーブルリプレイ（ref / ff / dist スカラ出力のみ） |
 | 3 | **VirtualMotorCore** | C++ TcCOM (既存) | VirtualMotorTask 1 ms → ControlTask 125 µs | 仮想モーター物理シミュレーション (SIL 用、1慣性近似) |
-| 4 | **DriverAdapter** | PLC ST (Phase 1〜) | VirtualMotorTask 1 ms → ControlTask 125 µs | Raw/工学単位変換 + 相対位置化 + 外乱加算 + CW/SW 中継 + トルクゲート (→ [module-specs/DriverAdapter.md](module-specs/DriverAdapter.md)) |
+| 4 | **DriverAdapter** | PLC ST (Phase 1〜) | VirtualMotorTask 1 ms → ControlTask 125 µs | Raw/工学単位変換 + 相対位置化 + 外乱加算 + CW/SW 中継 + 電流ゲート (→ [module-specs/DriverAdapter.md](module-specs/DriverAdapter.md)) |
 | 5 | **ExperimentLogger** | C++ TcCOM (Phase 3 新規) | VirtualMotorTask 1 ms → ControlTask 125 µs | ファイルロギング専用 (8kHz×100s 対応) |
 | 6 | **ModeManager** | PLC ST (StateMachineControl 拡張) | PlcTask1 10 ms | CiA 402 + 実験シーケンス管理 + 安全監視 |
 
@@ -53,7 +53,7 @@ Phase 4 (125 µs = 8 kHz):
 > 誤差計算・FB Chain・FF 付加を ControllerCore 内に配置する。
 > テーブルリプレイは PLC ST (ExperimentSequencer) で実装する。
 > ExperimentSequencer は ref / ff / dist のスカラ出力のみを担当する。
-> 外乱加算 (Dist Adder: target_torque = control_input + dist) および
+> 外乱加算 (Dist Adder: `control_input + dist` を [A] で合成し、Drive 境界で `target_torque` [% rated] に変換) および
 > ControlWord / StatusWord の中継は DriverAdapter (PLC ST) が担当する。
 >
 > **DriverAdapter によるドライバ差異吸収 (D11):**
@@ -63,7 +63,7 @@ Phase 4 (125 µs = 8 kHz):
 > Build するのみで、制御ロジック (ControllerCore) の変更は不要。
 >
 > **2慣性系構成:** 本実験は Motor + Load の 2 慣性系である。
-> トルク指令 (`target_torque`) は Motor 側に入力し、
+> Drive 境界の `% rated` 指令 (`target_torque`) は Motor 側に入力し、
 > 位置フィードバック (`position_act`) は Load 側エンコーダから取得する。
 > VirtualMotorCore (SIL) は Load 側応答の 1 慣性近似として動作する。
 > Phase 4 (DriverAdapter + EtherCAT) で実機の Motor/Load 両方の信号を取得する。
@@ -217,7 +217,7 @@ Phase 4 (125 µs = 8 kHz):
 
 > **役割:** ドライバ差異吸収層。Drive (VirtualMotorCore / EtherCAT) の raw 信号 (パルス数、‰定格トルク) を
 > 工学単位 (rad, rad/s, A) に変換し、制御モジュール群に統一インターフェースを提供する。
-> 外乱加算 (Dist Adder)、ControlWord / StatusWord 中継、トルクゲート、
+> 外乱加算 (Dist Adder)、ControlWord / StatusWord 中継、電流ゲート、
 > および実験開始時の相対位置化を担当する。
 > Phase 1–3 では VirtualMotorCore に接続し、Phase 4 で EtherCAT PDO I/O に切り替える。
 > **Driver 変更時は `ENCODER_RESOLUTION` / `RATED_CURRENT` を書き換えて Build するのみ。**
@@ -232,7 +232,7 @@ Phase 4 (125 µs = 8 kHz):
 4. **Dist Adder** — $\text{target\_torque} = \text{control\_input} + \text{dist\_value}$ (最終トルク出力 → Motor 側)
 5. **ControlWord 中継** — ModeManager が生成した `controlword` を Drive へ転送
 6. **StatusWord 中継** — Drive から受信した `statusword` を ModeManager へ転送
-7. **電流ゲート** — `enableCurrentOutput = FALSE` 時に `targetTorque := 0`
+7. **電流ゲート** — `enableCurrentOutput = FALSE` または `playbackDone = TRUE` 時に `targetTorque := 0`
 
 ### 2B.2 定数パラメータ (`GVL_DRV` — `VAR_GLOBAL CONSTANT`)
 
@@ -279,7 +279,7 @@ Phase 4 (125 µs = 8 kHz):
 
 | # | 変数名 | データ型 | 宛先 | 説明 |
 |---|---|---|---|---|
-| 5 | `target_torque` | `INT` | VirtualMotor / EtherCAT | 指令トルク [‰ rated] |
+| 5 | `target_torque` | `INT` | VirtualMotor / EtherCAT | Drive 境界の指令 [% rated] |
 | 6 | `controlword_out` | `UINT` | VirtualMotor / EtherCAT | CiA 402 ControlWord (中継) |
 
 > **Phase 4 拡張:**
@@ -331,6 +331,7 @@ DriverAdapter.positionRel (LREAL, rad)         ──►  ControllerCore.positio
 ModeManager.controlword            ──►  DriverAdapter.controlword_in
 ModeManager.resetOut               ──►  DriverAdapter.resetReq
 ModeManager.enableCurrentOutput     ──►  DriverAdapter.enableCurrentOutput
+ExperimentSequencer.playbackDone   ──►  DriverAdapter.playbackDone        (同一タスク fast-path、即時トルク停止)
 DriverAdapter.statusword_out       ──►  ModeManager.statusword
 ```
 
@@ -351,7 +352,7 @@ ModeManager.experiment_active ──►  ExperimentSequencer.experiment_active
 DriverAdapter.positionRel                                  ──►  ExperimentLogger.Inputs.load_position    (Adapter 変換済み相対位置)
 DriverAdapter.velocityAct                                  ──►  ExperimentLogger.Inputs.load_velocity    (Adapter 変換済み速度)
 DriverAdapter.currentAct                                    ──►  ExperimentLogger.Inputs.motor_current_act (Adapter 変換済み実電流)
-DriverAdapter.target_torque                                ──►  ExperimentLogger.Inputs.torque_cmd       (‰ rated → Logger 側で Nm 記録 or raw 記録を検討)
+DriverAdapter.current-domain command [A]                   ──►  ExperimentLogger.Inputs.currentCmd        (指令電流を [A] で記録)
 ExperimentSequencer.ref_value                              ──►  ExperimentLogger.Inputs.ref_value
 ExperimentSequencer.ff_value                               ──►  ExperimentLogger.Inputs.ff_value
 ControllerCore.control_input                               ──►  ExperimentLogger.Inputs.control_input
@@ -519,7 +520,7 @@ VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.tauLimit         → LREA
 VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.velLimit         → LREAL
 VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.taskDtNs         → ULINT
 VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.encoderResolution → UDINT  (NEW: D11)
-VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.ratedTorque       → LREAL  (D11, M16で一本化、kt=1 前提で RATED_CURRENT と同一値)
+VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.ratedTorque       → LREAL  (VirtualMotorCore 内部契約。kt=1 前提で外部 `rated_current` と同一値)
 VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.maxPermille        → LREAL  (入力上限 [‰ rated], 0=無制限)
 ```
 
@@ -680,7 +681,8 @@ END_TYPE
   │  controlInput + distValue → clamp(±MAX_CURRENT_A)                │
   │    → ×RATED_CURRENT_INV_X1000                                   │
   │    → targetTorque (INT, ‰ rated) ─► Drive                      │
-  │  enableCurrentOutput=FALSE → targetTorque := 0                    │
+  │  enableCurrentOutput=FALSE or playbackDone=TRUE                   │
+  │    → targetTorque := 0                                            │
   │                                                                 │
   │  controlWord 中継 / statusWord 中継                              │
   └─────────────────────────────────────────────────────────────────┘
@@ -709,7 +711,7 @@ Lead / Notch / Reso も同様。bypass 時はフィルタ内部状態をリセ�
 | # | 決定 | 根拠 |
 |---|---|---|
 | D1 | C++ TcCOM — 誤差計算 + FB Chain + FF Adder | TE1400 試用版 100kB 制限を回避。C++ 直接実装で TE1400 への依存を完全排除。ADS Tunable Parameter により Build 不要の設計は維持 |
-| D1a | テーブルリプレイは ExperimentSequencer、外乱加算・ControlWord/StatusWord 中継は DriverAdapter | ExperimentSequencer は ref/ff/dist のスカラ出力に専念。DriverAdapter が control_input + dist → target_torque 合成と ControlWord/StatusWord 中継を担当。責務分離を徹底 |
+| D1a | テーブルリプレイは ExperimentSequencer、外乱加算・ControlWord/StatusWord 中継は DriverAdapter | ExperimentSequencer は ref/ff/dist のスカラ出力に専念。DriverAdapter が `control_input + dist` を current [A] で合成し、Drive 境界の `target_torque` [% rated] と ControlWord/StatusWord 中継を担当。責務分離を徹底 |
 | D2 | FB Chain バイパスフラグ方式 | Build 1 回で全構成を包含。実験条件変更は ADS パラメータ注入のみ |
 | D3 | 位相最適共振フィルタは Biquad 形式 | Notch と同一構造で実装コストを抑え、係数で特性を変更可能 |
 | D4 | サイクルタイム Phase 1–3 は 1 ms | 既存 VirtualMotorCore の検証済み設定を維持し、段階的に 8 kHz へ移行 |

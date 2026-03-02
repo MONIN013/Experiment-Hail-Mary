@@ -12,16 +12,17 @@
 DriverAdapter は **ドライバ差異吸収層** である。
 Drive (VirtualMotorCore / EtherCAT) の raw 信号 (パルス数、‰定格トルク) を
 工学単位 (rad, rad/s, A) に変換し、制御モジュール群に統一インターフェースを提供する。
-ただし、基本トルクと電流は線形関係であるため、‰定格トルクと‰定格電流は一致する前提で、内部では電流値を利用する。  
-**種々もろもろ**の利点が存在しているため、TargetTorqueをTargetCurrentのように扱うことにする。
+制御チェーンの外部契約は current ベース ([A]) とし、Drive 境界でのみ
+`targetTorque` / `torqueActualValue` の `% rated` 整数型に変換する。
+kt = 1 前提により、‰定格トルクと‰定格電流は同一スケールとして扱う。
 
 **設計方針 (D11/D12):**
 
-1. **Raw ↔ 工学単位の双方向変換** — Drive 出力 (CiA 402 整数型) → 工学単位 (ControllerCore / Logger 向け) と、制御出力 (Nm) → Drive 入力 (‰ rated)
+1. **Raw ↔ 工学単位の双方向変換** — Drive 出力 (CiA 402 整数型) → 工学単位 (ControllerCore / Logger 向け) と、制御出力 [A] → Drive 入力 (‰ rated)
 2. **実験開始時の相対位置化** — リセット時に絶対位置をキャプチャし、以降は相対位置 (`positionRel`) を公開
-3. **外乱加算 (Dist Adder)** — (controlInput + distValue)/定格電流 → targetTorque
+3. **外乱加算 (Dist Adder)** — `controlInput + distValue` を current [A] で合成し、Drive 境界で `targetTorque` [% rated] に変換
 4. **CW/SW 中継** — ModeManager ↔ Drive 間の ControlWord / StatusWord 中継
-5. **電流ゲート** — `enableCurrentOutput = FALSE` 時に電流出力をゼロクランプ
+5. **電流ゲート** — `enableCurrentOutput = FALSE` または `playbackDone = TRUE` 時に電流出力をゼロクランプ
 
 **Driver 変更時の対応:**  
 DriverAdapter の `ENCODER_RESOLUTION` / `RATED_CURRENT` を書き換えて Build するのみ。
@@ -87,7 +88,8 @@ DriverAdapter の `ENCODER_RESOLUTION` / `RATED_CURRENT` を書き換えて Buil
 | 6 | `distValue` | `LREAL` | ExperimentSequencer | 外乱値 [A] |
 | 7 | `controlWordIn` | `UINT` | ModeManager | CiA 402 ControlWord |
 | 8 | `enableCurrentOutput` | `BOOL` | ModeManager | 電流ゲート有効フラグ |
-| 9 | `resetReq` | `BOOL` | ModeManager | リセット要求 **(新規 — M15 解決)** |
+| 9 | `playbackDone` | `BOOL` | ExperimentSequencer | 同一タスク fast-path 完了通知 |
+| 10 | `resetReq` | `BOOL` | ModeManager | リセット要求 **(新規 — M15 解決)** |
 
 ### 4.3 出力 — 工学単位変換済み (`AT %Q*`)
 
@@ -102,7 +104,7 @@ DriverAdapter の `ENCODER_RESOLUTION` / `RATED_CURRENT` を書き換えて Buil
 
 | # | 変数名 | データ型 | 宛先 | 説明 |
 |---|---|---|---|---|
-| 5 | `targetTorque` | `INT` | VirtualMotor / EtherCAT | 指令トルク [‰ rated] |
+| 5 | `targetTorque` | `INT` | VirtualMotor / EtherCAT | Drive 境界の指令 [% rated] |
 | 6 | `controlWordOut` | `UINT` | VirtualMotor / EtherCAT | CiA 402 ControlWord (中継) |
 
 ### 4.5 旧 I/O との対応
@@ -176,7 +178,7 @@ ELSIF targetCurrentA < -MAX_CURRENT_A THEN
     targetCurrentA := -MAX_CURRENT_A;
 END_IF
 
-IF GVL_DRV.enableCurrentOutput THEN
+IF GVL_DRV.enableCurrentOutput AND NOT GVL_DRV.playbackDone THEN
     GVL_DRV.targetTorque := LREAL_TO_INT(targetCurrentA * RATED_CURRENT_INV_X1000);
 ELSE
     GVL_DRV.targetTorque := 0;
@@ -197,7 +199,7 @@ GVL_DRV.statusWordOut  := GVL_DRV.statusWord;
 | Drive → Adapter | Velocity [pulses/s] → [rad/s] | $\dot{\theta}_{rad/s} = \text{velocityActualValue} \times \frac{2\pi}{\text{ENCODER\_RESOLUTION}}$ |
 | Drive → Adapter | Current [‰ rated] → [A] | $\text{currentAct} = \text{currentActualValue} \times \frac{\text{RATED\_CURRENT}}{1000}$ |
 | Adapter → Drive | Current clamp [A] | $\text{targetCurrentA} = \text{clamp}(\text{controlInput} + \text{distValue},\; \pm\text{MAX\_CURRENT\_A})$ |
-| Adapter → Drive | Current [A] → [‰ rated] | $\text{targetCurrent} = \text{round}(\text{targetCurrentA} \times \frac{1000}{\text{RATED\_CURRENT}})$ |
+| Adapter → Drive | Current [A] → [‰ rated] | $\text{targetTorque} = \text{round}(\text{targetCurrentA} \times \frac{1000}{\text{RATED\_CURRENT}})$ |
 
 ### 5.3 相対位置化
 
@@ -212,6 +214,9 @@ $$\text{positionRel} = \theta_{rad} - \theta_{offset}$$
 > `positionOffset` / `positionRel` で実装されていた (M5 で実装)。  
 > D12 により DriverAdapter に移管し、ControllerCore は  
 > `positionAct` をそのまま相対位置として使用する (→ [ArchitectureSpec.md](../ArchitectureSpec.md) §2)。
+>
+> **命名例外:** `targetTorque` / `torqueActualValue` は CiA 402 の Drive 境界に合わせて残す。
+> DriverAdapter より上流の制御・ロギング契約は current [A] が正規契約である。
 
 ---
 
@@ -242,6 +247,7 @@ $$\text{positionRel} = \theta_{rad} - \theta_{offset}$$
 
   ControllerCore.controlInput           ──►  GVL_DRV.controlInput
   ExperimentSequencer.distValue         ──►  GVL_DRV.distValue
+  ExperimentSequencer.playbackDone      ──►  GVL_DRV.playbackDone
   ModeManager.controlWord               ──►  GVL_DRV.controlWordIn
   ModeManager.enableCurrentOutput     ──►  GVL_DRV.enableCurrentOutput
   ModeManager.resetOut                   ──►  GVL_DRV.resetReq
@@ -297,7 +303,8 @@ DriverAdapter 内部ロジックの変更は不要。tsproj の `<Mappings>` 変
   │                                                        ──► target │
   │                                                          Torque   │
   │                                               (INT, ‰ rated)     │
-  │  [enableCurrentOutput=FALSE → targetTorque := 0]                    │
+  │  [enableCurrentOutput=FALSE or playbackDone=TRUE                    │
+  │    → targetTorque := 0]                                             │
   │                                                                    │
   │  [CW/SW 中継]                                                      │
   │  controlWordIn ──────────────────────── controlWordOut ──► Drive   │

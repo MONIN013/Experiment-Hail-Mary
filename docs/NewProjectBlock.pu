@@ -72,7 +72,7 @@ package "TwinCAT Real-Time (Phase 1-3: 1 ms / Phase 4: 125 µs = 8 kHz)" {
   FFAdd --> DistAddDrv : control_input\n(u_fb + u_ff)
 
   ' ---- DriverAdapter → Drive (Motor 側入力) ----
-  DistAddDrv --> PDO : target_torque\n(Motor 側)
+  DistAddDrv --> PDO : target_torque\n(% rated, Motor 側)
 
   ' ---- ModeManager → DriverAdapter → Drive (ControlWord) ----
   Mode --> CWRelay : controlword
@@ -87,7 +87,7 @@ package "TwinCAT Real-Time (Phase 1-3: 1 ms / Phase 4: 125 µs = 8 kHz)" {
 
   ' ---- Logging ----
   Err --> Log : error
-  DistAddDrv --> Log : torque_cmd
+  DistAddDrv --> Log : current_cmd [A]
   RefTbl --> Log : ref_value
   FF --> Log : ff_value
   FFAdd --> Log : control_input
@@ -140,7 +140,7 @@ note right of DA
 end note
 
 note right of Drive
-  **2慣性系:** target_torque → Motor 側
+  **2慣性系:** target_torque (% rated) → Motor 側
   position FB ← Load 側エンコーダ
   Phase 1-3: VirtualMotorCore (1慣性近似)
   Phase 4: EtherCAT Drive (Motor+Load 実機)

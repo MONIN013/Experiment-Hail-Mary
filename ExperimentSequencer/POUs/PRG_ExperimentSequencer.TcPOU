@@ -81,9 +81,6 @@ IF playbackRunning THEN
         playbackRunning := FALSE;
         rearmRequired := TRUE;
         GVL_SEQ.playbackDone := TRUE;
-        GVL_SEQ.refValue := 0.0;
-        GVL_SEQ.ffValue := 0.0;
-        GVL_SEQ.distValue := 0.0;
     ELSIF (GVL_SEQ.idx < tableLenLocal) THEN
         tableIdxDint := UDINT_TO_DINT(GVL_SEQ.idx);
 
@@ -101,14 +98,13 @@ IF playbackRunning THEN
         playbackRunning := FALSE;
         rearmRequired := TRUE;
         GVL_SEQ.playbackDone := TRUE;
+    END_IF
+ELSE
+    IF NOT rearmRequired THEN
         GVL_SEQ.refValue := 0.0;
         GVL_SEQ.ffValue := 0.0;
         GVL_SEQ.distValue := 0.0;
     END_IF
-ELSE
-    GVL_SEQ.refValue := 0.0;
-    GVL_SEQ.ffValue := 0.0;
-    GVL_SEQ.distValue := 0.0;
 END_IF
 
 IF sampleEmittedThisScan THEN
@@ -142,4 +138,3 @@ resetReqPrev := GVL_SEQ.resetReq;
     </Implementation>
   </POU>
 </TcPlcObject>
-

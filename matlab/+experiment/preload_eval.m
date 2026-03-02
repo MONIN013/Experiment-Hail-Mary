@@ -62,7 +62,7 @@ metrics.acceptance.command_and_position_sample_count_match = (n_cmd == numel(log
 metrics.acceptance.logNot_overflowed = ~metrics.log.overflow;
 
 metrics.notes = {
-  "ExperimentSequencer contract: ref/ff/dist table replay (target_torque is produced in DriverAdapter and recorded in logs)."
+  "ExperimentSequencer contract: ref/ff/dist table replay (DriverAdapter combines current-domain controlInput + distValue, and the resulting command current is recorded in logs)."
   "ControllerCore contract: controlInput = u_fb + ffValue."
   "VirtualMotorCore position is logged via GVL_SEQ_LOG.positionRelTap."
 };

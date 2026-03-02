@@ -34,7 +34,7 @@ ELSIF targetCurrentA < -GVL_DRV.MAX_CURRENT_A THEN
     targetCurrentA := -GVL_DRV.MAX_CURRENT_A;
 END_IF
 
-IF GVL_DRV.enableCurrentOutput THEN
+IF GVL_DRV.enableCurrentOutput AND NOT GVL_DRV.playbackDone THEN
     targetPermilleReal := targetCurrentA * GVL_DRV.RATED_CURRENT_INV_X1000;
     IF targetPermilleReal >= 0.0 THEN
         targetPermilleRounded := LREAL_TO_DINT(targetPermilleReal + 0.5);

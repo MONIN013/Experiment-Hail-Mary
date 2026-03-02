@@ -109,7 +109,7 @@ VirtualMotorCore の物理パラメータを Port 351 に書込む。
 |---|---|
 | `{VM_PREFIX}mass` | `params.m` |
 | `{VM_PREFIX}damping` | `params.d` |
-| `{VM_PREFIX}ratedTorque` | `params.rated_current` (kt=1 前提で定格トルクと同一値) |
+| `{VM_PREFIX}ratedTorque` | `params.rated_current` (VirtualMotorCore 内部例外。kt=1 前提で外部 `rated_current [A]` と同一値を書き込む) |
 | `{VM_PREFIX}maxPermille` | `params.max_permille` |
 | `{VM_PREFIX}tauLimit` | `params.tau_limit` |
 | `{VM_PREFIX}velLimit` | `params.vel_limit` |

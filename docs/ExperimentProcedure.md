@@ -16,7 +16,7 @@
 | **StateMachineControl** (ModeManager) | PLC ST | PlcTask1 (10 ms) | CiA 402 状態遷移 + フラグ管理 + 実験開始/停止制御 |
 | **ExperimentSequencer** | PLC ST | VirtualMotorTask (1 ms) | テーブルリプレイ + リングバッファログ記録 |
 | **ControllerCore** | C++ TcCOM | VirtualMotorTask (1 ms) | 誤差計算 + FB Chain + FF 付加 |
-| **DriverAdapter** | PLC ST | VirtualMotorTask (1 ms) | Raw/工学単位変換 + 相対位置化 + 外乱加算 + CW/SW 中継 + トルクゲート |
+| **DriverAdapter** | PLC ST | VirtualMotorTask (1 ms) | Raw/工学単位変換 + 相対位置化 + 外乱加算 + CW/SW 中継 + 電流ゲート |
 | **VirtualMotorCore** | C++ TcCOM | VirtualMotorTask (1 ms) | 仮想モーター物理シミュレーション (CiA 402 内蔵) |
 | **ExperimentLogger** | C++ TcCOM | VirtualMotorTask (1 ms) | バイナリファイルロギング (8kHz × 100s 対応、非同期 I/O) |
 
@@ -153,7 +153,7 @@ statusWord → F_DecodeDriveState → driveState に応じて controlWord を生
   experimentStartReq = FALSE or resetEdge → doneLatched リセット
 ```
 
-#### トルクゲート
+#### 電流ゲート
 
 ```
 enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
@@ -162,7 +162,8 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
   RUNNING:            enableCurrentOut := TRUE
   DONE:               enableCurrentOut := FALSE
 
-  → DriverAdapter: enableCurrentOutput = FALSE 時に targetTorque := 0 (安全停止)
+  → DriverAdapter: (enableCurrentOutput = FALSE) OR playbackDone = TRUE
+                   時に targetTorque := 0 (安全停止)
 ```
 
 > ドライブ自体が OPERATION_ENABLED 以外ではトルクを無視するため、SERVO_READY 状態で
@@ -189,6 +190,7 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 │                                                                       │
 │  ③ TcCOM パラメータ ADS 書込     ControllerCore: biquad 係数更新      │
 │                                   VirtualMotorCore: mass/damping/ratedTorque 等更新 │
+│                                   (外部設定値は rated_current [A]、VM 内部のみ ratedTorque) │
 │                                                                       │
 │  ④ modeFlags = 0x0001            ModeManager: サーボ有効化            │
 │    (SERVO_ENABLE)                 CiA 402 → OPERATION_ENABLED         │
@@ -201,7 +203,7 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 │     毎スキャン (1 ms):                                                 │
 │       ExperimentSequencer → ref/ff/dist → ControllerCore              │
 │       ControllerCore → controlInput → DriverAdapter                   │
-│       DriverAdapter → targetTorque (‰ rated, INT) → VirtualMotorCore │
+│       DriverAdapter → targetTorque (Drive 境界, ‰ rated, INT) → VirtualMotorCore │
 │       VirtualMotorCore → positionActualValue (pulses) → DriverAdapter │
 │       DriverAdapter: raw→rad変換 + 相対位置化 → positionRel           │
 │       DriverAdapter.positionRel → ControllerCore (FB)                 │
@@ -213,6 +215,8 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 │                                                                       │
 │  ※ ⑥の playbackDone → experimentActive は                            │
 │     クロスタスク(1ms→10ms→1ms)のため最大~11ms遅延。                   │
+│     DriverAdapter は playbackDone を同一タスク内で直接受け、          │
+│     targetTorque を即時 0 にクランプする。                            │
 │     ただし ExperimentLogger は playbackDone を同一タスク内で           │
 │     直接受け、レコード追記を即時停止する。                             │
 │     そのため 8kHz運用時の余剰ゼロ記録は H6 fast-path で抑止される。     │

@@ -55,6 +55,9 @@ VAR_GLOBAL
     enableCurrentOutput AT %I* : BOOL := TRUE;
 
     {attribute 'linkalways'}
+    playbackDone AT %I* : BOOL := FALSE;
+
+    {attribute 'linkalways'}
     resetReq AT %I* : BOOL := FALSE;
 END_VAR]]></Declaration>
   </GVL>

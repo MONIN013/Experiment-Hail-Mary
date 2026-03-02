@@ -81,7 +81,7 @@ ELSE
     playbackRunning := FALSE
     playbackDone    := TRUE         ← 完了通知
     rearmRequired   := TRUE
-    refValue / ffValue / distValue := 0.0
+    refValue / ffValue / distValue は最終テーブル値を保持
 END_IF
 ```
 
@@ -183,7 +183,7 @@ s2 = b2 * x - a2 * y
 | `positionRel` | `LREAL` | `AT %Q*` | PLC→ControllerCore/Logger | 相対位置 [rad] |
 | `velocityAct` | `LREAL` | `AT %Q*` | PLC→Logger | 速度 [rad/s] |
 | `currentAct` | `LREAL` | `AT %Q*` | PLC→Logger | 実電流 [A] |
-| `targetTorque` | `INT` | `AT %Q*` | PLC→VirtualMotorCore | 最終トルク出力 [‰ rated] |
+| `targetTorque` | `INT` | `AT %Q*` | PLC→VirtualMotorCore | Drive 境界の最終出力 [% rated] |
 | `controlWordOut` | `UINT` | `AT %Q*` | PLC→VirtualMotorCore | CW 中継 |
 | `statusWordOut` | `UINT` | `AT %Q*` | PLC→ModeManager | SW 中継 |
 
@@ -209,7 +209,7 @@ positionRel := positionRad - positionOffsetRad
 targetCurrentA := controlInput + distValue
 targetCurrentA := Clamp(targetCurrentA, ±MAX_CURRENT_A)  ← モーター保護クランプ
 
-IF enableCurrentOutput THEN
+IF enableCurrentOutput AND NOT playbackDone THEN
     targetTorque := LREAL_TO_INT(targetCurrentA * RATED_CURRENT_INV_X1000)
       ← 飽和: INT 範囲 [-32768, 32767] にクランプ
 ELSE
@@ -222,8 +222,11 @@ statusWordOut  := statusWord
 ```
 
 > `enableCurrentOutput` は ModeManager が `enableEffective AND driveReady` 時のみ `TRUE` を出力する。  
+> `playbackDone` は ExperimentSequencer から同一 1 ms タスクで DriverAdapter にも直結し、
+> `experimentActiveOut` 停止を待たずに `targetTorque := 0` を強制する。
 > ドライブが `OPERATION_ENABLED` に到達するまでトルクは出力されない。  
-> `targetTorque` は D11 により `LREAL [Nm]` → `INT [‰ rated]` に変更済み。
+> `targetTorque` は D11 により `LREAL [Nm]` から Drive 境界の `INT [‰ rated]` に変更済み。
+> DriverAdapter より上流の制御契約は current [A] のまま維持する。
 
 ---
 
@@ -412,7 +415,7 @@ GVL_SEQ_LOG のリングバッファ (§5) が ADS ポーリング前提の暫�
 
 | ポート | 型 | ソース | 説明 |
 |---|---|---|---|
-| `currentCmd` | `LREAL` | DriverAdapter `targetTorque` | 指令電流 [A] → Motor 側 |
+| `currentCmd` | `LREAL` | DriverAdapter current-domain command | 指令電流 [A] |
 | `refValue` | `LREAL` | ExperimentSequencer `refValue` | 位置指令 [rad] |
 | `ffValue` | `LREAL` | ExperimentSequencer `ffValue` | FF 信号 [A] |
 | `controlInput` | `LREAL` | ControllerCore `controlInput` | 制御出力 [A] |
@@ -576,6 +579,7 @@ MAIN.enableCurrentOut     (%Q*)  ──►  GVL_DRV.enableCurrentOutput (%I*)
 MAIN.ctrlWord            (%Q*)  ──►  GVL_DRV.controlWordIn      (%I*)
 GVL_DRV.statusWordOut    (%Q*)  ──►  MAIN.statWord              (%I*)
 GVL_SEQ.playbackDone     (%Q*)  ──►  MAIN.seqPlaybackDone       (%I*)
+GVL_SEQ.playbackDone     (%Q*)  ──►  GVL_DRV.playbackDone       (%I*)
 GVL_SEQ.playbackDone     (%Q*)  ──►  ExperimentLogger.Inputs.playbackDone
 ```
 
@@ -621,7 +625,7 @@ GVL_DRV.positionRel                         ──►  GVL_SEQ_LOG.positionRelTa
 ### 7.6 各モジュール → ExperimentLogger (Phase 3〜)
 
 ```
-GVL_DRV.targetTorque (→ Nm 換算)                            ──►  ExperimentLogger.Inputs.currentCmd
+DriverAdapter current-domain command [A]                    ──►  ExperimentLogger.Inputs.currentCmd
 ExperimentSequencer.refValue                                ──►  ExperimentLogger.Inputs.refValue
 ExperimentSequencer.ffValue                                 ──►  ExperimentLogger.Inputs.ffValue
 ControllerCore.Outputs.controlInput                         ──►  ExperimentLogger.Inputs.controlInput
@@ -683,11 +687,12 @@ ExperimentSequencer.playbackDone                            ──►  Experimen
 | `GVL_DRV.statusWord` | `UINT` | 2 | `AT %I*` | R | VirtualMotorCore StatusWord |
 | `GVL_DRV.controlWordIn` | `UINT` | 2 | `AT %I*` | R | ModeManager ControlWord |
 | `GVL_DRV.enableCurrentOutput` | `BOOL` | 1 | `AT %I*` | R | ModeManager 電流ゲート |
+| `GVL_DRV.playbackDone` | `BOOL` | 1 | `AT %I*` | R | ExperimentSequencer fast-path 完了通知 |
 | `GVL_DRV.resetReq` | `BOOL` | 1 | `AT %I*` | R | ModeManager リセット要求 (D12 追加) |
 | `GVL_DRV.positionRel` | `LREAL` | 8 | `AT %Q*` | R | 相対位置 [rad] (D12 追加) |
 | `GVL_DRV.velocityAct` | `LREAL` | 8 | `AT %Q*` | R | 速度 [rad/s] (D11 追加) |
 | `GVL_DRV.currentAct` | `LREAL` | 8 | `AT %Q*` | R | 実電流 [A] (D13 追加) |
-| `GVL_DRV.targetTorque` | `INT` | 2 | `AT %Q*` | R | 最終トルク出力 [‰ rated] → VirtualMotorCore |
+| `GVL_DRV.targetTorque` | `INT` | 2 | `AT %Q*` | R | Drive 境界の最終出力 [% rated] → VirtualMotorCore |
 | `GVL_DRV.controlWordOut` | `UINT` | 2 | `AT %Q*` | R | CW 中継 → VirtualMotorCore |
 | `GVL_DRV.statusWordOut` | `UINT` | 2 | `AT %Q*` | R | SW 中継 → ModeManager |
 
@@ -954,7 +959,7 @@ ControllerCore → ExperimentLogger
   ControllerCore.Outputs.error         → ExperimentLogger.Inputs.error
 
 DriverAdapter → ExperimentLogger
-  GVL_DRV.targetTorque (→ currentCmd)  → ExperimentLogger.Inputs.currentCmd
+  DriverAdapter current-domain command [A]  → ExperimentLogger.Inputs.currentCmd
   GVL_DRV.positionRel                  → ExperimentLogger.Inputs.loadPosition      ← D12
   GVL_DRV.velocityAct                  → ExperimentLogger.Inputs.loadVelocity      ← D11
   GVL_DRV.currentAct                   → ExperimentLogger.Inputs.motorCurrentAct   ← D13

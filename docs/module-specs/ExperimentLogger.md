@@ -10,7 +10,7 @@ ExperimentLogger is a binary file logger for experiment data. In current SIL ope
 ## Inputs
 | Name | Type | Source | Notes |
 |---|---|---|---|
-| `currentCmd` | `LREAL` | DriverAdapter | command current |
+| `currentCmd` | `LREAL` | DriverAdapter | command current [A]; `% rated` drive signals are converted back to current units before logging |
 | `refValue` | `LREAL` | ExperimentSequencer | reference |
 | `ffValue` | `LREAL` | ExperimentSequencer | feedforward |
 | `controlInput` | `LREAL` | ControllerCore | controller output |
