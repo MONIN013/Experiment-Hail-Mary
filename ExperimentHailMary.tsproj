@@ -365,11 +365,15 @@
 				</Instance>
 			</Project>
 			<Project GUID="{54AD89C8-6B39-47E6-B85F-F4753C89F02E}" Name="ExperimentSequencer" PrjFilePath="ExperimentSequencer\ExperimentSequencer.plcproj" TmcFilePath="ExperimentSequencer\ExperimentSequencer.tmc" ReloadTmc="true" AmsPort="853" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{DC9CAE52-0418-D453-FC98-EB07DE827E87}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
+				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{AD6ED373-0F8F-9208-77FA-001F10102FC3}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
 					<Name>ExperimentSequencer Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
 						<Name>VirtualMotorTask Outputs</Name>
+						<Var>
+							<Name>GVL_SEQ.playbackDone</Name>
+							<Type>BOOL</Type>
+						</Var>
 						<Var>
 							<Name>GVL_SEQ.refValue</Name>
 							<Type>LREAL</Type>
@@ -381,10 +385,6 @@
 						<Var>
 							<Name>GVL_SEQ.distValue</Name>
 							<Type>LREAL</Type>
-						</Var>
-						<Var>
-							<Name>GVL_SEQ.playbackDone</Name>
-							<Type>BOOL</Type>
 						</Var>
 					</Vars>
 					<Vars VarGrpType="1">
@@ -1168,7 +1168,6 @@
 			<OwnerB Name="TIPC^ExperimentSequencer^ExperimentSequencer Instance">
 				<Link VarA="VirtualMotorTask Inputs^GVL_DRV.distValue" VarB="VirtualMotorTask Outputs^GVL_SEQ.distValue"/>
 				<Link VarA="VirtualMotorTask Inputs^GVL_DRV.playbackDone" VarB="VirtualMotorTask Outputs^GVL_SEQ.playbackDone"/>
-				<Link VarA="VirtualMotorTask Outputs^GVL_DRV.currentAct" VarB="VirtualMotorTask Inputs^GVL_SEQ_LOG.controlInputTap"/>
 				<Link VarA="VirtualMotorTask Outputs^GVL_DRV.positionRel" VarB="VirtualMotorTask Inputs^GVL_SEQ_LOG.positionRelTap"/>
 			</OwnerB>
 			<OwnerB Name="TIPC^StateMachineControl^StateMachineControl Instance">
@@ -1204,6 +1203,7 @@
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.playbackDone" VarB="PlcTask Inputs^MAIN.seqPlaybackDone"/>
 			</OwnerB>
 			<OwnerB Name="TIXC^ControllerCore^ControllerCore_Obj1 (Module1)">
+				<Link VarA="VirtualMotorTask Inputs^GVL_SEQ_LOG.controlInputTap" VarB="Outputs^controlInput"/>
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.ffValue" VarB="Inputs^ffValue"/>
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.refValue" VarB="Inputs^refValue"/>
 			</OwnerB>

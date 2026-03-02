@@ -15,6 +15,8 @@ classdef TestSymbolBrowserContract < matlab.unittest.TestCase
       transport.scalarMap(char(s.experimentActive)) = false;
       transport.scalarMap(char(s.tableLen)) = uint32(0);
       transport.scalarMap(char(s.idx)) = uint32(0);
+      transport.scalarMap(char(s.repeatCount)) = uint32(1);
+      transport.scalarMap(char(s.trialIndex)) = uint32(0);
       transport.scalarMap(char(s.refValue)) = 0.0;
       transport.scalarMap(char(s.ffValue)) = 0.0;
       transport.scalarMap(char(s.distValue)) = 0.0;

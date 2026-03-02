@@ -30,6 +30,7 @@ resetEdge := GVL_SEQ.resetReq AND NOT resetReqPrev;
 
 IF resetEdge THEN
     GVL_SEQ.idx := 0;
+    GVL_SEQ.trialIndex := 0;
     GVL_SEQ.refValue := 0.0;
     GVL_SEQ.ffValue := 0.0;
     GVL_SEQ.distValue := 0.0;
@@ -68,6 +69,7 @@ GVL_SEQ.tableLenClamped := tableLenLocal;
 
 IF startEdge AND (NOT rearmRequired) THEN
     GVL_SEQ.idx := 0;
+    GVL_SEQ.trialIndex := 0;
     GVL_SEQ.playbackDone := FALSE;
     playbackRunning := TRUE;
 END_IF
@@ -95,9 +97,14 @@ IF playbackRunning THEN
         GVL_SEQ.idx := GVL_SEQ.idx + 1;
         sampleEmittedThisScan := TRUE;
     ELSE
-        playbackRunning := FALSE;
-        rearmRequired := TRUE;
-        GVL_SEQ.playbackDone := TRUE;
+        IF GVL_SEQ.trialIndex < (GVL_SEQ.repeatCount - 1) THEN
+            GVL_SEQ.idx := 0;
+            GVL_SEQ.trialIndex := GVL_SEQ.trialIndex + 1;
+        ELSE
+            playbackRunning := FALSE;
+            rearmRequired := TRUE;
+            GVL_SEQ.playbackDone := TRUE;
+        END_IF
     END_IF
 ELSE
     IF NOT rearmRequired THEN

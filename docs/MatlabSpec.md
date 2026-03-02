@@ -190,20 +190,48 @@ ControllerCore の biquad フィルタパラメータ (4 段カスケード) を
 | `ff_profile` | zeros(N,1) | FF テーブル |
 | `dist_profile` | zeros(N,1) | 外乱テーブル |
 | `mode_flags_symbol` | `SystemConfig.position_command_defaults()` | modeFlags 正規シンボル |
+| `repeat_count` | `1` | 同一テーブルの連続再生回数 |
 
 ---
 
 ## §7 デモスクリプト
 
-### §5.1 run_position_command_demo.m
+`matlab/` ルートに 3 本のエントリスクリプトがある。  
+いずれも先頭で `restoredefaultpath; addpath(genpath(base_dir));` により独立したパス環境を構築する。
 
-**P 制御ステップ応答デモ。**
+---
 
-- SystemConfig の全定数を使用
-- 3 本の ADS トランスポート (SEQ=853, CTRL=852, MODULE=351) を生成
-- `write_vm_params(mod_transport, sys.VM_PREFIX, ..., SystemConfig.task_dt_ns())`
-- `write_controller_params(mod_transport, sys.CTRL_PREFIX, ...)`
-- `send_position_command` で実験実行
+### §7.1 run_position_command_demo.m
+
+P 制御ステップ応答デモ（同一 trial を `N_REPEAT` 回連続再生）。
+
+#### 処理フロー
+
+1. `experiment.SystemConfig` から接続先 / ポート / タスクレートを取得
+2. VirtualMotorCore 物理パラメータ (`vm_params`) を構築
+3. Controller biquad パラメータ (`ctrl_params`) を構築（PID ステージのみ有効）
+4. 指令波形 (`ref_profile`, `ff_profile`, `dist_profile`) を 1 trial 分生成
+5. 3 本の ADS トランスポートを生成・接続 (SEQ=853, CTRL=852, MODULE=351)
+6. `write_vm_params` / `write_controller_params` でパラメータを TcCOM に書込み (Port 351)
+7. `send_position_command` で実験実行・完了待ち（`repeat_count=N_REPEAT`）
+8. 結果を標準出力に表示し、位置応答・制御入力をプロット
+
+#### 現在の設定パラメータ
+
+| カテゴリ | パラメータ | 値 | 説明 |
+|---|---|---|---|
+| **指令** | `target_position_rad` | `0.25` rad | ステップ指令値 |
+| **指令** | `step_duration_s` | `3.0` s | ステップ区間長 |
+| **指令** | `pre_step_s` | `2.0` s | ステップ前ゼロ区間（リセット残留吸収） |
+| **指令** | `hold_margin_s` | `0.50` s | `done_timeout_s` に加算するマージン |
+| **指令** | `N_REPEAT` | `10` | 同一 trial の連続再生回数 |
+| **VM** | `m` | `1.0` | 慣性モーメント [kg·m²] |
+| **VM** | `d` | `6.0` | 粘性減衰係数 [N·m·s/rad] |
+| **VM** | `rated_current` | `0.1` | 定格トルク電流 [A]（kt=1 前提、`ratedTorque` として書込み） |
+| **VM** | `tau_limit` | `100.0` | トルク上限 [N·m] |
+| **VM** | `vel_limit` | `10.0` | 速度上限 [rad/s] |
+| **制御** | `Kp` (`pid_b0`) | `180` | P ゲイン |
+| **制御** | 他ステージ | 無効 | `lead` / `notch` / `reso` は `enable_*=false` |
 
 #### P 制御設計根拠
 
@@ -217,23 +245,101 @@ $$T(s) = \frac{0.1 K_p}{s^2 + 6s + 0.1 K_p}$$
 
 $K_p = 180$ のとき:
 
-$$\zeta = \frac{d}{2\sqrt{m k_t K_p}} = \frac{6}{2\sqrt{0.1 \times 180}} = 0.707$$
-$$\omega_n = \sqrt{\frac{k_t K_p}{m}} = \sqrt{18} = 4.24 \text{ rad/s}$$
+$$\omega_n = \sqrt{0.1 K_p} = \sqrt{18} = 4.24 \text{ rad/s}$$
+$$\zeta = \frac{d}{2\sqrt{m \, k_t \, K_p}} = \frac{6}{2\sqrt{0.1 \times 180}} = 0.707$$
 
-| パラメータ | 値 | 説明 |
-|---|---|---|
-| `Kp` | 180 | 比例ゲイン (biquad pid_b0) |
-| target | 0.25 rad | ステップ指令値 |
-| duration | 2.0 s | 観察時間 |
-| vm: m, d, kt | 1.0, 6.0, 0.1 | VirtualMotorCore パラメータ |
+#### trial 境界抽出
+
+`repeat_count > 1` のとき、`out.raw.logIdx` の負ジャンプで trial 境界を抽出する:
+
+```matlab
+idx_log  = out.raw.logIdx;
+boundary = [0; find(diff(idx_log) < 0); numel(idx_log)];
+```
+
+`done_timeout_s` は `N_REPEAT * per_trial_s + hold_margin_s + 5.0` で計算される。
+
+#### プロット
+
+2-tile figure（`"P Control Position Demo"`）:
+
+- **上段:** 位置応答 — `logRefValue` (青) vs `logPositionAct` (緑)
+- **下段:** 制御出力 — `logControlInput` (紫) + `logTargetCurrent` (赤破線、存在する場合)
+
+---
 
 ### §7.2 run_ads_discovery_demo.m
 
-ADS シンボル列挙デモ（SymbolBrowser 使用）。
+ADS シンボル列挙デモ。デプロイ後の symbol ブラウズや接続確認に使用する。
+
+#### 設定パラメータ
+
+| パラメータ | 値 | 説明 |
+|---|---|---|
+| `ams_net_id` | `"192.168.10.3.1.1"` | XAR の AMS Net ID |
+| `ports` | `[851 852 853 351]` | 走査対象ポート |
+| `connect_timeout_ms` | `1000` | ポートごとの接続タイムアウト [ms] |
+| `top_level_only` | `false` | ネストシンボルも列挙 |
+| `force_reload` | `true` | キャッシュを無視して再取得 |
+
+#### 処理フロー
+
+1. `SymbolBrowser.discover_ports_and_symbols` で全ポートのシンボルを一括取得
+2. `t_ports`（接続ステータステーブル）を Status 別にカウントして表示
+3. 自動生成プレフィクス（`_`、`TwinCAT_SystemInfoVarList`、`AlarmManager`）を除外し、ポートごとにユーザー定義シンボルのみ表示
+4. 非 `ok` 行がある場合は Name / Status / ErrorMessage を別掲示
+
+#### 標準出力例
+
+```
+[2026-03-02 HH:MM:SS] Starting ADS discovery
+  AmsNetId=192.168.10.3.1.1, ports=[851, 852, 853, 351], timeout=1000 ms
+[2026-03-02 HH:MM:SS] Discovery finished in X.XXX sec
+
+=== Tports ===
+  ...
+=== Tports summary by Status ===
+  ok: 4
+=== Tsymbols (user-defined only) ===
+--- Port 851 : N user rows (of M total, non-ok=0) ---
+--- Port 852 : ...
+--- Port 853 : ...
+--- Port 351 : ...
+```
+
+---
 
 ### §7.3 run_verify_xar.m
 
-XAR デプロイ済みバイナリの検証スクリプト (§6 参照)。
+XAR デプロイ済みバイナリの Health Check スクリプト。  
+詳細検証内容は §8 を参照。実験実行前に必ずパスさせる。
+
+#### 実行例（全 PASS 時）
+
+```
+=== XAR Verification: 192.168.10.3.1.1 ===
+Ports: 851, 852, 853, 351
+
+Check                                               Result  Detail
+------------------------------------------------------------------------------------------
+ADS connect port 851                                PASS
+ADS connect port 852                                PASS
+ADS connect port 853                                PASS
+ADS connect port 351                                PASS
+Symbol discovery (all ports)                        PASS    4 ports ok, NNN symbols
+PLC required symbols (port 853)                     PASS    N probes OK
+VM param symbols (port 351)                         PASS    N probes OK
+Controller param symbols (port 351)                 PASS    N probes OK
+Read tableLen (port 853)                            PASS    value=0
+Read experimentState (port 852)                     PASS    value=0
+Read LOG_N (port 853)                               PASS    value=200000
+Read controller pidB0 (port 351)                    PASS    value=X.X
+...
+------------------------------------------------------------------------------------------
+Total: 18 PASS, 0 FAIL (of 18)
+```
+
+FAIL がある場合は `warning: experiment:verify:failures` を発行する。
 
 ---
 

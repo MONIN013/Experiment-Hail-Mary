@@ -23,6 +23,8 @@ VAR_GLOBAL
     distTable : ARRAY[0..N_DIST_MAX - 1] OF LREAL;
     tableLen : UDINT := 0;
     idx : UDINT := 0;
+    repeatCount : UDINT := 1;
+    trialIndex : UDINT := 0;
 
     {attribute 'linkalways'}
     resetReq AT %I* : BOOL := FALSE;

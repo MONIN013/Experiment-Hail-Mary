@@ -216,6 +216,7 @@ out = experiment.send_position_command( ...
 
 - 351番ポートや module prefix 指定は不要（ADS ポートは `SystemConfig` default を使用）
 - `ff_profile` / `dist_profile` は省略時ゼロ埋め
+- `repeat_count` を指定すると同一テーブルを PLC 側で連続再生する
 - ログは非ストリーミングの上位読み取り（`GVL_SEQ_LOG.*`）を使用
 - 分離ポート構成（例: data=`853`, control=`852`）でも modeFlags は `GVL_MODE.modeFlags`（Port 852）を使用する:
 

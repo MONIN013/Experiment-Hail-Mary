@@ -1,4 +1,7 @@
 %% ADS port/symbol discovery demo
+%
+%  参照: docs/MatlabSpec.md §7.2
+
 base_dir = fileparts(mfilename("fullpath"));
 restoredefaultpath;
 addpath(genpath(base_dir));

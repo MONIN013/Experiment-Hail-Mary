@@ -9,7 +9,7 @@
 %    6. 基本スカラー読み取り
 %    7. Controller パラメータ読み出し (PIDParams 等)
 %
-%  参照: docs/MatlabSpec.md §6
+%  参照: docs/MatlabSpec.md §7.3 / §8
 
 base_dir = fileparts(mfilename("fullpath"));
 restoredefaultpath;

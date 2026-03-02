@@ -15,19 +15,26 @@ classdef TestSendPositionCommand < matlab.unittest.TestCase
         "reset_timeout_s", 0.05);
 
       joined = strjoin(plc.operations, "|");
+      repeat_idx = find(plc.operations == "write_scalar:GVL_SEQ.repeatCount", 1, "last");
+      table_len_idx = find(plc.operations == "write_scalar:GVL_SEQ.tableLen", 1, "last");
       testCase.verifyThat(joined, matlab.unittest.constraints.ContainsSubstring("write_array:GVL_SEQ.refTable"));
       testCase.verifyThat(joined, matlab.unittest.constraints.ContainsSubstring("write_array:GVL_SEQ.ffTable"));
       testCase.verifyThat(joined, matlab.unittest.constraints.ContainsSubstring("write_array:GVL_SEQ.distTable"));
+      testCase.verifyThat(joined, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_SEQ.repeatCount"));
       testCase.verifyThat(joined, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_SEQ.tableLen"));
       testCase.verifyThat(joined, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_MODE.modeFlags"));
       testCase.verifyThat(joined, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_MODE.resetReq"));
       testCase.verifyThat(joined, matlab.unittest.constraints.ContainsSubstring("write_scalar:GVL_MODE.hostHeartbeatCounter"));
       testCase.verifyFalse(contains(joined, "write_scalar:GVL_SEQ.idx"));
+      testCase.verifyNotEmpty(repeat_idx);
+      testCase.verifyNotEmpty(table_len_idx);
+      testCase.verifyLessThan(repeat_idx, table_len_idx);
       testCase.verifyEqual(string(out.host.mode_flags_symbol), "GVL_MODE.modeFlags");
       testCase.verifyFalse(out.host.servo_ready_check_supported);
       testCase.verifyEqual(double(out.host.control_ams_port), 852);
       testCase.verifyTrue(out.host.done);
       testCase.verifyFalse(out.host.timed_out);
+      testCase.verifyEqual(out.cmd.repeat_count, 1);
     end
 
     function defaultsFillFfAndDistProfiles(testCase)
@@ -304,7 +311,28 @@ classdef TestSendPositionCommand < matlab.unittest.TestCase
       testCase.verifyEqual(string(out.host.experiment_state_symbol), "GVL_MODE.experimentState");
       testCase.verifyTrue(out.host.done);
     end
-  end
+
+    function passesRepeatCountToSequencer(testCase)
+      plc = MockAdsTransport();
+      seed_plc_state(plc);
+      plc.set_scalar_read_sequence("GVL_MODE.experimentActive", [false; false; true; true; false]);
+
+      out = experiment.send_position_command( ...
+        "ams_net_id", "192.168.10.3.1.1", ...
+        "ref_profile", [0.1; 0.2], ...
+        "repeat_count", 4, ...
+        "plc_transport", plc, ...
+        "validate_symbols", false, ...
+        "read_logs", false, ...
+        "done_timeout_s", 0.05, ...
+        "reset_timeout_s", 0.05);
+
+      testCase.verifyEqual(plc.scalarMap("GVL_SEQ.repeatCount"), uint32(4));
+      testCase.verifyEqual(out.cmd.repeat_count, 4);
+      testCase.verifyTrue(out.host.done);
+      testCase.verifyFalse(out.host.timed_out);
+    end
+end
 end
 
 function seed_plc_state(t)
@@ -317,6 +345,8 @@ t.scalarMap("GVL_MODE.resetAckCounter") = uint32(0);
 t.scalarMap("GVL_MODE.hostHeartbeatCounter") = uint32(0);
 t.scalarMap("GVL_SEQ.tableLen") = uint32(0);
 t.scalarMap("GVL_SEQ.idx") = uint32(0);
+t.scalarMap("GVL_SEQ.repeatCount") = uint32(1);
+t.scalarMap("GVL_SEQ.trialIndex") = uint32(0);
 t.scalarMap("GVL_SEQ.refValue") = 0.0;
 t.scalarMap("GVL_SEQ.ffValue") = 0.0;
 t.scalarMap("GVL_SEQ.distValue") = 0.0;

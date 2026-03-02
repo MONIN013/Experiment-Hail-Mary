@@ -8,6 +8,8 @@ classdef VirtualMotorSymbols
     experimentState
     tableLen
     idx
+    repeatCount
+    trialIndex
     modeFlags
     modeFlagsCandidates
     experimentStateCandidates
@@ -38,6 +40,8 @@ classdef VirtualMotorSymbols
         out.experimentActive, t.bool;
         out.tableLen, t.u32;
         out.idx, t.u32;
+        out.repeatCount, t.u32;
+        out.trialIndex, t.u32;
         out.refValue, t.double;
         out.ffValue, t.double;
         out.distValue, t.double;
@@ -131,6 +135,8 @@ classdef VirtualMotorSymbols
       out.experimentState = "GVL_MODE.experimentState";
       out.tableLen = "GVL_SEQ.tableLen";
       out.idx = "GVL_SEQ.idx";
+      out.repeatCount = "GVL_SEQ.repeatCount";
+      out.trialIndex = "GVL_SEQ.trialIndex";
       out.modeFlags = "GVL_MODE.modeFlags";
       out.modeFlagsCandidates = ["GVL_MODE.modeFlags"];
       out.experimentStateCandidates = ["GVL_MODE.experimentState"];

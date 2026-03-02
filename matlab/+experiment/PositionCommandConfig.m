@@ -8,6 +8,7 @@ classdef PositionCommandConfig
     ff_profile = zeros(0, 1)
     dist_profile = zeros(0, 1)
     task_rate_hz = []
+    repeat_count = 1
     hold_seconds = NaN
 
     wait_for_done = true
@@ -41,6 +42,7 @@ classdef PositionCommandConfig
       p.addParameter("ff_profile", [], @(x) isnumeric(x));
       p.addParameter("dist_profile", [], @(x) isnumeric(x));
       p.addParameter("task_rate_hz", defaults.task_rate_hz, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("repeat_count", defaults.repeat_count, @(x) isnumeric(x) && isscalar(x));
       p.addParameter("hold_seconds", NaN, @(x) isnumeric(x) && isscalar(x) && (isnan(x) || x >= 0));
       p.addParameter("wait_for_done", true, @(x) islogical(x) || isnumeric(x));
       p.addParameter("done_timeout_s", 30.0, @(x) isnumeric(x) && isscalar(x) && x > 0);
@@ -89,6 +91,7 @@ classdef PositionCommandConfig
       out.ams_net_id = char(string(out.ams_net_id));
       out.ams_port = double(out.ams_port);
       out.task_rate_hz = double(out.task_rate_hz);
+      out.repeat_count = double(out.repeat_count);
       out.ads_assembly = char(string(out.ads_assembly));
       out.ref_profile = double(out.ref_profile(:));
       out.ff_profile = double(out.ff_profile(:));
@@ -142,6 +145,10 @@ classdef PositionCommandConfig
       end
       if ~(isfinite(obj.task_rate_hz) && obj.task_rate_hz > 0)
         error("experiment:position_command:invalidConfig", "task_rate_hz must be > 0.");
+      end
+      if ~(isfinite(obj.repeat_count) && obj.repeat_count >= 1 && floor(obj.repeat_count) == obj.repeat_count)
+        error("experiment:position_command:invalidConfig", ...
+          "repeat_count must be an integer >= 1.");
       end
       if numel(obj.ref_profile) > obj.table_max_n
         error("experiment:position_command:invalidConfig", ...

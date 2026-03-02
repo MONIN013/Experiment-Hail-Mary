@@ -9,8 +9,12 @@ classdef TestVirtualMotorSymbols < matlab.unittest.TestCase
       testCase.verifyEqual(string(s.experimentState), "GVL_MODE.experimentState");
       testCase.verifyEqual(string(s.modeFlagsCandidates(:)), ["GVL_MODE.modeFlags"]);
       testCase.verifyEqual(string(s.refTable), "GVL_SEQ.refTable");
+      testCase.verifyEqual(string(s.repeatCount), "GVL_SEQ.repeatCount");
+      testCase.verifyEqual(string(s.trialIndex), "GVL_SEQ.trialIndex");
       testCase.verifyEqual(string(s.log.logRefValue), "GVL_SEQ_LOG.logRefValue");
-      testCase.verifyGreaterThanOrEqual(size(s.plcRequiredProbes, 1), 6);
+      testCase.verifyTrue(any(string(s.plcRequiredProbes(:, 1)) == "GVL_SEQ.repeatCount"));
+      testCase.verifyTrue(any(string(s.plcRequiredProbes(:, 1)) == "GVL_SEQ.trialIndex"));
+      testCase.verifyGreaterThanOrEqual(size(s.plcRequiredProbes, 1), 8);
     end
 
     function vmAndControllerPrefixesBuildExpectedNames(testCase)
