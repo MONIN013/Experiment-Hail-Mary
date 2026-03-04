@@ -5,7 +5,7 @@
 > AMS Port: 351
 
 ## Summary
-ExperimentLogger is a binary file logger for experiment data. In current SIL operation, `Inputs.loggingReq` controls file open/close via ModeManager, and `Inputs.playbackDone` provides a same-task fast path that stops record appends immediately when playback completes.
+ExperimentLogger is a binary file logger for experiment data. `Inputs.loggingReq` controls file open/close via ModeManager, and `Inputs.playbackDone` provides a same-task fast path that stops record appends immediately when playback completes.
 
 ## Inputs
 | Name | Type | Source | Notes |
@@ -34,16 +34,16 @@ ExperimentLogger is a binary file logger for experiment data. In current SIL ope
 ## Control Parameter
 | Symbol | Type | Notes |
 |---|---|---|
-| `ExperimentLogger_Obj1 (Module1).LogControl.filePath` | `STRING(255)` | output path |
+| `ExperimentLogger_Obj1 (Module1).LogControl.filePath` | `STRING(255)` | output path; parent directory must already exist |
 
 `Inputs.loggingReq` controls file open/close. `Inputs.playbackDone` suppresses new record appends immediately without taking over session close ownership from ModeManager.
 
 ## Runtime Behavior
-1. On `loggingReq` rising edge: open file and start logging.
-2. While active and `playbackDone = FALSE`: append one record per cycle.
+1. On `loggingReq` rising edge: reset session runtime state, begin file open, and enter the active logging session once the async open completes.
+2. While `loggingReq = TRUE`, `playbackDone = FALSE`, and the file FSM is active: append one full `LogRecord` per cycle.
 3. On `playbackDone = TRUE`: stop appending within the same task scan.
-4. On `loggingReq` falling edge: flush remaining buffer and close file.
-5. On `resetReq` rising edge: close session safely and reset runtime state.
+4. On `loggingReq` falling edge: flush remaining buffer and close the file.
+5. On `resetReq` rising edge: stop the session safely and reset runtime state once any pending async close completes.
 
 ## Mapping (SIL)
 - `loadPosition <- DriverAdapter.positionRel` (D12: ControllerCore.positionRel から変更)

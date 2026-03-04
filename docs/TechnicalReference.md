@@ -446,7 +446,7 @@ GVL_SEQ_LOG のリングバッファ (§5) が ADS ポーリング前提の暫�
 
 | ADS シンボル | 型 | 説明 |
 |---|---|---|
-| `ExperimentLogger_Obj1 (Module1).LogControl.filePath` | `STRING(255)` | 出力ファイルパス (デフォルト: `C:\ExperimentData\experiment_logger.bin`) |
+| `ExperimentLogger_Obj1 (Module1).LogControl.filePath` | `STRING(255)` | 出力ファイルパス (デフォルト: `C:\ExperimentData\experiment_logger.bin`)。親ディレクトリは事前作成必須 |
 
 ### 6.4 LogRecord バイナリフォーマット
 
@@ -543,7 +543,6 @@ Offset   Size  型          フィールド
 | `0xE0000001` | `kErrInvalidPath` | ファイルパスが空 |
 | `0xE0000002` | `kErrInvalidFileHandle` | ファイルハンドル無効 |
 | `0xE0000003` | `kErrWriteFault` | FileWrite 失敗 |
-| `0xE0000004` | `kErrInsufficientBuffer` | バッファ容量超過 |
 | `0xE0000005` | `kErrOpenFailed` | FileOpen 失敗 |
 | `0xE0000006` | `kErrCloseFailed` | FileClose 失敗 |
 | `0xE0000007` | `kErrAsyncCreateFailed` | ITcFileAccessAsync 生成失敗 |

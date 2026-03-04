@@ -42,12 +42,10 @@ typedef CHAR STRING255[256];
 const GUID GUID_STRING255 = {0x18071995, 0x0000, 0x0000, {0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF}};
 #endif // !defined(_TC_TYPE_18071995_0000_0000_0000_0001000000FF_INCLUDED_)
 
-#pragma pack(push,1)
 typedef struct _Module1LogControl
 {
 	STRING255 filePath;
 } Module1LogControl, *PModule1LogControl;
-#pragma pack(pop)
 
 #pragma pack(push,1)
 typedef struct _Module1Inputs
