@@ -18,6 +18,9 @@
     <LibraryReferences>{92eacea6-87d7-4a7d-858a-b2218fe725e8}</LibraryReferences>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="DUTs\E_SeqState.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="GVLs\GVL_SEQ.TcGVL">
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>

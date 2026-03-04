@@ -50,7 +50,7 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
                   │      │       └──────────────────┘
        expStartReq│   resetEdge        ▲    ▲
       AND driveReady  │               │    │
-      AND !done   │      │            │    │
+                 │      │            │    │
                   ▼      └────────────┘    │
               ┌──────────────┐             │
               │  RUNNING (30)│─resetEdge──►│
@@ -92,7 +92,7 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 |---|---|---|---|
 | `statWord` | `UINT` | DriverAdapter (I/O Mapping) | CiA 402 StatusWord |
 | `seqPlaybackDone` | `BOOL` | ExperimentSequencer (I/O Mapping) | テーブル再生完了ラッチ |
-| `loggerReadyIn` | `BOOL` | ExperimentLogger (I/O Mapping) | ファイル FSM == `ACTIVE` のとき `TRUE`。`SERVO_READY → RUNNING` 遷移の確認条件 |
+| `loggerReadyIn` | `BOOL` | ExperimentLogger (I/O Mapping) | `ACTIVE` かつ valid handle 保持、close/error pending なしのとき `TRUE`。`SERVO_READY → RUNNING` 遷移の確認条件 |
 | `GVL_MODE.modeFlags` | `UINT` | MATLAB (ADS Write) | ビットフラグ: bit0=ServoEnable, bit1=ExperimentStartReq |
 | `GVL_MODE.resetReq` | `BOOL` | MATLAB (ADS Write) | リセット要求 (PLC が edge 検出後に clear) |
 | `GVL_MODE.hostHeartbeatCounter` | `UDINT` | MATLAB (ADS Write) | ホスト側ハートビート |

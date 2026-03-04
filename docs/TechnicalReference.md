@@ -442,7 +442,7 @@ GVL_SEQ_LOG のリングバッファ (§5) が ADS ポーリング前提の暫�
 |---|---|---|
 | `LogStatus.recordsWritten` | `UDINT` | ディスクに書き込み済みのレコード数 |
 | `LogStatus.fileSizeKb` | `UDINT` | ファイルサイズ [KB] |
-| `LogStatus.errorCode` | `UDINT` | エラーコード (0 = 正常) |
+| `LogStatus.errorCode` | `UDINT` | エラーコード (0 = 正常, 非 0 は内部 `0xE000000x` または下位 HRESULT) |
 
 ### 6.3 ADS で注入可能なパラメータ (LogControl)
 
@@ -487,18 +487,19 @@ Offset   Size  型          フィールド
 ### 6.6 ファイル FSM (File State Machine)
 
 ```
-  IDLE ──[logging=TRUE 立ち上がりエッジ]──► OPEN_WAIT
-                                              │
-                                        [FileOpen 完了]
-                                              │
-                                              ▼
-  IDLE ◄──[FileClose 完了]── CLOSE_WAIT ◄── ACTIVE ──[バッファ満]──► WRITE_WAIT
-                                              ▲                          │
-                                              │     [FileWrite 完了]     │
-                                              └──────────────────────────┘
+  IDLE ──[preArmReq ↑]──► OPEN_WAIT
+                           │
+                     [FileOpen 完了 + valid handle]
+                           │
+                           ▼
+  IDLE ◄──[FileClose 完了] CLOSE_WAIT ◄── ACTIVE ──[バッファ満]──► WRITE_WAIT
+                           ▲                                        │
+                           │         [FileWrite 完了]               │
+                           └────────────────────────────────────────┘
 
-  ※ 非同期操作中はサイクルごとに PollAsyncOp() で完了をチェック
-  ※ エラー発生時は ERROR 状態に遷移し sessionFailed = true
+  ※ close 要求は async 中もラッチされ、OPEN/WRITE 完了直後に close へ進む
+  ※ 非同期 Check 失敗時は wait state に留まらず session abort + async object release
+  ※ loggerReady は ACTIVE かつ valid handle を持つときのみ TRUE
 ```
 
 ### 6.7 CycleUpdate 処理フロー (毎スキャン)
@@ -512,19 +513,24 @@ Offset   Size  型          フィールド
        seq=0, recordsWritten=0, bytesWritten=0, errorCode=0
        fileHandle=0, FSM→IDLE
 
-3. logging コマンド監視:
-     立ち上がりエッジ (logging: FALSE→TRUE):
+3. preArm / logging コマンド監視:
+     preArm 立ち上がりエッジ:
        → CloseLogFile (前セッション) + ResetRuntimeState
-       → StartAsyncOpen (filePath でファイルオープン)
+       → StartAsyncOpen (filePath でファイル pre-open)
        → FSM: IDLE → OPEN_WAIT
 
-     立ち下がりエッジ (logging: TRUE→FALSE):
+     logging 立ち上がりエッジ:
+       → loggerReady == TRUE を必須条件とする
+       → 未 pre-arm / invalid handle / close pending は hard-fail
+
+     logging 立ち下がり or preArm 立ち下がり:
        → CloseLogFile (残余バッファ flush + ファイルクローズ)
 
 4. FSM ポーリング:
-     OPEN_WAIT  → PollAsyncOp() → 完了なら FSM=ACTIVE, isLoggingActive=true
+     OPEN_WAIT  → PollAsyncOp() → 完了なら valid handle を確認して FSM=ACTIVE
      WRITE_WAIT → PollAsyncOp() → 完了なら bytesWritten 加算, bufferCount=0, FSM=ACTIVE
      CLOSE_WAIT → PollAsyncOp() → 完了なら fileHandle=0, FSM=IDLE
+     いずれも失敗時は session abort + async object release + FSM=ERROR
 
 5. レコード追記 (`loggingReq=TRUE` & `playbackDone=FALSE` & FSM=ACTIVE & !sessionFailed):
      LogRecord を内部バッファに追記
@@ -539,17 +545,13 @@ Offset   Size  型          フィールド
 
 ### 6.8 エラーコード一覧
 
-| コード | 定数名 | 説明 |
+| コード | 種別 | 説明 |
 |---|---|---|
-| `0x00000000` | (正常) | エラーなし |
-| `0xE0000001` | `kErrInvalidPath` | ファイルパスが空 |
-| `0xE0000002` | `kErrInvalidFileHandle` | ファイルハンドル無効 |
-| `0xE0000003` | `kErrWriteFault` | FileWrite 失敗 |
-| `0xE0000005` | `kErrOpenFailed` | FileOpen 失敗 |
-| `0xE0000006` | `kErrCloseFailed` | FileClose 失敗 |
-| `0xE0000007` | `kErrAsyncCreateFailed` | ITcFileAccessAsync 生成失敗 |
-| `0xE0000008` | `kErrAsyncPendingFailed` | 非同期操作ポーリング失敗 |
-| `0xE0000009` | `kErrAsyncWriteShort` | 書き込みバイト数不一致 |
+| `0x00000000` | 正常 | エラーなし |
+| `0xE0000001` など | internal | モジュール内部 invariant / contract 違反 |
+| `0x800...` / `0x9811...` など | HRESULT | TwinCAT / COM / ADS / File API が返した生の失敗コード |
+
+> `errorCode` は generic open/close/write failure に丸めず、下位 API が返した `HRESULT` を優先して保持する。
 
 ### 6.9 GVL_SEQ_LOG (リングバッファ) との使い分け
 

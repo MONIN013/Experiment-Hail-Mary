@@ -45,8 +45,23 @@ protected:
 	void UpdateStatusOutputs();
 	void ResolveFilePath(char* dst, size_t dstSize) const;
 	bool ValidateFilePath(const char* filePath);
-	void SetError(ULONG errorCode);
+	void SetError(HRESULT errorCode);
 	void ClearError();
+	enum class EFileFsmState
+	{
+		IDLE,
+		OPEN_WAIT,
+		ACTIVE,
+		WRITE_WAIT,
+		CLOSE_WAIT,
+		ERROR
+	};
+	enum class EAsyncPollResult
+	{
+		Pending,
+		Completed,
+		Failed
+	};
 	HRESULT EnsureFileAccessAsync();
 	HRESULT InitializeFileAccessAsyncObject();
 	HRESULT TransitionFileAccessAsyncToState(TCOM_STATE state);
@@ -54,7 +69,10 @@ protected:
 	bool StartAsyncOpen();
 	bool StartAsyncWrite();
 	bool StartAsyncClose();
-	bool PollAsyncOp();
+	bool ValidateOpenedFileHandle(HRESULT failureCode);
+	bool IsLoggerReady() const;
+	void TeardownSession(bool transitionToPreOp, bool keepError, EFileFsmState finalState);
+	EAsyncPollResult PollAsyncOp();
 	void AbortSession(bool keepError);
 
 	// Tracing
@@ -92,16 +110,6 @@ protected:
 	static const ULONGLONG kDefaultTimestampStepNs = 1000000ULL;
 	static const ULONG kTimestampInitSkipCycles = 10;
 
-	enum class EFileFsmState
-	{
-		IDLE,
-		OPEN_WAIT,
-		ACTIVE,
-		WRITE_WAIT,
-		CLOSE_WAIT,
-		ERROR
-	};
-
 	LogRecord m_logBuffer[kBufferRecords];
 	char m_openPathBuffer[512];
 	ITcFileAccessAsyncPtr m_spFileAccessAsync;
@@ -113,6 +121,9 @@ protected:
 	bool m_prevPreArmReq;
 	bool m_resetPending;
 	bool m_sessionFailed;
+	bool m_closeRequested;
+	bool m_closeFlushRequested;
+	bool m_reopenRequested;
 	ULONG m_bufferCount;
 	ULONG m_seq;
 	ULONG m_recordsWritten;
@@ -121,6 +132,7 @@ protected:
 	EFileFsmState m_fileFsmState;
 	UINT m_pendingWriteBytes;
 	UINT m_lastWriteBytes;
+	HRESULT m_lastAsyncHr;
 	ULONGLONG m_timestampStepNsRuntime;
 	ULONG m_cycleCounter;
 };

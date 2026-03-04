@@ -13,44 +13,20 @@ VAR
     resetReqPrev : BOOL := FALSE;
     resetEdge : BOOL := FALSE;
     startEdge : BOOL := FALSE;
-    playbackRunning : BOOL := FALSE;
-    rearmRequired : BOOL := FALSE;
     sampleEmittedThisScan : BOOL := FALSE;
     logWriteIdx : DINT := 0;
     wrPos : UDINT := 0;
     loggedIdx : UDINT := 0;
     targetCurrentLocal : LREAL := 0.0;
-    VM_TASK_DT_NS : ULINT := ULINT#1000000;
+    seqState : E_SeqState := E_SeqState.IDLE;
+END_VAR
+VAR CONSTANT
+    TASK_DT_NS : ULINT := ULINT#1000000;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[sampleEmittedThisScan := FALSE;
-
 resetEdge := GVL_SEQ.resetReq AND NOT resetReqPrev;
-
-IF resetEdge THEN
-    GVL_SEQ.idx := 0;
-    GVL_SEQ.trialIndex := 0;
-    GVL_SEQ.refValue := 0.0;
-    GVL_SEQ.ffValue := 0.0;
-    GVL_SEQ.distValue := 0.0;
-    GVL_SEQ.playbackDone := FALSE;
-    playbackRunning := FALSE;
-    rearmRequired := FALSE;
-    cmdActivePrev := GVL_SEQ.experimentActive;
-
-    GVL_SEQ_LOG.seq := 0;
-    GVL_SEQ_LOG.tNs := 0;
-    GVL_SEQ_LOG.wrIdx := 0;
-    GVL_SEQ_LOG.rdIdx := 0;
-    GVL_SEQ_LOG.overflow := FALSE;
-END_IF
-
-IF (NOT GVL_SEQ.experimentActive) AND rearmRequired THEN
-    rearmRequired := FALSE;
-    GVL_SEQ.playbackDone := FALSE;
-END_IF
-
 startEdge := GVL_SEQ.experimentActive AND NOT cmdActivePrev;
 
 tableLenMaxLocal := GVL_SEQ.N_REF_MAX;
@@ -67,52 +43,94 @@ IF tableLenLocal > tableLenMaxLocal THEN
 END_IF
 GVL_SEQ.tableLenClamped := tableLenLocal;
 
-IF startEdge AND (NOT rearmRequired) THEN
+IF resetEdge THEN
     GVL_SEQ.idx := 0;
     GVL_SEQ.trialIndex := 0;
+    GVL_SEQ.refValue := 0.0;
+    GVL_SEQ.ffValue := 0.0;
+    GVL_SEQ.distValue := 0.0;
     GVL_SEQ.playbackDone := FALSE;
-    playbackRunning := TRUE;
-END_IF
+    seqState := E_SeqState.IDLE;
 
-IF playbackRunning AND (NOT GVL_SEQ.experimentActive) THEN
-    playbackRunning := FALSE;
-END_IF
-
-IF playbackRunning THEN
-    IF tableLenLocal = 0 THEN
-        playbackRunning := FALSE;
-        rearmRequired := TRUE;
-        GVL_SEQ.playbackDone := TRUE;
-    ELSIF (GVL_SEQ.idx < tableLenLocal) THEN
-        tableIdxDint := UDINT_TO_DINT(GVL_SEQ.idx);
-
-        refValueLocal := GVL_SEQ.refTable[tableIdxDint];
-        ffValueLocal := GVL_SEQ.ffTable[tableIdxDint];
-        distValueLocal := GVL_SEQ.distTable[tableIdxDint];
-
-        GVL_SEQ.refValue := refValueLocal;
-        GVL_SEQ.ffValue := ffValueLocal;
-        GVL_SEQ.distValue := distValueLocal;
-
-        GVL_SEQ.idx := GVL_SEQ.idx + 1;
-        sampleEmittedThisScan := TRUE;
-    ELSE
-        IF GVL_SEQ.trialIndex < (GVL_SEQ.repeatCount - 1) THEN
-            GVL_SEQ.idx := 0;
-            GVL_SEQ.trialIndex := GVL_SEQ.trialIndex + 1;
-        ELSE
-            playbackRunning := FALSE;
-            rearmRequired := TRUE;
-            GVL_SEQ.playbackDone := TRUE;
-        END_IF
-    END_IF
+    GVL_SEQ_LOG.seq := 0;
+    GVL_SEQ_LOG.tNs := 0;
+    GVL_SEQ_LOG.wrIdx := 0;
+    GVL_SEQ_LOG.rdIdx := 0;
+    GVL_SEQ_LOG.overflow := FALSE;
 ELSE
-    IF NOT rearmRequired THEN
-        GVL_SEQ.refValue := 0.0;
-        GVL_SEQ.ffValue := 0.0;
-        GVL_SEQ.distValue := 0.0;
-    END_IF
+    CASE seqState OF
+        E_SeqState.IDLE:
+            GVL_SEQ.refValue := 0.0;
+            GVL_SEQ.ffValue := 0.0;
+            GVL_SEQ.distValue := 0.0;
+            GVL_SEQ.playbackDone := FALSE;
+
+            IF startEdge THEN
+                IF (tableLenLocal = 0) OR (GVL_SEQ.repeatCount = 0) THEN
+                    seqState := E_SeqState.FAULT;
+                ELSE
+                    GVL_SEQ.idx := 0;
+                    GVL_SEQ.trialIndex := 0;
+                    GVL_SEQ.playbackDone := FALSE;
+                    seqState := E_SeqState.PLAYING;
+                END_IF
+            END_IF
+
+        E_SeqState.PLAYING:
+            IF NOT GVL_SEQ.experimentActive THEN
+                GVL_SEQ.idx := 0;
+                GVL_SEQ.trialIndex := 0;
+                GVL_SEQ.refValue := 0.0;
+                GVL_SEQ.ffValue := 0.0;
+                GVL_SEQ.distValue := 0.0;
+                GVL_SEQ.playbackDone := FALSE;
+                seqState := E_SeqState.IDLE;
+            ELSIF GVL_SEQ.idx < tableLenLocal THEN
+                tableIdxDint := UDINT_TO_DINT(GVL_SEQ.idx);
+
+                refValueLocal := GVL_SEQ.refTable[tableIdxDint];
+                ffValueLocal := GVL_SEQ.ffTable[tableIdxDint];
+                distValueLocal := GVL_SEQ.distTable[tableIdxDint];
+
+                GVL_SEQ.refValue := refValueLocal;
+                GVL_SEQ.ffValue := ffValueLocal;
+                GVL_SEQ.distValue := distValueLocal;
+
+                GVL_SEQ.idx := GVL_SEQ.idx + 1;
+                sampleEmittedThisScan := TRUE;
+            ELSE
+                IF GVL_SEQ.trialIndex < (GVL_SEQ.repeatCount - 1) THEN
+                    GVL_SEQ.idx := 0;
+                    GVL_SEQ.trialIndex := GVL_SEQ.trialIndex + 1;
+                ELSE
+                    GVL_SEQ.playbackDone := TRUE;
+                    seqState := E_SeqState.COMPLETE;
+                END_IF
+            END_IF
+
+        E_SeqState.COMPLETE:
+            IF NOT GVL_SEQ.experimentActive THEN
+                GVL_SEQ.idx := 0;
+                GVL_SEQ.trialIndex := 0;
+                GVL_SEQ.playbackDone := FALSE;
+                GVL_SEQ.refValue := 0.0;
+                GVL_SEQ.ffValue := 0.0;
+                GVL_SEQ.distValue := 0.0;
+                seqState := E_SeqState.IDLE;
+            END_IF
+
+        E_SeqState.FAULT:
+            GVL_SEQ.idx := 0;
+            GVL_SEQ.trialIndex := 0;
+            GVL_SEQ.refValue := 0.0;
+            GVL_SEQ.ffValue := 0.0;
+            GVL_SEQ.distValue := 0.0;
+            GVL_SEQ.playbackDone := FALSE;
+    END_CASE
 END_IF
+
+GVL_SEQ.seqState := seqState;
+GVL_SEQ.seqError := (seqState = E_SeqState.FAULT);
 
 IF sampleEmittedThisScan THEN
     loggedIdx := GVL_SEQ.idx - 1;
@@ -121,7 +139,7 @@ IF sampleEmittedThisScan THEN
     targetCurrentLocal := GVL_SEQ_LOG.controlInputTap + GVL_SEQ.distValue;
 
     GVL_SEQ_LOG.seq := GVL_SEQ_LOG.seq + 1;
-    GVL_SEQ_LOG.tNs := UDINT_TO_ULINT(GVL_SEQ_LOG.seq) * VM_TASK_DT_NS;
+    GVL_SEQ_LOG.tNs := UDINT_TO_ULINT(GVL_SEQ_LOG.seq) * TASK_DT_NS;
 
     GVL_SEQ_LOG.logSeq[logWriteIdx] := GVL_SEQ_LOG.seq;
     GVL_SEQ_LOG.logRefValue[logWriteIdx] := GVL_SEQ.refValue;

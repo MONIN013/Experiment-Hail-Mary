@@ -25,21 +25,22 @@ namespace
 	const char* const kDefaultLogPath = "C:\\ExperimentData\\experiment_logger.bin";
 	const ULONG kErrInvalidPath = 0xE0000001UL;
 	const ULONG kErrInvalidFileHandle = 0xE0000002UL;
-	const ULONG kErrWriteFault = 0xE0000003UL;
-	const ULONG kErrOpenFailed = 0xE0000005UL;
-	const ULONG kErrCloseFailed = 0xE0000006UL;
 	const ULONG kErrAsyncCreateFailed = 0xE0000007UL;
-	const ULONG kErrAsyncPendingFailed = 0xE0000008UL;
 	const ULONG kErrAsyncWriteShort = 0xE0000009UL;
 	const ULONG kErrInvalidFsmState = 0xE000000AUL;
-	const ULONG kErrAsyncInitFailed = 0xE000000BUL;
 	const ULONG kErrLoggingNotPreArmed = 0xE000000CUL;
+	const ULONG kErrOpenCompletedWithoutHandle = 0xE000000DUL;
 	const ULONG kFileAccessSegmentSize = 4096UL;
 	const ULONG kFileAccessTimeoutMs = 5000UL;
 
 	inline bool IsFileHandleValid(TcFileHandle h)
 	{
 		return h != 0;
+	}
+
+	inline BOOL FAILED_AND_NOT_PENDING(HRESULT hr)
+	{
+		return FAILED(hr) && (hr != ADS_E_PENDING);
 	}
 }
 
@@ -113,6 +114,9 @@ CModule1::CModule1()
 	, m_prevPreArmReq(false)
 	, m_resetPending(false)
 	, m_sessionFailed(false)
+	, m_closeRequested(false)
+	, m_closeFlushRequested(false)
+	, m_reopenRequested(false)
 	, m_bufferCount(0)
 	, m_seq(0)
 	, m_recordsWritten(0)
@@ -121,6 +125,7 @@ CModule1::CModule1()
 	, m_fileFsmState(EFileFsmState::IDLE)
 	, m_pendingWriteBytes(0)
 	, m_lastWriteBytes(0)
+	, m_lastAsyncHr(S_OK)
 	, m_timestampStepNsRuntime(kDefaultTimestampStepNs)
 	, m_cycleCounter(0)
 {
@@ -135,8 +140,7 @@ CModule1::CModule1()
 ///////////////////////////////////////////////////////////////////////////////
 CModule1::~CModule1() 
 {
-	CloseLogFile(true);
-	ReleaseFileAccessAsyncObject(true);
+	TeardownSession(true, true, EFileFsmState::IDLE);
 }
 
 
@@ -157,6 +161,28 @@ HRESULT CModule1::SetObjStatePS(PTComInitDataHdr pInitData)
 	IMPLEMENT_ITCOMOBJECT_EVALUATE_INITDATA(pInitData);
 
 	ResetRuntimeState();
+
+	// Create file access async object during PREOP→SAFEOP transition
+	// (following TC1300 S20-FileIOWrite pattern: create + configure + SAFEOP here,
+	//  OP transition deferred to SetObjStateSO)
+	hr = FAILED(hr) ? hr : m_spSrv->TcCreateInstance(
+		CID_TcFileAccessAsync,
+		IID_ITcFileAccessAsync,
+		(PPVOID)&m_spFileAccessAsync);
+	if (SUCCEEDED(hr) && m_spFileAccessAsync)
+	{
+		hr = InitializeFileAccessAsyncObject();
+		if (SUCCEEDED(hr))
+		{
+			m_fileAccessAsyncInitialized = true;
+		}
+		else
+		{
+			m_spFileAccessAsync = NULL;
+			m_fileAccessAsyncInitialized = false;
+		}
+	}
+
 	UpdateStatusOutputs();
 
 	m_Trace.Log(tlVerbose, FLEAVEA_STRV("hr=0x%08x", hr));
@@ -172,8 +198,14 @@ HRESULT CModule1::SetObjStateSO()
 	m_Trace.Log(tlVerbose, FENTERA_STR());
 	HRESULT hr = S_OK;
 
-	UpdateStatusOutputs();
+	// Transition file access async object to OP
+	// (following TC1300 S20-FileIOWrite pattern: OP transition in SAFEOP→OP)
+	if (m_spFileAccessAsync)
+	{
+		hr = TransitionFileAccessAsyncToState(TCOM_STATE_OP);
+	}
 
+	UpdateStatusOutputs();
 
 	// If following call is successful the CycleUpdate method will be called, 
 	// possibly even before method has been left.
@@ -198,24 +230,15 @@ HRESULT CModule1::SetObjStateOS()
 	HRESULT hr = S_OK;
 
 	RemoveModuleFromCaller();
-
-	if (m_fileFsmState == EFileFsmState::OPEN_WAIT
-		|| m_fileFsmState == EFileFsmState::WRITE_WAIT
-		|| m_fileFsmState == EFileFsmState::CLOSE_WAIT)
-	{
-		m_isLoggingActive = false;
-		m_fileHandle = 0;
-		m_bufferCount = 0;
-		m_pendingWriteBytes = 0;
-		m_lastWriteBytes = 0;
-		m_sessionFailed = true;
-	}
-	else if (m_fileFsmState == EFileFsmState::ACTIVE)
-	{
-		AbortSession(true);
-	}
-	ReleaseFileAccessAsyncObject(true);
+	// This logger must stop any active session when leaving OP so that open
+	// file handles are not kept across runtime state changes. m_sessionFailed
+	// is left set here and is cleared explicitly by ResetRuntimeState() before
+	// the next session starts.
+	AbortSession(true);
 	m_fileFsmState = EFileFsmState::IDLE;
+	m_lastAsyncHr = S_OK;
+	m_reopenRequested = false;
+
 	UpdateStatusOutputs();
 
 	m_Trace.Log(tlVerbose, FLEAVEA_STRV("hr=0x%08x", hr));
@@ -229,12 +252,11 @@ HRESULT CModule1::SetObjStateSP()
 	HRESULT hr = S_OK;
 	m_Trace.Log(tlVerbose, FENTERA_STR());
 
-	if (m_fileFsmState == EFileFsmState::ACTIVE)
-	{
-		AbortSession(false);
-	}
+	// Drop the COM pointer without forcing SAFEOP->PREOP. TC1300 keeps this
+	// transition simple, and ResetRuntimeState() still clears our session data.
+	m_spFileAccessAsync = NULL;
+	m_fileAccessAsyncInitialized = false;
 	ResetRuntimeState();
-	ReleaseFileAccessAsyncObject(true);
 	UpdateStatusOutputs();
 
 	m_Trace.Log(tlVerbose, FLEAVEA_STRV("hr=0x%08x", hr));
@@ -296,22 +318,44 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 	switch (m_fileFsmState)
 	{
 	case EFileFsmState::OPEN_WAIT:
-		if (PollAsyncOp())
+		switch (PollAsyncOp())
 		{
+		case EAsyncPollResult::Completed:
 			m_fileFsmState = EFileFsmState::ACTIVE;
+			if (!ValidateOpenedFileHandle(kErrOpenCompletedWithoutHandle))
+			{
+				if (m_resetPending)
+				{
+					ResetRuntimeState();
+				}
+				break;
+			}
 			if (!m_sessionFailed)
 			{
 				ClearError();
 			}
-			if (m_resetPending || (!preArmCmd && !loggingCmd))
+			if (m_closeRequested || m_resetPending || (!preArmCmd && !loggingCmd))
 			{
-				CloseLogFile(true);
+				CloseLogFile(m_closeFlushRequested || m_resetPending || (!preArmCmd && !loggingCmd));
 			}
+			break;
+		case EAsyncPollResult::Failed:
+			AbortSession(true);
+			m_fileFsmState = EFileFsmState::ERROR;
+			if (m_resetPending)
+			{
+				ResetRuntimeState();
+			}
+			break;
+		case EAsyncPollResult::Pending:
+		default:
+			break;
 		}
 		break;
 	case EFileFsmState::WRITE_WAIT:
-		if (PollAsyncOp())
+		switch (PollAsyncOp())
 		{
+		case EAsyncPollResult::Completed:
 			if (m_lastWriteBytes != m_pendingWriteBytes)
 			{
 				SetError(kErrAsyncWriteShort);
@@ -323,27 +367,54 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 			m_bufferCount = 0;
 			m_pendingWriteBytes = 0;
 			m_lastWriteBytes = 0;
-			if (m_isLoggingActive)
+			m_fileFsmState = EFileFsmState::ACTIVE;
+			if (m_closeRequested || !m_isLoggingActive)
 			{
-				m_fileFsmState = EFileFsmState::ACTIVE;
+				CloseLogFile(m_closeFlushRequested);
 			}
 			else
 			{
-				m_fileFsmState = EFileFsmState::ACTIVE;
-				CloseLogFile(false);
+				m_closeFlushRequested = false;
 			}
-		}
-		break;
-	case EFileFsmState::CLOSE_WAIT:
-		if (PollAsyncOp())
-		{
-			m_fileHandle = 0;
-			m_fileFsmState = EFileFsmState::IDLE;
-			m_isLoggingActive = false;
+			break;
+		case EAsyncPollResult::Failed:
+			AbortSession(true);
+			m_fileFsmState = EFileFsmState::ERROR;
 			if (m_resetPending)
 			{
 				ResetRuntimeState();
 			}
+			break;
+		case EAsyncPollResult::Pending:
+		default:
+			break;
+		}
+		break;
+	case EFileFsmState::CLOSE_WAIT:
+		switch (PollAsyncOp())
+		{
+		case EAsyncPollResult::Completed:
+			m_fileHandle = 0;
+			m_fileFsmState = EFileFsmState::IDLE;
+			m_isLoggingActive = false;
+			m_closeRequested = false;
+			m_closeFlushRequested = false;
+			if (m_resetPending)
+			{
+				ResetRuntimeState();
+			}
+			break;
+		case EAsyncPollResult::Failed:
+			AbortSession(true);
+			m_fileFsmState = EFileFsmState::ERROR;
+			if (m_resetPending)
+			{
+				ResetRuntimeState();
+			}
+			break;
+		case EAsyncPollResult::Pending:
+		default:
+			break;
 		}
 		break;
 	case EFileFsmState::IDLE:
@@ -353,31 +424,52 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 		break;
 	}
 
+	// Handle deferred reopen: when a preArmRisingEdge occurred during a pending
+	// async operation, the reopen is deferred until the operation completes.
+	if (m_reopenRequested && !m_resetPending)
+	{
+		const bool canReopen = (m_fileFsmState == EFileFsmState::IDLE)
+			|| (m_fileFsmState == EFileFsmState::ERROR);
+		if (canReopen)
+		{
+			m_reopenRequested = false;
+			ResetRuntimeState();
+			if (!StartAsyncOpen())
+			{
+				m_fileFsmState = EFileFsmState::ERROR;
+				m_sessionFailed = true;
+			}
+		}
+	}
+
 	if (preArmRisingEdge)
 	{
-		const bool wasPending = (m_fileFsmState == EFileFsmState::OPEN_WAIT)
+		const bool isPending = (m_fileFsmState == EFileFsmState::OPEN_WAIT)
 			|| (m_fileFsmState == EFileFsmState::WRITE_WAIT)
 			|| (m_fileFsmState == EFileFsmState::CLOSE_WAIT);
-		CloseLogFile(true);
-		const bool asyncPendingAfterClose = (m_fileFsmState == EFileFsmState::WRITE_WAIT)
-			|| (m_fileFsmState == EFileFsmState::CLOSE_WAIT);
-		ResetRuntimeState();
-		if (wasPending || asyncPendingAfterClose)
+		if (isPending)
 		{
-			// 非同期オペレーションが進行中のまま FileOpen を呼ぶと失敗するため、
-			// FileAccessAsync オブジェクトを破棄してから再生成させる
-			ReleaseFileAccessAsyncObject(false);
+			// Cannot start a new file open while an async operation is in progress.
+			// Request close and defer the reopen until the operation completes.
+			m_closeRequested = true;
+			m_closeFlushRequested = false;
+			m_reopenRequested = true;
 		}
-		if (!StartAsyncOpen())
+		else
 		{
-			m_fileFsmState = EFileFsmState::ERROR;
-			m_sessionFailed = true;
+			CloseLogFile(true);
+			ResetRuntimeState();
+			if (!StartAsyncOpen())
+			{
+				m_fileFsmState = EFileFsmState::ERROR;
+				m_sessionFailed = true;
+			}
 		}
 	}
 
 	if (loggingRisingEdge)
 	{
-		if (m_fileFsmState != EFileFsmState::ACTIVE)
+		if (!IsLoggerReady())
 		{
 			SetError(kErrLoggingNotPreArmed);
 			m_sessionFailed = true;
@@ -425,8 +517,12 @@ void CModule1::ResetRuntimeState()
 	m_isLoggingActive = false;
 	m_sessionFailed = false;
 	m_resetPending = false;
+	m_closeRequested = false;
+	m_closeFlushRequested = false;
+	m_reopenRequested = false;
 	m_pendingWriteBytes = 0;
 	m_lastWriteBytes = 0;
+	m_lastAsyncHr = S_OK;
 	m_fileHandle = 0;
 	m_fileFsmState = EFileFsmState::IDLE;
 	m_timestampStepNsRuntime = kDefaultTimestampStepNs;
@@ -454,25 +550,11 @@ HRESULT CModule1::EnsureFileAccessAsync()
 		return S_OK;
 	}
 
-	ReleaseFileAccessAsyncObject(false);
-
-	HRESULT hr = m_spSrv->TcCreateInstance(CID_TcFileAccessAsync, IID_ITcFileAccessAsync, (PPVOID)&m_spFileAccessAsync);
-	if (FAILED(hr) || !m_spFileAccessAsync)
-	{
-		SetError(kErrAsyncCreateFailed);
-		return FAILED(hr) ? hr : E_FAIL;
-	}
-
-	hr = InitializeFileAccessAsyncObject();
-	if (FAILED(hr))
-	{
-		SetError(kErrAsyncInitFailed);
-		ReleaseFileAccessAsyncObject(false);
-		return hr;
-	}
-
-	m_fileAccessAsyncInitialized = true;
-	return S_OK;
+	// File access async object must be created during module lifecycle
+	// transitions (SetObjStatePS/SO).  If it is missing here, the module
+	// was not initialised correctly.
+	SetError(static_cast<HRESULT>(kErrAsyncCreateFailed));
+	return E_FAIL;
 }
 
 HRESULT CModule1::InitializeFileAccessAsyncObject()
@@ -529,12 +611,7 @@ HRESULT CModule1::InitializeFileAccessAsyncObject()
 		return hr;
 	}
 
-	hr = TransitionFileAccessAsyncToState(TCOM_STATE_OP);
-	if (FAILED(hr))
-	{
-		return hr;
-	}
-
+	// OP transition is performed separately in SetObjStateSO()
 	return S_OK;
 }
 
@@ -582,6 +659,8 @@ void CModule1::AbortSession(bool keepError)
 {
 	m_isLoggingActive = false;
 	m_sessionFailed = true;
+	m_closeRequested = false;
+	m_closeFlushRequested = false;
 	if (!keepError)
 	{
 		ClearError();
@@ -599,19 +678,36 @@ void CModule1::AbortSession(bool keepError)
 	m_bufferCount = 0;
 }
 
+void CModule1::TeardownSession(bool transitionToPreOp, bool keepError, EFileFsmState finalState)
+{
+	AbortSession(keepError);
+	ReleaseFileAccessAsyncObject(transitionToPreOp);
+	m_fileFsmState = finalState;
+	if (finalState == EFileFsmState::IDLE)
+	{
+		m_lastAsyncHr = S_OK;
+	}
+}
+
 void CModule1::CloseLogFile(bool flushRemaining)
 {
 	if (m_fileFsmState == EFileFsmState::OPEN_WAIT || m_fileFsmState == EFileFsmState::WRITE_WAIT || m_fileFsmState == EFileFsmState::CLOSE_WAIT)
 	{
+		m_closeRequested = true;
+		m_closeFlushRequested = m_closeFlushRequested || flushRemaining;
 		m_isLoggingActive = false;
 		return;
 	}
+
+	const bool shouldFlush = flushRemaining || m_closeFlushRequested;
+	m_closeRequested = false;
+	m_closeFlushRequested = false;
 
 	if (!IsFileHandleValid(m_fileHandle))
 	{
 		m_fileHandle = 0;
 		m_isLoggingActive = false;
-		if (flushRemaining)
+		if (shouldFlush)
 		{
 			m_bufferCount = 0;
 		}
@@ -619,7 +715,7 @@ void CModule1::CloseLogFile(bool flushRemaining)
 		return;
 	}
 
-	if (flushRemaining && m_bufferCount > 0)
+	if (shouldFlush && m_bufferCount > 0)
 	{
 		if (!StartAsyncWrite())
 		{
@@ -630,6 +726,8 @@ void CModule1::CloseLogFile(bool flushRemaining)
 		}
 		if (m_fileFsmState == EFileFsmState::WRITE_WAIT)
 		{
+			m_closeRequested = true;
+			m_closeFlushRequested = shouldFlush;
 			m_isLoggingActive = false;
 			return;
 		}
@@ -637,7 +735,6 @@ void CModule1::CloseLogFile(bool flushRemaining)
 
 	if (!StartAsyncClose())
 	{
-		SetError(kErrCloseFailed);
 		AbortSession(true);
 		m_fileFsmState = EFileFsmState::ERROR;
 		return;
@@ -700,7 +797,7 @@ void CModule1::UpdateStatusOutputs()
 	m_Outputs.LogStatus.recordsWritten = m_recordsWritten;
 	m_Outputs.LogStatus.fileSizeKb = static_cast<ULONG>(m_bytesWritten / 1024ULL);
 	m_Outputs.LogStatus.errorCode = m_errorCode;
-	m_Outputs.loggerReady = (m_fileFsmState == EFileFsmState::ACTIVE);
+	m_Outputs.loggerReady = IsLoggerReady();
 }
 
 void CModule1::ResolveFilePath(char* dst, size_t dstSize) const
@@ -743,17 +840,39 @@ bool CModule1::ValidateFilePath(const char* filePath)
 	return true;
 }
 
-void CModule1::SetError(ULONG errorCode)
+void CModule1::SetError(HRESULT errorCode)
 {
 	if (errorCode != 0)
 	{
-		m_errorCode = errorCode;
+		m_errorCode = static_cast<ULONG>(errorCode);
 	}
 }
 
 void CModule1::ClearError()
 {
 	m_errorCode = 0;
+}
+
+bool CModule1::ValidateOpenedFileHandle(HRESULT failureCode)
+{
+	if (IsFileHandleValid(m_fileHandle))
+	{
+		return true;
+	}
+
+	SetError(failureCode);
+	m_sessionFailed = true;
+	ReleaseFileAccessAsyncObject(false);
+	m_fileFsmState = EFileFsmState::ERROR;
+	return false;
+}
+
+bool CModule1::IsLoggerReady() const
+{
+	return (m_fileFsmState == EFileFsmState::ACTIVE)
+		&& IsFileHandleValid(m_fileHandle)
+		&& !m_closeRequested
+		&& !m_sessionFailed;
 }
 
 bool CModule1::StartAsyncOpen()
@@ -781,27 +900,30 @@ bool CModule1::StartAsyncOpen()
 
 	m_fileHandle = 0;
 	m_isLoggingActive = false;
+	m_closeRequested = false;
+	m_closeFlushRequested = false;
+	m_lastAsyncHr = S_OK;
 	const HRESULT hr = m_spFileAccessAsync->FileOpen(
 		m_openPathBuffer,
 		amWriteBinary,
 		&m_fileHandle);
 
-	if (hr == S_PENDING)
+	if (FAILED_AND_NOT_PENDING(hr))
 	{
-		m_fileFsmState = EFileFsmState::OPEN_WAIT;
-		return true;
+		SetError(hr);
+		m_sessionFailed = true;
+		return false;
 	}
 	if (FAILED(hr))
 	{
-		SetError(kErrOpenFailed);
-		m_sessionFailed = true;
-		return false;
+		m_fileFsmState = EFileFsmState::OPEN_WAIT;
+		return true;
 	}
 
 	m_fileFsmState = EFileFsmState::ACTIVE;
 	m_isLoggingActive = false;
 	m_sessionFailed = false;
-	return true;
+	return ValidateOpenedFileHandle(kErrOpenCompletedWithoutHandle);
 }
 
 bool CModule1::StartAsyncWrite()
@@ -832,16 +954,17 @@ bool CModule1::StartAsyncWrite()
 		m_pendingWriteBytes,
 		reinterpret_cast<PUINT>(&m_lastWriteBytes));
 
-	if (hr == S_PENDING)
+	if (FAILED_AND_NOT_PENDING(hr))
 	{
-		m_fileFsmState = EFileFsmState::WRITE_WAIT;
-		return true;
+		SetError(hr);
+		m_sessionFailed = true;
+		return false;
 	}
 	if (FAILED(hr))
 	{
-		SetError(kErrWriteFault);
-		m_sessionFailed = true;
-		return false;
+		m_fileFsmState = EFileFsmState::WRITE_WAIT;
+		m_lastAsyncHr = S_OK;
+		return true;
 	}
 	if (m_lastWriteBytes != m_pendingWriteBytes)
 	{
@@ -872,29 +995,34 @@ bool CModule1::StartAsyncClose()
 	if (!m_spFileAccessAsync || !IsFileHandleValid(m_fileHandle))
 	{
 		m_fileHandle = 0;
+		m_closeRequested = false;
+		m_closeFlushRequested = false;
 		m_fileFsmState = EFileFsmState::IDLE;
 		return true;
 	}
 
 	const HRESULT hr = m_spFileAccessAsync->FileClose(m_fileHandle);
-	if (hr == S_PENDING)
+	if (FAILED_AND_NOT_PENDING(hr))
 	{
-		m_fileFsmState = EFileFsmState::CLOSE_WAIT;
-		return true;
-	}
-	if (FAILED(hr))
-	{
-		SetError(kErrCloseFailed);
+		SetError(hr);
 		m_sessionFailed = true;
 		return false;
 	}
+	if (FAILED(hr))
+	{
+		m_fileFsmState = EFileFsmState::CLOSE_WAIT;
+		m_lastAsyncHr = S_OK;
+		return true;
+	}
 
 	m_fileHandle = 0;
+	m_closeRequested = false;
+	m_closeFlushRequested = false;
 	m_fileFsmState = EFileFsmState::IDLE;
 	return true;
 }
 
-bool CModule1::PollAsyncOp()
+CModule1::EAsyncPollResult CModule1::PollAsyncOp()
 {
 	const bool isAsyncState = (m_fileFsmState == EFileFsmState::OPEN_WAIT)
 		|| (m_fileFsmState == EFileFsmState::WRITE_WAIT)
@@ -903,28 +1031,31 @@ bool CModule1::PollAsyncOp()
 	{
 		SetError(kErrInvalidFsmState);
 		m_sessionFailed = true;
-		return false;
+		return EAsyncPollResult::Failed;
 	}
 
 	if (!m_spFileAccessAsync)
 	{
 		SetError(kErrAsyncCreateFailed);
 		m_sessionFailed = true;
-		return false;
+		return EAsyncPollResult::Failed;
 	}
 
 	const HRESULT hr = m_spFileAccessAsync->Check();
-	if (hr == S_PENDING)
+	if (FAILED_AND_NOT_PENDING(hr))
 	{
-		return false;
-	}
-	if (FAILED(hr))
-	{
-		SetError(kErrAsyncPendingFailed);
+		m_lastAsyncHr = hr;
+		SetError(hr);
 		m_sessionFailed = true;
-		return false;
+		return EAsyncPollResult::Failed;
 	}
-	return true;
+	if (SUCCEEDED(hr))
+	{
+		m_lastAsyncHr = hr;
+		return EAsyncPollResult::Completed;
+	}
+	m_lastAsyncHr = hr;
+	return EAsyncPollResult::Pending;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -309,7 +309,7 @@
 		</System>
 		<Plc>
 			<Project GUID="{FCFF5180-937F-4F0E-915A-7CF7E9CA7F30}" Name="StateMachineControl" PrjFilePath="StateMachineControl\StateMachineControl.plcproj" TmcFilePath="StateMachineControl\StateMachineControl.tmc" ReloadTmc="true" AmsPort="852" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{A2D0A03E-6A19-1C9B-B691-1C0A612F4FD3}" TmcPath="StateMachineControl\StateMachineControl.tmc">
+				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{4F3925B8-427E-A273-9AA1-BA396151280E}" TmcPath="StateMachineControl\StateMachineControl.tmc">
 					<Name>StateMachineControl Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -375,7 +375,7 @@
 				</Instance>
 			</Project>
 			<Project GUID="{54AD89C8-6B39-47E6-B85F-F4753C89F02E}" Name="ExperimentSequencer" PrjFilePath="ExperimentSequencer\ExperimentSequencer.plcproj" TmcFilePath="ExperimentSequencer\ExperimentSequencer.tmc" ReloadTmc="true" AmsPort="853" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{6E70FDC7-6507-55EF-1A3B-C12535CAD333}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
+				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{8129756A-F205-D0D8-12D2-D4A55104DF43}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
 					<Name>ExperimentSequencer Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -394,6 +394,10 @@
 						</Var>
 						<Var>
 							<Name>GVL_SEQ.playbackDone</Name>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_SEQ.seqError</Name>
 							<Type>BOOL</Type>
 						</Var>
 					</Vars>
@@ -1247,6 +1251,7 @@
 				<Link VarA="PlcTask Outputs^MAIN.resetOut" VarB="Inputs^resetReq"/>
 			</OwnerB>
 			<OwnerB Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
+				<Link VarA="PlcTask Inputs^MAIN.loggerReadyIn" VarB="Outputs^loggerReady"/>
 				<Link VarA="PlcTask Outputs^MAIN.experimentActiveOut" VarB="Inputs^loggingReq"/>
 				<Link VarA="PlcTask Outputs^MAIN.preArmOut" VarB="Inputs^preArmReq"/>
 				<Link VarA="PlcTask Outputs^MAIN.resetOut" VarB="Inputs^resetReq"/>

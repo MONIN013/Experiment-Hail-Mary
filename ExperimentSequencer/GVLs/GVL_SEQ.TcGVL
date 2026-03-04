@@ -35,6 +35,10 @@ VAR_GLOBAL
     {attribute 'linkalways'}
     playbackDone AT %Q* : BOOL := FALSE;
 
+    {attribute 'linkalways'}
+    seqError AT %Q* : BOOL := FALSE;
+
+    seqState : E_SeqState := E_SeqState.IDLE;
     tableLenClamped : UDINT := 0;
 END_VAR]]></Declaration>
   </GVL>

@@ -22,6 +22,11 @@ seq_port       = sys.SEQ_PORT;
 control_port   = sys.CONTROL_PORT;
 module_port    = sys.MODULE_PORT;
 task_rate_hz   = sys.TASK_RATE_HZ;
+t = twincat_ads.AdsTransport.net_types();
+logger_error_symbol = "ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.errorCode";
+logger_records_symbol = "ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.recordsWritten";
+logger_ready_symbol = "ExperimentLogger_Obj1 (Module1).Outputs.loggerReady";
+logger_path = "C:\ExperimentData\experiment_logger.bin";
 
 %% Experiment parameters
 target_position_rad = 0.25;
@@ -76,6 +81,12 @@ ctrl_transport.connect(ams_net_id, control_port);
 mod_transport.connect(ams_net_id, module_port);
 fprintf("Connected: SEQ=%d, CTRL=%d, MODULE=%d\n", seq_port, control_port, module_port);
 
+logger_error_before = uint32(mod_transport.read_scalar(char(logger_error_symbol), t.u32));
+logger_records_before = uint32(mod_transport.read_scalar(char(logger_records_symbol), t.u32));
+logger_ready_before = logical(mod_transport.read_scalar(char(logger_ready_symbol), t.bool));
+fprintf("Logger before: ready=%d error=0x%08X records=%u\n", ...
+  logger_ready_before, logger_error_before, logger_records_before);
+
 %% パラメータ書込み
 experiment.write_vm_params(mod_transport, char(sys.VM_PREFIX), vm_params, experiment.SystemConfig.task_dt_ns());
 experiment.write_controller_params(mod_transport, char(sys.CTRL_PREFIX), ctrl_params);
@@ -101,11 +112,19 @@ out = experiment.send_position_command( ...
   "mode_flags_transport", ctrl_transport, ...
   "validate_symbols", true);
 
+logger_error_after = uint32(mod_transport.read_scalar(char(logger_error_symbol), t.u32));
+logger_records_after = uint32(mod_transport.read_scalar(char(logger_records_symbol), t.u32));
+logger_ready_after = logical(mod_transport.read_scalar(char(logger_ready_symbol), t.bool));
+[logger_file_released, logger_file_probe] = probe_logger_file_release(logger_path);
+
 %% 結果出力
 fprintf("\n--- Result ---\n");
 fprintf("done=%d  timed_out=%d  overflow=%d  position_last=%.6f rad\n", ...
   logical(out.host.done), logical(out.host.timed_out), ...
   logical(out.raw.log_overflow), out.raw.position_last);
+fprintf("loggerReady(before/after)=%d/%d  loggerError(before/after)=0x%08X/0x%08X  loggerRecords(after)=%u\n", ...
+  logger_ready_before, logger_ready_after, logger_error_before, logger_error_after, logger_records_after);
+fprintf("loggerFileReleased=%s (%s)\n", passfail(logger_file_released), logger_file_probe);
 
 print_count_eval(out.eval);
 
@@ -118,6 +137,11 @@ if ~out.eval.input_and_all_log_counts_match
     error("experiment:demo:countMismatch", ...
       "Log count mismatch. Increase hold_margin_s or verify PLC sequence.");
   end
+end
+
+if logical(out.host.timed_out)
+  fprintf("Timeout diag: experimentState=%s loggerError=0x%08X loggerReady=%d\n", ...
+    fmt_diag_value(out.host.control_runtime_diag.experimentState), logger_error_after, logger_ready_after);
 end
 
 %% プロット
@@ -174,3 +198,32 @@ function s = passfail(flag)
 if logical(flag), s = "OK"; else, s = "NG"; end
 end
 
+function [released, detail] = probe_logger_file_release(log_path)
+released = false;
+detail = "file-missing";
+if ~isfile(log_path)
+  return;
+end
+
+[fid, msg] = fopen(log_path, "a");
+if fid < 0
+  detail = string(msg);
+  return;
+end
+
+fclose(fid);
+released = true;
+detail = "append-open-succeeded";
+end
+
+function s = fmt_diag_value(v)
+if isempty(v) || (isnumeric(v) && any(isnan(v), "all"))
+  s = "NaN";
+elseif islogical(v)
+  s = string(double(v));
+elseif isnumeric(v)
+  s = string(double(v));
+else
+  s = string(v);
+end
+end

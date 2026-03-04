@@ -30,8 +30,8 @@ ExperimentLogger is a binary file logger for experiment data. `Inputs.preArmReq`
 |---|---|---|
 | `LogStatus.recordsWritten` | `UDINT` | written records |
 | `LogStatus.fileSizeKb` | `UDINT` | file size in KB |
-| `LogStatus.errorCode` | `UDINT` | 0 = OK |
-| `loggerReady` | `BOOL` | ファイル FSM == `ACTIVE` のとき `TRUE`。ModeManager が `SERVO_READY → RUNNING` 遷移前の確認に使用 |
+| `LogStatus.errorCode` | `UDINT` | 0 = OK, otherwise internal `0xE000000x` code or underlying HRESULT |
+| `loggerReady` | `BOOL` | `ACTIVE` かつ有効 file handle 保持、close/error pending なしのとき `TRUE`。ModeManager が `SERVO_READY → RUNNING` 遷移前の確認に使用 |
 
 ## Control Parameter
 | Symbol | Type | Notes |
@@ -48,6 +48,8 @@ ExperimentLogger is a binary file logger for experiment data. `Inputs.preArmReq`
 5. On `loggingReq` falling edge: flush remaining buffer and close the file.
 6. On `preArmReq` falling edge while `loggingReq = FALSE`: close any pre-opened file that never entered an active run.
 7. On `resetReq` rising edge: stop the session safely and reset runtime state once any pending async close completes.
+8. Async `OPEN_WAIT` / `WRITE_WAIT` / `CLOSE_WAIT` failures must not remain latched in a wait state. The module aborts the session, releases `ITcFileAccessAsync`, transitions to `ERROR` (or `IDLE` after reset teardown), and preserves the raw failure code in `errorCode`.
+9. `OPEN_WAIT` completion validates the returned file handle before declaring the logger ready. A completed open without a valid handle is treated as a hard failure.
 
 ## Mapping (SIL)
 - `loadPosition <- DriverAdapter.positionRel` (D12: ControllerCore.positionRel から変更)
