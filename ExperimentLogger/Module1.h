@@ -110,6 +110,7 @@ protected:
 	bool m_isLoggingActive;
 	bool m_prevResetReq;
 	bool m_prevLoggingCommand;
+	bool m_prevPreArmReq;
 	bool m_resetPending;
 	bool m_sessionFailed;
 	ULONG m_bufferCount;

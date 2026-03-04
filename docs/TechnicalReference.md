@@ -426,13 +426,15 @@ GVL_SEQ_LOG のリングバッファ (§5) が ADS ポーリング前提の暫�
 | `loadPosition` | `LREAL` | DriverAdapter `positionRel` (D12) | Load 側実位置 (相対位置) [rad] |
 | `loadVelocity` | `LREAL` | DriverAdapter `velocityAct` (D11) | Load 側実速度 [rad/s] |
 | `resetReq` | `BOOL` | ModeManager `resetOut` | リセット要求 |
-| `loggingReq` | `BOOL` | ModeManager `experimentActiveOut` | ファイル open/close 制御 |
+| `loggingReq` | `BOOL` | ModeManager `experimentActiveOut` | レコード追記ゲート / セッション close |
+| `preArmReq` | `BOOL` | ModeManager `preArmOut` | `SERVO_READY` 中の file pre-open |
 | `playbackDone` | `BOOL` | ExperimentSequencer `GVL_SEQ.playbackDone` | 同一タスク fast-path でレコード追記停止 |
 
 > Phase 1–3 (SIL) では `motorPosition`, `motorVelocity` は 0 (未接続)。  
 > `loadPosition` は DriverAdapter.positionRel (D12)、`loadVelocity` は DriverAdapter.velocityAct (D11)、
 > `motorCurrentAct` は DriverAdapter.currentAct (D13) を使用する。  
-> `loggingReq` はファイル open/close を担当し、`playbackDone` はレコード追記のみを即時停止する。
+> `preArmReq` が file open の唯一のトリガであり、`loggingReq` はレコード追記と end-of-session close のみを担当する。
+> `loggingReq` が file pre-open 完了前に立ち上がった場合は hard-fail (`errorCode`) とする。
 
 #### 出力 (OutputSrc)
 
@@ -573,6 +575,7 @@ MAIN.resetOut            (%Q*)  ──►  ControllerCore.Inputs.resetReq
 MAIN.resetOut            (%Q*)  ──►  ExperimentLogger.Inputs.resetReq
 MAIN.resetOut            (%Q*)  ──►  GVL_DRV.resetReq           (%I*)   ← D12 追加
 MAIN.experimentActiveOut (%Q*)  ──►  GVL_SEQ.experimentActive   (%I*)
+MAIN.preArmOut           (%Q*)  ──►  ExperimentLogger.Inputs.preArmReq
 MAIN.experimentActiveOut (%Q*)  ──►  ExperimentLogger.Inputs.loggingReq
 MAIN.enableCurrentOut     (%Q*)  ──►  GVL_DRV.enableCurrentOutput (%I*)
 MAIN.ctrlWord            (%Q*)  ──►  GVL_DRV.controlWordIn      (%I*)
@@ -635,6 +638,7 @@ GVL_DRV.currentAct                                          ──►  Experimen
 GVL_DRV.positionRel                                         ──►  ExperimentLogger.Inputs.loadPosition     ← D12: DriverAdapter 経由
 GVL_DRV.velocityAct                                         ──►  ExperimentLogger.Inputs.loadVelocity     ← D11: DriverAdapter 経由
 ModeManager.resetOut                                        ──►  ExperimentLogger.Inputs.resetReq
+ModeManager.preArmOut                                       ──►  ExperimentLogger.Inputs.preArmReq
 ModeManager.experimentActiveOut                             ──►  ExperimentLogger.Inputs.loggingReq
 ExperimentSequencer.playbackDone                            ──►  ExperimentLogger.Inputs.playbackDone
 ```
@@ -720,6 +724,7 @@ ExperimentSequencer.playbackDone                            ──►  Experimen
 |---|---|---|---|---|---|
 | `MAIN.ctrlWord` | `UINT` | 2 | `AT %Q*` | R | CiA 402 ControlWord 出力 |
 | `MAIN.experimentActiveOut` | `BOOL` | 1 | `AT %Q*` | R | experimentActive 出力 |
+| `MAIN.preArmOut` | `BOOL` | 1 | `AT %Q*` | R | logger pre-arm 出力 |
 | `MAIN.resetOut` | `BOOL` | 1 | `AT %Q*` | R | ワンショットリセットパルス |
 | `MAIN.enableCurrentOut` | `BOOL` | 1 | `AT %Q*` | R | 電流ゲート出力 |
 | `MAIN.statWord` | `UINT` | 2 | `AT %I*` | R | StatusWord 入力 |
@@ -889,7 +894,7 @@ ADS Write:  Port=853  Symbol="GVL_SEQ_LOG.rdIdx"            ← rdIdx 更新
 
 ```
 ADS Write:  Port=351  Symbol="ExperimentLogger_Obj1 (Module1).LogControl.filePath"  Data=STRING
-（開始/停止は ModeManager `experimentActiveOut` → `Inputs.loggingReq` の自動制御）
+（file open は ModeManager `preArmOut` → `Inputs.preArmReq`、append/close は `experimentActiveOut` → `Inputs.loggingReq` の自動制御）
 ADS Read:   Port=351  Symbol="ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.recordsWritten"  → UDINT
 ADS Read:   Port=351  Symbol="ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.errorCode"       → UDINT
 ```
@@ -951,6 +956,7 @@ StateMachineControl → ControllerCore
 
 StateMachineControl → ExperimentLogger
   MAIN.resetOut                 → ExperimentLogger.Inputs.resetReq
+  MAIN.preArmOut                → ExperimentLogger.Inputs.preArmReq
   MAIN.experimentActiveOut      → ExperimentLogger.Inputs.loggingReq
 
 ControllerCore → ExperimentLogger

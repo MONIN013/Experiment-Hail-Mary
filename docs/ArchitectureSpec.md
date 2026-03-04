@@ -368,11 +368,13 @@ ControllerCore.error                                       ──►  Experiment
 **制御信号 (ロギング制御 + fast-path 停止):**
 
 ```
-ModeManager.experimentActiveOut                            ──►  ExperimentLogger.Inputs.loggingReq       (ファイル open/close 制御、PlcTask 経由)
+ModeManager.preArmOut                                      ──►  ExperimentLogger.Inputs.preArmReq        (`SERVO_READY` で file pre-open、PlcTask 経由)
+ModeManager.experimentActiveOut                            ──►  ExperimentLogger.Inputs.loggingReq       (append gate / session close、PlcTask 経由)
 ExperimentSequencer.playbackDone                           ──►  ExperimentLogger.Inputs.playbackDone     (同一タスク fast-path、即時記録停止)
 ```
 
-> `loggingReq` は引き続きファイル open/close の制御に使用する。
+> `preArmReq` がファイル open の唯一のトリガである。
+> `loggingReq` は append window と end-of-session close のみを担当する。
 > `playbackDone` は同一 VirtualMotorTask 内で logger に直接マッピングし、レコード追記のみを 1 スキャン以内に停止させる。
 
 ### 3.8 DriverAdapter ↔ EtherCAT Drive (Phase 4)
@@ -545,7 +547,7 @@ ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.fileSizeKb    → UDINT
 ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.errorCode     → UDINT
 ```
 
-> ログ開始/停止は `Inputs.loggingReq`（ModeManager 連動）のみを使用する。
+> ログ file open は `Inputs.preArmReq`、append/close は `Inputs.loggingReq` を使用する。
 
 ### 4.5 ModeManager (StateMachineControl PLC, Port 852)
 
@@ -624,7 +626,7 @@ END_TYPE
 - **実験終了時:** 残余バッファを最終 flush し、ファイルをクローズ
 - **MATLAB 側:** ADS 経由でファイルパス・ステータスを取得し、実験後にファイルを読み出す
 
-> **ログ終端精度 (H6):** `loggingReq` は ModeManager (PlcTask 10 ms) 経由のままファイル open/close を担う。一方で `Inputs.playbackDone` を同一タスク内でマッピングし、ExperimentSequencer が `playbackDone = TRUE` を発行したスキャンでレコード追記を停止することで、クロスタスク遅延由来のゼロ値テール混入を防ぐ。
+> **ログ開始/終端精度 (H6 / Issue #12):** `preArmReq` を ModeManager `SERVO_READY` で立てて file open を先行完了させ、`loggingReq` は append/close のみに限定する。一方で `Inputs.playbackDone` を同一タスク内でマッピングし、ExperimentSequencer が `playbackDone = TRUE` を発行したスキャンでレコード追記を停止することで、先頭欠落とクロスタスク遅延由来のゼロ値テール混入を防ぐ。
 
 ---
 

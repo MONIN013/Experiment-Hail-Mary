@@ -309,7 +309,7 @@
 		</System>
 		<Plc>
 			<Project GUID="{FCFF5180-937F-4F0E-915A-7CF7E9CA7F30}" Name="StateMachineControl" PrjFilePath="StateMachineControl\StateMachineControl.plcproj" TmcFilePath="StateMachineControl\StateMachineControl.tmc" ReloadTmc="true" AmsPort="852" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{83EBB4F9-4A94-383B-F808-B0336AD9FB72}" TmcPath="StateMachineControl\StateMachineControl.tmc">
+				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{A2D0A03E-6A19-1C9B-B691-1C0A612F4FD3}" TmcPath="StateMachineControl\StateMachineControl.tmc">
 					<Name>StateMachineControl Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -322,6 +322,11 @@
 						<Var>
 							<Name>MAIN.experimentActiveOut</Name>
 							<Comment><![CDATA[ ModeManager experiment active output]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.preArmOut</Name>
+							<Comment><![CDATA[ ModeManager logger pre-arm output]]></Comment>
 							<Type>BOOL</Type>
 						</Var>
 						<Var>
@@ -345,6 +350,11 @@
 						<Var>
 							<Name>MAIN.seqPlaybackDone</Name>
 							<Comment><![CDATA[ Sequencer playback done (latched)]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.loggerReadyIn</Name>
+							<Comment><![CDATA[ ExperimentLogger file FSM ACTIVE]]></Comment>
 							<Type>BOOL</Type>
 						</Var>
 					</Vars>
@@ -1037,7 +1047,7 @@
 								<AreaNo AreaType="InputDst">0</AreaNo>
 								<Name>Inputs</Name>
 								<ContextId>1</ContextId>
-								<ByteSize>83</ByteSize>
+								<ByteSize>84</ByteSize>
 								<Symbol>
 									<Name>currentCmd</Name>
 									<BitSize>64</BitSize>
@@ -1111,22 +1121,34 @@
 									<BitOffs>648</BitOffs>
 								</Symbol>
 								<Symbol>
-									<Name>playbackDone</Name>
+									<Name>preArmReq</Name>
 									<BitSize>8</BitSize>
 									<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
 									<BitOffs>656</BitOffs>
+								</Symbol>
+								<Symbol>
+									<Name>playbackDone</Name>
+									<BitSize>8</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
+									<BitOffs>664</BitOffs>
 								</Symbol>
 							</DataArea>
 							<DataArea>
 								<AreaNo AreaType="OutputSrc">1</AreaNo>
 								<Name>Outputs</Name>
 								<ContextId>1</ContextId>
-								<ByteSize>12</ByteSize>
+								<ByteSize>13</ByteSize>
 								<Symbol CreateSymbol="true">
 									<Name>LogStatus</Name>
 									<BitSize>96</BitSize>
 									<BaseType GUID="{A58F1A22-EE38-4D58-AE23-3F4335DD3EEF}">ST_LogStatus</BaseType>
 									<BitOffs>0</BitOffs>
+								</Symbol>
+								<Symbol CreateSymbol="true">
+									<Name>loggerReady</Name>
+									<BitSize>8</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
+									<BitOffs>96</BitOffs>
 								</Symbol>
 							</DataArea>
 						</DataAreas>
@@ -1226,6 +1248,7 @@
 			</OwnerB>
 			<OwnerB Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
 				<Link VarA="PlcTask Outputs^MAIN.experimentActiveOut" VarB="Inputs^loggingReq"/>
+				<Link VarA="PlcTask Outputs^MAIN.preArmOut" VarB="Inputs^preArmReq"/>
 				<Link VarA="PlcTask Outputs^MAIN.resetOut" VarB="Inputs^resetReq"/>
 			</OwnerB>
 		</OwnerA>

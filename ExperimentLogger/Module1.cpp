@@ -33,6 +33,7 @@ namespace
 	const ULONG kErrAsyncWriteShort = 0xE0000009UL;
 	const ULONG kErrInvalidFsmState = 0xE000000AUL;
 	const ULONG kErrAsyncInitFailed = 0xE000000BUL;
+	const ULONG kErrLoggingNotPreArmed = 0xE000000CUL;
 	const ULONG kFileAccessSegmentSize = 4096UL;
 	const ULONG kFileAccessTimeoutMs = 5000UL;
 
@@ -109,6 +110,7 @@ CModule1::CModule1()
 	, m_isLoggingActive(false)
 	, m_prevResetReq(false)
 	, m_prevLoggingCommand(false)
+	, m_prevPreArmReq(false)
 	, m_resetPending(false)
 	, m_sessionFailed(false)
 	, m_bufferCount(0)
@@ -261,8 +263,16 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 		++m_cycleCounter;
 	}
 
-	const bool resetEdge = (m_Inputs.resetReq != false) && !m_prevResetReq;
-	m_prevResetReq = (m_Inputs.resetReq != false);
+	const bool resetCmd = (m_Inputs.resetReq != false);
+	const bool preArmCmd = (m_Inputs.preArmReq != false);
+	const bool loggingCmd = (m_Inputs.loggingReq != false);
+	const bool playbackDone = (m_Inputs.playbackDone != false);
+	const bool resetEdge = resetCmd && !m_prevResetReq;
+	bool preArmRisingEdge = preArmCmd && !m_prevPreArmReq;
+	bool preArmFallingEdge = !preArmCmd && m_prevPreArmReq;
+	bool loggingRisingEdge = loggingCmd && !m_prevLoggingCommand;
+	bool loggingFallingEdge = !loggingCmd && m_prevLoggingCommand;
+
 	if (resetEdge)
 	{
 		m_resetPending = true;
@@ -275,26 +285,12 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 		}
 	}
 
-	const bool loggingCmd = (m_Inputs.loggingReq != false);
-	const bool playbackDone = (m_Inputs.playbackDone != false);
-	const bool allowAppend = loggingCmd && !playbackDone && !m_resetPending;
-	bool risingEdge = loggingCmd && !m_prevLoggingCommand;
-	bool fallingEdge = !loggingCmd && m_prevLoggingCommand;
 	if (resetEdge || m_resetPending)
 	{
-		risingEdge = false;
-		fallingEdge = false;
-	}
-
-	if (risingEdge)
-	{
-		CloseLogFile(true);
-		ResetRuntimeState();
-		if (!StartAsyncOpen())
-		{
-			m_fileFsmState = EFileFsmState::ERROR;
-			m_sessionFailed = true;
-		}
+		preArmRisingEdge = false;
+		preArmFallingEdge = false;
+		loggingRisingEdge = false;
+		loggingFallingEdge = false;
 	}
 
 	switch (m_fileFsmState)
@@ -303,9 +299,11 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 		if (PollAsyncOp())
 		{
 			m_fileFsmState = EFileFsmState::ACTIVE;
-			m_isLoggingActive = true;
-			ClearError();
-			if (m_resetPending || !loggingCmd)
+			if (!m_sessionFailed)
+			{
+				ClearError();
+			}
+			if (m_resetPending || (!preArmCmd && !loggingCmd))
 			{
 				CloseLogFile(true);
 			}
@@ -355,6 +353,42 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 		break;
 	}
 
+	if (preArmRisingEdge)
+	{
+		const bool wasPending = (m_fileFsmState == EFileFsmState::OPEN_WAIT)
+			|| (m_fileFsmState == EFileFsmState::WRITE_WAIT)
+			|| (m_fileFsmState == EFileFsmState::CLOSE_WAIT);
+		CloseLogFile(true);
+		const bool asyncPendingAfterClose = (m_fileFsmState == EFileFsmState::WRITE_WAIT)
+			|| (m_fileFsmState == EFileFsmState::CLOSE_WAIT);
+		ResetRuntimeState();
+		if (wasPending || asyncPendingAfterClose)
+		{
+			// 非同期オペレーションが進行中のまま FileOpen を呼ぶと失敗するため、
+			// FileAccessAsync オブジェクトを破棄してから再生成させる
+			ReleaseFileAccessAsyncObject(false);
+		}
+		if (!StartAsyncOpen())
+		{
+			m_fileFsmState = EFileFsmState::ERROR;
+			m_sessionFailed = true;
+		}
+	}
+
+	if (loggingRisingEdge)
+	{
+		if (m_fileFsmState != EFileFsmState::ACTIVE)
+		{
+			SetError(kErrLoggingNotPreArmed);
+			m_sessionFailed = true;
+		}
+		else
+		{
+			m_isLoggingActive = true;
+		}
+	}
+
+	const bool allowAppend = loggingCmd && !playbackDone && !m_resetPending;
 	if (allowAppend && m_fileFsmState == EFileFsmState::ACTIVE && !m_sessionFailed)
 	{
 		if (!AppendCurrentInputsAsRecord())
@@ -363,11 +397,17 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 		}
 	}
 
-	if (fallingEdge)
+	if (loggingFallingEdge)
+	{
+		CloseLogFile(true);
+	}
+	else if (preArmFallingEdge && !loggingCmd)
 	{
 		CloseLogFile(true);
 	}
 
+	m_prevResetReq = resetCmd;
+	m_prevPreArmReq = m_resetPending ? false : preArmCmd;
 	m_prevLoggingCommand = m_resetPending ? false : loggingCmd;
 	UpdateStatusOutputs();
 
@@ -660,6 +700,7 @@ void CModule1::UpdateStatusOutputs()
 	m_Outputs.LogStatus.recordsWritten = m_recordsWritten;
 	m_Outputs.LogStatus.fileSizeKb = static_cast<ULONG>(m_bytesWritten / 1024ULL);
 	m_Outputs.LogStatus.errorCode = m_errorCode;
+	m_Outputs.loggerReady = (m_fileFsmState == EFileFsmState::ACTIVE);
 }
 
 void CModule1::ResolveFilePath(char* dst, size_t dstSize) const
@@ -758,7 +799,7 @@ bool CModule1::StartAsyncOpen()
 	}
 
 	m_fileFsmState = EFileFsmState::ACTIVE;
-	m_isLoggingActive = true;
+	m_isLoggingActive = false;
 	m_sessionFailed = false;
 	return true;
 }

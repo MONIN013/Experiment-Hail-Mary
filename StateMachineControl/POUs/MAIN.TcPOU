@@ -7,10 +7,9 @@ VAR
     statWord AT%I* : UINT; // StatusWord input
     seqPlaybackDone AT%I* : BOOL; // Sequencer playback done (latched)
     experimentActiveOut AT%Q* : BOOL; // ModeManager experiment active output
+    preArmOut AT%Q* : BOOL; // ModeManager logger pre-arm output
     resetOut AT%Q* : BOOL; // One-shot reset pulse output
     enableCurrentOut AT%Q* : BOOL; // Current enable gate output
-
-    enable : BOOL := TRUE;
 
     // FSM state
     modeState : E_ModeState := E_ModeState.IDLE;
@@ -28,13 +27,9 @@ VAR
     // Reset edge detection
     resetReqPrev : BOOL := FALSE;
     resetReqCurrent : BOOL := FALSE;
-    resetReqClearPending : BOOL := FALSE;
     resetEdge : BOOL := FALSE;
     resetHoldTicksRemaining : UDINT := 0;
     RESET_PULSE_HOLD_TICKS : UDINT := 1;
-
-    // Done latch (rearm logic)
-    doneLatched : BOOL := FALSE;
 
     // Drive state
     driveReady : BOOL := FALSE;
@@ -49,6 +44,7 @@ VAR
     watchdogTimeout : BOOL := FALSE;
 
     fbStateMachine : FB_StateMachineControl;
+    loggerReadyIn AT%I* : BOOL; // ExperimentLogger file FSM ACTIVE
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -68,13 +64,11 @@ IF experimentStartEdge THEN
 END_IF
 
 (* ===== 2. Reset edge detection ===== *)
-(* Hold resetReq high for one PLC scan after edge so scope can observe the rising level. *)
 resetReqCurrent := GVL_MODE.resetReq;
 resetEdge := resetReqCurrent AND NOT resetReqPrev;
-IF resetReqClearPending THEN
+IF resetEdge THEN
     GVL_MODE.resetReq := FALSE;
 END_IF
-resetReqClearPending := resetEdge;
 resetReqPrev := resetReqCurrent;
 
 (* ===== 3. Watchdog ===== *)
@@ -104,7 +98,6 @@ IF watchdogTimeout THEN
     modeState := E_ModeState.IDLE;
     GVL_MODE.modeFlags := 0;
     GVL_MODE.experimentActive := FALSE;
-    doneLatched := FALSE;
     servoEnableLatched := FALSE;
     experimentStartLatched := FALSE;
     IF NOT watchdogTripLatched THEN
@@ -118,7 +111,6 @@ ELSIF resetEdge THEN
     resetHoldTicksRemaining := RESET_PULSE_HOLD_TICKS;
     GVL_MODE.experimentActive := FALSE;
     GVL_MODE.modeFlags := 0;
-    doneLatched := FALSE;
     servoEnableLatched := FALSE;
     experimentStartLatched := FALSE;
     GVL_MODE.resetAckCounter := GVL_MODE.resetAckCounter + 1;
@@ -128,7 +120,7 @@ ELSE
     CASE modeState OF
 
         E_ModeState.IDLE:
-            IF enable AND servoEnableLatched THEN
+            IF servoEnableLatched THEN
                 modeState := E_ModeState.SERVO_READY;
             END_IF
 
@@ -140,26 +132,23 @@ ELSE
             END_IF
 
         E_ModeState.SERVO_READY:
-            IF NOT enable THEN
+            IF NOT servoEnableLatched THEN
                 modeState := E_ModeState.IDLE;
-                servoEnableLatched := FALSE;
                 experimentStartLatched := FALSE;
-            ELSIF experimentStartLatched AND driveReady AND (NOT doneLatched) THEN
+            ELSIF experimentStartLatched AND driveReady AND loggerReadyIn THEN
                 modeState := E_ModeState.RUNNING;
                 GVL_MODE.experimentActive := TRUE;
                 experimentStartLatched := FALSE;
             END_IF
 
         E_ModeState.RUNNING:
-            IF NOT enable THEN
+            IF NOT servoEnableLatched THEN
                 modeState := E_ModeState.IDLE;
                 GVL_MODE.experimentActive := FALSE;
-                servoEnableLatched := FALSE;
                 experimentStartLatched := FALSE;
             ELSIF seqPlaybackDone THEN
                 modeState := E_ModeState.DONE;
                 GVL_MODE.experimentActive := FALSE;
-                doneLatched := TRUE;
                 servoEnableLatched := FALSE;
                 experimentStartLatched := FALSE;
                 (* End of experiment: force servo-off request clear *)
@@ -167,26 +156,18 @@ ELSE
             END_IF
 
         E_ModeState.DONE:
-            IF NOT enable THEN
-                modeState := E_ModeState.IDLE;
-                doneLatched := FALSE;
-                servoEnableLatched := FALSE;
-                experimentStartLatched := FALSE;
-            ELSIF servoEnableLatched AND experimentStartLatched AND driveReady THEN
-                modeState := E_ModeState.RUNNING;
-                doneLatched := FALSE;
-                GVL_MODE.experimentActive := TRUE;
-                experimentStartLatched := FALSE;
-            END_IF
+            (* One-tick notification state: unconditionally return to IDLE *)
+            modeState := E_ModeState.IDLE;
+            servoEnableLatched := FALSE;
+            experimentStartLatched := FALSE;
 
     END_CASE
 END_IF
 
 (* ===== 5. State-dependent outputs ===== *)
-enableEffective := enable AND servoEnableLatched
+enableEffective := servoEnableLatched
                     AND (modeState = E_ModeState.SERVO_READY
-                      OR modeState = E_ModeState.RUNNING
-                      OR modeState = E_ModeState.DONE);
+                      OR modeState = E_ModeState.RUNNING);
 
 fbStateMachine(
     statusWord := statWord,
@@ -200,30 +181,35 @@ driveReady := (fbStateMachine.driveState = E_DriveState.OPERATION_ENABLED);
 CASE modeState OF
     E_ModeState.IDLE:
         experimentActiveOut := FALSE;
+        preArmOut := FALSE;
         resetOut := FALSE;
         enableCurrentOut := FALSE;
         GVL_MODE.experimentState := GVL_MODE.STATE_IDLE;
 
     E_ModeState.RESETTING:
         experimentActiveOut := FALSE;
+        preArmOut := FALSE;
         resetOut := TRUE;
         enableCurrentOut := FALSE;
         GVL_MODE.experimentState := GVL_MODE.STATE_IDLE;
 
     E_ModeState.SERVO_READY:
         experimentActiveOut := FALSE;
+        preArmOut := TRUE;
         resetOut := FALSE;
         enableCurrentOut := TRUE;
         GVL_MODE.experimentState := GVL_MODE.STATE_READY;
 
     E_ModeState.RUNNING:
         experimentActiveOut := TRUE;
+        preArmOut := FALSE;
         resetOut := FALSE;
         enableCurrentOut := TRUE;
         GVL_MODE.experimentState := GVL_MODE.STATE_RUNNING;
 
     E_ModeState.DONE:
         experimentActiveOut := FALSE;
+        preArmOut := FALSE;
         resetOut := FALSE;
         enableCurrentOut := FALSE;
         GVL_MODE.experimentState := GVL_MODE.STATE_DONE;

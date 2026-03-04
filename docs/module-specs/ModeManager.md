@@ -11,7 +11,7 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 
 ### 設計原則
 
-1. **状態依存出力**: 出力 (`experimentActive`, `resetOut`, `enableCurrentOut`, `experimentState`) は FSM 状態のみで決定する
+1. **状態依存出力**: 出力 (`experimentActive`, `preArmOut`, `resetOut`, `enableCurrentOut`, `experimentState`) は FSM 状態のみで決定する
 2. **入力 Latch→Clear**: MATLAB が ADS 経由で set した要求フラグ (`resetReq`) は、PLC が立ち上がりエッジを検出し状態遷移を完了した後に **PLC 側で 0 クリア** する
 3. **排他的状態遷移**: `RESETTING` 状態中は実験開始への遷移を一切許可しない
 4. **Watchdog 保護**: Heartbeat タイムアウト時は `IDLE` に強制遷移し全出力を安全側に倒す
@@ -60,11 +60,11 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
                   ▼                        │
               ┌──────────────┐             │
               │   DONE (40)  │─resetEdge──►│
-              │ 完了/待機    │
+              │ 1tick通知    │
               └───┬──────────┘
-                  │ !expStartReq
+                  │ 無条件 (次tick)
                   ▼
-              SERVO_READY (20)
+              IDLE (0)
 ```
 
 ### 遷移条件一覧
@@ -72,16 +72,15 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 | 遷移元 | 遷移先 | 条件 |
 |---|---|---|
 | `IDLE` | `RESETTING` | `resetEdge` |
-| `IDLE` | `SERVO_READY` | `servoEnable` AND `driveReady` |
+| `IDLE` | `SERVO_READY` | `servoEnable` |
 | `RESETTING` | `IDLE` | `resetHoldTicks` 完了 |
-| `SERVO_READY` | `IDLE` | NOT `servoEnable` OR NOT `driveReady` |
+| `SERVO_READY` | `IDLE` | NOT `servoEnable` |
 | `SERVO_READY` | `RESETTING` | `resetEdge` |
-| `SERVO_READY` | `RUNNING` | `experimentStartReq` AND `driveReady` AND NOT `doneLatched` |
+| `SERVO_READY` | `RUNNING` | `experimentStartReq` AND `driveReady` AND `loggerReady` |
 | `RUNNING` | `DONE` | `seqPlaybackDone` |
 | `RUNNING` | `IDLE` | NOT `servoEnable` (異常離脱) |
 | `RUNNING` | `RESETTING` | `resetEdge` |
-| `DONE` | `SERVO_READY` | NOT `experimentStartReq` (rearm) |
-| `DONE` | `IDLE` | NOT `servoEnable` |
+| `DONE` | `IDLE` | 無条件 (次 tick 自動遷移) |
 | `DONE` | `RESETTING` | `resetEdge` |
 | *any* | `IDLE` | Watchdog timeout (強制) |
 
@@ -93,6 +92,7 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 |---|---|---|---|
 | `statWord` | `UINT` | DriverAdapter (I/O Mapping) | CiA 402 StatusWord |
 | `seqPlaybackDone` | `BOOL` | ExperimentSequencer (I/O Mapping) | テーブル再生完了ラッチ |
+| `loggerReadyIn` | `BOOL` | ExperimentLogger (I/O Mapping) | ファイル FSM == `ACTIVE` のとき `TRUE`。`SERVO_READY → RUNNING` 遷移の確認条件 |
 | `GVL_MODE.modeFlags` | `UINT` | MATLAB (ADS Write) | ビットフラグ: bit0=ServoEnable, bit1=ExperimentStartReq |
 | `GVL_MODE.resetReq` | `BOOL` | MATLAB (ADS Write) | リセット要求 (PLC が edge 検出後に clear) |
 | `GVL_MODE.hostHeartbeatCounter` | `UDINT` | MATLAB (ADS Write) | ホスト側ハートビート |
@@ -103,6 +103,7 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 |---|---|---|---|
 | `ctrlWord` | `UINT` | DriverAdapter (I/O Mapping) | CiA 402 ControlWord (FB_StateMachineControl 出力) |
 | `experimentActiveOut` | `BOOL` | ExperimentSequencer / ExperimentLogger (I/O Mapping) | 実験アクティブ |
+| `preArmOut` | `BOOL` | ExperimentLogger (I/O Mapping) | `SERVO_READY` 中の logger pre-arm |
 | `resetOut` | `BOOL` | ExperimentSequencer / ExperimentLogger (I/O Mapping) | リセットパルス |
 | `enableCurrentOut` | `BOOL` | DriverAdapter (I/O Mapping) | 電流イネーブルゲート |
 | `GVL_MODE.experimentActive` | `BOOL` | MATLAB (ADS Read) | 実験アクティブ (ADS 読出し用) |
@@ -113,15 +114,15 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 
 ## State-Dependent Output Table
 
-| FSM State | `experimentActive` | `resetOut` | `enableCurrentOut` | `experimentState` |
-|---|---|---|---|---|
-| `IDLE` | FALSE | FALSE | FALSE | `STATE_IDLE` (0) |
-| `RESETTING` | FALSE | TRUE (*pulse*) | FALSE | `STATE_IDLE` (0) |
-| `SERVO_READY` | FALSE | FALSE | TRUE | `STATE_READY` (1) |
-| `RUNNING` | TRUE | FALSE | TRUE | `STATE_RUNNING` (2) |
-| `DONE` | FALSE | FALSE | TRUE | `STATE_DONE` (3) |
+| FSM State | `experimentActive` | `preArmOut` | `resetOut` | `enableCurrentOut` | `experimentState` |
+|---|---|---|---|---|---|
+| `IDLE` | FALSE | FALSE | FALSE | FALSE | `STATE_IDLE` (0) |
+| `RESETTING` | FALSE | FALSE | TRUE (*pulse*) | FALSE | `STATE_IDLE` (0) |
+| `SERVO_READY` | FALSE | TRUE | FALSE | TRUE | `STATE_READY` (1) |
+| `RUNNING` | TRUE | FALSE | FALSE | TRUE | `STATE_RUNNING` (2) |
+| `DONE` | FALSE | FALSE | FALSE | FALSE | `STATE_DONE` (3) |
 
-> `resetOut` は `RESETTING` 状態中のみ `TRUE` となり、`RESET_PULSE_HOLD_TICKS` (20 ticks, 現行 `PlcTask` 1 ms 設定で約 20 ms) 後に自動的に `FALSE`/`IDLE` に遷移する。
+> `resetOut` は `RESETTING` 状態中のみ `TRUE` となり、`RESET_PULSE_HOLD_TICKS` (1 tick ≈ 10 ms @ 10 ms task) 後に自動的に `FALSE`/`IDLE` に遷移する。
 
 ---
 
@@ -150,7 +151,7 @@ MATLAB                              PLC (ModeManager)
 
 ## Watchdog
 
-- **Arm 条件**: `modeFlags <> 0` OR `experimentActive`
+- **Arm 条件**: `modeFlags <> 0` OR `experimentActive` OR `servoEnableLatched`
 - **タイムアウト**: `HEARTBEAT_TIMEOUT_TICKS` (50 ticks = 500 ms @ 10 ms task)
 - **効果**: `IDLE` に強制遷移 + `modeFlags := 0` + `experimentActive := FALSE` + `watchdogTripCounter++`
 - **解除**: ホスト側が `hostHeartbeatCounter` をインクリメントすると silence ticks リセット
@@ -175,8 +176,10 @@ MATLAB                              PLC (ModeManager)
 
 - `statWord` ← VirtualMotorCore (I/O Mapping 経由、DriverAdapter.statusWordOut)
 - `seqPlaybackDone` ← ExperimentSequencer (`GVL_SEQ.playbackDone`)
+- `loggerReadyIn` ← ExperimentLogger (`Outputs.loggerReady`)
 - `ctrlWord` → DriverAdapter (`controlWordIn`)
 - `experimentActiveOut` → ExperimentSequencer (`GVL_SEQ.experimentActive`) / ExperimentLogger
+- `preArmOut` → ExperimentLogger (`Inputs.preArmReq`)
 - `resetOut` → ExperimentSequencer (`GVL_SEQ.resetReq`) / ExperimentLogger
 
 ---
