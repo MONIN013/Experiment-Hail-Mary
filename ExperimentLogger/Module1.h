@@ -42,6 +42,10 @@ protected:
 	void CloseLogFile(bool flushRemaining);
 	bool FlushBuffer();
 	bool AppendCurrentInputsAsRecord();
+	bool HasPendingWrite() const;
+	bool HasBufferedRecords() const;
+	ULONG CurrentBufferIndex() const;
+	ULONG InactiveBufferIndex() const;
 	void UpdateStatusOutputs();
 	void ResolveFilePath(char* dst, size_t dstSize) const;
 	bool ValidateFilePath(const char* filePath);
@@ -110,7 +114,7 @@ protected:
 	static const ULONGLONG kDefaultTimestampStepNs = 1000000ULL;
 	static const ULONG kTimestampInitSkipCycles = 10;
 
-	LogRecord m_logBuffer[kBufferRecords];
+	LogRecord m_logBuffers[2][kBufferRecords];
 	char m_openPathBuffer[512];
 	ITcFileAccessAsyncPtr m_spFileAccessAsync;
 	bool m_fileAccessAsyncInitialized;
@@ -124,7 +128,10 @@ protected:
 	bool m_closeRequested;
 	bool m_closeFlushRequested;
 	bool m_reopenRequested;
-	ULONG m_bufferCount;
+	ULONG m_activeBufferIndex;
+	ULONG m_bufferCounts[2];
+	ULONG m_pendingWriteBufferIndex;
+	ULONG m_pendingWriteRecords;
 	ULONG m_seq;
 	ULONG m_recordsWritten;
 	ULONGLONG m_bytesWritten;

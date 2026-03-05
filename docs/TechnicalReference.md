@@ -340,7 +340,7 @@ position_next := position + dt * velocity_next
 | `logTargetCurrent` | `LREAL[]` | `controlInputTap + distValue` (DriverAdapter 相当の合計電流) |
 | `logPositionAct` | `LREAL[]` | DriverAdapter 出力 (`positionRelTap`) ※互換名 |
 | `logT` | `ULINT[]` | タイムスタンプ [ns] |
-| `logIdx` | `UDINT[]` | テーブルインデックス |
+| `logIdx` | `UDINT[]` | repeat をまたいだ出力サンプル絶対インデックス |
 
 ### 5.3 ログ書き込みロジック
 
@@ -360,7 +360,7 @@ logControlInput[wrPos] := controlInputTap       ← TcCOM からのタップ入�
 logTargetCurrent[wrPos] := controlInputTap + GVL_SEQ.distValue
 logPositionAct[wrPos]  := positionRelTap         ← TcCOM からのタップ入力
 logT[wrPos]            := tNs
-logIdx[wrPos]          := idx - 1                ← 出力済みインデックス
+logIdx[wrPos]          := trialIndex*tableLen + idx_before_increment
 
 wrIdx := wrIdx + 1
 
@@ -480,7 +480,8 @@ Offset   Size  型          フィールド
 
 | パラメータ | 値 | 説明 |
 |---|---|---|
-| `kBufferRecords` | **8,000** | 内部バッファ容量 (= 1 秒分 @ 8kHz ≈ 768 KB) |
+| `kBufferRecords` | **8,000** | 1バッファあたりの内部容量 |
+| writeバッファ本数 | **2** | 書き込み中バッファ + 追記用バッファ (ping-pong) |
 | ファイル I/O | `ITcFileAccessAsync` | TwinCAT 非同期ファイルアクセス |
 | タイムスタンプ間隔 | タスク周期から自動取得 | |
 
@@ -528,14 +529,15 @@ Offset   Size  型          フィールド
 
 4. FSM ポーリング:
      OPEN_WAIT  → PollAsyncOp() → 完了なら valid handle を確認して FSM=ACTIVE
-     WRITE_WAIT → PollAsyncOp() → 完了なら bytesWritten 加算, bufferCount=0, FSM=ACTIVE
+     WRITE_WAIT → PollAsyncOp() → 完了なら bytesWritten 加算, pending 側バッファを解放して FSM=ACTIVE
      CLOSE_WAIT → PollAsyncOp() → 完了なら fileHandle=0, FSM=IDLE
      いずれも失敗時は session abort + async object release + FSM=ERROR
 
-5. レコード追記 (`loggingReq=TRUE` & `playbackDone=FALSE` & FSM=ACTIVE & !sessionFailed):
-     LogRecord を内部バッファに追記
-     bufferCount >= kBufferRecords (8000) → StartAsyncWrite
-       → FSM: ACTIVE → WRITE_WAIT
+5. レコード追記 (`loggingReq=TRUE` & `playbackDone=FALSE` & !sessionFailed):
+     LogRecord を追記用バッファに追記
+     追記用バッファ満杯で FSM=ACTIVE なら StartAsyncWrite:
+       → 満杯バッファを WRITE_WAIT 側に固定し、もう一方へ追記継続
+     追記用バッファ満杯で FSM!=ACTIVE の場合は hard-fail (取りこぼし禁止)
 
 6. ステータス出力更新:
      LogStatus.recordsWritten = recordsWritten
@@ -780,7 +782,7 @@ ExperimentSequencer.playbackDone                            ──►  Experimen
 | `GVL_SEQ_LOG.logTargetCurrent` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 合計電流 |
 | `GVL_SEQ_LOG.logPositionAct` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 実位置 |
 | `GVL_SEQ_LOG.logT` | `ARRAY[0..199999] OF ULINT` | 1,600,000 | R | ログ: タイムスタンプ |
-| `GVL_SEQ_LOG.logIdx` | `ARRAY[0..199999] OF UDINT` | 800,000 | R | ログ: テーブルインデックス |
+| `GVL_SEQ_LOG.logIdx` | `ARRAY[0..199999] OF UDINT` | 800,000 | R | ログ: repeat をまたいだ絶対インデックス |
 
 ### 8.6 Port 351 — C++ TcCOM モジュール
 

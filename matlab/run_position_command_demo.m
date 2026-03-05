@@ -30,10 +30,10 @@ logger_path = "C:\ExperimentData\experiment_logger.bin";
 
 %% Experiment parameters
 target_position_rad = 0.25;
-step_duration_s     = 1.0;
+step_duration_s     = 3.0;
 hold_margin_s       = 0.50;
-pre_step_s          = 1.0;
-N_REPEAT            = 1;
+pre_step_s          = 3.0;
+N_REPEAT            = 3;
 
 %% VM 物理パラメータ
 vm_params = struct( ...

@@ -14,7 +14,7 @@ function log_data = read_experiment_logs(transport, log_n)
 %     .logTargetCurrent — double 合計電流
 %     .logPositionAct   — double 実位置
 %     .logT             — uint64 タイムスタンプ [ns]
-%     .logIdx           — uint32 テーブルインデックス
+%     .logIdx           — uint32 repeat をまたいだ絶対インデックス
 %     .wrIdx            — double 書き込みインデックス
 %     .overflow         — logical オーバーフロー検出
 

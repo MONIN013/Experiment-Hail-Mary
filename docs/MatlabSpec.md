@@ -248,14 +248,10 @@ $K_p = 180$ のとき:
 $$\omega_n = \sqrt{0.1 K_p} = \sqrt{18} = 4.24 \text{ rad/s}$$
 $$\zeta = \frac{d}{2\sqrt{m \, k_t \, K_p}} = \frac{6}{2\sqrt{0.1 \times 180}} = 0.707$$
 
-#### trial 境界抽出
+#### repeat 時の logIdx 契約
 
-`repeat_count > 1` のとき、`out.raw.logIdx` の負ジャンプで trial 境界を抽出する:
-
-```matlab
-idx_log  = out.raw.logIdx;
-boundary = [0; find(diff(idx_log) < 0); numel(idx_log)];
-```
+`repeat_count > 1` でも `out.raw.logIdx` は 0 からの**単調増加**（連続インデックス）とする。  
+つまり 10 秒波形を 10 回再生した場合、`logIdx` は 100 秒分を 1 本で入力した場合と同じ添字系列になる。
 
 `done_timeout_s` は `N_REPEAT * per_trial_s + hold_margin_s + 5.0` で計算される。
 

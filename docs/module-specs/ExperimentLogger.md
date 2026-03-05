@@ -43,13 +43,14 @@ ExperimentLogger is a binary file logger for experiment data. `Inputs.preArmReq`
 ## Runtime Behavior
 1. On `preArmReq` rising edge: reset session runtime state, begin file open, and enter the pre-armed `ACTIVE` state once the async open completes.
 2. On `loggingReq` rising edge: require the file FSM to already be `ACTIVE`; otherwise raise an error and mark the session failed.
-3. While `loggingReq = TRUE`, `playbackDone = FALSE`, the file FSM is `ACTIVE`, and the session is not failed: append one full `LogRecord` per cycle.
+3. While `loggingReq = TRUE`, `playbackDone = FALSE`, and the session is not failed: append one full `LogRecord` per cycle. During `WRITE_WAIT`, records continue to accumulate in a second in-memory buffer.
 4. On `playbackDone = TRUE`: stop appending within the same task scan.
 5. On `loggingReq` falling edge: flush remaining buffer and close the file.
 6. On `preArmReq` falling edge while `loggingReq = FALSE`: close any pre-opened file that never entered an active run.
 7. On `resetReq` rising edge: stop the session safely and reset runtime state once any pending async close completes.
 8. Async `OPEN_WAIT` / `WRITE_WAIT` / `CLOSE_WAIT` failures must not remain latched in a wait state. The module aborts the session, releases `ITcFileAccessAsync`, transitions to `ERROR` (or `IDLE` after reset teardown), and preserves the raw failure code in `errorCode`.
 9. `OPEN_WAIT` completion validates the returned file handle before declaring the logger ready. A completed open without a valid handle is treated as a hard failure.
+10. On `loggingReq` falling edge, buffered records are drained in order (`Write -> Write -> ... -> Close`) so records captured during `WRITE_WAIT` are not dropped.
 
 ## Mapping (SIL)
 - `loadPosition <- DriverAdapter.positionRel` (D12: ControllerCore.positionRel から変更)

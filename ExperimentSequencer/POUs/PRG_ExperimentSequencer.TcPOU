@@ -17,6 +17,7 @@ VAR
     logWriteIdx : DINT := 0;
     wrPos : UDINT := 0;
     loggedIdx : UDINT := 0;
+    absoluteIdxBase : UDINT := 0;
     targetCurrentLocal : LREAL := 0.0;
     seqState : E_SeqState := E_SeqState.IDLE;
 END_VAR
@@ -91,6 +92,8 @@ ELSE
                 refValueLocal := GVL_SEQ.refTable[tableIdxDint];
                 ffValueLocal := GVL_SEQ.ffTable[tableIdxDint];
                 distValueLocal := GVL_SEQ.distTable[tableIdxDint];
+                absoluteIdxBase := GVL_SEQ.trialIndex * tableLenLocal;
+                loggedIdx := absoluteIdxBase + GVL_SEQ.idx;
 
                 GVL_SEQ.refValue := refValueLocal;
                 GVL_SEQ.ffValue := ffValueLocal;
@@ -98,13 +101,15 @@ ELSE
 
                 GVL_SEQ.idx := GVL_SEQ.idx + 1;
                 sampleEmittedThisScan := TRUE;
-            ELSE
-                IF GVL_SEQ.trialIndex < (GVL_SEQ.repeatCount - 1) THEN
-                    GVL_SEQ.idx := 0;
-                    GVL_SEQ.trialIndex := GVL_SEQ.trialIndex + 1;
-                ELSE
-                    GVL_SEQ.playbackDone := TRUE;
-                    seqState := E_SeqState.COMPLETE;
+
+                IF GVL_SEQ.idx >= tableLenLocal THEN
+                    IF GVL_SEQ.trialIndex >= (GVL_SEQ.repeatCount - 1) THEN
+                        GVL_SEQ.playbackDone := TRUE;
+                        seqState := E_SeqState.COMPLETE;
+                    ELSE
+                        GVL_SEQ.idx := 0;
+                        GVL_SEQ.trialIndex := GVL_SEQ.trialIndex + 1;
+                    END_IF
                 END_IF
             END_IF
 
@@ -133,7 +138,6 @@ GVL_SEQ.seqState := seqState;
 GVL_SEQ.seqError := (seqState = E_SeqState.FAULT);
 
 IF sampleEmittedThisScan THEN
-    loggedIdx := GVL_SEQ.idx - 1;
     wrPos := GVL_SEQ_LOG.wrIdx MOD GVL_SEQ_LOG.LOG_N;
     logWriteIdx := UDINT_TO_DINT(wrPos);
     targetCurrentLocal := GVL_SEQ_LOG.controlInputTap + GVL_SEQ.distValue;

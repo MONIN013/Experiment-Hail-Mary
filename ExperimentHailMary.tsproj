@@ -375,7 +375,7 @@
 				</Instance>
 			</Project>
 			<Project GUID="{54AD89C8-6B39-47E6-B85F-F4753C89F02E}" Name="ExperimentSequencer" PrjFilePath="ExperimentSequencer\ExperimentSequencer.plcproj" TmcFilePath="ExperimentSequencer\ExperimentSequencer.tmc" ReloadTmc="true" AmsPort="853" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{8129756A-F205-D0D8-12D2-D4A55104DF43}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
+				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{2E37A631-0334-0496-70FD-9DDCAB055E8E}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
 					<Name>ExperimentSequencer Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
