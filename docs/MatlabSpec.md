@@ -146,6 +146,9 @@ ControllerCore の biquad フィルタパラメータ (4 段カスケード) を
   - `wrIdx`, `overflow`
 - 読出し失敗時は warning + 空 struct 返却
 
+> `GVL_SEQ_LOG` は段階移行中の fallback パスとして維持する。  
+> 正規の評価は `ExperimentLogger` の bin 読み取りを優先する。
+
 ---
 
 ## §5 RunConfig
@@ -191,6 +194,11 @@ ControllerCore の biquad フィルタパラメータ (4 段カスケード) を
 | `dist_profile` | zeros(N,1) | 外乱テーブル |
 | `mode_flags_symbol` | `SystemConfig.position_command_defaults()` | modeFlags 正規シンボル |
 | `repeat_count` | `1` | 同一テーブルの連続再生回数 |
+| `module_transport` | `[]` | `ExperimentLogger` ステータス取得用 ADS transport (任意) |
+
+`send_position_command` は戻り値 `out.logger` を返す。  
+`out.logger` には `ready_before/after`, `error_before/after`, `records_before/after`,
+`file_released`, `file_probe_detail` が含まれる。
 
 ---
 
@@ -214,7 +222,9 @@ P 制御ステップ応答デモ（同一 trial を `N_REPEAT` 回連続再生�
 5. 3 本の ADS トランスポートを生成・接続 (SEQ=853, CTRL=852, MODULE=351)
 6. `write_vm_params` / `write_controller_params` でパラメータを TcCOM に書込み (Port 351)
 7. `send_position_command` で実験実行・完了待ち（`repeat_count=N_REPEAT`）
-8. 結果を標準出力に表示し、位置応答・制御入力をプロット
+8. `out.logger` を使って `ExperimentLogger` の状態を判定し、bin 読み取りを試行
+9. bin が有効なら bin を採用、失敗時は `GVL_SEQ_LOG` に fallback
+10. 採用したソースを `logSource` として表示し、位置応答・制御入力をプロット
 
 #### 現在の設定パラメータ
 

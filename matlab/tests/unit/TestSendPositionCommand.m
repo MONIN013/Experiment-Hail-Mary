@@ -35,6 +35,14 @@ classdef TestSendPositionCommand < matlab.unittest.TestCase
       testCase.verifyTrue(out.host.done);
       testCase.verifyFalse(out.host.timed_out);
       testCase.verifyEqual(out.cmd.repeat_count, 1);
+      testCase.verifyTrue(isfield(out, "logger"));
+      testCase.verifyEqual(string(out.logger.file_path), "C:\ExperimentData\experiment_logger.bin");
+      testCase.verifyFalse(out.logger.ready_before);
+      testCase.verifyFalse(out.logger.ready_after);
+      testCase.verifyEqual(double(out.logger.error_before), 0);
+      testCase.verifyEqual(double(out.logger.error_after), 0);
+      testCase.verifyEqual(double(out.logger.records_before), 0);
+      testCase.verifyEqual(double(out.logger.records_after), 0);
     end
 
     function defaultsFillFfAndDistProfiles(testCase)
@@ -332,6 +340,37 @@ classdef TestSendPositionCommand < matlab.unittest.TestCase
       testCase.verifyTrue(out.host.done);
       testCase.verifyFalse(out.host.timed_out);
     end
+
+    function readsLoggerStatusWhenModuleTransportIsProvided(testCase)
+      plc = MockAdsTransport();
+      ctrl = MockAdsTransport();
+      mod = MockAdsTransport();
+      seed_plc_state(plc);
+      seed_control_state(ctrl);
+      seed_module_state(mod);
+      ctrl.set_scalar_read_sequence("GVL_MODE.experimentState", uint32([0; 1; 2; 3]));
+      mod.set_scalar_read_sequence("ExperimentLogger_Obj1 (Module1).Outputs.loggerReady", logical([false; true]));
+      mod.set_scalar_read_sequence("ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.errorCode", uint32([0; 0]));
+      mod.set_scalar_read_sequence("ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.recordsWritten", uint32([0; 12]));
+
+      out = experiment.send_position_command( ...
+        "ams_net_id", "192.168.10.3.1.1", ...
+        "ams_port", 853, ...
+        "control_ams_port", 852, ...
+        "ref_profile", [0.1; 0.2], ...
+        "plc_transport", plc, ...
+        "control_transport", ctrl, ...
+        "module_transport", mod, ...
+        "validate_symbols", false, ...
+        "read_logs", false, ...
+        "done_timeout_s", 0.05, ...
+        "reset_timeout_s", 0.05);
+
+      testCase.verifyFalse(out.logger.ready_before);
+      testCase.verifyTrue(out.logger.ready_after);
+      testCase.verifyEqual(uint32(out.logger.error_after), uint32(0));
+      testCase.verifyEqual(uint32(out.logger.records_after), uint32(12));
+    end
 end
 end
 
@@ -366,6 +405,12 @@ t.scalarMap("GVL_MODE.experimentState") = uint32(0);
 t.scalarMap("GVL_MODE.resetReq") = false;
 t.scalarMap("GVL_MODE.resetAckCounter") = uint32(0);
 t.scalarMap("GVL_MODE.hostHeartbeatCounter") = uint32(0);
+end
+
+function seed_module_state(t)
+t.scalarMap("ExperimentLogger_Obj1 (Module1).Outputs.loggerReady") = false;
+t.scalarMap("ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.errorCode") = uint32(0);
+t.scalarMap("ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.recordsWritten") = uint32(0);
 end
 
 function seed_log_arrays(t)

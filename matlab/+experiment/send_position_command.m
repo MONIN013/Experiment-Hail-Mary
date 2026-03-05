@@ -3,11 +3,16 @@ cfg = experiment.PositionCommandConfig.from_varargin(varargin{:});
 plc_symbols = experiment.VirtualMotorSymbols.from_defaults();
 plc_transport = [];
 ctrl_transport = [];
+module_transport = [];
 mode_flags_transport = [];
 owns_transport = false;
 owns_ctrl_transport = false;
+owns_module_transport = false;
 owns_mode_flags_transport = false;
 mode_flags_symbol = "";
+logger_path = "C:\ExperimentData\experiment_logger.bin";
+logger_before = empty_logger_status(logger_path);
+logger_after = empty_logger_status(logger_path);
 
 if isempty(cfg.plc_transport)
   plc_transport = twincat_ads.AdsTransport("ads_assembly", cfg.ads_assembly);
@@ -41,6 +46,16 @@ else
   ctrl_transport = cfg.control_transport;
 end
 
+if isempty(cfg.module_transport)
+  module_transport = [];
+else
+  if ~isa(cfg.module_transport, "twincat_ads.IAdsTransport")
+    error("experiment:position_command:invalidConfig", ...
+      "module_transport must implement twincat_ads.IAdsTransport.");
+  end
+  module_transport = cfg.module_transport;
+end
+
 if cfg.validate_symbols
   twincat_ads.SymbolBrowser.validate_symbols(plc_transport, plc_symbols.plcRequiredProbes);
 end
@@ -55,7 +70,8 @@ heartbeat_state = experiment.ModeManagerControl.init_heartbeat( ...
 [ctrl, mode_flags_symbol] = resolve_mode_flags_symbol( ...
   cfg, mode_flags_transport, ctrl, plc_symbols);
 cleanup_obj = onCleanup(@()cleanup_transports( ...
-  plc_transport, ctrl_transport, mode_flags_transport, owns_transport, owns_ctrl_transport, ...
+  plc_transport, ctrl_transport, module_transport, mode_flags_transport, ...
+  owns_transport, owns_ctrl_transport, owns_module_transport, ...
   owns_mode_flags_transport, plc_symbols, mode_flags_symbol)); %#ok<NASGU>
 assert_split_port_modeflags_config(cfg, plc_transport, ctrl_transport, ctrl);
 done = false;
@@ -65,6 +81,10 @@ servo_ready_check_supported = false;
 servo_ready_diag = struct();
 control_runtime_diag = struct();
 t_run = tic;
+
+if ~isempty(module_transport)
+  logger_before = read_logger_status(module_transport, t, logger_path);
+end
 
 write_mode_flags(mode_flags_transport, ctrl, uint32(0));
 plc_transport.write_scalar(plc_symbols.tableLen, uint32(0), t.u32);
@@ -133,6 +153,11 @@ end
 write_mode_flags(mode_flags_transport, ctrl, uint32(0));
 elapsed_s = toc(t_run);
 
+if ~isempty(module_transport)
+  logger_after = read_logger_status(module_transport, t, logger_path);
+  [logger_after.file_released, logger_after.file_probe_detail] = probe_logger_file_release(logger_path);
+end
+
 position_last = double(plc_transport.read_scalar(plc_symbols.positionActLog, t.double));
 control_input_last = double(plc_transport.read_scalar(plc_symbols.controlInput, t.double));
 
@@ -185,11 +210,21 @@ out.raw = struct( ...
   "logIdx", log_data.logIdx, ...
   "log_wrIdx", log_data.wrIdx, ...
   "log_overflow", logical(log_data.overflow));
+out.logger = struct( ...
+  "file_path", char(string(logger_path)), ...
+  "ready_before", logical(logger_before.ready), ...
+  "ready_after", logical(logger_after.ready), ...
+  "error_before", double(logger_before.error_code), ...
+  "error_after", double(logger_after.error_code), ...
+  "records_before", double(logger_before.records_written), ...
+  "records_after", double(logger_after.records_written), ...
+  "file_released", logical(logger_after.file_released), ...
+  "file_probe_detail", char(string(logger_after.file_probe_detail)));
 out.eval = build_count_eval(out.cmd, out.raw);
 end
 
-function cleanup_transports(plc_transport, ctrl_transport, mode_flags_transport, ...
-    owns_transport, owns_ctrl_transport, owns_mode_flags_transport, plc_symbols, mode_flags_symbol)
+function cleanup_transports(plc_transport, ctrl_transport, module_transport, mode_flags_transport, ...
+    owns_transport, owns_ctrl_transport, owns_module_transport, owns_mode_flags_transport, plc_symbols, mode_flags_symbol)
 if isempty(plc_transport) && isempty(ctrl_transport)
   return;
 end
@@ -197,9 +232,18 @@ end
 same_transport = ~isempty(plc_transport) && ~isempty(ctrl_transport) && (plc_transport == ctrl_transport);
 same_mode_ctrl = ~isempty(mode_flags_transport) && ~isempty(ctrl_transport) && (mode_flags_transport == ctrl_transport);
 same_mode_plc = ~isempty(mode_flags_transport) && ~isempty(plc_transport) && (mode_flags_transport == plc_transport);
+same_module_plc = ~isempty(module_transport) && ~isempty(plc_transport) && (module_transport == plc_transport);
+same_module_ctrl = ~isempty(module_transport) && ~isempty(ctrl_transport) && (module_transport == ctrl_transport);
+same_module_mode = ~isempty(module_transport) && ~isempty(mode_flags_transport) && (module_transport == mode_flags_transport);
 if owns_mode_flags_transport && ~same_mode_ctrl && ~same_mode_plc
   try
     mode_flags_transport.disconnect();
+  catch
+  end
+end
+if owns_module_transport && ~same_module_plc && ~same_module_ctrl && ~same_module_mode
+  try
+    module_transport.disconnect();
   catch
   end
 end
@@ -463,4 +507,48 @@ end
 
 function invalid_config(varargin)
 error("experiment:position_command:invalidConfig", varargin{:});
+end
+
+function status = empty_logger_status(logger_path)
+status = struct( ...
+  "file_path", char(string(logger_path)), ...
+  "ready", false, ...
+  "error_code", 0, ...
+  "records_written", 0, ...
+  "file_released", false, ...
+  "file_probe_detail", "");
+end
+
+function status = read_logger_status(module_transport, net_types, logger_path)
+status = empty_logger_status(logger_path);
+ready_symbol = "ExperimentLogger_Obj1 (Module1).Outputs.loggerReady";
+error_symbol = "ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.errorCode";
+records_symbol = "ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.recordsWritten";
+status.ready = logical(read_logger_scalar_or_default(module_transport, ready_symbol, net_types.bool, false));
+status.error_code = uint32(read_logger_scalar_or_default(module_transport, error_symbol, net_types.u32, uint32(0)));
+status.records_written = uint32(read_logger_scalar_or_default(module_transport, records_symbol, net_types.u32, uint32(0)));
+end
+
+function value = read_logger_scalar_or_default(module_transport, symbol, net_type, fallback_value)
+try
+  value = module_transport.read_scalar(symbol, net_type);
+catch
+  value = fallback_value;
+end
+end
+
+function [released, detail] = probe_logger_file_release(log_path)
+released = false;
+detail = "file-missing";
+if ~isfile(log_path)
+  return;
+end
+[fid, msg] = fopen(log_path, "a");
+if fid < 0
+  detail = string(msg);
+  return;
+end
+fclose(fid);
+released = true;
+detail = "append-open-succeeded";
 end

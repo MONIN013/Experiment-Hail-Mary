@@ -25,6 +25,7 @@ classdef PositionCommandConfig
 
     plc_transport = []
     control_transport = []
+    module_transport = []
 
     mode_flags_symbol = ""
     mode_flags_ams_port = []
@@ -56,6 +57,7 @@ classdef PositionCommandConfig
       p.addParameter("validate_symbols", true, @(x) islogical(x) || isnumeric(x));
       p.addParameter("plc_transport", [], @(x) isempty(x) || isa(x, "twincat_ads.IAdsTransport"));
       p.addParameter("control_transport", [], @(x) isempty(x) || isa(x, "twincat_ads.IAdsTransport"));
+      p.addParameter("module_transport", [], @(x) isempty(x) || isa(x, "twincat_ads.IAdsTransport"));
       p.addParameter("mode_flags_symbol", defaults.mode_flags_symbol, @(x) ischar(x) || isstring(x));
       p.addParameter("mode_flags_ams_port", [], @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
       p.addParameter("mode_flags_transport", [], @(x) isempty(x) || isa(x, "twincat_ads.IAdsTransport"));

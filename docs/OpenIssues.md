@@ -1,6 +1,6 @@
 # Open Issues
 
-> **更新:** 2026-03-04
+> **更新:** 2026-03-05
 
 ---
 
@@ -92,3 +92,16 @@
 4. `run_check_logger_bin.m` 等で `currentCmd` が期待波形で記録されることを確認
 
 状態: **未着手（ドキュメント側のみ反映済み）**
+
+---
+
+## 4. `GVL_SEQ_LOG` 段階移行 (Issue #5)
+
+`ExperimentLogger` 優先化と `GVL_SEQ_LOG` 段階撤去の計画は以下を正本とする:
+
+- [GvlSeqLogMigrationPlan.md](GvlSeqLogMigrationPlan.md)
+
+現時点のフェーズ: **Phase A**
+
+- `run_position_command_demo.m` は `ExperimentLogger` を優先判定
+- `GVL_SEQ_LOG` は fallback として維持

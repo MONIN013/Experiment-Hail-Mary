@@ -1,0 +1,69 @@
+# GVL_SEQ_LOG 段階移行計画
+
+> 作成日: 2026-03-05  
+> 対象 issue: `#5`  
+> 方針: `ExperimentLogger` 優先、`GVL_SEQ_LOG` は段階的に縮退
+
+## 1. 目的
+
+`GVL_SEQ_LOG` は SIL 期の暫定リングバッファとして機能しているが、長期運用では
+`ExperimentLogger` (ファイルロギング) を正規パスに統一する。
+本計画は「即時撤去」ではなく、実行経路を安全に段階移行するための基準を定義する。
+
+## 2. フェーズ定義
+
+### Phase A (現行)
+- `run_position_command_demo.m` は `ExperimentLogger` を優先評価する
+- `GVL_SEQ_LOG` は fallback として残す
+- `send_position_command` は `out.logger` を返し、logger 状態を可視化する
+
+### Phase B
+- fallback 利用をデバッグ/CI 限定に縮小
+- 通常手順は `ExperimentLogger` のみを合否判定に使用
+- `GVL_SEQ_LOG` 依存テストを段階的に分離
+
+### Phase C
+- MATLAB からの `GVL_SEQ_LOG` 読み取り導線を削除
+- PLC 側 `GVL_SEQ_LOG` の定義・配線・メモリを撤去
+- 関連ドキュメントを `ExperimentLogger` 単一パスに更新
+
+## 3. 依存関係棚卸し (2026-03-05)
+
+### コード
+- `matlab/+experiment/VirtualMotorSymbols.m` (`GVL_SEQ_LOG.*` シンボル定義)
+- `matlab/+experiment/read_experiment_logs.m` (`GVL_SEQ_LOG` 一括読出し)
+- `matlab/+experiment/send_position_command.m` (`GVL_SEQ_LOG` fallback 読出し)
+- `matlab/+experiment/VirtualMotorService.m` (`GVL_SEQ_LOG` ストリーミング)
+- `ExperimentSequencer/GVLs/GVL_SEQ_LOG.TcGVL`
+- `ExperimentSequencer/POUs/PRG_ExperimentSequencer.TcPOU`
+
+### テスト
+- `matlab/tests/unit/TestSendPositionCommand.m`
+- `matlab/tests/unit/TestVirtualMotorService.m`
+- `matlab/tests/unit/TestWriteHelpers.m`
+- `matlab/tests/unit/TestVirtualMotorSymbols.m`
+
+### ドキュメント
+- `docs/MatlabSpec.md`
+- `docs/TechnicalReference.md`
+- `docs/ExperimentProcedure.md`
+- `docs/ArchitectureSpec.md`
+
+## 4. Phase A 完了条件
+
+- `run_position_command_demo.m` が logger 優先判定で実行できる
+- `out.logger.error_after == 0` かつ `out.logger.records_after > 0` の確認手段がある
+- logger 読み取り失敗時に `GVL_SEQ_LOG` fallback へ退避できる
+- 既存 MATLAB テストに回帰がない
+
+## 5. Phase B/C への進行条件
+
+### B 進行条件
+- logger 優先パスで連続 3 回以上の実行が安定
+- fallback が常用されていないことをログで確認
+- 主要解析フローが bin 読み取りを前提に成立
+
+### C 進行条件
+- `GVL_SEQ_LOG` 依存コード/テストの移行先がすべて確定
+- PLC メモリ削減効果とリスクをレビュー済み
+- `TechnicalReference` / `MatlabSpec` の更新案が揃っている

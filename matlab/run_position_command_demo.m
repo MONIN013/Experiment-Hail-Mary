@@ -22,10 +22,6 @@ seq_port       = sys.SEQ_PORT;
 control_port   = sys.CONTROL_PORT;
 module_port    = sys.MODULE_PORT;
 task_rate_hz   = sys.TASK_RATE_HZ;
-t = twincat_ads.AdsTransport.net_types();
-logger_error_symbol = "ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.errorCode";
-logger_records_symbol = "ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.recordsWritten";
-logger_ready_symbol = "ExperimentLogger_Obj1 (Module1).Outputs.loggerReady";
 logger_path = "C:\ExperimentData\experiment_logger.bin";
 
 %% Experiment parameters
@@ -81,12 +77,6 @@ ctrl_transport.connect(ams_net_id, control_port);
 mod_transport.connect(ams_net_id, module_port);
 fprintf("Connected: SEQ=%d, CTRL=%d, MODULE=%d\n", seq_port, control_port, module_port);
 
-logger_error_before = uint32(mod_transport.read_scalar(char(logger_error_symbol), t.u32));
-logger_records_before = uint32(mod_transport.read_scalar(char(logger_records_symbol), t.u32));
-logger_ready_before = logical(mod_transport.read_scalar(char(logger_ready_symbol), t.bool));
-fprintf("Logger before: ready=%d error=0x%08X records=%u\n", ...
-  logger_ready_before, logger_error_before, logger_records_before);
-
 %% パラメータ書込み
 experiment.write_vm_params(mod_transport, char(sys.VM_PREFIX), vm_params, experiment.SystemConfig.task_dt_ns());
 experiment.write_controller_params(mod_transport, char(sys.CTRL_PREFIX), ctrl_params);
@@ -109,13 +99,20 @@ out = experiment.send_position_command( ...
   "hold_seconds", per_trial_s + hold_margin_s, ...
   "plc_transport", seq_transport, ...
   "control_transport", ctrl_transport, ...
+  "module_transport", mod_transport, ...
   "mode_flags_transport", ctrl_transport, ...
   "validate_symbols", true);
-
-logger_error_after = uint32(mod_transport.read_scalar(char(logger_error_symbol), t.u32));
-logger_records_after = uint32(mod_transport.read_scalar(char(logger_records_symbol), t.u32));
-logger_ready_after = logical(mod_transport.read_scalar(char(logger_ready_symbol), t.bool));
-[logger_file_released, logger_file_probe] = probe_logger_file_release(logger_path);
+logger_bin = [];
+if out.logger.error_after == 0 && out.logger.records_after > 0 && out.logger.file_released
+  try
+    logger_bin = experiment.read_logger_bin(logger_path);
+  catch e
+    warning("experiment:demo:loggerBinReadFailed", ...
+      "ExperimentLogger bin read failed (%s: %s). Falling back to GVL_SEQ_LOG.", ...
+      string(e.identifier), string(e.message));
+  end
+end
+selected = experiment.resolve_demo_log_source(out, logger_bin);
 
 %% 結果出力
 fprintf("\n--- Result ---\n");
@@ -123,8 +120,10 @@ fprintf("done=%d  timed_out=%d  overflow=%d  position_last=%.6f rad\n", ...
   logical(out.host.done), logical(out.host.timed_out), ...
   logical(out.raw.log_overflow), out.raw.position_last);
 fprintf("loggerReady(before/after)=%d/%d  loggerError(before/after)=0x%08X/0x%08X  loggerRecords(after)=%u\n", ...
-  logger_ready_before, logger_ready_after, logger_error_before, logger_error_after, logger_records_after);
-fprintf("loggerFileReleased=%s (%s)\n", passfail(logger_file_released), logger_file_probe);
+  logical(out.logger.ready_before), logical(out.logger.ready_after), ...
+  uint32(out.logger.error_before), uint32(out.logger.error_after), uint32(out.logger.records_after));
+fprintf("loggerFileReleased=%s (%s)\n", passfail(out.logger.file_released), string(out.logger.file_probe_detail));
+fprintf("logSource=%s (%s)\n", selected.source_name, string(selected.diagnostics.reason));
 
 print_count_eval(out.eval);
 
@@ -141,20 +140,23 @@ end
 
 if logical(out.host.timed_out)
   fprintf("Timeout diag: experimentState=%s loggerError=0x%08X loggerReady=%d\n", ...
-    fmt_diag_value(out.host.control_runtime_diag.experimentState), logger_error_after, logger_ready_after);
+    fmt_diag_value(out.host.control_runtime_diag.experimentState), uint32(out.logger.error_after), logical(out.logger.ready_after));
 end
 
 %% プロット
-n_log = numel(out.raw.logPositionAct);
+n_log = numel(selected.signals.position_act);
 if n_log > 0
-  t_log = (0:n_log-1)' / task_rate_hz;
+  t_log = selected.signals.time_s;
+  if isempty(t_log)
+    t_log = (0:n_log-1)' / task_rate_hz;
+  end
 
   figure("Name", "P Control Position Demo", "Color", "w");
   tiledlayout(2, 1, "Padding", "compact", "TileSpacing", "compact");
 
   nexttile;
-  plot(t_log, out.raw.logRefValue,     "-",  "Color", [0.6 0.6 0.6], "LineWidth", 0.8, "DisplayName", "ref"); hold on;
-  plot(t_log, out.raw.logPositionAct,  "-",  "Color", [0.1 0.6 0.2], "LineWidth", 1.2, "DisplayName", "positionRel");
+  plot(t_log, selected.signals.ref_value,     "-",  "Color", [0.6 0.6 0.6], "LineWidth", 0.8, "DisplayName", "ref"); hold on;
+  plot(t_log, selected.signals.position_act,  "-",  "Color", [0.1 0.6 0.2], "LineWidth", 1.2, "DisplayName", "positionRel");
   hold off;
   grid on; xlabel("Time [s]"); ylabel("Position [rad]");
   legend("Location", "best");
@@ -162,9 +164,9 @@ if n_log > 0
     Kp, N_REPEAT, vm_params.m, vm_params.d, vm_params.rated_current));
 
   nexttile;
-  plot(t_log, out.raw.logControlInput, "-",  "Color", [0.8 0.2 0.7], "LineWidth", 1.2, "DisplayName", "controlInput"); hold on;
-  if ~isempty(out.raw.logTargetCurrent)
-    plot(t_log, out.raw.logTargetCurrent, "--", "Color", [0.9 0.2 0.2], "LineWidth", 0.8, "DisplayName", "targetCurrent");
+  plot(t_log, selected.signals.control_input, "-",  "Color", [0.8 0.2 0.7], "LineWidth", 1.2, "DisplayName", "controlInput"); hold on;
+  if ~isempty(selected.signals.target_current)
+    plot(t_log, selected.signals.target_current, "--", "Color", [0.9 0.2 0.2], "LineWidth", 0.8, "DisplayName", "targetCurrent");
   end
   hold off;
   grid on; xlabel("Time [s]"); ylabel("Current [A]");
@@ -196,24 +198,6 @@ end
 
 function s = passfail(flag)
 if logical(flag), s = "OK"; else, s = "NG"; end
-end
-
-function [released, detail] = probe_logger_file_release(log_path)
-released = false;
-detail = "file-missing";
-if ~isfile(log_path)
-  return;
-end
-
-[fid, msg] = fopen(log_path, "a");
-if fid < 0
-  detail = string(msg);
-  return;
-end
-
-fclose(fid);
-released = true;
-detail = "append-open-succeeded";
 end
 
 function s = fmt_diag_value(v)
