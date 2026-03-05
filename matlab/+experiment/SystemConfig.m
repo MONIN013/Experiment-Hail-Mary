@@ -11,7 +11,7 @@ classdef SystemConfig
     AMS_NET_ID         = "192.168.10.3.1.1"   % XAR の AMS Net ID
 
     % --- ポート番号 ---
-    SEQ_PORT           = 853     % ExperimentSequencer (GVL_SEQ / GVL_SEQ_LOG)
+    SEQ_PORT           = 853     % ExperimentSequencer (GVL_SEQ)
     CONTROL_PORT       = 852     % StateMachineControl / ModeManager (GVL_MODE)
     DRIVER_PORT        = 851     % DriverAdapter (GVL_DRV)
     MODULE_PORT        = 351     % C++ TcCOM (ControllerCore / VirtualMotorCore / ExperimentLogger)
@@ -27,7 +27,7 @@ classdef SystemConfig
     MODE_FLAGS_SYMBOL  = "GVL_MODE.modeFlags"  % modeFlags 正規書込み先
 
     % --- ログ / テーブル ---
-    LOG_N              = 200000  % GVL_SEQ_LOG リングバッファサイズ
+    LOG_N              = 200000  % legacy constant (unused by logger path)
     TABLE_MAX_N        = 100000  % refTable / ffTable / distTable 最大長
   end
 

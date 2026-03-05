@@ -119,7 +119,6 @@ t = twincat_ads.AdsTransport.net_types();
 scalar_checks = {
   sys.SEQ_PORT,     "GVL_SEQ.tableLen",          t.u32,    "tableLen"
   sys.CONTROL_PORT, "GVL_MODE.experimentState",   t.u32,    "experimentState"
-  sys.SEQ_PORT,     "GVL_SEQ_LOG.LOG_N",          t.u32,    "LOG_N"
 };
 for k = 1:size(scalar_checks, 1)
   port = scalar_checks{k, 1};

@@ -22,9 +22,6 @@ classdef TestSymbolBrowserContract < matlab.unittest.TestCase
       transport.scalarMap(char(s.distValue)) = 0.0;
       transport.scalarMap(char(s.controlInput)) = 0.0;
       transport.scalarMap(char(s.positionActLog)) = 0.0;
-      transport.scalarMap(char(s.log.wrIdx)) = uint32(0);
-      transport.scalarMap(char(s.log.rdIdx)) = uint32(0);
-      transport.scalarMap(char(s.log.overflow)) = false;
       testCase.verifyWarningFree( ...
         @()twincat_ads.SymbolBrowser.validate_symbols(transport, s.plcRequiredProbes));
     end

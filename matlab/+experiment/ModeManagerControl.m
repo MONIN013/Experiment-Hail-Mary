@@ -114,16 +114,14 @@ classdef ModeManagerControl
       t = plc_symbols.types;
       t0 = tic;
       ready = false;
-      diag = struct("wr_idx", NaN, "idx", NaN, "experiment_active", false);
+      diag = struct("idx", NaN, "experiment_active", false);
       while toc(t0) < timeout_s
-        wr_idx = double(plc_transport.read_scalar(plc_symbols.log.wrIdx, t.u32));
         idx = double(plc_transport.read_scalar(plc_symbols.idx, t.u32));
         exp_active = experiment.ModeManagerControl.try_read_experiment_active( ...
           control_transport, ctrl, t);
-        diag.wr_idx = wr_idx;
         diag.idx = idx;
         diag.experiment_active = logical(exp_active);
-        ready = (wr_idx == 0) && (idx == 0) && (~exp_active);
+        ready = (idx == 0) && (~exp_active);
         if ready
           return;
         end

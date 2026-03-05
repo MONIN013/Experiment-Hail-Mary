@@ -64,7 +64,7 @@ metrics.acceptance.logNot_overflowed = ~metrics.log.overflow;
 metrics.notes = {
   "ExperimentSequencer contract: ref/ff/dist table replay (DriverAdapter combines current-domain controlInput + distValue, and the resulting command current is recorded in logs)."
   "ControllerCore contract: controlInput = u_fb + ffValue."
-  "VirtualMotorCore position is logged via GVL_SEQ_LOG.positionRelTap."
+  "VirtualMotorCore position is logged via ExperimentLogger load_position."
 };
 end
 

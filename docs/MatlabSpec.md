@@ -38,7 +38,7 @@ MATLAB からは **ADS 通信**（.NET Interop 経由 `TcAdsClient`）でパラ�
 | プロパティ | 型 | 値 | 説明 |
 |---|---|---|---|
 | `AMS_NET_ID` | string | `"192.168.10.3.1.1"` | XAR の AMS Net ID |
-| `SEQ_PORT` | double | `853` | ExperimentSequencer (GVL_SEQ / GVL_SEQ_LOG) |
+| `SEQ_PORT` | double | `853` | ExperimentSequencer (GVL_SEQ / ExperimentLogger) |
 | `CONTROL_PORT` | double | `852` | StateMachineControl / ModeManager (GVL_MODE) |
 | `DRIVER_PORT` | double | `851` | DriverAdapter (GVL_DRV) |
 | `MODULE_PORT` | double | `351` | C++ TcCOM (ControllerCore / VirtualMotorCore / ExperimentLogger) |
@@ -46,7 +46,7 @@ MATLAB からは **ADS 通信**（.NET Interop 経由 `TcAdsClient`）でパラ�
 | `VM_PREFIX` | string | `"VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter."` | VM パラメータシンボルプレフィクス |
 | `CTRL_PREFIX` | string | `"ControllerCore_Obj1 (Module1)."` | Controller パラメータシンボルプレフィクス |
 | `MODE_FLAGS_SYMBOL` | string | `"GVL_MODE.modeFlags"` | modeFlags 正規書込み先シンボル |
-| `LOG_N` | double | `200000` | GVL_SEQ_LOG リングバッファサイズ |
+| `LOG_N` | double | `200000` | ExperimentLogger リングバッファサイズ |
 | `TABLE_MAX_N` | double | `100000` | refTable / ffTable / distTable 最大長 |
 
 ### Static メソッド
@@ -68,7 +68,7 @@ MATLAB からは **ADS 通信**（.NET Interop 経由 `TcAdsClient`）でパラ�
 | `RunConfig` | `run_virtualmotor` / `VirtualMotorService` 用のフル実験 runtime config |
 | `PositionCommandConfig` | `send_position_command` 用の PLC-only runtime config |
 
-後方互換のための別経路や hidden fallback は提供しない。`send_position_command` の独自 parser は廃止し、`PositionCommandConfig` を唯一の正本とする。
+後方互換のための別経路や hidden 代替経路 は提供しない。`send_position_command` の独自 parser は廃止し、`PositionCommandConfig` を唯一の正本とする。
 
 ---
 
@@ -133,9 +133,9 @@ ControllerCore の biquad フィルタパラメータ (4 段カスケード) を
 
 > **注:** 各ステージのフィールド名は C++ 構造体 (`ST_PID`, `ST_PhaseLead`, `ST_Notch`, `ST_Reso`) に準拠。
 
-### §4.6 read_experiment_logs(transport, log_n)
+### §4.6 read_logger_bin(transport, log_n)
 
-`GVL_SEQ_LOG` からログを一括読出す（上位読取方式、非ストリーミング）。
+`ExperimentLogger` からログを一括読出す（上位読取方式、非ストリーミング）。
 
 - **transport:** `twincat_ads.IAdsTransport` (Port = `SEQ_PORT`)
 - **log_n:** caller が所有する読出し上限
@@ -146,7 +146,7 @@ ControllerCore の biquad フィルタパラメータ (4 段カスケード) を
   - `wrIdx`, `overflow`
 - 読出し失敗時は warning + 空 struct 返却
 
-> `GVL_SEQ_LOG` は段階移行中の fallback パスとして維持する。  
+> `ExperimentLogger` は段階移行中の 代替経路 パスとして維持する。  
 > 正規の評価は `ExperimentLogger` の bin 読み取りを優先する。
 
 ---
@@ -223,7 +223,7 @@ P 制御ステップ応答デモ（同一 trial を `N_REPEAT` 回連続再生�
 6. `write_vm_params` / `write_controller_params` でパラメータを TcCOM に書込み (Port 351)
 7. `send_position_command` で実験実行・完了待ち（`repeat_count=N_REPEAT`）
 8. `out.logger` を使って `ExperimentLogger` の状態を判定し、bin 読み取りを試行
-9. bin が有効なら bin を採用、失敗時は `GVL_SEQ_LOG` に fallback
+9. bin が有効なら bin を採用、失敗時は `ExperimentLogger` に 代替経路
 10. 採用したソースを `logSource` として表示し、位置応答・制御入力をプロット
 
 #### 現在の設定パラメータ
@@ -392,7 +392,7 @@ ExperimentLogger が出力した固定長バイナリ (`experiment_logger*.bin`)
 
 - **パッケージ:** `+experiment`, `+twincat_ads` (snake_case)
 - **クラス:** PascalCase (`SystemConfig`, `RunConfig`, `PositionCommandConfig`)
-- **関数:** snake_case (`write_ref_table`, `read_experiment_logs`)
+- **関数:** snake_case (`write_ref_table`, `read_logger_bin`)
 - **テスト:** `Test` + PascalCase (`TestSystemConfig`, `TestWriteHelpers`)
 - **struct フィールド:** snake_case (`pid_b0`, `tau_limit`)
 - **ADS シンボル:** TwinCAT 側定義に準拠 (PascalCase struct + camelCase field)
@@ -439,7 +439,7 @@ matlab/
 │   ├── write_dist_table.m
 │   ├── write_vm_params.m
 │   ├── write_controller_params.m
-│   ├── read_experiment_logs.m
+│   ├── read_logger_bin.m
 │   ├── read_logger_bin.m
 │   ├── preload_eval.m
 │   └── simulate_position.m
@@ -455,3 +455,5 @@ matlab/
 ├── results/
 └── simulink/
 ```
+
+

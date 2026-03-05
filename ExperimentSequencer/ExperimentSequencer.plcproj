@@ -25,10 +25,6 @@
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
     </Compile>
-    <Compile Include="GVLs\GVL_SEQ_LOG.TcGVL">
-      <SubType>Code</SubType>
-      <LinkAlways>true</LinkAlways>
-    </Compile>
     <Compile Include="POUs\PRG_ExperimentSequencer.TcPOU">
       <SubType>Code</SubType>
     </Compile>

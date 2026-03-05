@@ -12,9 +12,9 @@
 
 ## 0. 実装方針メモ (2026-02-24)
 
-* Phase 1 (1 ms SIL) 実装では PLC シンボル名を **`GVL_SEQ` / `GVL_SEQ_LOG`** に統一する（`GVL_EXP*` 互換は維持しない）。
+* Phase 1 (1 ms SIL) 実装では PLC シンボル名を **`GVL_SEQ` / `ExperimentLogger`** に統一する（`GVL_EXP*` 互換は維持しない）。
 * `TmpLogger` の機能は `ExperimentSequencer` に置換し、Phase 1 統合完了後に撤去する。
-* Phase 3 の `ExperimentLogger` (C++ TcCOM) 導入まで、SIL 検証用の暫定リングバッファ logger を PLC (`GVL_SEQ_LOG`) に保持する。
+* Phase 3 の `ExperimentLogger` (C++ TcCOM) 導入まで、SIL 検証用の暫定リングバッファ logger を PLC (`ExperimentLogger`) に保持する。
 
 ---
 
@@ -211,7 +211,7 @@ Phase 4 (125 µs = 8 kHz):
 | 2 | `ffValue` | `LREAL` | ControllerCore | FF 信号 (スカラ) `ffTable[idx]` [A] |
 | 3 | `distValue` | `LREAL` | DriverAdapter | 外乱値 (スカラ) `distTable[idx]` [A] |
 
-> **補足 (tap 変数):** `GVL_SEQ_LOG.controlInputTap` と `GVL_SEQ_LOG.positionRelTap` は
+> **補足 (tap 変数):** `ExperimentLogger.controlInputTap` と `ExperimentLogger.positionRelTap` は
 > ExperimentSequencer 内部ロギング用の入力タップであり、テーブル再生I/Fには含めない。
 
 ---
@@ -740,7 +740,8 @@ MATLAB からの ADS アクセスは以下の原則に従う:
 | **テーブルプリロード** (`refTable`, `ffTable`, `distTable`, `tableLen`) | `GVL_SEQ` に直接書込 (Port 853) | 大容量データ (最大 800KB/テーブル)。ModeManager 経由は非現実的 |
 | **制御パラメータ注入** (`*Params.*`) | ControllerCore TcCOM に直接書込 (Port 351) | C++ Data Area。PLC を経由する設計的理由なし |
 | **VM パラメータ注入** (`VirtualMotor1Parameter.*`) | VirtualMotorCore TcCOM に直接書込 (Port 351) | 同上 |
-| **ログ制御/読出し** | ExperimentLogger TcCOM (Port 351) / `GVL_SEQ_LOG` (Port 853) | Phase 3 以降 |
+| **ログ制御/読出し** | ExperimentLogger TcCOM (Port 351) / `ExperimentLogger` (Port 853) | Phase 3 以降 |
 | **状態監視** (`experimentState`) | `GVL_MODE` 読出し (Port 852) | 正当 |
+
 
 

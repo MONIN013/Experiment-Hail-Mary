@@ -107,12 +107,16 @@ if out.logger.error_after == 0 && out.logger.records_after > 0 && out.logger.fil
   try
     logger_bin = experiment.read_logger_bin(logger_path);
   catch e
-    warning("experiment:demo:loggerBinReadFailed", ...
-      "ExperimentLogger bin read failed (%s: %s). Falling back to GVL_SEQ_LOG.", ...
+    error("experiment:demo:loggerBinReadFailed", ...
+      "ExperimentLogger bin read failed (%s: %s).", ...
       string(e.identifier), string(e.message));
   end
 end
 selected = experiment.resolve_demo_log_source(out, logger_bin);
+if selected.source_name ~= "experiment_logger_bin"
+  error("experiment:demo:loggerUnavailable", ...
+    "ExperimentLogger bin is required but unavailable (%s).", string(selected.diagnostics.reason));
+end
 
 %% 結果出力
 fprintf("\n--- Result ---\n");

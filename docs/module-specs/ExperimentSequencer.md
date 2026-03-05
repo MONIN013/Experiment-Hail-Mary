@@ -18,7 +18,7 @@ ExperimentSequencer はテーブル再生専用の PLC モジュールである�
 2. 再生状態管理 (`E_SeqState`)
 3. 繰り返し再生 (`repeatCount`, `trialIndex`)
 4. 完了/異常通知 (`playbackDone`, `seqError`)
-5. 内部ログリング (`GVL_SEQ_LOG`)
+5. 内部ログリング (`ExperimentLogger`)
 
 > `modeFlags` 入力は持たない。開始/停止は `experimentActive` と `resetReq` によって制御する。
 
@@ -96,9 +96,9 @@ FAULT 遷移条件:
 
 ---
 
-## 6. ログタップ (`GVL_SEQ_LOG`)
+## 6. ログタップ (`ExperimentLogger`)
 
-`GVL_SEQ_LOG` は SIL 向けリングバッファで、再生サンプル時のみ追記する。
+`ExperimentLogger` は SIL 向けリングバッファで、再生サンプル時のみ追記する。
 
 ### 6.1 tap 入力 (`AT %I*`)
 
@@ -129,6 +129,7 @@ FAULT 遷移条件:
 | `GVL_SEQ.playbackDone` | `BOOL` | R |
 | `GVL_SEQ.seqError` | `BOOL` | R |
 | `GVL_SEQ.seqState` | `E_SeqState` | R |
-| `GVL_SEQ_LOG.controlInputTap` | `LREAL` | I/O Mapping |
-| `GVL_SEQ_LOG.positionRelTap` | `LREAL` | I/O Mapping |
+| `ExperimentLogger.controlInputTap` | `LREAL` | I/O Mapping |
+| `ExperimentLogger.positionRelTap` | `LREAL` | I/O Mapping |
+
 

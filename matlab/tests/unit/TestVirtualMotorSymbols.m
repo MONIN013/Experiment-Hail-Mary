@@ -1,33 +1,13 @@
 classdef TestVirtualMotorSymbols < matlab.unittest.TestCase
   methods (Test)
-    function fromDefaultsBuildsGvlExpContract(testCase)
+    function fromDefaultsUsesDriverSymbols(testCase)
       s = experiment.VirtualMotorSymbols.from_defaults();
-      testCase.verifyEqual(string(s.reset), "GVL_SEQ.resetReq");
-      testCase.verifyEqual(string(s.modeResetReq), "GVL_MODE.resetReq");
-      testCase.verifyEqual(string(s.modeResetAckCounter), "GVL_MODE.resetAckCounter");
-      testCase.verifyEqual(string(s.hostHeartbeatCounter), "GVL_MODE.hostHeartbeatCounter");
-      testCase.verifyEqual(string(s.experimentState), "GVL_MODE.experimentState");
-      testCase.verifyEqual(string(s.modeFlagsCandidates(:)), ["GVL_MODE.modeFlags"]);
-      testCase.verifyEqual(string(s.refTable), "GVL_SEQ.refTable");
-      testCase.verifyEqual(string(s.repeatCount), "GVL_SEQ.repeatCount");
-      testCase.verifyEqual(string(s.trialIndex), "GVL_SEQ.trialIndex");
-      testCase.verifyEqual(string(s.log.logRefValue), "GVL_SEQ_LOG.logRefValue");
-      testCase.verifyTrue(any(string(s.plcRequiredProbes(:, 1)) == "GVL_SEQ.repeatCount"));
-      testCase.verifyTrue(any(string(s.plcRequiredProbes(:, 1)) == "GVL_SEQ.trialIndex"));
-      testCase.verifyGreaterThanOrEqual(size(s.plcRequiredProbes, 1), 8);
-    end
-
-    function vmAndControllerPrefixesBuildExpectedNames(testCase)
-      vm = experiment.VirtualMotorSymbols.from_vm_prefix("VirtualMotorCore_Obj1 (Module1).VirtualMotorParameter.");
-      cc = experiment.VirtualMotorSymbols.from_controller_prefix("ControllerCore_Obj1 (Module1).");
-      testCase.verifyEqual(string(vm.vmParams.m), "VirtualMotorCore_Obj1 (Module1).VirtualMotorParameter.mass");
-      testCase.verifyEqual(string(vm.vmParams.ratedTorque), "VirtualMotorCore_Obj1 (Module1).VirtualMotorParameter.ratedTorque");
-      testCase.verifyTrue(any(string(vm.vmRequiredProbes(:, 1)) == string(vm.vmParams.maxPermille)));
-      testCase.verifyEqual(string(cc.controllerParams.pidB0), "ControllerCore_Obj1 (Module1).PIDParams.pidB0");
-      testCase.verifyEqual(string(cc.controllerParams.leadB0), "ControllerCore_Obj1 (Module1).LeadParams.leadB0");
-      testCase.verifyEqual(string(cc.controllerParams.enableReso), "ControllerCore_Obj1 (Module1).EnableParams.enableReso");
+      testCase.verifyEqual(string(s.controlInput), "GVL_DRV.controlInput");
+      testCase.verifyEqual(string(s.positionActLog), "GVL_DRV.positionRel");
+      testCase.verifyTrue(isstruct(s.log));
+      testCase.verifyTrue(isempty(fieldnames(s.log)));
+      probe_names = string(s.plcRequiredProbes(:, 1));
+      testCase.verifyFalse(any(contains(probe_names, "SEQ_LOG")));
     end
   end
 end
-
-

@@ -115,7 +115,7 @@ END_IF
 | モジュール | resetReq 入力 | 検出方式 | リセット内容 | 既知制約 |
 |---|---|---|---|---|
 | **StateMachineControl** | `GVL_MODE.resetReq` | エッジ | `doneLatched` / `experimentActive` クリア, `resetAckCounter` +1, `resetOut` パルス生成 | heartbeat timeout 時に `modeFlags := 0` を自動実行 |
-| **ExperimentSequencer** | `GVL_SEQ.resetReq` (`AT %I*`) | **エッジ** | `idx`/`refValue`/`ffValue`/`distValue`/`playbackDone` クリア, `GVL_SEQ_LOG` リセット | M14 解消済み。エッジ検出に統一 |
+| **ExperimentSequencer** | `GVL_SEQ.resetReq` (`AT %I*`) | **エッジ** | `idx`/`refValue`/`ffValue`/`distValue`/`playbackDone` クリア, `ExperimentLogger` リセット | M14 解消済み。エッジ検出に統一 |
 | **ControllerCore** | `Inputs.resetReq` | エッジ | biquad 内部状態クリア | 相対位置化は DriverAdapter に移管済み (D12) |
 | **ExperimentLogger** | `Inputs.resetReq` | エッジ | ファイルクローズ, `bufferCount`/`seq`/`recordsWritten` 等クリア | — |
 | **VirtualMotorCore** | **なし** | — | — | 設計決定: 実機同等。`position`/`velocity` は実験間で carry-over する。DriverAdapter の `positionOffsetRad` で相対位置は補正される |
@@ -243,7 +243,7 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 | **VM パラメータ** | 351 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.*` | `LREAL` | W |
 | **ログ pre-arm** | 852 | `MAIN.preArmOut` → `Inputs.preArmReq` | `BOOL` | Auto |
 | **ログ制御** | 852 | `MAIN.experimentActiveOut` → `Inputs.loggingReq` | `BOOL` | Auto |
-| **ログ読出し** | 853 | `GVL_SEQ_LOG.wrIdx` / `rdIdx` / `log*` | — | R/W |
+| **ログ読出し** | 853 | `ExperimentLogger.wrIdx` / `rdIdx` / `log*` | — | R/W |
 
 > 全シンボルの完全な一覧は [TechnicalReference.md](TechnicalReference.md) §8 を参照。
 > `send_position_command` の `mode_flags_symbol` は `GVL_MODE.modeFlags` のみサポートされる。
@@ -281,3 +281,4 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 ```
 
 > LogRecord フォーマット詳細は [TechnicalReference.md](TechnicalReference.md) §6.4 を参照。
+

@@ -42,14 +42,11 @@ classdef VirtualMotorSymbols
         out.idx, t.u32;
         out.repeatCount, t.u32;
         out.trialIndex, t.u32;
-        out.refValue, t.double;
-        out.ffValue, t.double;
-        out.distValue, t.double;
-        out.controlInput, t.double;
-        out.positionActLog, t.double;
-        out.log.wrIdx, t.u32;
-        out.log.rdIdx, t.u32;
-        out.log.overflow, t.bool
+      out.refValue, t.double;
+      out.ffValue, t.double;
+      out.distValue, t.double;
+      out.controlInput, t.double;
+      out.positionActLog, t.double
       };
       out.requiredProbes = out.plcRequiredProbes;
     end
@@ -146,22 +143,9 @@ classdef VirtualMotorSymbols
       out.refValue = "GVL_SEQ.refValue";
       out.ffValue = "GVL_SEQ.ffValue";
       out.distValue = "GVL_SEQ.distValue";
-      out.controlInput = "GVL_SEQ_LOG.controlInputTap";
-      out.positionActLog = "GVL_SEQ_LOG.positionRelTap";
-      out.log = struct( ...
-        "wrIdx", "GVL_SEQ_LOG.wrIdx", ...
-        "rdIdx", "GVL_SEQ_LOG.rdIdx", ...
-        "overflow", "GVL_SEQ_LOG.overflow", ...
-        "logSeq", "GVL_SEQ_LOG.logSeq", ...
-        "logRefValue", "GVL_SEQ_LOG.logRefValue", ...
-        "logFfValue", "GVL_SEQ_LOG.logFfValue", ...
-        "logDistValue", "GVL_SEQ_LOG.logDistValue", ...
-        "logControlInput", "GVL_SEQ_LOG.logControlInput", ...
-        "logTargetCurrent", "GVL_SEQ_LOG.logTargetCurrent", ...
-        "logPositionAct", "GVL_SEQ_LOG.logPositionAct", ...
-        "logT", "GVL_SEQ_LOG.logT", ...
-        "logIdx", "GVL_SEQ_LOG.logIdx", ...
-        "logN", "GVL_SEQ_LOG.LOG_N");
+      out.controlInput = "GVL_DRV.controlInput";
+      out.positionActLog = "GVL_DRV.positionRel";
+      out.log = struct();
       out.vmParams = struct();
       out.controllerParams = struct();
       out.types = t;

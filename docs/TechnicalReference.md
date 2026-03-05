@@ -44,7 +44,7 @@ IF resetEdge THEN
     playbackRunning := FALSE (内部)
     rearmRequired   := FALSE (内部)
 
-    GVL_SEQ_LOG:
+    ExperimentLogger:
       seq   := 0
       tNs   := 0
       wrIdx := 0
@@ -112,7 +112,7 @@ END_IF
 
 | ポート | 型 | 宛先 | 説明 |
 |---|---|---|---|
-| `controlInput` | `LREAL` | DriverAdapter `GVL_DRV.controlInput` + ログ (`GVL_SEQ_LOG.controlInputTap`) | 制御出力 [A] |
+| `controlInput` | `LREAL` | DriverAdapter `GVL_DRV.controlInput` + ログ (`ExperimentLogger.controlInputTap`) | 制御出力 [A] |
 | `error` | `LREAL` | (ログ用) | 位置誤差 $e = \text{refValue} - \text{positionAct}$ |
 
 ### 2.2 CycleUpdate 処理 (毎スキャン 1 ms)
@@ -313,9 +313,9 @@ position_next := position + dt * velocity_next
 
 ---
 
-## 5. ログ記録 — GVL_SEQ_LOG リングバッファ
+## 5. ログ記録 — ExperimentLogger リングバッファ
 
-### 5.1 GVL_SEQ_LOG 変数一覧
+### 5.1 ExperimentLogger 変数一覧
 
 | 変数 | 型 | 説明 |
 |---|---|---|
@@ -407,7 +407,7 @@ overflow := FALSE
 ### 6.1 概要
 
 ExperimentLogger は C++ TcCOM モジュールとして実装されたファイルロガーである。  
-GVL_SEQ_LOG のリングバッファ (§5) が ADS ポーリング前提の暫定ログであるのに対し、ExperimentLogger は **RT コンテキストから直接ローカルディスクにバイナリファイルを書き出す**。8kHz × 100s = 800,000 レコードの長時間記録に対応する設計。
+ExperimentLogger のリングバッファ (§5) が ADS ポーリング前提の暫定ログであるのに対し、ExperimentLogger は **RT コンテキストから直接ローカルディスクにバイナリファイルを書き出す**。8kHz × 100s = 800,000 レコードの長時間記録に対応する設計。
 
 ### 6.2 Data Area (TcCOM I/O)
 
@@ -555,9 +555,9 @@ Offset   Size  型          フィールド
 
 > `errorCode` は generic open/close/write failure に丸めず、下位 API が返した `HRESULT` を優先して保持する。
 
-### 6.9 GVL_SEQ_LOG (リングバッファ) との使い分け
+### 6.9 ExperimentLogger (リングバッファ) との使い分け
 
-| 特性 | GVL_SEQ_LOG (§5) | ExperimentLogger (§6) |
+| 特性 | ExperimentLogger (§5) | ExperimentLogger (§6) |
 |---|---|---|
 | 実装 | PLC ST (ExperimentSequencer 内) | C++ TcCOM |
 | 記録先 | PLC メモリ (GVL 配列) | ローカルディスク (バイナリファイル) |
@@ -600,7 +600,7 @@ GVL_SEQ.ffValue          (%Q*)  ──►  ControllerCore.Inputs.ffValue
 
 ```
 ControllerCore.Outputs.controlInput  ──►  GVL_DRV.controlInput     (%I*)
-ControllerCore.Outputs.controlInput  ──►  GVL_SEQ_LOG.controlInputTap (%I*)
+ControllerCore.Outputs.controlInput  ──►  ExperimentLogger.controlInputTap (%I*)
 ```
 
 ### 7.4 ExperimentSequencer → DriverAdapter
@@ -622,7 +622,7 @@ VirtualMotorCore.Outputs.VirtualMotor1Outputs.torqueActualValue
                                             ──►  GVL_DRV.torqueActualValue  (%I*)
 VirtualMotorCore.Outputs.statusWord1        ──►  GVL_DRV.statusWord     (%I*)
 GVL_DRV.positionRel                         ──►  ControllerCore.Inputs.positionAct
-GVL_DRV.positionRel                         ──►  GVL_SEQ_LOG.positionRelTap (%I*)
+GVL_DRV.positionRel                         ──►  ExperimentLogger.positionRelTap (%I*)
 ```
 
 > D11: `currentIn (LREAL)` → `targetTorque (INT, ‰ rated)` に変更。
@@ -676,7 +676,7 @@ ExperimentSequencer.playbackDone                            ──►  Experimen
 | **351** | C++ TcCOM (ControllerCore, VirtualMotorCore, ExperimentLogger) | C++ | VirtualMotorTask (1 ms) | 46 |
 | **851** | DriverAdapter | PLC ST | VirtualMotorTask (1 ms) | ~88 |
 | **852** | StateMachineControl (ModeManager) | PLC ST | PlcTask (10 ms) | 124 |
-| **853** | ExperimentSequencer + GVL_SEQ_LOG | PLC ST | VirtualMotorTask (1 ms) | 137 |
+| **853** | ExperimentSequencer + ExperimentLogger | PLC ST | VirtualMotorTask (1 ms) | 137 |
 
 > Port **355** (StateTask) は PLC ランタイムではなくシステムタスクのため、シンボルブラウズ対象外。
 
@@ -764,25 +764,25 @@ ExperimentSequencer.playbackDone                            ──►  Experimen
 | `GVL_SEQ.resetReq` | `BOOL` | 1 | `AT %I*` | R | リセット要求入力 |
 | `GVL_SEQ.experimentActive` | `BOOL` | 1 | `AT %I*` | R | 実験実行中入力 |
 
-#### GVL_SEQ_LOG (リングバッファログ)
+#### ExperimentLogger (リングバッファログ)
 
 | ADS シンボル名 | 型 | Size (B) | R/W | 説明 |
 |---|---|---|---|---|
-| `GVL_SEQ_LOG.wrIdx` | `UDINT` | 4 | R | 書き込みインデックス |
-| `GVL_SEQ_LOG.rdIdx` | `UDINT` | 4 | **W** | 読み出しインデックス |
-| `GVL_SEQ_LOG.overflow` | `BOOL` | 1 | R | オーバーフロー検出 |
-| `GVL_SEQ_LOG.seq` | `UDINT` | 4 | R | シーケンス番号 |
-| `GVL_SEQ_LOG.tNs` | `ULINT` | 8 | R | タイムスタンプ [ns] |
-| `GVL_SEQ_LOG.LOG_N` | `UDINT` | 4 | R | 定数 200,000 |
-| `GVL_SEQ_LOG.logSeq` | `ARRAY[0..199999] OF UDINT` | 800,000 | R | ログ: シーケンス番号 |
-| `GVL_SEQ_LOG.logRefValue` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 位置指令 |
-| `GVL_SEQ_LOG.logFfValue` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: FF 値 |
-| `GVL_SEQ_LOG.logDistValue` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 外乱値 |
-| `GVL_SEQ_LOG.logControlInput` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 制御出力 |
-| `GVL_SEQ_LOG.logTargetCurrent` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 合計電流 |
-| `GVL_SEQ_LOG.logPositionAct` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 実位置 |
-| `GVL_SEQ_LOG.logT` | `ARRAY[0..199999] OF ULINT` | 1,600,000 | R | ログ: タイムスタンプ |
-| `GVL_SEQ_LOG.logIdx` | `ARRAY[0..199999] OF UDINT` | 800,000 | R | ログ: repeat をまたいだ絶対インデックス |
+| `ExperimentLogger.wrIdx` | `UDINT` | 4 | R | 書き込みインデックス |
+| `ExperimentLogger.rdIdx` | `UDINT` | 4 | **W** | 読み出しインデックス |
+| `ExperimentLogger.overflow` | `BOOL` | 1 | R | オーバーフロー検出 |
+| `ExperimentLogger.seq` | `UDINT` | 4 | R | シーケンス番号 |
+| `ExperimentLogger.tNs` | `ULINT` | 8 | R | タイムスタンプ [ns] |
+| `ExperimentLogger.LOG_N` | `UDINT` | 4 | R | 定数 200,000 |
+| `ExperimentLogger.logSeq` | `ARRAY[0..199999] OF UDINT` | 800,000 | R | ログ: シーケンス番号 |
+| `ExperimentLogger.logRefValue` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 位置指令 |
+| `ExperimentLogger.logFfValue` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: FF 値 |
+| `ExperimentLogger.logDistValue` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 外乱値 |
+| `ExperimentLogger.logControlInput` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 制御出力 |
+| `ExperimentLogger.logTargetCurrent` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 合計電流 |
+| `ExperimentLogger.logPositionAct` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 実位置 |
+| `ExperimentLogger.logT` | `ARRAY[0..199999] OF ULINT` | 1,600,000 | R | ログ: タイムスタンプ |
+| `ExperimentLogger.logIdx` | `ARRAY[0..199999] OF UDINT` | 800,000 | R | ログ: repeat をまたいだ絶対インデックス |
 
 ### 8.6 Port 351 — C++ TcCOM モジュール
 
@@ -888,10 +888,10 @@ ADS Write:  Port=351  Symbol="VirtualMotorCore_Obj1 (Module1).VirtualMotor1Param
 #### ⑥ リングバッファログ読み出し → Port 853
 
 ```
-ADS Read:   Port=853  Symbol="GVL_SEQ_LOG.wrIdx"            → UDINT
-ADS Read:   Port=853  Symbol="GVL_SEQ_LOG.logRefValue"      → LREAL[200000]  (部分読み可)
+ADS Read:   Port=853  Symbol="ExperimentLogger.wrIdx"            → UDINT
+ADS Read:   Port=853  Symbol="ExperimentLogger.logRefValue"      → LREAL[200000]  (部分読み可)
   ...
-ADS Write:  Port=853  Symbol="GVL_SEQ_LOG.rdIdx"            ← rdIdx 更新
+ADS Write:  Port=853  Symbol="ExperimentLogger.rdIdx"            ← rdIdx 更新
 ```
 
 #### ⑦ ExperimentLogger 制御
@@ -944,7 +944,7 @@ ExperimentSequencer ← StateMachineControl
   GVL_SEQ.playbackDone          → MAIN.seqPlaybackDone
 
 ExperimentSequencer ← ControllerCore
-  GVL_SEQ_LOG.controlInputTap   ← ControllerCore.Outputs.controlInput
+  ExperimentLogger.controlInputTap   ← ControllerCore.Outputs.controlInput
   GVL_SEQ.refValue              → ControllerCore.Inputs.refValue
   GVL_SEQ.ffValue               → ControllerCore.Inputs.ffValue
 
@@ -953,7 +953,7 @@ ExperimentSequencer → ExperimentLogger
   GVL_SEQ.refValue              → ExperimentLogger.Inputs.refValue
 
 ExperimentSequencer ← DriverAdapter
-  GVL_SEQ_LOG.positionRelTap    ← GVL_DRV.positionRel                                                ← D12
+  ExperimentLogger.positionRelTap    ← GVL_DRV.positionRel                                                ← D12
 
 StateMachineControl → ControllerCore
   MAIN.resetOut                 → ControllerCore.Inputs.resetReq
@@ -977,5 +977,6 @@ DriverAdapter → ExperimentLogger
 > SIL では `motorPosition`/`motorVelocity` は未接続（0埋め）。
 > `loadPosition` は D12 により `DriverAdapter.positionRel` 、`loadVelocity` は D11 により `DriverAdapter.velocityAct`、
 > `motorCurrentAct` は D13 により `DriverAdapter.currentAct` を使用する。
+
 
 

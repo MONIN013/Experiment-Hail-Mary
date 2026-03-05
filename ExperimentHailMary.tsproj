@@ -411,14 +411,6 @@
 							<Name>GVL_SEQ.experimentActive</Name>
 							<Type>BOOL</Type>
 						</Var>
-						<Var>
-							<Name>GVL_SEQ_LOG.controlInputTap</Name>
-							<Type>LREAL</Type>
-						</Var>
-						<Var>
-							<Name>GVL_SEQ_LOG.positionRelTap</Name>
-							<Type>LREAL</Type>
-						</Var>
 					</Vars>
 					<Contexts>
 						<Context>
@@ -1201,7 +1193,6 @@
 			<OwnerB Name="TIPC^ExperimentSequencer^ExperimentSequencer Instance">
 				<Link VarA="VirtualMotorTask Inputs^GVL_DRV.distValue" VarB="VirtualMotorTask Outputs^GVL_SEQ.distValue"/>
 				<Link VarA="VirtualMotorTask Inputs^GVL_DRV.playbackDone" VarB="VirtualMotorTask Outputs^GVL_SEQ.playbackDone"/>
-				<Link VarA="VirtualMotorTask Outputs^GVL_DRV.positionRel" VarB="VirtualMotorTask Inputs^GVL_SEQ_LOG.positionRelTap"/>
 			</OwnerB>
 			<OwnerB Name="TIPC^StateMachineControl^StateMachineControl Instance">
 				<Link VarA="VirtualMotorTask Inputs^GVL_DRV.controlWordIn" VarB="PlcTask Outputs^MAIN.ctrlWord"/>
@@ -1236,7 +1227,6 @@
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.playbackDone" VarB="PlcTask Inputs^MAIN.seqPlaybackDone"/>
 			</OwnerB>
 			<OwnerB Name="TIXC^ControllerCore^ControllerCore_Obj1 (Module1)">
-				<Link VarA="VirtualMotorTask Inputs^GVL_SEQ_LOG.controlInputTap" VarB="Outputs^controlInput"/>
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.ffValue" VarB="Inputs^ffValue"/>
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.refValue" VarB="Inputs^refValue"/>
 			</OwnerB>

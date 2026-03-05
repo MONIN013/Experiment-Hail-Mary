@@ -14,11 +14,11 @@
 
 ### Phase A (現行)
 - `run_position_command_demo.m` は `ExperimentLogger` を優先評価する
-- `GVL_SEQ_LOG` は fallback として残す
+- `GVL_SEQ_LOG` は 代替経路 として残す
 - `send_position_command` は `out.logger` を返し、logger 状態を可視化する
 
 ### Phase B
-- fallback 利用をデバッグ/CI 限定に縮小
+- 代替経路 利用をデバッグ/CI 限定に縮小
 - 通常手順は `ExperimentLogger` のみを合否判定に使用
 - `GVL_SEQ_LOG` 依存テストを段階的に分離
 
@@ -32,7 +32,7 @@
 ### コード
 - `matlab/+experiment/VirtualMotorSymbols.m` (`GVL_SEQ_LOG.*` シンボル定義)
 - `matlab/+experiment/read_experiment_logs.m` (`GVL_SEQ_LOG` 一括読出し)
-- `matlab/+experiment/send_position_command.m` (`GVL_SEQ_LOG` fallback 読出し)
+- `matlab/+experiment/send_position_command.m` (`GVL_SEQ_LOG` 代替経路 読出し)
 - `matlab/+experiment/VirtualMotorService.m` (`GVL_SEQ_LOG` ストリーミング)
 - `ExperimentSequencer/GVLs/GVL_SEQ_LOG.TcGVL`
 - `ExperimentSequencer/POUs/PRG_ExperimentSequencer.TcPOU`
@@ -53,17 +53,26 @@
 
 - `run_position_command_demo.m` が logger 優先判定で実行できる
 - `out.logger.error_after == 0` かつ `out.logger.records_after > 0` の確認手段がある
-- logger 読み取り失敗時に `GVL_SEQ_LOG` fallback へ退避できる
+- logger 読み取り失敗時に `GVL_SEQ_LOG` 代替経路 へ退避できる
 - 既存 MATLAB テストに回帰がない
 
 ## 5. Phase B/C への進行条件
 
 ### B 進行条件
 - logger 優先パスで連続 3 回以上の実行が安定
-- fallback が常用されていないことをログで確認
+- 代替経路 が常用されていないことをログで確認
 - 主要解析フローが bin 読み取りを前提に成立
 
 ### C 進行条件
 - `GVL_SEQ_LOG` 依存コード/テストの移行先がすべて確定
 - PLC メモリ削減効果とリスクをレビュー済み
 - `TechnicalReference` / `MatlabSpec` の更新案が揃っている
+
+## 6. 実施結果 (2026-03-05)
+
+- Phase C を完了し、SIL 暫定ロギング経路を撤去。
+- ExperimentSequencer の暫定リングバッファ定義を削除。
+- MATLAB 側 代替経路 (read_logger_bin 以外) を廃止。
+- ExperimentLogger bin 単一路で評価する運用へ更新。
+
+

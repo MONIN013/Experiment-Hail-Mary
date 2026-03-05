@@ -14,15 +14,9 @@ VAR
     resetEdge : BOOL := FALSE;
     startEdge : BOOL := FALSE;
     sampleEmittedThisScan : BOOL := FALSE;
-    logWriteIdx : DINT := 0;
-    wrPos : UDINT := 0;
     loggedIdx : UDINT := 0;
     absoluteIdxBase : UDINT := 0;
-    targetCurrentLocal : LREAL := 0.0;
     seqState : E_SeqState := E_SeqState.IDLE;
-END_VAR
-VAR CONSTANT
-    TASK_DT_NS : ULINT := ULINT#1000000;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -53,11 +47,6 @@ IF resetEdge THEN
     GVL_SEQ.playbackDone := FALSE;
     seqState := E_SeqState.IDLE;
 
-    GVL_SEQ_LOG.seq := 0;
-    GVL_SEQ_LOG.tNs := 0;
-    GVL_SEQ_LOG.wrIdx := 0;
-    GVL_SEQ_LOG.rdIdx := 0;
-    GVL_SEQ_LOG.overflow := FALSE;
 ELSE
     CASE seqState OF
         E_SeqState.IDLE:
@@ -136,30 +125,6 @@ END_IF
 
 GVL_SEQ.seqState := seqState;
 GVL_SEQ.seqError := (seqState = E_SeqState.FAULT);
-
-IF sampleEmittedThisScan THEN
-    wrPos := GVL_SEQ_LOG.wrIdx MOD GVL_SEQ_LOG.LOG_N;
-    logWriteIdx := UDINT_TO_DINT(wrPos);
-    targetCurrentLocal := GVL_SEQ_LOG.controlInputTap + GVL_SEQ.distValue;
-
-    GVL_SEQ_LOG.seq := GVL_SEQ_LOG.seq + 1;
-    GVL_SEQ_LOG.tNs := UDINT_TO_ULINT(GVL_SEQ_LOG.seq) * TASK_DT_NS;
-
-    GVL_SEQ_LOG.logSeq[logWriteIdx] := GVL_SEQ_LOG.seq;
-    GVL_SEQ_LOG.logRefValue[logWriteIdx] := GVL_SEQ.refValue;
-    GVL_SEQ_LOG.logFfValue[logWriteIdx] := GVL_SEQ.ffValue;
-    GVL_SEQ_LOG.logDistValue[logWriteIdx] := GVL_SEQ.distValue;
-    GVL_SEQ_LOG.logControlInput[logWriteIdx] := GVL_SEQ_LOG.controlInputTap;
-    GVL_SEQ_LOG.logTargetCurrent[logWriteIdx] := targetCurrentLocal;
-    GVL_SEQ_LOG.logPositionAct[logWriteIdx] := GVL_SEQ_LOG.positionRelTap;
-    GVL_SEQ_LOG.logT[logWriteIdx] := GVL_SEQ_LOG.tNs;
-    GVL_SEQ_LOG.logIdx[logWriteIdx] := loggedIdx;
-
-    GVL_SEQ_LOG.wrIdx := GVL_SEQ_LOG.wrIdx + 1;
-    IF (GVL_SEQ_LOG.wrIdx - GVL_SEQ_LOG.rdIdx) > GVL_SEQ_LOG.LOG_N THEN
-        GVL_SEQ_LOG.overflow := TRUE;
-    END_IF
-END_IF
 
 cmdActivePrev := GVL_SEQ.experimentActive;
 resetReqPrev := GVL_SEQ.resetReq;

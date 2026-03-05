@@ -100,8 +100,8 @@ end
   plc_transport, ctrl_transport, plc_symbols, ctrl, cfg.reset_timeout_s, heartbeat_state);
 if ~idle_ready
   error("experiment:position_command:resetSyncTimeout", ...
-    "Timed out waiting reset idle state (wrIdx==0, idx==0, experimentActive==FALSE). Observed wrIdx=%g idx=%g experimentActive=%d modeFlagsSymbol=%s", ...
-    idle_diag.wr_idx, idle_diag.idx, logical(idle_diag.experiment_active), char(string(ctrl.modeFlagsSymbol)));
+    "Timed out waiting reset idle state (idx==0, experimentActive==FALSE). Observed idx=%g experimentActive=%d modeFlagsSymbol=%s", ...
+    idle_diag.idx, logical(idle_diag.experiment_active), char(string(ctrl.modeFlagsSymbol)));
 end
 
 table_n = numel(cfg.ref_profile);
@@ -161,16 +161,7 @@ end
 position_last = double(plc_transport.read_scalar(plc_symbols.positionActLog, t.double));
 control_input_last = double(plc_transport.read_scalar(plc_symbols.controlInput, t.double));
 
-if cfg.read_logs
-  log_data = read_upper_logs(plc_transport, plc_symbols, cfg.log_n);
-else
-  log_data = empty_log_data();
-end
-
-if log_data.overflow
-  warning("experiment:position_command:logOverflow", ...
-    "PLC log overflow detected (GVL_SEQ_LOG.overflow=true).");
-end
+log_data = read_logger_bin_or_empty(logger_path);
 
 out = struct();
 out.cmd = struct( ...
@@ -426,40 +417,7 @@ else
 end
 end
 
-function log_data = read_upper_logs(plc_transport, symbols, log_n)
-t = symbols.types;
-log_data = empty_log_data();
-wr_idx = plc_transport.read_scalar(symbols.log.wrIdx, t.u32);
-overflow = plc_transport.read_scalar(symbols.log.overflow, t.bool);
-valid_n = uint32(min(double(wr_idx), double(log_n)));
-if valid_n > 0
-  log_data.logSeq = double(plc_transport.read_array(symbols.log.logSeq, t.u32, valid_n));
-  log_data.logRefValue = double(plc_transport.read_array(symbols.log.logRefValue, t.double, valid_n));
-  log_data.logFfValue = double(plc_transport.read_array(symbols.log.logFfValue, t.double, valid_n));
-  log_data.logDistValue = double(plc_transport.read_array(symbols.log.logDistValue, t.double, valid_n));
-  log_data.logControlInput = double(plc_transport.read_array(symbols.log.logControlInput, t.double, valid_n));
-  log_data.logTargetCurrent = double(plc_transport.read_array(symbols.log.logTargetCurrent, t.double, valid_n));
-  log_data.logPositionAct = double(plc_transport.read_array(symbols.log.logPositionAct, t.double, valid_n));
-  try
-    log_data.logT = double(plc_transport.read_array(symbols.log.logT, t.u64, valid_n));
-  catch e
-    error("experiment:position_command:logTimestampReadFailed", ...
-      "Failed to read log timestamps (symbol='%s', n=%u): %s: %s", ...
-      char(string(symbols.log.logT)), uint32(valid_n), string(e.identifier), string(e.message));
-  end
-  try
-    log_data.logIdx = double(plc_transport.read_array(symbols.log.logIdx, t.u32, valid_n));
-  catch e
-    error("experiment:position_command:logIndexReadFailed", ...
-      "Failed to read log indices (symbol='%s', n=%u): %s: %s", ...
-      char(string(symbols.log.logIdx)), uint32(valid_n), string(e.identifier), string(e.message));
-  end
-end
-log_data.wrIdx = double(wr_idx);
-log_data.overflow = logical(overflow);
-end
-
-function out = empty_log_data()
+function out = empty_logger_log_data()
 out = struct( ...
   "logSeq", zeros(0, 1), ...
   "logRefValue", zeros(0, 1), ...
@@ -471,6 +429,36 @@ out = struct( ...
   "logT", zeros(0, 1), ...
   "logIdx", zeros(0, 1), ...
   "wrIdx", 0, ...
+  "overflow", false);
+end
+
+function log_data = read_logger_bin_or_empty(logger_path)
+if ~isfile(logger_path)
+  log_data = empty_logger_log_data();
+  return;
+end
+try
+  logger_out = experiment.read_logger_bin(logger_path);
+catch e
+  warning("experiment:position_command:loggerBinReadFailed", ...
+    "ExperimentLogger bin read failed; returning empty log payload (%s: %s).", ...
+    string(e.identifier), string(e.message));
+  log_data = empty_logger_log_data();
+  return;
+end
+
+sample_n = numel(logger_out.time_s);
+log_data = struct( ...
+  "logSeq", double((1:sample_n)'), ...
+  "logRefValue", double(logger_out.ref_value(:)), ...
+  "logFfValue", double(logger_out.ff_value(:)), ...
+  "logDistValue", double(logger_out.dist_value(:)), ...
+  "logControlInput", double(logger_out.control_input(:)), ...
+  "logTargetCurrent", double(logger_out.target_current(:)), ...
+  "logPositionAct", double(logger_out.load_position(:)), ...
+  "logT", double(round(logger_out.time_s(:) * 1e9)), ...
+  "logIdx", double((0:max(sample_n - 1, 0))'), ...
+  "wrIdx", double(sample_n), ...
   "overflow", false);
 end
 
@@ -529,11 +517,11 @@ status.error_code = uint32(read_logger_scalar_or_default(module_transport, error
 status.records_written = uint32(read_logger_scalar_or_default(module_transport, records_symbol, net_types.u32, uint32(0)));
 end
 
-function value = read_logger_scalar_or_default(module_transport, symbol, net_type, fallback_value)
+function value = read_logger_scalar_or_default(module_transport, symbol, net_type, default_value)
 try
   value = module_transport.read_scalar(symbol, net_type);
 catch
-  value = fallback_value;
+  value = default_value;
 end
 end
 

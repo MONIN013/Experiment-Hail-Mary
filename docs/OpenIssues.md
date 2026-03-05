@@ -95,13 +95,8 @@
 
 ---
 
-## 4. `GVL_SEQ_LOG` 段階移行 (Issue #5)
+## 4. Issue #5 完了: SIL 暫定ロギング撤去
 
-`ExperimentLogger` 優先化と `GVL_SEQ_LOG` 段階撤去の計画は以下を正本とする:
-
-- [GvlSeqLogMigrationPlan.md](GvlSeqLogMigrationPlan.md)
-
-現時点のフェーズ: **Phase A**
-
-- `run_position_command_demo.m` は `ExperimentLogger` を優先判定
-- `GVL_SEQ_LOG` は fallback として維持
+- `ExperimentLogger` 単一路へ移行完了。
+- PLC/MATLAB から暫定リングバッファ経路を削除。
+- 詳細は `docs/GvlSeqLogMigrationPlan.md` の実施結果を参照。
