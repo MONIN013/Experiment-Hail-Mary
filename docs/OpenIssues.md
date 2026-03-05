@@ -68,3 +68,27 @@
 現行の外部通信は ADS データエリア (`ADI_Module1Inputs` / `ADI_Module1Outputs`) とパラメータ `PID_Module1LogControl` のみで機能しており、カスタム TcCOM インターフェースは現時点では不要。
 
 状態: **要件が確定次第、インターフェース定義を追加する。現状は問題なし。**
+
+---
+
+## 3. DriverAdapter -> ExperimentLogger `currentCmd` 経路が未接続
+
+### 背景
+
+設計仕様では `ExperimentLogger.Inputs.currentCmd` に DriverAdapter 側の電流指令 [A] を記録する想定だが、
+現ブランチの `GVL_DRV` には `currentCmd AT %Q* : LREAL` が定義されていない。
+`PRG_DriverAdapter` 内の `targetCurrentA` はローカル変数のため I/O マッピングに利用できない。
+
+### 影響
+
+- logger の `currentCmd` フィールドが未接続または未定義値になる可能性がある。
+- 再現解析時に「指令電流 vs 実電流」の比較精度が低下する。
+
+### 解決条件
+
+1. `DriverAdapter/GVLs/GVL_DRV.TcGVL` に `currentCmd AT %Q* : LREAL` を追加
+2. `PRG_DriverAdapter` で `targetCurrentA` 計算後に `GVL_DRV.currentCmd` へ代入
+3. `ExperimentLogger.Inputs.currentCmd` へ I/O マッピング接続
+4. `run_check_logger_bin.m` 等で `currentCmd` が期待波形で記録されることを確認
+
+状態: **未着手（ドキュメント側のみ反映済み）**

@@ -38,8 +38,8 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
                    │ servo OFF / 初期状態      │
                    └────┬─────────────────┬────┘
                         │                 │
-              servoEnable                resetEdge
-             AND driveReady               │
+              servoEnable                 resetEdge
+                                          │
                         │                 │
                         ▼                 ▼
               ┌──────────────┐   ┌──────────────────┐
@@ -83,6 +83,8 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 | `DONE` | `IDLE` | 無条件 (次 tick 自動遷移) |
 | `DONE` | `RESETTING` | `resetEdge` |
 | *any* | `IDLE` | Watchdog timeout (強制) |
+
+> `RUNNING -> DONE` 遷移時の副作用: `servoEnableLatched := FALSE`, `modeFlags := 0`。
 
 ---
 
@@ -163,6 +165,7 @@ MATLAB                              PLC (ModeManager)
 | Symbol | Type | R/W | Notes |
 |---|---|---|---|
 | `GVL_MODE.modeFlags` | `UINT` | W | ビットフラグ一括制御 |
+| `GVL_MODE.modeState` | `E_ModeState` | R | デバッグ可視化用 FSM 内部状態 |
 | `GVL_MODE.resetReq` | `BOOL` | W | PLC が edge 検出後に clear |
 | `GVL_MODE.hostHeartbeatCounter` | `UDINT` | W | ホスト HB |
 | `GVL_MODE.experimentActive` | `BOOL` | R | FSM 出力 |

@@ -59,6 +59,10 @@ TcCOM Data Area として ADS シンボル公開。Build 不要で MATLAB から
 
 ## 3. I/O インターフェース — CiA 402 PDO 準拠
 
+> **2軸構成 (実装準拠):** 実装は `kAxisCount = 2` で、`Module1Inputs/Outputs` は
+> Axis 1/2 のペア (`VirtualMotor1*`, `VirtualMotor2*`, `controlWord1/2`, `statusWord1/2`) を持つ。
+> DriverAdapter との接続は現状 Axis 1 を主経路とし、Axis 2 は拡張用に予約される。
+
 ### 3.1 入力ポート (Data Area Input)
 
 | # | ポート名 | データ型 | CiA 402 Index | ソース | 説明 |
@@ -85,6 +89,19 @@ TcCOM Data Area として ADS シンボル公開。Build 不要で MATLAB から
 | (なし) | — | `torqueActualValue` | `INT` [‰ rated] | 新規追加 |
 | `statusWord` | `UINT` | `statusWord` | `UINT` | 変更なし |
 | `controlWord` | `UINT` | `controlWord` | `UINT` | 変更なし |
+
+### 3.4 Axis 2 拡張I/F
+
+| 区分 | Axis 1 | Axis 2 |
+|---|---|---|
+| 入力トルク | `Inputs.VirtualMotor1Inputs.targetTorque` | `Inputs.VirtualMotor2Inputs.targetTorque` |
+| 入力 CW | `Inputs.controlWord1` | `Inputs.controlWord2` |
+| 出力位置 | `Outputs.VirtualMotor1Outputs.positionActualValue` | `Outputs.VirtualMotor2Outputs.positionActualValue` |
+| 出力速度 | `Outputs.VirtualMotor1Outputs.velocityActualValue` | `Outputs.VirtualMotor2Outputs.velocityActualValue` |
+| 出力トルク | `Outputs.VirtualMotor1Outputs.torqueActualValue` | `Outputs.VirtualMotor2Outputs.torqueActualValue` |
+| 出力 SW | `Outputs.statusWord1` | `Outputs.statusWord2` |
+
+Axis 2 の数値変換則・状態機械は Axis 1 と同一ロジックを適用する。
 
 ---
 
@@ -172,3 +189,11 @@ VirtualMotorCore は実機同等の仕様として `position` / `velocity` を�
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.encoderResolution` | `UDINT` | W |
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.ratedTorque` | `LREAL` | W |
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.maxPermille` | `LREAL` | W |
+| `VirtualMotorCore_Obj1 (Module1).VirtualMotor2Parameter.mass` | `LREAL` | W |
+| `VirtualMotorCore_Obj1 (Module1).VirtualMotor2Parameter.damping` | `LREAL` | W |
+| `VirtualMotorCore_Obj1 (Module1).VirtualMotor2Parameter.tauLimit` | `LREAL` | W |
+| `VirtualMotorCore_Obj1 (Module1).VirtualMotor2Parameter.velLimit` | `LREAL` | W |
+| `VirtualMotorCore_Obj1 (Module1).VirtualMotor2Parameter.taskDtNs` | `ULINT` | W |
+| `VirtualMotorCore_Obj1 (Module1).VirtualMotor2Parameter.encoderResolution` | `UDINT` | W |
+| `VirtualMotorCore_Obj1 (Module1).VirtualMotor2Parameter.ratedTorque` | `LREAL` | W |
+| `VirtualMotorCore_Obj1 (Module1).VirtualMotor2Parameter.maxPermille` | `LREAL` | W |

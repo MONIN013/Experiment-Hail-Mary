@@ -35,14 +35,14 @@
 Phase 1-3 (1 ms):
   ExperimentSequencer ─── ControllerCore ─── DriverAdapter ─── VirtualMotorCore
          │                                       │
-         └─── mode_flags ◄── ModeManager ◄───────┘ (CW/SW 中継)
+         └─── experimentActive ◄── ModeManager ◄───────┘ (CW/SW 中継)
                                    │
                          ExperimentLogger (Phase 3〜)
 
 Phase 4 (125 µs = 8 kHz):
   ExperimentSequencer ─── ControllerCore ─── DriverAdapter ─── EtherCAT Drive
          │                                       │
-         └─── mode_flags ◄── ModeManager ◄───────┘ (CW/SW 中継)
+         └─── experimentActive ◄── ModeManager ◄───────┘ (CW/SW 中継)
          │                                                        
          └──── ExperimentLogger ──────────────────────────────────
          (VirtualMotorCore は SIL テスト用に維持)
@@ -53,7 +53,7 @@ Phase 4 (125 µs = 8 kHz):
 > 誤差計算・FB Chain・FF 付加を ControllerCore 内に配置する。
 > テーブルリプレイは PLC ST (ExperimentSequencer) で実装する。
 > ExperimentSequencer は ref / ff / dist のスカラ出力のみを担当する。
-> 外乱加算 (Dist Adder: `control_input + dist` を [A] で合成し、Drive 境界で `target_torque` [% rated] に変換) および
+> 外乱加算 (Dist Adder: `controlInput + dist` を [A] で合成し、Drive 境界で `targetTorque` [% rated] に変換) および
 > ControlWord / StatusWord の中継は DriverAdapter (PLC ST) が担当する。
 >
 > **DriverAdapter によるドライバ差異吸収 (D11):**
@@ -63,8 +63,8 @@ Phase 4 (125 µs = 8 kHz):
 > Build するのみで、制御ロジック (ControllerCore) の変更は不要。
 >
 > **2慣性系構成:** 本実験は Motor + Load の 2 慣性系である。
-> Drive 境界の `% rated` 指令 (`target_torque`) は Motor 側に入力し、
-> 位置フィードバック (`position_act`) は Load 側エンコーダから取得する。
+> Drive 境界の `% rated` 指令 (`targetTorque`) は Motor 側に入力し、
+> 位置フィードバック (`positionAct`) は Load 側エンコーダから取得する。
 > VirtualMotorCore (SIL) は Load 側応答の 1 慣性近似として動作する。
 > Phase 4 (DriverAdapter + EtherCAT) で実機の Motor/Load 両方の信号を取得する。
 
@@ -80,24 +80,25 @@ Phase 4 (125 µs = 8 kHz):
 
 | # | ポート名 | データ型 | ソース | 説明 |
 |---|---|---|---|---|
-| 1 | `ref_value` | `double` | ExperimentSequencer | 位置指令値 (スカラ) [rad] |
-| 2 | `ff_value` | `double` | ExperimentSequencer | FF 信号 (スカラ) [A] |
-| 3 | `position_act` | `double` | DriverAdapter | **Load 側**相対位置 [rad]（Adapter で raw→rad 変換+相対位置化済み）|
+| 1 | `refValue` | `double` | ExperimentSequencer | 位置指令値 (スカラ) [rad] |
+| 2 | `ffValue` | `double` | ExperimentSequencer | FF 信号 (スカラ) [A] |
+| 3 | `positionAct` | `double` | DriverAdapter | **Load 側**相対位置 [rad]（Adapter で raw→rad 変換+相対位置化済み）|
 
 ### 2.2 出力ポート (TcCOM Data Area Output)
 
 | # | ポート名 | データ型 | 宛先 | 説明 |
 |---|---|---|---|---|
-| 1 | `control_input` | `double` | DriverAdapter | 制御出力 $u_{fb} + u_{ff}$ [A] |
+| 1 | `controlInput` | `double` | DriverAdapter | 制御出力 $u_{fb} + u_{ff}$ [A] |
+| 2 | `error` | `double` | ExperimentLogger | 位置誤差 $e = \text{refValue} - \text{positionAct}$ [rad] |
 
 ### 2.3 内部処理
 
-1. **Error Calc:** $e = \text{ref\_value} - \text{position\_act}$ 　(`position_act` = DriverAdapter 出力の相対位置 [rad])
+1. **Error Calc:** $e = \text{refValue} - \text{positionAct}$ 　(`positionAct` = DriverAdapter 出力の相対位置 [rad])
 2. **FB Chain:** $e \to \text{PID} \to \text{Lead} \to \text{Notch} \to \text{Reso} \to u_{fb}$
-3. **FF Adder:** $\text{control\_input} = u_{fb} + \text{ff\_value}$
+3. **FF Adder:** $\text{controlInput} = u_{fb} + \text{ffValue}$
 
 > **D12 移行注記:** 相対位置化 (`positionRel = positionAct - positionOffset`) は DriverAdapter に移管済み。
-> ControllerCore の `positionOffset` / `positionRel` 出力は廃止し、`position_act` は Adapter の `positionRel` をそのまま受け取る。
+> ControllerCore の `positionOffset` / `positionRel` 出力は廃止し、`positionAct` は Adapter の `positionRel` をそのまま受け取る。
 > ControllerCore のリセット時は biquad 内部状態クリアのみを行い、位置オフセット処理は行わない。
 
 ### 2.3 Tunable Parameters (ADS 注入、Build 不要)
@@ -105,7 +106,7 @@ Phase 4 (125 µs = 8 kHz):
 > TMC (TwinCAT Module Class) 定義により Data Area として公開し、ADS シンボルとしてアクセス可能にする。
 > VirtualMotorCore と同様の方式。
 
-> **注記:** テーブル (`ref_table`, `ff_table`, `dist_table`, `table_len`) は ControllerCore に含めない。
+> **注記:** テーブル (`refTable`, `ffTable`, `distTable`, `tableLen`) は ControllerCore に含めない。
 > ExperimentSequencer (PLC ST) 側の GVL に配置。→ §2A 参照。
 
 #### 2.3.1 PID パラメータ (`PIDParams : ST_PID`)
@@ -162,7 +163,7 @@ Phase 4 (125 µs = 8 kHz):
 > **注記:** `enablePid` のデフォルトは実装上 `true`。MATLAB 側では常に正規フィールド `EnableParams.enablePid` を明示設定する。
 
 > **bypass 動作:** `enable = false` のとき、そのブロックの出力は入力をそのまま通過 (ゲイン 1)。  
-> FB チェーン: `error → [PID] → [Lead] → [Notch] → [Reso] → u_fb → (+ff_value) → control_input`  
+> FB チェーン: `error → [PID] → [Lead] → [Notch] → [Reso] → u_fb → (+ffValue) → controlInput`  
 > 各ブロックは `enable ? block_output : input` の条件分岐で選択する。
 
 ---
@@ -177,22 +178,22 @@ Phase 4 (125 µs = 8 kHz):
 
 ### 2A.1 機能
 
-1. **Ref Table Replay** — `ref_table[idx]` から位置指令値 `ref_value` (スカラ) を読み出し→ ControllerCore へ
-2. **FF Table Replay** — `ff_table[idx]` から FF 値 `ff_value` (スカラ) を読み出し→ ControllerCore へ
-3. **Dist Table Replay** — `dist_table[idx]` から外乱値 `dist_value` (スカラ) を読み出し→ DriverAdapter へ
-4. **テーブルインデックス管理** — `experiment_active` が `TRUE` の間 `idx` をインクリメント。`idx >= table_len` で再生完了。
+1. **Ref Table Replay** — `refTable[idx]` から位置指令値 `refValue` (スカラ) を読み出し→ ControllerCore へ
+2. **FF Table Replay** — `ffTable[idx]` から FF 値 `ffValue` (スカラ) を読み出し→ ControllerCore へ
+3. **Dist Table Replay** — `distTable[idx]` から外乱値 `distValue` (スカラ) を読み出し→ DriverAdapter へ
+4. **テーブルインデックス管理** — `experimentActive` が `TRUE` の間 `idx` をインクリメント。`idx >= tableLen` で再生完了。
 
 ### 2A.2 GVL — テーブル変数
 
 | 変数名 | データ型 | サイズ | 説明 |
 |---|---|---|---|
-| `ref_table` | `LREAL[]` | `[0..N_REF_MAX-1]` | 位置指令テーブル [rad] |
-| `ff_table` | `LREAL[]` | `[0..N_FF_MAX-1]` | フィードフォワードテーブル [A] |
-| `dist_table` | `LREAL[]` | `[0..N_DIST_MAX-1]` | 外乱テーブル [A] |
-| `table_len` | `UDINT` | scalar | テーブル有効長 (共通) |
+| `refTable` | `LREAL[]` | `[0..N_REF_MAX-1]` | 位置指令テーブル [rad] |
+| `ffTable` | `LREAL[]` | `[0..N_FF_MAX-1]` | フィードフォワードテーブル [A] |
+| `distTable` | `LREAL[]` | `[0..N_DIST_MAX-1]` | 外乱テーブル [A] |
+| `tableLen` | `UDINT` | scalar | テーブル有効長 (共通) |
 
 > `N_REF_MAX`, `N_FF_MAX`, `N_DIST_MAX` は PLC 定数として定義 (初期値: 100,000)。  
-> `table_len ≤ N_*_MAX` で実効長を制御する。
+> `tableLen ≤ N_*_MAX` で実効長を制御する。
 
 ### 2A.3 入出力
 
@@ -200,16 +201,18 @@ Phase 4 (125 µs = 8 kHz):
 
 | # | 変数名 | データ型 | ソース | 説明 |
 |---|---|---|---|---|
-| 1 | `mode_flags` | `UINT` | ModeManager | 動作モードフラグ |
-| 2 | `experiment_active` | `BOOL` | ModeManager | 実験実行中フラグ |
+| 1 | `experimentActive` | `BOOL` | ModeManager | 実験実行中フラグ |
 
 #### 出力
 
 | # | 変数名 | データ型 | 宛先 | 説明 |
 |---|---|---|---|---|
-| 1 | `ref_value` | `LREAL` | ControllerCore | 位置指令値 (スカラ) `ref_table[idx]` [rad] |
-| 2 | `ff_value` | `LREAL` | ControllerCore | FF 信号 (スカラ) `ff_table[idx]` [A] |
-| 3 | `dist_value` | `LREAL` | DriverAdapter | 外乱値 (スカラ) `dist_table[idx]` [A] |
+| 1 | `refValue` | `LREAL` | ControllerCore | 位置指令値 (スカラ) `refTable[idx]` [rad] |
+| 2 | `ffValue` | `LREAL` | ControllerCore | FF 信号 (スカラ) `ffTable[idx]` [A] |
+| 3 | `distValue` | `LREAL` | DriverAdapter | 外乱値 (スカラ) `distTable[idx]` [A] |
+
+> **補足 (tap 変数):** `GVL_SEQ_LOG.controlInputTap` と `GVL_SEQ_LOG.positionRelTap` は
+> ExperimentSequencer 内部ロギング用の入力タップであり、テーブル再生I/Fには含めない。
 
 ---
 
@@ -229,9 +232,9 @@ Phase 4 (125 µs = 8 kHz):
 2. **工学単位 → Raw 変換** — targetTorque [A]→[‰ rated]
 3. **電流クランプ** — `targetCurrentA` を `±MAX_CURRENT_A` でクランプ (モーター保護)
 3. **相対位置化** — リセット時に絶対位置をキャプチャし、以降 `positionRel` として公開 (D12)
-4. **Dist Adder** — $\text{target\_torque} = \text{control\_input} + \text{dist\_value}$ (最終トルク出力 → Motor 側)
-5. **ControlWord 中継** — ModeManager が生成した `controlword` を Drive へ転送
-6. **StatusWord 中継** — Drive から受信した `statusword` を ModeManager へ転送
+4. **Dist Adder** — $\text{targetTorque} = \text{controlInput} + \text{distValue}$ (最終トルク出力 → Motor 側)
+5. **ControlWord 中継** — ModeManager が生成した `controlWord` を Drive へ転送
+6. **StatusWord 中継** — Drive から受信した `statusWord` を ModeManager へ転送
 7. **電流ゲート** — `enableCurrentOutput = FALSE` または `playbackDone = TRUE` 時に `targetTorque := 0`
 
 ### 2B.2 定数パラメータ (`GVL_DRV` — `VAR_GLOBAL CONSTANT`)
@@ -254,15 +257,15 @@ Phase 4 (125 µs = 8 kHz):
 | 1 | `positionActualValue` | `DINT` | VirtualMotor / EtherCAT | 実位置 [pulses] |
 | 2 | `velocityActualValue` | `DINT` | VirtualMotor / EtherCAT | 実速度 [pulses/s] |
 | 3 | `torqueActualValue` | `INT` | VirtualMotor / EtherCAT | 実トルク [‰ rated] |
-| 4 | `statusword` | `UINT` | VirtualMotor / EtherCAT | CiA 402 StatusWord |
+| 4 | `statusWord` | `UINT` | VirtualMotor / EtherCAT | CiA 402 StatusWord |
 
 #### 入力 — 制御側
 
 | # | 変数名 | データ型 | ソース | 説明 |
 |---|---|---|---|---|
-| 5 | `control_input` | `LREAL` | ControllerCore | 制御出力 $u_{fb} + u_{ff}$ [A] |
-| 6 | `dist_value` | `LREAL` | ExperimentSequencer | 外乱値 (スカラ) [A] |
-| 7 | `controlword_in` | `UINT` | ModeManager | CiA 402 ControlWord (ModeManager 生成) |
+| 5 | `controlInput` | `LREAL` | ControllerCore | 制御出力 $u_{fb} + u_{ff}$ [A] |
+| 6 | `distValue` | `LREAL` | ExperimentSequencer | 外乱値 (スカラ) [A] |
+| 7 | `controlWordIn` | `UINT` | ModeManager | CiA 402 ControlWord (ModeManager 生成) |
 | 8 | `enableCurrentOutput` | `BOOL` | ModeManager | 電流ゲート有効フラグ |
 | 9 | `resetReq` | `BOOL` | ModeManager | リセット要求 (エッジ検出) |
 
@@ -273,14 +276,14 @@ Phase 4 (125 µs = 8 kHz):
 | 1 | `positionRel` | `LREAL` | ControllerCore / ExperimentLogger | 相対位置 [rad] |
 | 2 | `velocityAct` | `LREAL` | ExperimentLogger | 速度 [rad/s] |
 | 3 | `currentAct` | `LREAL` | ExperimentLogger | 実電流 [A] |
-| 4 | `statusword_out` | `UINT` | ModeManager | CiA 402 StatusWord (中継) |
+| 4 | `statusWordOut` | `UINT` | ModeManager | CiA 402 StatusWord (中継) |
 
 #### 出力 — Drive 側 raw
 
 | # | 変数名 | データ型 | 宛先 | 説明 |
 |---|---|---|---|---|
-| 5 | `target_torque` | `INT` | VirtualMotor / EtherCAT | Drive 境界の指令 [% rated] |
-| 6 | `controlword_out` | `UINT` | VirtualMotor / EtherCAT | CiA 402 ControlWord (中継) |
+| 5 | `targetTorque` | `INT` | VirtualMotor / EtherCAT | Drive 境界の指令 [% rated] |
+| 6 | `controlWordOut` | `UINT` | VirtualMotor / EtherCAT | CiA 402 ControlWord (中継) |
 
 > **Phase 4 拡張:**
 > EtherCAT PDO マッピングへの切り替えは tsproj の `<Mappings>` 変更のみ。
@@ -294,32 +297,32 @@ Phase 4 (125 µs = 8 kHz):
 ### 3.1 ExperimentSequencer → ControllerCore
 
 ```
-ExperimentSequencer.ref_value      ──►  ControllerCore.ref_value
-ExperimentSequencer.ff_value       ──►  ControllerCore.ff_value
+ExperimentSequencer.refValue      ──►  ControllerCore.refValue
+ExperimentSequencer.ffValue       ──►  ControllerCore.ffValue
 ```
 
 ### 3.2 ControllerCore → DriverAdapter
 
 ```
-ControllerCore.control_input       ──►  DriverAdapter.control_input
+ControllerCore.controlInput       ──►  DriverAdapter.controlInput
 ```
 
 ### 3.3 ExperimentSequencer → DriverAdapter
 
 ```
-ExperimentSequencer.dist_value     ──►  DriverAdapter.dist_value
+ExperimentSequencer.distValue     ──►  DriverAdapter.distValue
 ```
 
 ### 3.4 DriverAdapter ↔ VirtualMotorCore (Phase 1–3)
 
 ```
-DriverAdapter.target_torque (INT, ‰ rated)   ──►  VirtualMotorCore.Inputs.targetTorque       (Motor 側入力)
-DriverAdapter.controlword_out                  ──►  VirtualMotorCore.Inputs.controlWord
-VirtualMotorCore.Outputs.statusWord            ──►  DriverAdapter.statusword
+DriverAdapter.targetTorque (INT, ‰ rated)   ──►  VirtualMotorCore.Inputs.targetTorque       (Motor 側入力)
+DriverAdapter.controlWordOut                  ──►  VirtualMotorCore.Inputs.controlWord
+VirtualMotorCore.Outputs.statusWord            ──►  DriverAdapter.statusWord
 VirtualMotorCore.Outputs.positionActualValue   ──►  DriverAdapter.positionActualValue    (DINT, pulses)
 VirtualMotorCore.Outputs.velocityActualValue   ──►  DriverAdapter.velocityActualValue    (DINT, pulses/s)
 VirtualMotorCore.Outputs.torqueActualValue     ──►  DriverAdapter.torqueActualValue      (INT, ‰ rated)
-DriverAdapter.positionRel (LREAL, rad)         ──►  ControllerCore.position_act          (Load 側 FB, 相対位置化済み)
+DriverAdapter.positionRel (LREAL, rad)         ──►  ControllerCore.positionAct          (Load 側 FB, 相対位置化済み)
 ```
 
 > VirtualMotorCore は CiA 402 PDO 準拚の整数型 I/O を提供 (D11).
@@ -328,11 +331,11 @@ DriverAdapter.positionRel (LREAL, rad)         ──►  ControllerCore.positio
 ### 3.5 ModeManager ↔ DriverAdapter
 
 ```
-ModeManager.controlword            ──►  DriverAdapter.controlword_in
+ModeManager.controlWord            ──►  DriverAdapter.controlWordIn
 ModeManager.resetOut               ──►  DriverAdapter.resetReq
 ModeManager.enableCurrentOutput     ──►  DriverAdapter.enableCurrentOutput
 ExperimentSequencer.playbackDone   ──►  DriverAdapter.playbackDone        (同一タスク fast-path、即時トルク停止)
-DriverAdapter.statusword_out       ──►  ModeManager.statusword
+DriverAdapter.statusWordOut       ──►  ModeManager.statusWord
 ```
 
 > ModeManager が CiA 402 ControlWord を生成し、DriverAdapter が Drive へ中継する。
@@ -342,28 +345,29 @@ DriverAdapter.statusword_out       ──►  ModeManager.statusword
 ### 3.6 ModeManager → ExperimentSequencer
 
 ```
-ModeManager.mode_flags        ──►  ExperimentSequencer.mode_flags
-ModeManager.experiment_active ──►  ExperimentSequencer.experiment_active
+ModeManager.experimentActive ──►  ExperimentSequencer.experimentActive
 ```
 
 ### 3.7 各モジュール → ExperimentLogger (Phase 3〜)
 
 ```
-DriverAdapter.positionRel                                  ──►  ExperimentLogger.Inputs.load_position    (Adapter 変換済み相対位置)
-DriverAdapter.velocityAct                                  ──►  ExperimentLogger.Inputs.load_velocity    (Adapter 変換済み速度)
-DriverAdapter.currentAct                                    ──►  ExperimentLogger.Inputs.motor_current_act (Adapter 変換済み実電流)
+DriverAdapter.positionRel                                  ──►  ExperimentLogger.Inputs.loadPosition    (Adapter 変換済み相対位置)
+DriverAdapter.velocityAct                                  ──►  ExperimentLogger.Inputs.loadVelocity    (Adapter 変換済み速度)
+DriverAdapter.currentAct                                    ──►  ExperimentLogger.Inputs.motorCurrentAct (Adapter 変換済み実電流)
 DriverAdapter.current-domain command [A]                   ──►  ExperimentLogger.Inputs.currentCmd        (指令電流を [A] で記録)
-ExperimentSequencer.ref_value                              ──►  ExperimentLogger.Inputs.ref_value
-ExperimentSequencer.ff_value                               ──►  ExperimentLogger.Inputs.ff_value
-ControllerCore.control_input                               ──►  ExperimentLogger.Inputs.control_input
+ExperimentSequencer.refValue                              ──►  ExperimentLogger.Inputs.refValue
+ExperimentSequencer.ffValue                               ──►  ExperimentLogger.Inputs.ffValue
+ControllerCore.controlInput                               ──►  ExperimentLogger.Inputs.controlInput
 ControllerCore.error                                       ──►  ExperimentLogger.Inputs.error
 ```
 
 > `error` は ControllerCore の Data Area Output として公開する。
-> Phase 1–3 (SIL) でも `motor_current_act` は VirtualMotorCore の `torqueActualValue` 経由で
+> `currentCmd` は設計上 DriverAdapter から供給する想定だが、現ブランチでは
+> `GVL_DRV.currentCmd` の出力シンボルが未実装であり、接続は未完了。
+> Phase 1–3 (SIL) でも `motorCurrentAct` は VirtualMotorCore の `torqueActualValue` 経由で
 > DriverAdapter が A 変換した値が入る (D13、H3 解消)。
-> `load_position` / `load_velocity` は DriverAdapter が raw→rad 変換+相対位置化した値が入る。
-> `motor_position` / `motor_velocity` は Phase 4 で2軸構成時に追加予定。
+> `loadPosition` / `loadVelocity` は DriverAdapter が raw→rad 変換+相対位置化した値が入る。
+> `motorPosition` / `motorVelocity` は Phase 4 で2軸構成時に追加予定。
 
 **制御信号 (ロギング制御 + fast-path 停止):**
 
@@ -380,9 +384,9 @@ ExperimentSequencer.playbackDone                           ──►  Experiment
 ### 3.8 DriverAdapter ↔ EtherCAT Drive (Phase 4)
 
 ```
-DriverAdapter.target_torque (INT, ‰ rated)     ──►  EtherCAT.PDO.targetTorque      (Motor 側入力)
-DriverAdapter.controlword_out                    ──►  EtherCAT.PDO.controlword
-EtherCAT.PDO.statusword                          ──►  DriverAdapter.statusword
+DriverAdapter.targetTorque (INT, ‰ rated)     ──►  EtherCAT.PDO.targetTorque      (Motor 側入力)
+DriverAdapter.controlWordOut                    ──►  EtherCAT.PDO.controlWord
+EtherCAT.PDO.statusWord                          ──►  DriverAdapter.statusWord
 EtherCAT.PDO.positionActualValue (DINT, pulses)  ──►  DriverAdapter.positionActualValue
 EtherCAT.PDO.velocityActualValue (DINT, pulses/s)──►  DriverAdapter.velocityActualValue
 EtherCAT.PDO.torqueActualValue (INT, ‰ rated)   ──►  DriverAdapter.torqueActualValue
@@ -400,62 +404,60 @@ EtherCAT.PDO.torqueActualValue (INT, ‰ rated)   ──►  DriverAdapter.torqu
 │       ControllerCore (C++ TcCOM)                 │
 │       誤差計算 + FB Chain + FF Adder              │
 │                                                  │
-│  ref_value    ◄──────── ExperimentSequencer      │
-│  ff_value     ◄──────── ExperimentSequencer      │
-│  position_act ◄──────── DriverAdapter.positionRel│
+│  refValue    ◄──────── ExperimentSequencer      │
+│  ffValue     ◄──────── ExperimentSequencer      │
+│  positionAct ◄──────── DriverAdapter.positionRel│
 │                      (相対位置化済み)             │
 │                                                  │
 │  [e = ref - pos] → PID → Lead → Notch → Reso    │
-│  [u_fb + ff_value]                                │
+│  [u_fb + ffValue]                                │
 │                                                  │
-│  control_input ──────► DriverAdapter             │
+│  controlInput ──────► DriverAdapter             │
 └──────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────┐
 │       ExperimentSequencer (PLC ST)               │
 │       テーブル読み出し専用 (ref / ff / dist)      │
 │                                                  │
-│  mode_flags ◄──────────── ModeManager            │
-│  experiment_active ◄───── ModeManager            │
+│  experimentActive ◄───── ModeManager            │
 │                                                  │
-│  ref_table[idx]  → ref_value  → ControllerCore   │
-│  ff_table[idx]   → ff_value   → ControllerCore   │
-│  dist_table[idx] → dist_value → DriverAdapter    │
+│  refTable[idx]  → refValue  → ControllerCore   │
+│  ffTable[idx]   → ffValue   → ControllerCore   │
+│  distTable[idx] → distValue → DriverAdapter    │
 └──────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────┐
 │       DriverAdapter (PLC ST)                     │
 │       ControlInput → Drive 入力整形              │
 │                                                  │
-│  control_input ◄───────── ControllerCore         │
-│  dist_value    ◄───────── ExperimentSequencer    │
-│  controlword_in ◄──────── ModeManager            │
-│  statusword    ◄───────── VirtualMotorCore       │
+│  controlInput ◄───────── ControllerCore         │
+│  distValue    ◄───────── ExperimentSequencer    │
+│  controlWordIn ◄──────── ModeManager            │
+│  statusWord    ◄───────── VirtualMotorCore       │
 │                                                  │
-│  target_torque = control_input + dist_value      │
+│  targetTorque = controlInput + distValue      │
 │                                                  │
-│  target_torque ──────────► VirtualMotorCore.in (Motor 側)   │
-│  controlword_out ────────► VirtualMotorCore.controlword     │
-│  statusword_out ─────────► ModeManager                      │
+│  targetTorque ──────────► VirtualMotorCore.in (Motor 側)   │
+│  controlWordOut ────────► VirtualMotorCore.controlWord     │
+│  statusWordOut ─────────► ModeManager                      │
 └──────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────┐
 │       ModeManager (StateMachineControl PLC)      │
 │       CiA 402 + 実験シーケンス + 安全監視        │
 │                                                  │
-│  statusword ◄──────────── DriverAdapter          │
+│  statusWord ◄──────────── DriverAdapter          │
 │                                                  │
-│  controlword ────────────► DriverAdapter         │
-│  mode_flags ─────────────► ExperimentSequencer   │
-│  experiment_active ──────► ExperimentSequencer   │
+│  controlWord ───────────► DriverAdapter         │
+│  experimentActive ──────► ExperimentSequencer   │
 └──────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────┐
 │       MATLAB Orchestrator                        │
 │                                                  │
 │  ───► ADS Write (ExperimentSequencer GVL):        │
-│       ref_table[], ff_table[], dist_table[],      │
-│       table_len                                   │
+│       refTable[], ffTable[], distTable[],      │
+│       tableLen                                   │
 │  ───► ADS Write (ControllerCore TcCOM):           │
 │       PIDParams.pidB0..pidA2                      │
 │       LeadParams.leadB0..leadA2                   │
@@ -553,6 +555,7 @@ ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.errorCode     → UDINT
 
 ```
 GVL_MODE.modeFlags         → UINT   (Write: ビットフラグ一括制御)
+GVL_MODE.modeState         → E_ModeState (Read: デバッグ可視化用 FSM 内部状態)
 GVL_MODE.experimentActive  → BOOL   (Read: ModeManager 出力)
 GVL_MODE.experimentState   → UINT   (Read: IDLE=0, READY=1, RUNNING=2, DONE=3)
 ```
@@ -594,17 +597,17 @@ GVL_MODE.experimentState   → UINT   (Read: IDLE=0, READY=1, RUNNING=2, DONE=3)
 TYPE ST_LogRecord :
 STRUCT
   seq              : UDINT;    (* シーケンス番号 *)
-  t_ns             : ULINT;    (* タイムスタンプ [ns] *)
-  motor_position   : LREAL;    (* Motor 側実位置 [rad] *)
-  motor_velocity   : LREAL;    (* Motor 側実速度 [rad/s] *)
-  motor_current_act : LREAL;    (* Motor 実電流 [A] — Phase 4 *)
-  load_position    : LREAL;    (* Load 側実位置 [rad] — FB 対象 *)
-  load_velocity    : LREAL;    (* Load 側実速度 [rad/s] *)
-  current_cmd      : LREAL;    (* 指令電流 [A] → Motor 側 *)
-  error            : LREAL;    (* 位置誤差 = ref - load_position [rad] *)
-  ref_value        : LREAL;    (* 指令位置 [rad] *)
-  ff_value         : LREAL;    (* フィードフォワード値 [A] *)
-  control_input    : LREAL;    (* FB制御出力 u_fb + u_ff [A] *)
+  tNs             : ULINT;    (* タイムスタンプ [ns] *)
+  motorPosition   : LREAL;    (* Motor 側実位置 [rad] *)
+  motorVelocity   : LREAL;    (* Motor 側実速度 [rad/s] *)
+  motorCurrentAct : LREAL;    (* Motor 実電流 [A] — Phase 4 *)
+  loadPosition    : LREAL;    (* Load 側実位置 [rad] — FB 対象 *)
+  loadVelocity    : LREAL;    (* Load 側実速度 [rad/s] *)
+  currentCmd      : LREAL;    (* 指令電流 [A] → Motor 側 *)
+  error            : LREAL;    (* 位置誤差 = ref - loadPosition [rad] *)
+  refValue        : LREAL;    (* 指令位置 [rad] *)
+  ffValue         : LREAL;    (* フィードフォワード値 [A] *)
+  controlInput    : LREAL;    (* FB制御出力 u_fb + u_ff [A] *)
 END_STRUCT
 END_TYPE
 ```
@@ -612,9 +615,9 @@ END_TYPE
 > 1 レコード = 4 + 4(pad) + 8 + 8×10 = 96 bytes  
 > 8kHz × 100s = 800,000 レコード × 96 bytes ≈ 76.8 MB
 >
-> Phase 1–3 (SIL) では `motor_position`, `motor_velocity` は 0 埋め。
-> `motor_current_act` は VirtualMotorCore の `torqueActualValue` 経由で DriverAdapter が A 変換した値が入る (D13)。
-> `load_position` / `load_velocity` に DriverAdapter の raw→工学単位変換 + 相対位置化済みの値が入る。
+> Phase 1–3 (SIL) では `motorPosition`, `motorVelocity` は 0 埋め。
+> `motorCurrentAct` は VirtualMotorCore の `torqueActualValue` 経由で DriverAdapter が A 変換した値が入る (D13)。
+> `loadPosition` / `loadVelocity` に DriverAdapter の raw→工学単位変換 + 相対位置化済みの値が入る。
 
 ### 6.2 ファイル書き込み動作
 
@@ -633,16 +636,16 @@ END_TYPE
 ## 7. ControllerCore 内部ブロック図
 
 ```
-  ref_value ──►(−)──► [PID] ──► [Lead] ──► [Notch] ──► [Reso] ──► u_fb ──►(+)──► control_input
+  refValue ──►(−)──► [PID] ──► [Lead] ──► [Notch] ──► [Reso] ──► u_fb ──►(+)──► controlInput
                 ▲       ↕          ↕          ↕           ↕              ▲
-  position_act ─┘   enable_pid enable_lead enable_notch enable_reso    │
-  (Load 側)                                                      ff_value
+  positionAct ─┘   enable_pid enable_lead enable_notch enable_reso    │
+  (Load 側)                                                      ffValue
 ```
 
 > ControllerCore (C++ TcCOM) は以下を内包:
-> 1. **Error Calc:** $e = \text{ref\_value} - \text{position\_act}$ 　(`position_act` = DriverAdapter 出力の相対位置)
+> 1. **Error Calc:** $e = \text{refValue} - \text{positionAct}$ 　(`positionAct` = DriverAdapter 出力の相対位置)
 > 2. **FB Chain:** $e \to \text{PID} \to \text{Lead} \to \text{Notch} \to \text{Reso} \to u_{fb}$
-> 3. **FF Adder:** $\text{control\_input} = u_{fb} + \text{ff\_value}$
+> 3. **FF Adder:** $\text{controlInput} = u_{fb} + \text{ffValue}$
 >
 > C++ で離散フィルタを直接実装。
 > テーブル (大規模配列) は所有せず、全入力がスカラ。
@@ -655,12 +658,12 @@ END_TYPE
              テーブル読み出し専用 (ref / ff / dist)
   ┌─────────────────────────────────────────────────────────┐
   │                                                         │
-  │  ref_table[idx]  ──► ref_value  ──► ControllerCore     │
-  │  ff_table[idx]   ──► ff_value   ──► ControllerCore     │
-  │  dist_table[idx] ──► dist_value ──► DriverAdapter      │
+  │  refTable[idx]  ──► refValue  ──► ControllerCore     │
+  │  ffTable[idx]   ──► ffValue   ──► ControllerCore     │
+  │  distTable[idx] ──► distValue ──► DriverAdapter      │
   │                                                         │
-  │  idx: experiment_active=TRUE の間インクリメント          │
-  │  idx >= table_len → 再生完了                             │
+  │  idx: experimentActive=TRUE の間インクリメント          │
+  │  idx >= tableLen → 再生完了                             │
   └─────────────────────────────────────────────────────────┘
 ```
 
@@ -713,7 +716,7 @@ Lead / Notch / Reso も同様。bypass 時はフィルタ内部状態をリセ�
 | # | 決定 | 根拠 |
 |---|---|---|
 | D1 | C++ TcCOM — 誤差計算 + FB Chain + FF Adder | TE1400 試用版 100kB 制限を回避。C++ 直接実装で TE1400 への依存を完全排除。ADS Tunable Parameter により Build 不要の設計は維持 |
-| D1a | テーブルリプレイは ExperimentSequencer、外乱加算・ControlWord/StatusWord 中継は DriverAdapter | ExperimentSequencer は ref/ff/dist のスカラ出力に専念。DriverAdapter が `control_input + dist` を current [A] で合成し、Drive 境界の `target_torque` [% rated] と ControlWord/StatusWord 中継を担当。責務分離を徹底 |
+| D1a | テーブルリプレイは ExperimentSequencer、外乱加算・ControlWord/StatusWord 中継は DriverAdapter | ExperimentSequencer は ref/ff/dist のスカラ出力に専念。DriverAdapter が `controlInput + dist` を current [A] で合成し、Drive 境界の `targetTorque` [% rated] と ControlWord/StatusWord 中継を担当。責務分離を徹底 |
 | D2 | FB Chain バイパスフラグ方式 | Build 1 回で全構成を包含。実験条件変更は ADS パラメータ注入のみ |
 | D3 | 位相最適共振フィルタは Biquad 形式 | Notch と同一構造で実装コストを抑え、係数で特性を変更可能 |
 | D4 | サイクルタイム Phase 1–3 は 1 ms | 既存 VirtualMotorCore の検証済み設定を維持し、段階的に 8 kHz へ移行 |
@@ -739,3 +742,5 @@ MATLAB からの ADS アクセスは以下の原則に従う:
 | **VM パラメータ注入** (`VirtualMotor1Parameter.*`) | VirtualMotorCore TcCOM に直接書込 (Port 351) | 同上 |
 | **ログ制御/読出し** | ExperimentLogger TcCOM (Port 351) / `GVL_SEQ_LOG` (Port 853) | Phase 3 以降 |
 | **状態監視** (`experimentState`) | `GVL_MODE` 読出し (Port 852) | 正当 |
+
+

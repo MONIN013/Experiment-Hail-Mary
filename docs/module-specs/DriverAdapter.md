@@ -138,6 +138,8 @@ PROGRAM PRG_DriverAdapter
 VAR
     positionRad       : LREAL := 0.0;
     targetCurrentA    : LREAL := 0.0;
+    permilleCmd       : LREAL := 0.0;
+    targetTorqueDint  : DINT := 0;
     positionOffsetRad : LREAL := 0.0;  (* リセット時キャプチャ位置 *)
     resetReqPrev      : BOOL  := FALSE; (* エッジ検出用 *)
     resetEdge         : BOOL  := FALSE;
@@ -179,7 +181,21 @@ ELSIF targetCurrentA < -MAX_CURRENT_A THEN
 END_IF
 
 IF GVL_DRV.enableCurrentOutput AND NOT GVL_DRV.playbackDone THEN
-    GVL_DRV.targetTorque := LREAL_TO_INT(targetCurrentA * RATED_CURRENT_INV_X1000);
+    (* Symmetric rounding (+/-0.5) then INT16 saturation via DINT path *)
+    permilleCmd := targetCurrentA * RATED_CURRENT_INV_X1000;
+    IF permilleCmd >= 0.0 THEN
+        targetTorqueDint := LREAL_TO_DINT(permilleCmd + 0.5);
+    ELSE
+        targetTorqueDint := LREAL_TO_DINT(permilleCmd - 0.5);
+    END_IF
+
+    IF targetTorqueDint > 32767 THEN
+        targetTorqueDint := 32767;
+    ELSIF targetTorqueDint < -32768 THEN
+        targetTorqueDint := -32768;
+    END_IF
+
+    GVL_DRV.targetTorque := DINT_TO_INT(targetTorqueDint);
 ELSE
     GVL_DRV.targetTorque := 0;
 END_IF

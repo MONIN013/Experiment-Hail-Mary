@@ -52,7 +52,7 @@ VAR_GLOBAL
     controlWordIn AT %I* : UINT := 0;
 
     {attribute 'linkalways'}
-    enableCurrentOutput AT %I* : BOOL := TRUE;
+    enableCurrentOutput AT %I* : BOOL := FALSE;
 
     {attribute 'linkalways'}
     playbackDone AT %I* : BOOL := FALSE;

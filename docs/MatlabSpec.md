@@ -196,7 +196,7 @@ ControllerCore の biquad フィルタパラメータ (4 段カスケード) を
 
 ## §7 デモスクリプト
 
-`matlab/` ルートに 3 本のエントリスクリプトがある。  
+`matlab/` ルートに 4 本のエントリスクリプトがある。  
 いずれも先頭で `restoredefaultpath; addpath(genpath(base_dir));` により独立したパス環境を構築する。
 
 ---
@@ -339,6 +339,19 @@ FAIL がある場合は `warning: experiment:verify:failures` を発行する。
 
 ---
 
+### §7.4 run_check_logger_bin.m
+
+ExperimentLogger が出力した固定長バイナリ (`experiment_logger*.bin`) を直接検査する補助スクリプト。  
+`experiment.read_logger_bin(...)` を使用し、時系列長・先頭/末尾値・主要信号を可視化する。
+
+主用途:
+
+1. 実験完了直後のログ破損チェック
+2. フィールドマッピング (`currentCmd`, `controlInput`, `loadPosition`) の妥当性確認
+3. 解析前のクイックサニティチェック
+
+---
+
 ## §8 XAR 検証 (run_verify_xar.m)
 
 192.168.10.3 の XAR に対し以下を自動検証する:
@@ -387,6 +400,7 @@ FAIL がある場合は `warning: experiment:verify:failures` を発行する。
 | `tests/unit/TestSendPositionCommand.m` | send_position_command フロー (Mock) |
 | `tests/unit/TestModeManagerControl.m` | ModeManagerControl ヘルパー |
 | `tests/unit/TestPreloadEval.m` | プリロード評価 |
+| `tests/unit/TestReadLoggerBin.m` | logger バイナリ読出し |
 | `tests/unit/TestSymbolTraversal.m` | シンボルトラバーサル |
 | `tests/contract/TestTransportContract.m` | IAdsTransport 契約 |
 | `tests/contract/TestSymbolBrowserContract.m` | SymbolBrowser 契約 |
@@ -400,6 +414,7 @@ matlab/
 ├── run_ads_discovery_demo.m
 ├── run_position_command_demo.m
 ├── run_verify_xar.m
+├── run_check_logger_bin.m
 ├── +experiment/
 │   ├── SystemConfig.m
 │   ├── VirtualMotorSymbols.m
@@ -408,12 +423,16 @@ matlab/
 │   ├── RunConfig.m
 │   ├── PositionCommandConfig.m
 │   ├── send_position_command.m
+│   ├── run_virtualmotor.m
 │   ├── write_ref_table.m
 │   ├── write_ff_table.m
 │   ├── write_dist_table.m
 │   ├── write_vm_params.m
 │   ├── write_controller_params.m
-│   └── read_experiment_logs.m
+│   ├── read_experiment_logs.m
+│   ├── read_logger_bin.m
+│   ├── preload_eval.m
+│   └── simulate_position.m
 ├── +twincat_ads/
 │   ├── AdsTransport.m
 │   ├── IAdsTransport.m

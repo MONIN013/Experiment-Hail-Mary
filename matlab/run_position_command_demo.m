@@ -33,7 +33,7 @@ target_position_rad = 0.25;
 step_duration_s     = 3.0;
 hold_margin_s       = 0.50;
 pre_step_s          = 3.0;
-N_REPEAT            = 3;
+N_REPEAT            = 2;
 
 %% VM 物理パラメータ
 vm_params = struct( ...
@@ -45,7 +45,7 @@ vm_params = struct( ...
   "vel_limit",      2*pi*60);
 
 %% P 制御パラメータ (Kp = 180, biquad 形式: y[n] = b0*x[n])
-Kp = 0.5;
+Kp = 1;
 ctrl_params = struct( ...
   "pid_b0",  Kp,   "pid_b1",  0, "pid_b2",  0, "pid_a1",  0, "pid_a2",  0, ...
   "lead_b0", 1,    "lead_b1", 0, "lead_b2", 0, "lead_a1", 0, "lead_a2", 0, ...
