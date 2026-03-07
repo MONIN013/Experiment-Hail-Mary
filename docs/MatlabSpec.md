@@ -46,7 +46,10 @@ MATLAB からは **ADS 通信**（.NET Interop 経由 `TcAdsClient`）でパラ�
 | `VM_PREFIX` | string | `"VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter."` | VM パラメータシンボルプレフィクス |
 | `CTRL_PREFIX` | string | `"ControllerCore_Obj1 (Module1)."` | Controller パラメータシンボルプレフィクス |
 | `MODE_FLAGS_SYMBOL` | string | `"GVL_MODE.modeFlags"` | modeFlags 正規書込み先シンボル |
-| `LOG_N` | double | `200000` | ExperimentLogger リングバッファサイズ |
+| `LOGGER_FILE_RELEASED_SYMBOL` | string | `"GVL_MODE.loggerFileReleased"` | logger close 完了公開シンボル |
+| `LOGGER_ERROR_CODE_SYMBOL` | string | `"GVL_MODE.loggerErrorCode"` | logger エラー公開シンボル |
+| `LOGGER_DEFAULT_FILE_PATH` | string | `"C:\ExperimentData\experiment_logger.bin"` | 正規 logger bin パス |
+| `LOGGER_RELEASE_TIMEOUT_S` | double | `5.0` | logger close 完了待機既定時間 [s] |
 | `TABLE_MAX_N` | double | `100000` | refTable / ffTable / distTable 最大長 |
 
 ### Static メソッド
@@ -194,11 +197,11 @@ ControllerCore の biquad フィルタパラメータ (4 段カスケード) を
 | `dist_profile` | zeros(N,1) | 外乱テーブル |
 | `mode_flags_symbol` | `SystemConfig.position_command_defaults()` | modeFlags 正規シンボル |
 | `repeat_count` | `1` | 同一テーブルの連続再生回数 |
-| `module_transport` | `[]` | `ExperimentLogger` ステータス取得用 ADS transport (任意) |
+| `logger_release_timeout_s` | `SystemConfig.position_command_defaults()` | logger close 完了待機時間 [s] |
 
 `send_position_command` は戻り値 `out.logger` を返す。  
-`out.logger` には `ready_before/after`, `error_before/after`, `records_before/after`,
-`file_released`, `file_probe_detail` が含まれる。
+`out.logger` には `error_before/after`, `file_released`, `file_probe_detail`, `file_path` が含まれる。  
+logger 状態監視は `GVL_MODE.loggerFileReleased` / `GVL_MODE.loggerErrorCode` を `CONTROL_PORT` で読んで行い、MATLAB は logger TcCOM を直接監視しない。
 
 ---
 
@@ -222,9 +225,8 @@ P 制御ステップ応答デモ（同一 trial を `N_REPEAT` 回連続再生�
 5. 3 本の ADS トランスポートを生成・接続 (SEQ=853, CTRL=852, MODULE=351)
 6. `write_vm_params` / `write_controller_params` でパラメータを TcCOM に書込み (Port 351)
 7. `send_position_command` で実験実行・完了待ち（`repeat_count=N_REPEAT`）
-8. `out.logger` を使って `ExperimentLogger` の状態を判定し、bin 読み取りを試行
-9. bin が有効なら bin を採用、失敗時は `ExperimentLogger` に 代替経路
-10. 採用したソースを `logSource` として表示し、位置応答・制御入力をプロット
+8. `send_position_command` が `GVL_MODE.loggerFileReleased` を待ち、bin 可読性を保証してから復帰
+9. 共有フォルダ上の最新 valid bin を読み、採用ソースを表示して位置応答・制御入力をプロット
 
 #### 現在の設定パラメータ
 

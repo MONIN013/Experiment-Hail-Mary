@@ -22,14 +22,15 @@ seq_port       = sys.SEQ_PORT;
 control_port   = sys.CONTROL_PORT;
 module_port    = sys.MODULE_PORT;
 task_rate_hz   = sys.TASK_RATE_HZ;
-logger_path = "C:\ExperimentData\experiment_logger.bin";
+logger_share_dir = "\\RAINYDAY\ExperimentData";
+logger_file_glob = "*.bin";
 
 %% Experiment parameters
 target_position_rad = 0.25;
-step_duration_s     = 3.0;
+step_duration_s     = 1.0;
 hold_margin_s       = 0.50;
-pre_step_s          = 3.0;
-N_REPEAT            = 2;
+pre_step_s          = 1.0;
+N_REPEAT            = 1;
 
 %% VM 物理パラメータ
 vm_params = struct( ...
@@ -96,6 +97,7 @@ out = experiment.send_position_command( ...
   "repeat_count", N_REPEAT, ...
   "wait_for_done", true, ...
   "done_timeout_s", done_timeout_s, ...
+  "logger_release_timeout_s", 5.0, ...
   "hold_seconds", per_trial_s + hold_margin_s, ...
   "plc_transport", seq_transport, ...
   "control_transport", ctrl_transport, ...
@@ -103,29 +105,24 @@ out = experiment.send_position_command( ...
   "mode_flags_transport", ctrl_transport, ...
   "validate_symbols", true);
 logger_bin = [];
-if out.logger.error_after == 0 && out.logger.records_after > 0 && out.logger.file_released
-  try
-    logger_bin = experiment.read_logger_bin(logger_path);
-  catch e
-    error("experiment:demo:loggerBinReadFailed", ...
-      "ExperimentLogger bin read failed (%s: %s).", ...
-      string(e.identifier), string(e.message));
-  end
+latest_bin = experiment.read_latest_logger_bin(logger_share_dir, logger_file_glob);
+if latest_bin.ok
+  logger_bin = latest_bin.logger_bin;
 end
 selected = experiment.resolve_demo_log_source(out, logger_bin);
 if selected.source_name ~= "experiment_logger_bin"
   error("experiment:demo:loggerUnavailable", ...
-    "ExperimentLogger bin is required but unavailable (%s).", string(selected.diagnostics.reason));
+    "ExperimentLogger bin is required but unavailable (%s; demoLookup=%s).", ...
+    string(selected.diagnostics.reason), string(latest_bin.reason));
 end
 
 %% 結果出力
 fprintf("\n--- Result ---\n");
-fprintf("done=%d  timed_out=%d  overflow=%d  position_last=%.6f rad\n", ...
-  logical(out.host.done), logical(out.host.timed_out), ...
-  logical(out.raw.log_overflow), out.raw.position_last);
-fprintf("loggerReady(before/after)=%d/%d  loggerError(before/after)=0x%08X/0x%08X  loggerRecords(after)=%u\n", ...
+fprintf("done=%d  timed_out=%d\n", ...
+  logical(out.host.done), logical(out.host.timed_out));
+fprintf("loggerReady(before/after)=%d/%d  loggerError(before/after)=0x%08X/0x%08X\n", ...
   logical(out.logger.ready_before), logical(out.logger.ready_after), ...
-  uint32(out.logger.error_before), uint32(out.logger.error_after), uint32(out.logger.records_after));
+  uint32(out.logger.error_before), uint32(out.logger.error_after));
 fprintf("loggerFileReleased=%s (%s)\n", passfail(out.logger.file_released), string(out.logger.file_probe_detail));
 fprintf("logSource=%s (%s)\n", selected.source_name, string(selected.diagnostics.reason));
 
@@ -143,8 +140,8 @@ if ~out.eval.input_and_all_log_counts_match
 end
 
 if logical(out.host.timed_out)
-  fprintf("Timeout diag: experimentState=%s loggerError=0x%08X loggerReady=%d\n", ...
-    fmt_diag_value(out.host.control_runtime_diag.experimentState), uint32(out.logger.error_after), logical(out.logger.ready_after));
+  fprintf("Timeout diag: experimentStateSymbol=%s loggerError=0x%08X loggerFileReleased=%d\n", ...
+    string(out.host.control_experiment_state_symbol), uint32(out.logger.error_after), logical(out.logger.file_released));
 end
 
 %% プロット
