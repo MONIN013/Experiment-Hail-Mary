@@ -20,8 +20,6 @@ classdef TestSymbolBrowserContract < matlab.unittest.TestCase
       transport.scalarMap(char(s.refValue)) = 0.0;
       transport.scalarMap(char(s.ffValue)) = 0.0;
       transport.scalarMap(char(s.distValue)) = 0.0;
-      transport.scalarMap(char(s.controlInput)) = 0.0;
-      transport.scalarMap(char(s.positionActLog)) = 0.0;
       testCase.verifyWarningFree( ...
         @()twincat_ads.SymbolBrowser.validate_symbols(transport, s.plcRequiredProbes));
     end

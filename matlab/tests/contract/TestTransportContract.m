@@ -43,5 +43,30 @@ classdef TestTransportContract < matlab.unittest.TestCase
       y = t.read_array_slice("X.arr", "System.Double", 2, 10);
       testCase.verifyEqual(double(y(:)), [30; 40]);
     end
+
+    function mockTransportRoundTripNewScalarTypes(testCase)
+      t = MockAdsTransport();
+      t.connect("x", 1);
+      t.write_scalar("X.i16", int16(-2), "System.Int16");
+      t.write_scalar("X.i32", int32(-3), "System.Int32");
+      t.write_scalar("X.i64", int64(-4), "System.Int64");
+      t.write_scalar("X.str", "abc", "System.String");
+      testCase.verifyEqual(t.read_scalar("X.i16", "System.Int16"), int16(-2));
+      testCase.verifyEqual(t.read_scalar("X.i32", "System.Int32"), int32(-3));
+      testCase.verifyEqual(t.read_scalar("X.i64", "System.Int64"), int64(-4));
+      testCase.verifyEqual(string(t.read_scalar("X.str", "System.String")), "abc");
+    end
+
+    function mockTransportReadWriteStruct(testCase)
+      t = MockAdsTransport();
+      t.connect("x", 1);
+      symbol_map = struct( ...
+        "gain", {{"GVL.gain", "System.Double"}}, ...
+        "name", {{"GVL.name", "System.String"}});
+      t.write_struct(symbol_map, struct("gain", 1.25, "name", "demo"));
+      out = t.read_struct(symbol_map);
+      testCase.verifyEqual(out.gain, 1.25);
+      testCase.verifyEqual(string(out.name), "demo");
+    end
   end
 end

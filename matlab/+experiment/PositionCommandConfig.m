@@ -16,9 +16,9 @@ classdef PositionCommandConfig
     reset_timeout_s = 5.0
     host_heartbeat_enable = true
     host_heartbeat_period_s = 0.1
+    logger_release_timeout_s = 5.0
 
     table_max_n = []
-    log_n = []
     ads_assembly = ""
     read_logs = true
     validate_symbols = true
@@ -50,8 +50,8 @@ classdef PositionCommandConfig
       p.addParameter("reset_timeout_s", 5.0, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("host_heartbeat_enable", true, @(x) islogical(x) || isnumeric(x));
       p.addParameter("host_heartbeat_period_s", 0.1, @(x) isnumeric(x) && isscalar(x) && x > 0);
+      p.addParameter("logger_release_timeout_s", defaults.logger_release_timeout_s, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("table_max_n", defaults.table_max_n, @(x) isnumeric(x) && isscalar(x) && x > 0);
-      p.addParameter("log_n", defaults.log_n, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("ads_assembly", "", @(x) ischar(x) || isstring(x));
       p.addParameter("read_logs", true, @(x) islogical(x) || isnumeric(x));
       p.addParameter("validate_symbols", true, @(x) islogical(x) || isnumeric(x));
@@ -103,8 +103,8 @@ classdef PositionCommandConfig
       out.reset_timeout_s = double(out.reset_timeout_s);
       out.host_heartbeat_enable = logical(out.host_heartbeat_enable);
       out.host_heartbeat_period_s = double(out.host_heartbeat_period_s);
+      out.logger_release_timeout_s = double(out.logger_release_timeout_s);
       out.table_max_n = double(out.table_max_n);
-      out.log_n = double(out.log_n);
       out.read_logs = logical(out.read_logs);
       out.validate_symbols = logical(out.validate_symbols);
       out.mode_flags_symbol = char(string(out.mode_flags_symbol));
@@ -168,6 +168,10 @@ classdef PositionCommandConfig
       if ~(isnumeric(obj.host_heartbeat_period_s) && isscalar(obj.host_heartbeat_period_s) && obj.host_heartbeat_period_s > 0)
         error("experiment:position_command:invalidConfig", ...
           "host_heartbeat_period_s must be > 0.");
+      end
+      if ~(isnumeric(obj.logger_release_timeout_s) && isscalar(obj.logger_release_timeout_s) && obj.logger_release_timeout_s > 0)
+        error("experiment:position_command:invalidConfig", ...
+          "logger_release_timeout_s must be > 0.");
       end
       if (~isempty(obj.mode_flags_transport) || ~isempty(obj.mode_flags_ams_port)) && ...
           isempty(strtrim(obj.mode_flags_symbol))

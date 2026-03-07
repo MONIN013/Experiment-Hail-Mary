@@ -72,6 +72,31 @@ classdef MockAdsTransport < twincat_ads.IAdsTransport
       end
     end
 
+    function values = read_struct(obj, symbol_map)
+      values = struct();
+      fields = fieldnames(symbol_map);
+      for k = 1:numel(fields)
+        field_name = fields{k};
+        entry = symbol_map.(field_name);
+        [symbol, net_type] = parse_struct_entry(entry);
+        values.(field_name) = obj.read_scalar(symbol, net_type);
+      end
+    end
+
+    function write_struct(obj, symbol_map, values)
+      fields = fieldnames(symbol_map);
+      for k = 1:numel(fields)
+        field_name = fields{k};
+        if ~isfield(values, field_name)
+          error("twincat_ads:transport:invalidStructMap", ...
+            "Missing field '%s' in write_struct values.", field_name);
+        end
+        entry = symbol_map.(field_name);
+        [symbol, net_type] = parse_struct_entry(entry);
+        obj.write_scalar(symbol, values.(field_name), net_type);
+      end
+    end
+
     function values = read_array(obj, symbol, ~, n)
       key = char(string(symbol));
       obj.operations(end + 1, 1) = "read_array:" + string(key);
@@ -152,4 +177,13 @@ classdef MockAdsTransport < twincat_ads.IAdsTransport
       values = values(1:min(numel(values), double(n)));
     end
   end
+end
+
+function [symbol, net_type] = parse_struct_entry(entry)
+if ~iscell(entry) || numel(entry) ~= 2
+  error("twincat_ads:transport:invalidStructMap", ...
+    "Struct map entry must be a 1x2 cell array {symbol, net_type}.");
+end
+symbol = entry{1};
+net_type = entry{2};
 end

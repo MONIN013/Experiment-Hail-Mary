@@ -25,10 +25,14 @@ classdef SystemConfig
 
     % --- ModeManager ---
     MODE_FLAGS_SYMBOL  = "GVL_MODE.modeFlags"  % modeFlags 正規書込み先
+    LOGGER_FILE_RELEASED_SYMBOL = "GVL_MODE.loggerFileReleased"
+    LOGGER_ERROR_CODE_SYMBOL    = "GVL_MODE.loggerErrorCode"
+    % LOGGER_DEFAULT_FILE_PATH    = "C:\ExperimentData\experiment_logger.bin"
+    LOGGER_DEFAULT_FILE_PATH    = "\\RAINYDAY\ExperimentData\experiment_logger.bin"
 
     % --- ログ / テーブル ---
-    LOG_N              = 200000  % legacy constant (unused by logger path)
     TABLE_MAX_N        = 100000  % refTable / ffTable / distTable 最大長
+    LOGGER_RELEASE_TIMEOUT_S = 5.0
   end
 
   methods (Static)
@@ -60,8 +64,7 @@ classdef SystemConfig
         "vm_param_symbol_prefix", char(sys.VM_PREFIX), ...
         "controller_param_symbol_prefix", char(sys.CTRL_PREFIX), ...
         "table_max_n", uint32(sys.TABLE_MAX_N), ...
-        "task_rate_hz", double(sys.TASK_RATE_HZ), ...
-        "log_n", double(sys.LOG_N));
+        "task_rate_hz", double(sys.TASK_RATE_HZ));
     end
 
     function s = position_command_defaults()
@@ -73,9 +76,9 @@ classdef SystemConfig
         "control_ams_port", [], ...
         "task_rate_hz", double(sys.TASK_RATE_HZ), ...
         "table_max_n", double(sys.TABLE_MAX_N), ...
-        "log_n", double(sys.LOG_N), ...
         "repeat_count", 1, ...
-        "mode_flags_symbol", char(sys.MODE_FLAGS_SYMBOL));
+        "mode_flags_symbol", char(sys.MODE_FLAGS_SYMBOL), ...
+        "logger_release_timeout_s", double(sys.LOGGER_RELEASE_TIMEOUT_S));
     end
   end
 end

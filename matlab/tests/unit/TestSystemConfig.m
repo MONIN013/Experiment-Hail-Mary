@@ -8,8 +8,8 @@ classdef TestSystemConfig < matlab.unittest.TestCase
       testCase.verifyEqual(sys.DRIVER_PORT, 851);
       testCase.verifyEqual(sys.MODULE_PORT, 351);
       testCase.verifyEqual(sys.TASK_RATE_HZ, 1000);
-      testCase.verifyEqual(sys.LOG_N, 200000);
       testCase.verifyEqual(sys.TABLE_MAX_N, 100000);
+      testCase.verifyEqual(sys.LOGGER_RELEASE_TIMEOUT_S, 5.0);
     end
 
     function taskDtNsReturnsOneMsInNanoseconds(testCase)
@@ -29,7 +29,8 @@ classdef TestSystemConfig < matlab.unittest.TestCase
       testCase.verifyTrue(isfield(s, 'VM_PREFIX'));
       testCase.verifyTrue(isfield(s, 'CTRL_PREFIX'));
       testCase.verifyTrue(isfield(s, 'MODE_FLAGS_SYMBOL'));
-      testCase.verifyTrue(isfield(s, 'LOG_N'));
+      testCase.verifyTrue(isfield(s, 'LOGGER_FILE_RELEASED_SYMBOL'));
+      testCase.verifyTrue(isfield(s, 'LOGGER_ERROR_CODE_SYMBOL'));
       testCase.verifyTrue(isfield(s, 'TABLE_MAX_N'));
       testCase.verifyEqual(s.SEQ_PORT, 853);
     end
@@ -53,15 +54,14 @@ classdef TestSystemConfig < matlab.unittest.TestCase
       testCase.verifyEqual(defaults.module_ams_port, double(experiment.SystemConfig.MODULE_PORT));
       testCase.verifyEqual(string(defaults.vm_param_symbol_prefix), experiment.SystemConfig.VM_PREFIX);
       testCase.verifyEqual(string(defaults.controller_param_symbol_prefix), experiment.SystemConfig.CTRL_PREFIX);
-      testCase.verifyEqual(double(defaults.log_n), double(experiment.SystemConfig.LOG_N));
     end
 
     function positionCommandDefaultsExposeEnvironmentOwnedFields(testCase)
       defaults = experiment.SystemConfig.position_command_defaults();
       testCase.verifyEqual(string(defaults.ams_net_id), experiment.SystemConfig.AMS_NET_ID);
       testCase.verifyEqual(defaults.ams_port, double(experiment.SystemConfig.SEQ_PORT));
-      testCase.verifyEqual(double(defaults.log_n), double(experiment.SystemConfig.LOG_N));
       testCase.verifyEqual(string(defaults.mode_flags_symbol), experiment.SystemConfig.MODE_FLAGS_SYMBOL);
+      testCase.verifyEqual(defaults.logger_release_timeout_s, double(experiment.SystemConfig.LOGGER_RELEASE_TIMEOUT_S));
     end
   end
 end

@@ -6,6 +6,8 @@ classdef VirtualMotorSymbols
     hostHeartbeatCounter
     experimentActive
     experimentState
+    loggerFileReleased
+    loggerErrorCode
     tableLen
     idx
     repeatCount
@@ -19,8 +21,6 @@ classdef VirtualMotorSymbols
     refValue
     ffValue
     distValue
-    controlInput
-    positionActLog
     log
     vmParams
     controllerParams
@@ -44,9 +44,7 @@ classdef VirtualMotorSymbols
         out.trialIndex, t.u32;
       out.refValue, t.double;
       out.ffValue, t.double;
-      out.distValue, t.double;
-      out.controlInput, t.double;
-      out.positionActLog, t.double
+      out.distValue, t.double
       };
       out.requiredProbes = out.plcRequiredProbes;
     end
@@ -130,6 +128,8 @@ classdef VirtualMotorSymbols
       out.hostHeartbeatCounter = "GVL_MODE.hostHeartbeatCounter";
       out.experimentActive = "GVL_SEQ.experimentActive";
       out.experimentState = "GVL_MODE.experimentState";
+      out.loggerFileReleased = "GVL_MODE.loggerFileReleased";
+      out.loggerErrorCode = "GVL_MODE.loggerErrorCode";
       out.tableLen = "GVL_SEQ.tableLen";
       out.idx = "GVL_SEQ.idx";
       out.repeatCount = "GVL_SEQ.repeatCount";
@@ -143,8 +143,6 @@ classdef VirtualMotorSymbols
       out.refValue = "GVL_SEQ.refValue";
       out.ffValue = "GVL_SEQ.ffValue";
       out.distValue = "GVL_SEQ.distValue";
-      out.controlInput = "GVL_DRV.controlInput";
-      out.positionActLog = "GVL_DRV.positionRel";
       out.log = struct();
       out.vmParams = struct();
       out.controllerParams = struct();

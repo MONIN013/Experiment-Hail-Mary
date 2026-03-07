@@ -7,9 +7,9 @@ classdef TestPositionCommandConfig < matlab.unittest.TestCase
       testCase.verifyEqual(cfg.ams_port, double(sys.SEQ_PORT));
       testCase.verifyEqual(cfg.control_ams_port, double(sys.CONTROL_PORT));
       testCase.verifyEqual(cfg.task_rate_hz, double(sys.TASK_RATE_HZ));
-      testCase.verifyEqual(cfg.log_n, double(sys.LOG_N));
       testCase.verifyEqual(cfg.table_max_n, double(sys.TABLE_MAX_N));
       testCase.verifyEqual(cfg.repeat_count, 1);
+      testCase.verifyEqual(cfg.logger_release_timeout_s, double(sys.LOGGER_RELEASE_TIMEOUT_S));
       testCase.verifyEqual(string(cfg.mode_flags_symbol), sys.MODE_FLAGS_SYMBOL);
     end
 
@@ -55,6 +55,14 @@ classdef TestPositionCommandConfig < matlab.unittest.TestCase
       testCase.verifyError(@() experiment.PositionCommandConfig.from_varargin( ...
         "ref_profile", [1; 2], ...
         "repeat_count", 1.5), "experiment:position_command:invalidConfig");
+    end
+
+    function bridgesToExperimentConfig(testCase)
+      legacy = experiment.PositionCommandConfig.from_varargin("ref_profile", [1; 2; 3]);
+      cfg = experiment.ExperimentConfig.from_struct(legacy);
+      testCase.verifyFalse(cfg.write_plant_params);
+      testCase.verifyFalse(cfg.write_controller_params);
+      testCase.verifyEqual(cfg.repeat_count, legacy.repeat_count);
     end
   end
 end

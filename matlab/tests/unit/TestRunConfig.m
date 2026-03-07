@@ -9,7 +9,6 @@ classdef TestRunConfig < matlab.unittest.TestCase
       testCase.verifyEqual(cfg.module_ams_port, double(sys.MODULE_PORT));
       testCase.verifyEqual(string(cfg.vm_param_symbol_prefix), sys.VM_PREFIX);
       testCase.verifyEqual(string(cfg.controller_param_symbol_prefix), sys.CTRL_PREFIX);
-      testCase.verifyEqual(double(cfg.log_n), double(sys.LOG_N));
       testCase.verifyEqual(double(cfg.table_max_n), double(sys.TABLE_MAX_N));
     end
 
@@ -62,6 +61,15 @@ classdef TestRunConfig < matlab.unittest.TestCase
         "ref_profile", [1; 2], ...
         "ams_port", 851);
       testCase.verifyEqual(cfg.control_ams_port, 851);
+    end
+
+    function bridgesToExperimentConfig(testCase)
+      legacy = experiment.RunConfig.from_varargin("ref_profile", [1; 2], "ff_profile", [9; 0]);
+      cfg = experiment.ExperimentConfig.from_struct(legacy);
+      testCase.verifyEqual(cfg.seq_port, legacy.ams_port);
+      testCase.verifyEqual(cfg.ff_profile(:), [9; 0]);
+      testCase.verifyTrue(cfg.write_plant_params);
+      testCase.verifyTrue(cfg.write_controller_params);
     end
   end
 end

@@ -9,6 +9,8 @@ classdef ModeManagerControl
         "modeFlagsSymbol", "", ...
         "experimentStateSymbol", "", ...
         "experimentActiveSymbol", "GVL_MODE.experimentActive", ...
+        "loggerFileReleasedSymbol", "GVL_MODE.loggerFileReleased", ...
+        "loggerErrorCodeSymbol", "GVL_MODE.loggerErrorCode", ...
         "hostHeartbeatCounterSymbol", string(plc_symbols.hostHeartbeatCounter), ...
         "resetReqSymbol", string(plc_symbols.modeResetReq), ...
         "resetAckCounterSymbol", string(plc_symbols.modeResetAckCounter), ...
@@ -69,6 +71,20 @@ classdef ModeManagerControl
           break;
         catch
         end
+      end
+      try
+        control_transport.read_scalar(char(string(plc_symbols.loggerFileReleased)), t.bool);
+        ctrl.loggerFileReleasedSymbol = char(string(plc_symbols.loggerFileReleased));
+      catch
+        error(error_id, "No logger release ADS symbol found. Required: %s", ...
+          char(string(plc_symbols.loggerFileReleased)));
+      end
+      try
+        control_transport.read_scalar(char(string(plc_symbols.loggerErrorCode)), t.u32);
+        ctrl.loggerErrorCodeSymbol = char(string(plc_symbols.loggerErrorCode));
+      catch
+        error(error_id, "No logger error ADS symbol found. Required: %s", ...
+          char(string(plc_symbols.loggerErrorCode)));
       end
     end
 
@@ -149,6 +165,43 @@ classdef ModeManagerControl
         heartbeat_state = experiment.ModeManagerControl.tick_heartbeat(control_transport, ctrl, heartbeat_state, false);
         pause(0.01);
       end
+    end
+
+    function [released, diag, heartbeat_state] = wait_for_logger_release( ...
+        control_transport, ctrl, timeout_s, heartbeat_state)
+      if nargin < 4 || isempty(heartbeat_state)
+        heartbeat_state = experiment.ModeManagerControl.heartbeat_disabled();
+      end
+      t = twincat_ads.AdsTransport.net_types();
+      t0 = tic;
+      released = false;
+      diag = struct( ...
+        "file_released", false, ...
+        "error_code", uint32(0), ...
+        "detail", "");
+      while toc(t0) < timeout_s
+        diag.file_released = logical(control_transport.read_scalar(ctrl.loggerFileReleasedSymbol, t.bool));
+        diag.error_code = uint32(control_transport.read_scalar(ctrl.loggerErrorCodeSymbol, t.u32));
+        if diag.error_code ~= 0
+          diag.detail = sprintf("logger error 0x%08X", diag.error_code);
+          return;
+        end
+        if diag.file_released
+          released = true;
+          diag.detail = "logger file released";
+          return;
+        end
+        heartbeat_state = experiment.ModeManagerControl.tick_heartbeat(control_transport, ctrl, heartbeat_state, false);
+        pause(0.01);
+      end
+      diag.detail = sprintf("timed out waiting %.3f s for logger file release", timeout_s);
+    end
+
+    function logger = read_logger_status(control_transport, ctrl)
+      t = twincat_ads.AdsTransport.net_types();
+      logger = struct( ...
+        "file_released", logical(control_transport.read_scalar(ctrl.loggerFileReleasedSymbol, t.bool)), ...
+        "error_code", uint32(control_transport.read_scalar(ctrl.loggerErrorCodeSymbol, t.u32)));
     end
 
     function state = init_heartbeat(control_transport, ctrl, enabled, period_s)

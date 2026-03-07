@@ -71,6 +71,33 @@ classdef AdsTransport < twincat_ads.IAdsTransport
       c.WriteAny(handle, net_value);
     end
 
+    function values = read_struct(obj, symbol_map)
+      values = struct();
+      fields = fieldnames(symbol_map);
+      for k = 1:numel(fields)
+        field_name = fields{k};
+        [symbol, net_type] = obj.parse_struct_map_entry(symbol_map.(field_name), field_name);
+        values.(field_name) = obj.read_scalar(symbol, net_type);
+      end
+    end
+
+    function write_struct(obj, symbol_map, values)
+      if ~isstruct(values)
+        error("twincat_ads:transport:invalidStructMap", ...
+          "write_struct values must be a struct.");
+      end
+      fields = fieldnames(symbol_map);
+      for k = 1:numel(fields)
+        field_name = fields{k};
+        if ~isfield(values, field_name)
+          error("twincat_ads:transport:invalidStructMap", ...
+            "Missing field '%s' in write_struct values.", field_name);
+        end
+        [symbol, net_type] = obj.parse_struct_map_entry(symbol_map.(field_name), field_name);
+        obj.write_scalar(symbol, values.(field_name), net_type);
+      end
+    end
+
     function values = read_array(obj, symbol, net_type, n)
       values = obj.read_array_core(symbol, net_type, n);
     end
@@ -141,13 +168,26 @@ classdef AdsTransport < twincat_ads.IAdsTransport
         "bool", "System.Boolean", ...
         "double", "System.Double", ...
         "single", "System.Single", ...
+        "i16", "System.Int16", ...
+        "i32", "System.Int32", ...
+        "i64", "System.Int64", ...
         "u16", "System.UInt16", ...
         "u32", "System.UInt32", ...
-        "u64", "System.UInt64");
+        "u64", "System.UInt64", ...
+        "string", "System.String");
     end
   end
 
   methods (Access = private)
+    function [symbol, net_type] = parse_struct_map_entry(~, entry, field_name)
+      if ~iscell(entry) || numel(entry) ~= 2
+        error("twincat_ads:transport:invalidStructMap", ...
+          "Struct map entry '%s' must be a 1x2 cell array {symbol, net_type}.", field_name);
+      end
+      symbol = entry{1};
+      net_type = entry{2};
+    end
+
     function values = read_array_core(obj, symbol, net_type, n)
       c = obj.require_client();
       n_double = double(n);
@@ -374,6 +414,10 @@ classdef AdsTransport < twincat_ads.IAdsTransport
         value = uint16(o);
         return;
       end
+      if isa(o, "System.Int16")
+        value = int16(o);
+        return;
+      end
       if isa(o, "System.Int32")
         value = int32(o);
         return;
@@ -384,6 +428,10 @@ classdef AdsTransport < twincat_ads.IAdsTransport
       end
       if isa(o, "System.Int64")
         value = int64(o);
+        return;
+      end
+      if isa(o, "System.String")
+        value = string(char(o));
         return;
       end
       value = o;
@@ -397,6 +445,8 @@ classdef AdsTransport < twincat_ads.IAdsTransport
           net_value = double(value);
         case "System.Single"
           net_value = single(value);
+        case "System.Int16"
+          net_value = int16(value);
         case "System.Int32"
           net_value = int32(value);
         case "System.UInt32"
@@ -407,6 +457,8 @@ classdef AdsTransport < twincat_ads.IAdsTransport
           net_value = int64(value);
         case "System.UInt64"
           net_value = uint64(value);
+        case "System.String"
+          net_value = char(string(value));
         otherwise
           error("twincat_ads:type:unsupported", ...
             "Unsupported .NET scalar type: %s", string(net_type_name));

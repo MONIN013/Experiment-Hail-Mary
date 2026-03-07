@@ -52,14 +52,6 @@ classdef RunConfig
     enable_notch = false
     enable_reso = false
 
-    log_n = []
-    log_stream_enable = true
-    log_poll_period_s = 0.05
-    log_chunk_n = 8192
-    log_host_max_n = inf
-    log_warn_on_overflow = true
-    log_stream_require_success = true
-    log_require_complete = true
     log_require_waveform_exact = true
 
     waveform_diag_max_shift_samples = 1
@@ -123,14 +115,6 @@ classdef RunConfig
       p.addParameter("enable_notch", false, @(x) islogical(x) || isnumeric(x));
       p.addParameter("enable_reso", false, @(x) islogical(x) || isnumeric(x));
 
-      p.addParameter("log_n", defaults.log_n, @(x) isnumeric(x) && isscalar(x) && x > 0);
-      p.addParameter("log_stream_enable", true, @(x) islogical(x) || isnumeric(x));
-      p.addParameter("log_poll_period_s", 0.05, @(x) isnumeric(x) && isscalar(x) && x > 0);
-      p.addParameter("log_chunk_n", 8192, @(x) isnumeric(x) && isscalar(x) && x > 0);
-      p.addParameter("log_host_max_n", inf, @(x) isnumeric(x) && isscalar(x) && (isinf(x) || x > 0));
-      p.addParameter("log_warn_on_overflow", true, @(x) islogical(x) || isnumeric(x));
-      p.addParameter("log_stream_require_success", true, @(x) islogical(x) || isnumeric(x));
-      p.addParameter("log_require_complete", true, @(x) islogical(x) || isnumeric(x));
       p.addParameter("log_require_waveform_exact", true, @(x) islogical(x) || isnumeric(x));
       p.addParameter("waveform_diag_max_shift_samples", 1, @(x) isnumeric(x) && isscalar(x) && x >= 0);
       p.addParameter("waveform_diag_abs_tol", 1e-12, @(x) isnumeric(x) && isscalar(x) && x >= 0);
@@ -170,7 +154,6 @@ classdef RunConfig
       out.ams_port = double(out.ams_port);
       out.module_ams_port = double(out.module_ams_port);
       out.task_rate_hz = double(out.task_rate_hz);
-      out.log_n = double(out.log_n);
       out.vm_param_symbol_prefix = char(string(out.vm_param_symbol_prefix));
       out.controller_param_symbol_prefix = char(string(out.controller_param_symbol_prefix));
       if isempty(out.control_ams_port)
@@ -197,13 +180,6 @@ classdef RunConfig
       out.host_heartbeat_period_s = double(out.host_heartbeat_period_s);
       out.table_max_n = uint32(out.table_max_n);
       out.task_dt_ns = uint64(round(1e9 / out.task_rate_hz));
-      out.log_stream_enable = logical(out.log_stream_enable);
-      out.log_chunk_n = double(out.log_chunk_n);
-      out.log_poll_period_s = double(out.log_poll_period_s);
-      out.log_host_max_n = double(out.log_host_max_n);
-      out.log_warn_on_overflow = logical(out.log_warn_on_overflow);
-      out.log_stream_require_success = logical(out.log_stream_require_success);
-      out.log_require_complete = logical(out.log_require_complete);
       out.log_require_waveform_exact = logical(out.log_require_waveform_exact);
       out.enable_pid = logical(out.enable_pid);
       out.enable_lead = logical(out.enable_lead);
@@ -242,15 +218,6 @@ classdef RunConfig
       end
       if n_ref > double(obj.table_max_n)
         error("experiment:config:invalid", "ref_profile length (%d) exceeds table_max_n (%d).", n_ref, double(obj.table_max_n));
-      end
-      if ~(isnumeric(obj.log_poll_period_s) && isscalar(obj.log_poll_period_s) && obj.log_poll_period_s > 0)
-        error("experiment:config:invalid", "log_poll_period_s must be > 0.");
-      end
-      if ~(isnumeric(obj.log_chunk_n) && isscalar(obj.log_chunk_n) && obj.log_chunk_n > 0)
-        error("experiment:config:invalid", "log_chunk_n must be > 0.");
-      end
-      if ~(isnumeric(obj.log_host_max_n) && isscalar(obj.log_host_max_n) && (isinf(obj.log_host_max_n) || obj.log_host_max_n > 0))
-        error("experiment:config:invalid", "log_host_max_n must be positive or inf.");
       end
       if ~(isnumeric(obj.host_heartbeat_period_s) && isscalar(obj.host_heartbeat_period_s) && obj.host_heartbeat_period_s > 0)
         error("experiment:config:invalid", "host_heartbeat_period_s must be > 0.");
