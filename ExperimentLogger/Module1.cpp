@@ -117,6 +117,7 @@ CModule1::CModule1()
 	, m_sessionFailed(false)
 	, m_closeRequested(false)
 	, m_closeFlushRequested(false)
+	, m_fileReleased(false)
 	, m_reopenRequested(false)
 	, m_activeBufferIndex(0)
 	, m_bufferCounts{ 0, 0 }
@@ -408,6 +409,7 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 			m_isLoggingActive = false;
 			m_closeRequested = false;
 			m_closeFlushRequested = false;
+			m_fileReleased = (m_errorCode == 0);
 			if (m_resetPending)
 			{
 				ResetRuntimeState();
@@ -532,6 +534,7 @@ void CModule1::ResetRuntimeState()
 	m_resetPending = false;
 	m_closeRequested = false;
 	m_closeFlushRequested = false;
+	m_fileReleased = false;
 	m_reopenRequested = false;
 	m_pendingWriteBytes = 0;
 	m_lastWriteBytes = 0;
@@ -674,6 +677,7 @@ void CModule1::AbortSession(bool keepError)
 	m_sessionFailed = true;
 	m_closeRequested = false;
 	m_closeFlushRequested = false;
+	m_fileReleased = false;
 	if (!keepError)
 	{
 		ClearError();
@@ -733,6 +737,7 @@ void CModule1::CloseLogFile(bool flushRemaining)
 			m_lastWriteBytes = 0;
 		}
 		m_fileFsmState = EFileFsmState::IDLE;
+		m_fileReleased = (m_errorCode == 0);
 		return;
 	}
 
@@ -852,6 +857,7 @@ void CModule1::UpdateStatusOutputs()
 	m_Outputs.LogStatus.fileSizeKb = static_cast<ULONG>(m_bytesWritten / 1024ULL);
 	m_Outputs.LogStatus.errorCode = m_errorCode;
 	m_Outputs.loggerReady = IsLoggerReady();
+	m_Outputs.fileReleased = m_fileReleased;
 }
 
 void CModule1::ResolveFilePath(char* dst, size_t dstSize) const
@@ -956,6 +962,7 @@ bool CModule1::StartAsyncOpen()
 	m_isLoggingActive = false;
 	m_closeRequested = false;
 	m_closeFlushRequested = false;
+	m_fileReleased = false;
 	m_lastAsyncHr = S_OK;
 	const HRESULT hr = m_spFileAccessAsync->FileOpen(
 		m_openPathBuffer,
@@ -1105,6 +1112,7 @@ bool CModule1::StartAsyncClose()
 	m_closeRequested = false;
 	m_closeFlushRequested = false;
 	m_fileFsmState = EFileFsmState::IDLE;
+	m_fileReleased = (m_errorCode == 0);
 	return true;
 }
 

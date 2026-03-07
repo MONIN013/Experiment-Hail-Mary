@@ -110,6 +110,8 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 | `enableCurrentOut` | `BOOL` | DriverAdapter (I/O Mapping) | 電流イネーブルゲート |
 | `GVL_MODE.experimentActive` | `BOOL` | MATLAB (ADS Read) | 実験アクティブ (ADS 読出し用) |
 | `GVL_MODE.experimentState` | `UINT` | MATLAB (ADS Read) | FSM 状態 (IDLE=0, READY=1, RUNNING=2, DONE=3) |
+| `GVL_MODE.loggerFileReleased` | `BOOL` | MATLAB (ADS Read) | 直近セッションの logger close 正常完了 |
+| `GVL_MODE.loggerErrorCode` | `UDINT` | MATLAB (ADS Read) | logger エラーコード |
 | `GVL_MODE.resetAckCounter` | `UDINT` | MATLAB (ADS Read) | リセット ACK カウンタ |
 
 ---
@@ -170,6 +172,8 @@ MATLAB                              PLC (ModeManager)
 | `GVL_MODE.hostHeartbeatCounter` | `UDINT` | W | ホスト HB |
 | `GVL_MODE.experimentActive` | `BOOL` | R | FSM 出力 |
 | `GVL_MODE.experimentState` | `UINT` | R | IDLE/READY/RUNNING/DONE |
+| `GVL_MODE.loggerFileReleased` | `BOOL` | R | logger close 完了 |
+| `GVL_MODE.loggerErrorCode` | `UDINT` | R | logger エラー |
 | `GVL_MODE.resetAckCounter` | `UDINT` | R | Reset ACK カウンタ |
 | `GVL_MODE.watchdogTripCounter` | `UDINT` | R | WD trip 回数 |
 
@@ -180,6 +184,8 @@ MATLAB                              PLC (ModeManager)
 - `statWord` ← VirtualMotorCore (I/O Mapping 経由、DriverAdapter.statusWordOut)
 - `seqPlaybackDone` ← ExperimentSequencer (`GVL_SEQ.playbackDone`)
 - `loggerReadyIn` ← ExperimentLogger (`Outputs.loggerReady`)
+- `loggerFileReleasedIn` ← ExperimentLogger (`Outputs.fileReleased`)
+- `loggerErrorCodeIn` ← ExperimentLogger (`Outputs.LogStatus.errorCode`)
 - `ctrlWord` → DriverAdapter (`controlWordIn`)
 - `experimentActiveOut` → ExperimentSequencer (`GVL_SEQ.experimentActive`) / ExperimentLogger
 - `preArmOut` → ExperimentLogger (`Inputs.preArmReq`)

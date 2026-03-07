@@ -309,7 +309,7 @@
 		</System>
 		<Plc>
 			<Project GUID="{FCFF5180-937F-4F0E-915A-7CF7E9CA7F30}" Name="StateMachineControl" PrjFilePath="StateMachineControl\StateMachineControl.plcproj" TmcFilePath="StateMachineControl\StateMachineControl.tmc" ReloadTmc="true" AmsPort="852" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{4F3925B8-427E-A273-9AA1-BA396151280E}" TmcPath="StateMachineControl\StateMachineControl.tmc">
+				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{BF5579A1-F697-3E1F-9E38-6036C648B812}" TmcPath="StateMachineControl\StateMachineControl.tmc">
 					<Name>StateMachineControl Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -357,6 +357,16 @@
 							<Comment><![CDATA[ ExperimentLogger file FSM ACTIVE]]></Comment>
 							<Type>BOOL</Type>
 						</Var>
+						<Var>
+							<Name>MAIN.loggerFileReleasedIn</Name>
+							<Comment><![CDATA[ ExperimentLogger close completed]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>MAIN.loggerErrorCodeIn</Name>
+							<Comment><![CDATA[ ExperimentLogger session error]]></Comment>
+							<Type>UDINT</Type>
+						</Var>
 					</Vars>
 					<Contexts>
 						<Context>
@@ -375,7 +385,7 @@
 				</Instance>
 			</Project>
 			<Project GUID="{54AD89C8-6B39-47E6-B85F-F4753C89F02E}" Name="ExperimentSequencer" PrjFilePath="ExperimentSequencer\ExperimentSequencer.plcproj" TmcFilePath="ExperimentSequencer\ExperimentSequencer.tmc" ReloadTmc="true" AmsPort="853" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{2E37A631-0334-0496-70FD-9DDCAB055E8E}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
+				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{D9D1059F-B0F1-1C4B-964C-40192CF66117}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
 					<Name>ExperimentSequencer Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -429,7 +439,7 @@
 				</Instance>
 			</Project>
 			<Project GUID="{08913967-7B51-43CA-BB9A-1E6358DD9FAA}" Name="DriverAdapter" PrjFilePath="DriverAdapter\DriverAdapter.plcproj" TmcFilePath="DriverAdapter\DriverAdapter.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{E42D386B-AFCC-9034-26EB-B9D6D2552E15}" TmcPath="DriverAdapter\DriverAdapter.tmc">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{B6D58BD6-6B2E-C340-AFCF-0C75D9BBAA34}" TmcPath="DriverAdapter\DriverAdapter.tmc">
 					<Name>DriverAdapter Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -1133,7 +1143,7 @@
 								<AreaNo AreaType="OutputSrc">1</AreaNo>
 								<Name>Outputs</Name>
 								<ContextId>1</ContextId>
-								<ByteSize>13</ByteSize>
+								<ByteSize>14</ByteSize>
 								<Symbol CreateSymbol="true">
 									<Name>LogStatus</Name>
 									<BitSize>96</BitSize>
@@ -1145,6 +1155,12 @@
 									<BitSize>8</BitSize>
 									<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
 									<BitOffs>96</BitOffs>
+								</Symbol>
+								<Symbol CreateSymbol="true">
+									<Name>fileReleased</Name>
+									<BitSize>8</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
+									<BitOffs>104</BitOffs>
 								</Symbol>
 							</DataArea>
 						</DataAreas>
@@ -1241,6 +1257,8 @@
 				<Link VarA="PlcTask Outputs^MAIN.resetOut" VarB="Inputs^resetReq"/>
 			</OwnerB>
 			<OwnerB Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
+				<Link VarA="PlcTask Inputs^MAIN.loggerErrorCodeIn" VarB="Outputs^LogStatus^errorCode"/>
+				<Link VarA="PlcTask Inputs^MAIN.loggerFileReleasedIn" VarB="Outputs^fileReleased"/>
 				<Link VarA="PlcTask Inputs^MAIN.loggerReadyIn" VarB="Outputs^loggerReady"/>
 				<Link VarA="PlcTask Outputs^MAIN.experimentActiveOut" VarB="Inputs^loggingReq"/>
 				<Link VarA="PlcTask Outputs^MAIN.preArmOut" VarB="Inputs^preArmReq"/>

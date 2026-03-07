@@ -22,6 +22,8 @@ VAR_GLOBAL
     watchdogTripCounter : UDINT := 0;
     experimentActive : BOOL := FALSE;
     experimentState : UINT := STATE_IDLE;
+    loggerFileReleased : BOOL := FALSE;
+    loggerErrorCode : UDINT := 0;
     modeState : E_ModeState := E_ModeState.IDLE;
 END_VAR]]></Declaration>
   </GVL>

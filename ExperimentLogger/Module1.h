@@ -127,6 +127,7 @@ protected:
 	bool m_sessionFailed;
 	bool m_closeRequested;
 	bool m_closeFlushRequested;
+	bool m_fileReleased;
 	bool m_reopenRequested;
 	ULONG m_activeBufferIndex;
 	ULONG m_bufferCounts[2];

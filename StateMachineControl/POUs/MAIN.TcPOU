@@ -45,6 +45,8 @@ VAR
 
     fbStateMachine : FB_StateMachineControl;
     loggerReadyIn AT%I* : BOOL; // ExperimentLogger file FSM ACTIVE
+    loggerFileReleasedIn AT%I* : BOOL; // ExperimentLogger close completed
+    loggerErrorCodeIn AT%I* : UDINT; // ExperimentLogger session error
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -98,6 +100,8 @@ IF watchdogTimeout THEN
     modeState := E_ModeState.IDLE;
     GVL_MODE.modeFlags := 0;
     GVL_MODE.experimentActive := FALSE;
+    GVL_MODE.loggerFileReleased := FALSE;
+    GVL_MODE.loggerErrorCode := 0;
     servoEnableLatched := FALSE;
     experimentStartLatched := FALSE;
     IF NOT watchdogTripLatched THEN
@@ -111,6 +115,8 @@ ELSIF resetEdge THEN
     resetHoldTicksRemaining := RESET_PULSE_HOLD_TICKS;
     GVL_MODE.experimentActive := FALSE;
     GVL_MODE.modeFlags := 0;
+    GVL_MODE.loggerFileReleased := FALSE;
+    GVL_MODE.loggerErrorCode := 0;
     servoEnableLatched := FALSE;
     experimentStartLatched := FALSE;
     GVL_MODE.resetAckCounter := GVL_MODE.resetAckCounter + 1;
@@ -216,6 +222,13 @@ CASE modeState OF
 END_CASE
 
 GVL_MODE.experimentActive := experimentActiveOut;
+IF modeState = E_ModeState.SERVO_READY THEN
+    GVL_MODE.loggerFileReleased := FALSE;
+    GVL_MODE.loggerErrorCode := 0;
+ELSE
+    GVL_MODE.loggerFileReleased := loggerFileReleasedIn;
+    GVL_MODE.loggerErrorCode := loggerErrorCodeIn;
+END_IF;
 GVL_MODE.modeState := modeState;]]></ST>
     </Implementation>
   </POU>
