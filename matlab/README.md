@@ -231,7 +231,7 @@ out = experiment.send_position_command( ...
   "task_rate_hz", 1000);
 ```
 
-実行例は `matlab/run_position_command_demo.m` を参照。
+実行例は `matlab/run_position_command_demo.m` を参照。demo は `experiment.ExperimentConfig.defaults()` を起点に runtime config を組み立てる。
 
 | カテゴリ | ファイル | 検証内容 |
 |---|---|---|

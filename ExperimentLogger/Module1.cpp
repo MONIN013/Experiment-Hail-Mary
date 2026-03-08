@@ -156,7 +156,7 @@ IMPLEMENT_ITCOMOBJECT_SETOBJSTATE_IP_PI(CModule1)
 
 ///////////////////////////////////////////////////////////////////////////////
 // State transition from PREOP to SAFEOP
-//
+// MARK: PREOP to SAFEOP
 // Initialize input parameters 
 // Allocate memory
 HRESULT CModule1::SetObjStatePS(PTComInitDataHdr pInitData)
@@ -196,7 +196,7 @@ HRESULT CModule1::SetObjStatePS(PTComInitDataHdr pInitData)
 
 ///////////////////////////////////////////////////////////////////////////////
 // State transition from SAFEOP to OP
-//
+// MARK: SAFEOP to OP
 // Register with other TwinCAT objects
 HRESULT CModule1::SetObjStateSO()
 {
@@ -228,6 +228,7 @@ HRESULT CModule1::SetObjStateSO()
 
 ///////////////////////////////////////////////////////////////////////////////
 // State transition from OP to SAFEOP
+// MARK: OP to SAFEOP
 HRESULT CModule1::SetObjStateOS()
 {
 	m_Trace.Log(tlVerbose, FENTERA_STR());
@@ -252,6 +253,7 @@ HRESULT CModule1::SetObjStateOS()
 
 ///////////////////////////////////////////////////////////////////////////////
 // State transition from SAFEOP to PREOP
+// MARK: SAFEOP to PREOP
 HRESULT CModule1::SetObjStateSP()
 {
 	HRESULT hr = S_OK;

@@ -1,44 +1,56 @@
-# ドキュメント vs 実装 差異調査レポート（未解決のみ）
+```
+Tend = 100; % simulation length
+N = round(Tend/Ts);
+t = Ts*(0:N-1);
+Tcycle = 10; % cycle time of chirp signal
+p = 0; % initial phase of chirp
+f0 = 0.1; % min freq of chirp
+f1 = 4000; % max freq of chirp
+A = 1; % signal gain (preference: 0 < A < 1 for Pana motor, 0 < A < 2 for Beckhoff motor)
+t_relative = t - floor(t/Tcycle)*Tcycle; % relative time inside chirp
+k = (f1 - f0)/Tcycle; 
+u = A*sin(p+(2*pi*(f0*t_relative + k/2 * t_relative.^2)));
 
-更新日: 2026-03-05  
-対象ブランチ: master  
-未解決件数: 2件
+trans = 2; % number of transient periods
+Nstart = trans*Tcycle/Ts+1;
+N = Tend/Ts; % total sample points of data + 1 (for velocity caluculation)
+nrofs = Tcycle/Ts;
+input = input(Nstart:N); % control input of plant
+loadvel = diff([loadpos(Nstart:end),loadpos(end)])/Ts; % calculated velocity by backward difference [deg/s]
+motorvel = diff([motorpos(Nstart:end),motorpos(end)])/Ts;
 
----
+nrofp = length(input)/nrofs - trans; % number of period after transient removal
 
-## サマリー表（残件）
 
-| # | 重要度 | 種類 | 対象モジュール | 状態 | 次アクション |
-|---|---|---|---|---|---|
-| D-03 | 🔴 重大 | 未実装 | DriverAdapter → ExperimentLogger `currentCmd` 出力経路 | 未着手 | `GVL_DRV.currentCmd` 追加 + I/O マッピング接続 |
-| D-09 | 🟠 中程度 | 命名不一致 | `enableCurrentOut` vs `enableCurrentOutput` | 保留 | 命名統一方針を決定して一括リネーム |
+[txy, f] = tfestimate(input,loadvel,rectwin(Tcycle/Ts),0,Tcycle/Ts,1/Ts); % fft data of loadvel
+Pd_vel_load = frd(txy, f, "FrequencyUnit", "Hz"); % frf data of input->vel
+Pd_vel_load.Ts = Ts;
+[txy, f] = tfestimate(input,motorvel,rectwin(Tcycle/Ts),0,Tcycle/Ts,1/Ts); % fft data of motorvel
+Pd_vel_motor = frd(txy, f, "FrequencyUnit", "Hz"); % frf data of input->vel
+Pd_vel_motor.Ts = Ts;[17:55]% check the coherence (good if close to 0dB)
+figure;
+mscohere(input,loadvel,rectwin(Tcycle/Ts),0,Tcycle/Ts,1/Ts); 
+ax = gca; ax.XScale = 'log';
+title("load-side coherence")
 
----
+figure;
+mscohere(input,motorvel,rectwin(Tcycle/Ts),0,Tcycle/Ts,1/Ts); hold off
+ax = gca; ax.XScale = 'log';
+title("motor-side coherence")[17:55]s = tf("s");
+z = tf("z",Ts);
 
-## D-03 DriverAdapter: `currentCmd` 出力が未実装
+omega = 2.46e4;
+Dn = 0.0005;
+Jn = Dn/omega;
+Ndelay = 3; % delay step of plant [int]
 
-| 項目 | 内容 |
-|---|---|
-| **種類** | 未実装 |
-| **ドキュメント** | `docs/module-specs/ExperimentLogger.md`: `Inputs.currentCmd` は DriverAdapter 起点 |
-| **実装** | `DriverAdapter/GVLs/GVL_DRV.TcGVL` に `currentCmd` 出力変数なし。`PRG_DriverAdapter` の `targetCurrentA` は内部変数 |
-| **影響** | ExperimentLogger 側 `currentCmd` が未接続になる可能性 |
-| **推奨アクション** | `GVL_DRV.currentCmd AT %Q* : LREAL` 追加、`PRG_DriverAdapter` で代入、Logger 入力へ I/O 接続 |
+Pd_load = Pd_vel_load*c2d(1/s,Ts,"tustin"); % identified frequency response function of input -> pos (load)
+Pd_motor = Pd_vel_motor*c2d(1/s,Ts,"tustin"); % identified frequency response function of input -> pos (motor)
+Pdn = c2d(1/(Jn*s+Dn)/s,Ts,"zoh")/z^Ndelay; % discretized nominal plant of input -> pos
 
----
-
-## D-09 ModeManager/DriverAdapter 間の命名不一致（保留）
-
-| 項目 | 内容 |
-|---|---|
-| **種類** | 命名不一致 |
-| **送信側実装** | `StateMachineControl/POUs/MAIN.TcPOU`: `enableCurrentOut` |
-| **受信側実装** | `DriverAdapter/GVLs/GVL_DRV.TcGVL`: `enableCurrentOutput` |
-| **ドキュメント** | `ModeManager.md` は `enableCurrentOut`、`ArchitectureSpec.md` と `DriverAdapter.md` は `enableCurrentOutput` |
-| **推奨アクション** | 統一名を決定し、実装・仕様・I/Oマッピングを同時更新 |
-
----
-
-## 備考（今回反映済み）
-
-D-01, D-02, D-04, D-05, D-06, D-07, D-08, D-10, D-11, D-12, D-13, D-14, D-15, D-16, D-17, D-18, D-19 は修正済み。
+bop_ = bop;
+bop_.YLim = {[-80,80];[-180,180]};
+figure;
+bode(Pd_load,Pd_motor,Pdn, bop_);
+legend(["$P_{\mathrm{load}}$","$P_{\mathrm{motor}}$","$P_{n}$"],"Interpreter","latex");
+```

@@ -15,57 +15,48 @@ base_dir = fileparts(mfilename("fullpath"));
 restoredefaultpath;
 addpath(genpath(base_dir));
 
-%% Parameters from SystemConfig
+%% Environment defaults from SystemConfig
 sys = experiment.SystemConfig;
-ams_net_id     = sys.AMS_NET_ID;
-seq_port       = sys.SEQ_PORT;
-control_port   = sys.CONTROL_PORT;
-module_port    = sys.MODULE_PORT;
-task_rate_hz   = sys.TASK_RATE_HZ;
-logger_share_dir = "\\RAINYDAY\ExperimentData";
+cfg = experiment.ExperimentConfig.defaults();
 logger_file_glob = "*.bin";
+logger_dir = string(fileparts(char(sys.LOGGER_DEFAULT_FILE_PATH)));
 
-%% Experiment parameters
+%% Demo runtime config via ExperimentConfig
 target_position_rad = 0.25;
-step_duration_s     = 1.0;
+step_duration_s     = 2.0;
 hold_margin_s       = 0.50;
-pre_step_s          = 1.0;
-N_REPEAT            = 1;
-
-%% VM 物理パラメータ
-vm_params = struct( ...
-  "m",              0.02, ...
-  "d",              0.2, ...
-  "rated_current",  1.2, ...
-  "max_permille",   0.0, ...
-  "tau_limit",      2.4, ...
-  "vel_limit",      2*pi*60);
-
-%% P 制御パラメータ (Kp = 180, biquad 形式: y[n] = b0*x[n])
+pre_step_s          = 2.0;
+N_REPEAT            = 3;
 Kp = 1;
-ctrl_params = struct( ...
-  "pid_b0",  Kp,   "pid_b1",  0, "pid_b2",  0, "pid_a1",  0, "pid_a2",  0, ...
-  "lead_b0", 1,    "lead_b1", 0, "lead_b2", 0, "lead_a1", 0, "lead_a2", 0, ...
-  "notch_b0", 1,   "notch_b1", 0, "notch_b2", 0, "notch_a1", 0, "notch_a2", 0, ...
-  "reso_b0", 1,    "reso_b1", 0, "reso_b2", 0, "reso_a1", 0, "reso_a2", 0, ...
-  "enable_pid", true, "enable_lead", false, "enable_notch", false, "enable_reso", false);
 
-%% 指令波形: ステップ位置指令
-step_sample_n = round(step_duration_s * task_rate_hz);
-pre_step_n = max(1, round(pre_step_s * task_rate_hz));
+%% Derived waveforms for this demo
+step_sample_n = round(step_duration_s * cfg.task_rate_hz);
+pre_step_n = max(1, round(pre_step_s * cfg.task_rate_hz));
 if step_sample_n <= 0
   error("experiment:demo:invalid", "step_duration_s must produce at least one sample.");
 end
 sample_n = pre_step_n + step_sample_n;
-per_trial_s = sample_n / task_rate_hz;
-ref_profile  = [zeros(pre_step_n, 1); target_position_rad * ones(step_sample_n, 1)];
-ff_profile   = zeros(sample_n, 1);
-dist_profile = zeros(sample_n, 1);
-done_timeout_s = N_REPEAT * per_trial_s + hold_margin_s + 5.0;
+per_trial_s = sample_n / cfg.task_rate_hz;
+cfg.ref_profile = [zeros(pre_step_n, 1); target_position_rad * ones(step_sample_n, 1)];
+cfg.ff_profile = zeros(sample_n, 1);
+cfg.dist_profile = zeros(sample_n, 1);
+cfg.repeat_count = N_REPEAT;
+cfg.wait_for_done = true;
+cfg.done_timeout_s = N_REPEAT * per_trial_s + hold_margin_s + 5.0;
+cfg.logger_release_timeout_s = 5.0;
+cfg.hold_seconds = per_trial_s + hold_margin_s;
+cfg.plant = experiment.PlantConfig.from_struct(struct( ...
+  "m", 0.02, ...
+  "d", 0.2, ...
+  "rated_current", 1.2, ...
+  "max_permille", 0.0, ...
+  "tau_limit", 2.4, ...
+  "vel_limit", 2*pi*60));
+cfg.controller = experiment.ControllerConfig.p_only(Kp);
 
 fprintf("=== Position Command Demo (P control, Kp=%g, repeats=%d) ===\n", Kp, N_REPEAT);
 fprintf("Target=%.4f rad, stepDuration=%.3f s, preStep=%.3f s, perTrial=%.3f s, N=%d\n", ...
-  target_position_rad, step_sample_n / task_rate_hz, pre_step_n / task_rate_hz, per_trial_s, sample_n);
+  target_position_rad, step_sample_n / cfg.task_rate_hz, pre_step_n / cfg.task_rate_hz, per_trial_s, sample_n);
 
 %% ADS 接続
 seq_transport  = twincat_ads.AdsTransport();
@@ -73,39 +64,19 @@ ctrl_transport = twincat_ads.AdsTransport();
 mod_transport  = twincat_ads.AdsTransport();
 cleanup = onCleanup(@() disconnect_all(seq_transport, ctrl_transport, mod_transport));
 
-seq_transport.connect(ams_net_id, seq_port);
-ctrl_transport.connect(ams_net_id, control_port);
-mod_transport.connect(ams_net_id, module_port);
-fprintf("Connected: SEQ=%d, CTRL=%d, MODULE=%d\n", seq_port, control_port, module_port);
+seq_transport.connect(cfg.ams_net_id, cfg.seq_port);
+ctrl_transport.connect(cfg.ams_net_id, cfg.control_port);
+mod_transport.connect(cfg.ams_net_id, cfg.module_port);
+fprintf("Connected: SEQ=%d, CTRL=%d, MODULE=%d\n", cfg.seq_port, cfg.control_port, cfg.module_port);
+fprintf("VM params: m=%.2f d=%.2f rated_current=%.2f\n", ...
+  cfg.plant.m, cfg.plant.d, cfg.plant.rated_current);
+fprintf("Controller: Kp=%.1f (pid_b0), enable_pid=%d\n", Kp, logical(cfg.controller.pid.enable));
 
-%% パラメータ書込み
-experiment.write_vm_params(mod_transport, char(sys.VM_PREFIX), vm_params, experiment.SystemConfig.task_dt_ns());
-experiment.write_controller_params(mod_transport, char(sys.CTRL_PREFIX), ctrl_params);
-fprintf("VM params: m=%.2f d=%.2f rated_current=%.2f\n", vm_params.m, vm_params.d, vm_params.rated_current);
-fprintf("Controller: Kp=%.1f (pid_b0), enable_pid=true\n", Kp);
-
-%% テーブル書込み + 実験実行
-out = experiment.send_position_command( ...
-  "ams_net_id", char(ams_net_id), ...
-  "ams_port", seq_port, ...
-  "control_ams_port", control_port, ...
-  "mode_flags_symbol", char(sys.MODE_FLAGS_SYMBOL), ...
-  "ref_profile", ref_profile, ...
-  "ff_profile", ff_profile, ...
-  "dist_profile", dist_profile, ...
-  "task_rate_hz", task_rate_hz, ...
-  "repeat_count", N_REPEAT, ...
-  "wait_for_done", true, ...
-  "done_timeout_s", done_timeout_s, ...
-  "logger_release_timeout_s", 5.0, ...
-  "hold_seconds", per_trial_s + hold_margin_s, ...
-  "plc_transport", seq_transport, ...
-  "control_transport", ctrl_transport, ...
-  "module_transport", mod_transport, ...
-  "mode_flags_transport", ctrl_transport, ...
-  "validate_symbols", true);
+%% 実験実行
+conn = struct("seq", seq_transport, "ctrl", ctrl_transport, "module", mod_transport);
+out = experiment.ExperimentRunner.run(conn, cfg);
 logger_bin = [];
-latest_bin = experiment.read_latest_logger_bin(logger_share_dir, logger_file_glob);
+latest_bin = experiment.read_latest_logger_bin(logger_dir, logger_file_glob);
 if latest_bin.ok
   logger_bin = latest_bin.logger_bin;
 end
@@ -149,7 +120,7 @@ n_log = numel(selected.signals.position_act);
 if n_log > 0
   t_log = selected.signals.time_s;
   if isempty(t_log)
-    t_log = (0:n_log-1)' / task_rate_hz;
+    t_log = (0:n_log-1)' / cfg.task_rate_hz;
   end
 
   figure("Name", "P Control Position Demo", "Color", "w");
@@ -162,7 +133,7 @@ if n_log > 0
   grid on; xlabel("Time [s]"); ylabel("Position [rad]");
   legend("Location", "best");
   title(sprintf("Step Response (Kp=%g, repeats=%d, m=%.1f, d=%.1f, rated_current=%.2f)", ...
-    Kp, N_REPEAT, vm_params.m, vm_params.d, vm_params.rated_current));
+    Kp, N_REPEAT, cfg.plant.m, cfg.plant.d, cfg.plant.rated_current));
 
   nexttile;
   plot(t_log, selected.signals.control_input, "-",  "Color", [0.8 0.2 0.7], "LineWidth", 1.2, "DisplayName", "controlInput"); hold on;
@@ -199,16 +170,4 @@ end
 
 function s = passfail(flag)
 if logical(flag), s = "OK"; else, s = "NG"; end
-end
-
-function s = fmt_diag_value(v)
-if isempty(v) || (isnumeric(v) && any(isnan(v), "all"))
-  s = "NaN";
-elseif islogical(v)
-  s = string(double(v));
-elseif isnumeric(v)
-  s = string(double(v));
-else
-  s = string(v);
-end
 end
