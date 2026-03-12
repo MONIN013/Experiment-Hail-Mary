@@ -2,7 +2,7 @@
 <TcPlcObject Version="1.1.0.1">
   <Task Name="VirtualMotorTask" Id="{75fc8158-33b1-4b6a-8a61-d0f151b884a0}">
     <!--CycleTime in micro seconds.-->
-    <CycleTime>1000</CycleTime>
+    <CycleTime>125</CycleTime>
     <Priority>1</Priority>
     <PouCall>
       <Name>PRG_DriverAdapter</Name>

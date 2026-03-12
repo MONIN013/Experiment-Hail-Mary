@@ -7,14 +7,14 @@ classdef TestSystemConfig < matlab.unittest.TestCase
       testCase.verifyEqual(sys.CONTROL_PORT, 852);
       testCase.verifyEqual(sys.DRIVER_PORT, 851);
       testCase.verifyEqual(sys.MODULE_PORT, 351);
-      testCase.verifyEqual(sys.TASK_RATE_HZ, 1000);
+      testCase.verifyEqual(sys.TASK_RATE_HZ, 8000);
       testCase.verifyEqual(sys.TABLE_MAX_N, 100000);
       testCase.verifyEqual(sys.LOGGER_RELEASE_TIMEOUT_S, 5.0);
     end
 
-    function taskDtNsReturnsOneMsInNanoseconds(testCase)
+    function taskDtNsReturnsOneEighthMsInNanoseconds(testCase)
       dt = experiment.SystemConfig.task_dt_ns();
-      testCase.verifyEqual(dt, uint64(1000000));
+      testCase.verifyEqual(dt, uint64(125000));
     end
 
     function toStructReturnsAllConstants(testCase)

@@ -18,10 +18,11 @@ logger_dir = string(fileparts(char(sys.LOGGER_DEFAULT_FILE_PATH)));
 
 %% SI parameters (mirrors old temp.md flow)
 Ts = 1 / cfg.task_rate_hz;
-Tend = 100;
+Tend = 10;
 Tcycle = 10;
+repeat_count = 10;
 f0 = 0.1;
-f1 = 500;
+f1 = 4000;
 A = 1;
 transient_cycles = 2;
 initial_phase = 0;
@@ -50,11 +51,11 @@ sample_n = chirp_cfg.sample_count;
 cfg.ref_profile = zeros(sample_n, 1);
 cfg.ff_profile = chirp_cfg.signal(:);
 cfg.dist_profile = zeros(sample_n, 1);
-cfg.repeat_count = 1;
+cfg.repeat_count = repeat_count;
 cfg.wait_for_done = true;
 cfg.hold_seconds = Tend + hold_margin_s;
-cfg.done_timeout_s = Tend + hold_margin_s + 5.0;
-cfg.logger_release_timeout_s = max(5.0, Tend / 10);
+cfg.done_timeout_s = repeat_count * Tend + hold_margin_s + 5.0;
+cfg.logger_release_timeout_s = max(5.0, repeat_count * Tend / 10);
 cfg.plant = experiment.PlantConfig.from_struct(struct( ...
   "m", 0.02, ...
   "d", 0.2, ...
@@ -65,7 +66,8 @@ cfg.plant = experiment.PlantConfig.from_struct(struct( ...
 cfg.controller = experiment.ControllerConfig.p_only(Kp);
 
 fprintf("=== SI Demo (FF chirp, load_velocity FRF) ===\n");
-fprintf("Ts=%.6f s, Tend=%.3f s, Tcycle=%.3f s, A=%.3f\n", Ts, Tend, Tcycle, A);
+fprintf("Ts=%.6f s, Tend=%.3f s, Tcycle=%.3f s, repeats=%d, total=%.3f s, A=%.3f\n", ...
+  Ts, Tend, Tcycle, repeat_count, repeat_count * Tend, A);
 fprintf("f0=%.3f Hz, f1(requested)=%.3f Hz, f1(effective)=%.3f Hz, transient_cycles=%d\n", ...
   f0, f1, f1_effective, transient_cycles);
 fprintf("Samples=%d, cycles=%.2f, loggerDir=%s\n", sample_n, chirp_cfg.cycle_count, logger_dir);
@@ -110,42 +112,43 @@ if any(frf_out.coherence < 0.2)
 end
 
 %% Plot
-t_log = logger_bin.raw.t_s(:);
-if ~isempty(t_log)
-  t_log = t_log - t_log(1);
-else
-  t_log = chirp_cfg.t;
-end
+freq_hz = frf_out.freq_hz(:);
+omega_rad_s = 2 * pi * freq_hz;
+frf_measured = frf_out.frf(:);
+frf_nominal = cfg.plant.rated_current ./ (cfg.plant.m * 1i * omega_rad_s + cfg.plant.d);
+
+mag_measured_db = mag2db(abs(frf_measured));
+mag_nominal_db = mag2db(abs(frf_nominal));
+phase_measured_deg = wrap_phase_at_108(rad2deg(unwrap(angle(frf_measured))));
+phase_nominal_deg = wrap_phase_at_108(rad2deg(unwrap(angle(frf_nominal))));
 
 figure("Name", "SI Demo", "Color", "w");
 tiledlayout(3, 1, "Padding", "compact", "TileSpacing", "compact");
 
 nexttile;
-plot(t_log, logger_bin.raw.ff_value(:), "-", "LineWidth", 1.0, "DisplayName", "ffValue"); hold on;
-plot(t_log, logger_bin.raw.control_input(:), "-", "LineWidth", 1.0, "DisplayName", "controlInput");
-if any(abs(logger_bin.raw.current_cmd(:)) > 0)
-  plot(t_log, logger_bin.raw.current_cmd(:), "--", "LineWidth", 0.9, "DisplayName", "currentCmd");
-end
+semilogx(freq_hz, mag_measured_db, "-", "LineWidth", 1.2, "DisplayName", "Measured"); hold on;
+semilogx(freq_hz, mag_nominal_db, "--", "LineWidth", 1.2, "DisplayName", "Nominal");
 hold off;
 grid on;
-xlabel("Time [s]");
-ylabel("Current [A]");
+xlabel("Frequency [Hz]");
+ylabel("Gain [dB]");
 legend("Location", "best");
-title("Input-side Signals");
+title("FRF Gain: ffValue -> loadVelocity");
 
 nexttile;
-yyaxis left;
-semilogx(frf_out.freq_hz, mag2db(abs(frf_out.frf)), "-", "LineWidth", 1.2, "DisplayName", "FRF magnitude");
-ylabel("Magnitude [dB]");
-yyaxis right;
-semilogx(frf_out.freq_hz, rad2deg(unwrap(angle(frf_out.frf))), "-", "LineWidth", 1.0, "DisplayName", "FRF phase");
-ylabel("Phase [deg]");
+semilogx(freq_hz, phase_measured_deg, "-", "LineWidth", 1.2, "DisplayName", "Measured"); hold on;
+semilogx(freq_hz, phase_nominal_deg, "--", "LineWidth", 1.2, "DisplayName", "Nominal");
+hold off;
 grid on;
 xlabel("Frequency [Hz]");
-title("FRF: ffValue -> loadVelocity");
+ylabel("Phase [deg]");
+ylim([-180, 108]);
+yticks([-180, -135, -90, -45, 0, 45, 90, 108]);
+legend("Location", "best");
+title("FRF Phase: ffValue -> loadVelocity");
 
 nexttile;
-semilogx(frf_out.freq_hz, frf_out.coherence, "-", "LineWidth", 1.2);
+semilogx(freq_hz, frf_out.coherence, "-", "LineWidth", 1.2);
 grid on;
 xlabel("Frequency [Hz]");
 ylabel("Coherence");
@@ -165,4 +168,8 @@ for k = 1:numel(varargin)
   catch
   end
 end
+end
+
+function phase_wrapped_deg = wrap_phase_at_108(phase_deg)
+phase_wrapped_deg = mod(phase_deg + 180, 288) - 180;
 end

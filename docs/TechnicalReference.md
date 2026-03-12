@@ -383,7 +383,7 @@ END_IF
 
 > `overflow = TRUE` になると、古いデータが上書きされて失われる。  
 > 読み出し側は十分な頻度でポーリングする必要がある。  
-> 200,000 サンプル @ 1 kHz = 200 秒分のバッファ容量。
+> 200,000 サンプル @ 8 kHz = 25 秒分のバッファ容量。
 
 ### 5.5 リセット時のログクリア
 
@@ -666,17 +666,17 @@ ExperimentSequencer.playbackDone                            ──►  Experimen
 | AmsNetId | `192.168.10.3.1.1` |
 | アーキテクチャ | x64 |
 | 非 Windows CPU | 2 (CpuId 2, 3) |
-| RT タスク: VirtualMotorTask | Port **351**, Priority 1, CycleTime 1 ms, Affinity CPU3 |
-| RT タスク: StateTask | Port **355**, Priority 2, CycleTime 1 ms |
+| RT タスク: VirtualMotorTask | Port **351**, Priority 1, CycleTime 125 us, Affinity CPU3 |
+| RT タスク: StateTask | Port **355**, Priority 2, CycleTime 10 ms |
 
 ### 8.2 AMS ポート割り当て一覧
 
 | AMS Port | モジュール | 実装 | Task | 確認シンボル数 |
 |---|---|---|---|---|
-| **351** | C++ TcCOM (ControllerCore, VirtualMotorCore, ExperimentLogger) | C++ | VirtualMotorTask (1 ms) | 46 |
-| **851** | DriverAdapter | PLC ST | VirtualMotorTask (1 ms) | ~88 |
+| **351** | C++ TcCOM (ControllerCore, VirtualMotorCore, ExperimentLogger) | C++ | VirtualMotorTask (125 us / 8 kHz) | 46 |
+| **851** | DriverAdapter | PLC ST | VirtualMotorTask (125 us / 8 kHz) | ~88 |
 | **852** | StateMachineControl (ModeManager) | PLC ST | PlcTask (10 ms) | 124 |
-| **853** | ExperimentSequencer + ExperimentLogger | PLC ST | VirtualMotorTask (1 ms) | 137 |
+| **853** | ExperimentSequencer + ExperimentLogger | PLC ST | VirtualMotorTask (125 us / 8 kHz) | 137 |
 
 > Port **355** (StateTask) は PLC ランタイムではなくシステムタスクのため、シンボルブラウズ対象外。
 

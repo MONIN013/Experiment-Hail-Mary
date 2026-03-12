@@ -2,7 +2,7 @@
 <TcPlcObject Version="1.1.0.1">
   <Task Name="VirtualMotorTask" Id="{12d1a256-77a5-47d1-bb8e-2e5b1bd6c7a5}">
     <!--CycleTime in micro seconds.-->
-    <CycleTime>1000</CycleTime>
+    <CycleTime>125</CycleTime>
     <Priority>1</Priority>
     <PouCall>
       <Name>PRG_ExperimentSequencer</Name>

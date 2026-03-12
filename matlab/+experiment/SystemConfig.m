@@ -17,7 +17,7 @@ classdef SystemConfig
     MODULE_PORT        = 351     % C++ TcCOM (ControllerCore / VirtualMotorCore / ExperimentLogger)
 
     % --- タスク周期 ---
-    TASK_RATE_HZ       = 1000    % VirtualMotorTask 周期 [Hz]
+    TASK_RATE_HZ       = 8000    % VirtualMotorTask 周期 [Hz]
 
     % --- シンボルプレフィクス ---
     VM_PREFIX          = "VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter."

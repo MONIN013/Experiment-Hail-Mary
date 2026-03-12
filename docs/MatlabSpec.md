@@ -42,7 +42,7 @@ MATLAB からは **ADS 通信**（.NET Interop 経由 `TcAdsClient`）でパラ�
 | `CONTROL_PORT` | double | `852` | StateMachineControl / ModeManager (GVL_MODE) |
 | `DRIVER_PORT` | double | `851` | DriverAdapter (GVL_DRV) |
 | `MODULE_PORT` | double | `351` | C++ TcCOM (ControllerCore / VirtualMotorCore / ExperimentLogger) |
-| `TASK_RATE_HZ` | double | `1000` | VirtualMotorTask 周期 [Hz] |
+| `TASK_RATE_HZ` | double | `8000` | VirtualMotorTask 周期 [Hz] |
 | `VM_PREFIX` | string | `"VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter."` | VM パラメータシンボルプレフィクス |
 | `CTRL_PREFIX` | string | `"ControllerCore_Obj1 (Module1)."` | Controller パラメータシンボルプレフィクス |
 | `MODE_FLAGS_SYMBOL` | string | `"GVL_MODE.modeFlags"` | modeFlags 正規書込み先シンボル |

@@ -111,7 +111,7 @@ protected:
 	static_assert(sizeof(LogRecord) == 96, "LogRecord must be 96 bytes");
 
 	static const ULONG kBufferRecords = 8000;
-	static const ULONGLONG kDefaultTimestampStepNs = 1000000ULL;
+	static const ULONGLONG kDefaultTimestampStepNs = 125000ULL;
 	static const ULONG kTimestampInitSkipCycles = 10;
 
 	LogRecord m_logBuffers[2][kBufferRecords];

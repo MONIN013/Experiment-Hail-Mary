@@ -14,11 +14,11 @@
 | モジュール | 実装 | Task | 役割 |
 |---|---|---|---|
 | **StateMachineControl** (ModeManager) | PLC ST | PlcTask1 (10 ms) | CiA 402 状態遷移 + フラグ管理 + 実験開始/停止制御 |
-| **ExperimentSequencer** | PLC ST | VirtualMotorTask (1 ms) | テーブルリプレイ + リングバッファログ記録 |
-| **ControllerCore** | C++ TcCOM | VirtualMotorTask (1 ms) | 誤差計算 + FB Chain + FF 付加 |
-| **DriverAdapter** | PLC ST | VirtualMotorTask (1 ms) | Raw/工学単位変換 + 相対位置化 + 外乱加算 + CW/SW 中継 + 電流ゲート |
-| **VirtualMotorCore** | C++ TcCOM | VirtualMotorTask (1 ms) | 仮想モーター物理シミュレーション (CiA 402 内蔵) |
-| **ExperimentLogger** | C++ TcCOM | VirtualMotorTask (1 ms) | バイナリファイルロギング (8kHz × 100s 対応、非同期 I/O) |
+| **ExperimentSequencer** | PLC ST | VirtualMotorTask (125 us / 8 kHz) | テーブルリプレイ + リングバッファログ記録 |
+| **ControllerCore** | C++ TcCOM | VirtualMotorTask (125 us / 8 kHz) | 誤差計算 + FB Chain + FF 付加 |
+| **DriverAdapter** | PLC ST | VirtualMotorTask (125 us / 8 kHz) | Raw/工学単位変換 + 相対位置化 + 外乱加算 + CW/SW 中継 + 電流ゲート |
+| **VirtualMotorCore** | C++ TcCOM | VirtualMotorTask (125 us / 8 kHz) | 仮想モーター物理シミュレーション (CiA 402 内蔵) |
+| **ExperimentLogger** | C++ TcCOM | VirtualMotorTask (125 us / 8 kHz) | バイナリファイルロギング (8kHz × 100s 対応、非同期 I/O) |
 
 ---
 
@@ -200,7 +200,7 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 │    (SERVO + EXPERIMENT_START)     ExperimentSequencer: 再生開始        │
 │                                   experimentState = STATE_RUNNING (2) │
 │                                                                       │
-│     毎スキャン (1 ms):                                                 │
+│     毎スキャン (125 us / 8 kHz):                                       │
 │       ExperimentSequencer → ref/ff/dist → ControllerCore              │
 │       ControllerCore → controlInput → DriverAdapter                   │
 │       DriverAdapter → targetTorque (Drive 境界, ‰ rated, INT) → VirtualMotorCore │
