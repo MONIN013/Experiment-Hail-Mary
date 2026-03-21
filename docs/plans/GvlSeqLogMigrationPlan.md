@@ -1,8 +1,9 @@
-# GVL_SEQ_LOG 段階移行計画
+# Gvl Seq Log Migration Plan
 
-> 作成日: 2026-03-05  
-> 対象 issue: `#5`  
-> 方針: `ExperimentLogger` 優先、`GVL_SEQ_LOG` は段階的に縮退
+> **位置づけ:** `GVL_SEQ_LOG` から `ExperimentLogger` への段階移行計画  
+> **対象読者:** ロギング基盤の保守担当者、移行作業者  
+> **更新条件:** 移行フェーズ、完了条件、前提仕様が変わったとき  
+> **関連文書:** [OpenIssues](../status/OpenIssues.md) / [MatlabSpec](../architecture/MatlabSpec.md) / [TechnicalReference](../architecture/TechnicalReference.md) / [ExperimentProcedure](../operations/ExperimentProcedure.md) / [SystemArchitecture](../architecture/SystemArchitecture.md)
 
 ## 1. 目的
 
@@ -44,10 +45,10 @@
 - `matlab/tests/unit/TestVirtualMotorSymbols.m`
 
 ### ドキュメント
-- `docs/MatlabSpec.md`
-- `docs/TechnicalReference.md`
-- `docs/ExperimentProcedure.md`
-- `docs/ArchitectureSpec.md`
+- `docs/architecture/MatlabSpec.md`
+- `docs/architecture/TechnicalReference.md`
+- `docs/operations/ExperimentProcedure.md`
+- `docs/architecture/SystemArchitecture.md`
 
 ## 4. Phase A 完了条件
 

@@ -1,9 +1,9 @@
-# ExperimentSequencer — モジュール仕様書
+# ExperimentSequencer
 
-> **作成日:** 2026-03-05  
-> **実装方式:** PLC ST  
-> **タスク:** VirtualMotorTask (1 ms) → ControlTask (125 us)  
-> **参照:** [ArchitectureSpec.md](../ArchitectureSpec.md) §2A / [ModeManager.md](ModeManager.md)
+> **位置づけ:** テーブル再生と進行状態管理を担うモジュール仕様  
+> **対象読者:** PLC 実装者、テーブル再生ロジックの保守担当者  
+> **更新条件:** テーブル入力、状態遷移、出力契約が変わったとき  
+> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) §2A / [ModeManager](./ModeManager.md)
 
 ---
 

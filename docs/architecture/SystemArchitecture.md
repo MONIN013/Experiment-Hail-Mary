@@ -1,12 +1,9 @@
-# アーキテクチャ設計仕様 — 次世代実験基盤
+# System Architecture
 
-> **位置づけ:** [ProjectArchitecture.md](ProjectArchitecture.md) の設計思想を具体化したモジュール仕様書。  
-> **参照:** ブロック図 → [NewProjectBlock.pu](NewProjectBlock.pu)  
-> **現行仕様:** [CurrentProject.md](CurrentProject.md)  
-> **命名規則:** [NamingConvention.md](NamingConvention.md)  
-> **実験手順:** [ExperimentProcedure.md](ExperimentProcedure.md)  
-> **技術リファレンス:** [TechnicalReference.md](TechnicalReference.md)  
-> **未解決課題:** [OpenIssues.md](OpenIssues.md)
+> **位置づけ:** [ProjectOverview](../overview/ProjectOverview.md) の設計思想を具体化した次世代実験基盤の正本仕様  
+> **対象読者:** TwinCAT / MATLAB 実装者、構成変更を行う設計者  
+> **更新条件:** モジュール境界、I/O 契約、設計判断、フェーズ前提が変わったとき  
+> **関連文書:** [ProjectOverview](../overview/ProjectOverview.md) / [TechnicalReference](./TechnicalReference.md) / [ExperimentProcedure](../operations/ExperimentProcedure.md) / [NamingConvention](../operations/NamingConvention.md) / [OpenIssues](../status/OpenIssues.md) / [CurrentSystem](../legacy/CurrentSystem.md) / [NewProjectBlock.pu](./diagrams/NewProjectBlock.pu)
 
 ---
 
@@ -25,7 +22,7 @@
 | 1 | **ControllerCore** | C++ TcCOM (新規) | VirtualMotorTask 1 ms → ControlTask 125 µs | 誤差計算 + FB 制御チェーン + FF 付加 (スカラ I/O、テーブル非所有) |
 | 2 | **ExperimentSequencer** | PLC ST (新規) | VirtualMotorTask 1 ms → ControlTask 125 µs | テーブルリプレイ（ref / ff / dist スカラ出力のみ） |
 | 3 | **VirtualMotorCore** | C++ TcCOM (既存) | VirtualMotorTask 1 ms → ControlTask 125 µs | 仮想モーター物理シミュレーション (SIL 用、1慣性近似) |
-| 4 | **DriverAdapter** | PLC ST (Phase 1〜) | VirtualMotorTask 1 ms → ControlTask 125 µs | Raw/工学単位変換 + 相対位置化 + 外乱加算 + CW/SW 中継 + 電流ゲート (→ [module-specs/DriverAdapter.md](module-specs/DriverAdapter.md)) |
+| 4 | **DriverAdapter** | PLC ST (Phase 1〜) | VirtualMotorTask 1 ms → ControlTask 125 µs | Raw/工学単位変換 + 相対位置化 + 外乱加算 + CW/SW 中継 + 電流ゲート (→ [DriverAdapter](../modules/DriverAdapter.md)) |
 | 5 | **ExperimentLogger** | C++ TcCOM (Phase 3 新規) | VirtualMotorTask 1 ms → ControlTask 125 µs | ファイルロギング専用 (8kHz×100s 対応) |
 | 6 | **ModeManager** | PLC ST (StateMachineControl 拡張) | PlcTask1 10 ms | CiA 402 + 実験シーケンス管理 + 安全監視 |
 
@@ -224,7 +221,7 @@ Phase 4 (125 µs = 8 kHz):
 > および実験開始時の相対位置化を担当する。
 > Phase 1–3 では VirtualMotorCore に接続し、Phase 4 で EtherCAT PDO I/O に切り替える。
 > **Driver 変更時は `ENCODER_RESOLUTION` / `RATED_CURRENT` を書き換えて Build するのみ。**
-> 詳細仕様は [module-specs/DriverAdapter.md](module-specs/DriverAdapter.md) を参照。
+> 詳細仕様は [DriverAdapter](../modules/DriverAdapter.md) を参照。
 
 ### 2B.1 機能
 
@@ -529,7 +526,7 @@ VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.maxPermille        → LR
 ```
 
 > `VirtualMotor1Parameter` は `CreateSymbol="true"` で ADS Discovery 確認済み。
-> `encoderResolution` / `ratedTorque` / `maxPermille` は D11 で追加。詳細は [module-specs/VirtualMotorCore.md](module-specs/VirtualMotorCore.md) を参照。
+> `encoderResolution` / `ratedTorque` / `maxPermille` は D11 で追加。詳細は [VirtualMotorCore](../modules/VirtualMotorCore.md) を参照。
 
 ### 4.3 ExperimentSequencer (PLC ST, Port 853)
 
@@ -693,7 +690,7 @@ END_TYPE
   └─────────────────────────────────────────────────────────────────┘
 ```
 
-> 詳細仕様は [module-specs/DriverAdapter.md](module-specs/DriverAdapter.md) を参照。
+> 詳細仕様は [DriverAdapter](../modules/DriverAdapter.md) を参照。
 
 ### 7.2 Bypass ロジック詳細
 
@@ -725,8 +722,8 @@ Lead / Notch / Reso も同様。bypass 時はフィルタ内部状態をリセ�
 | D7 | Lead / Notch / Reso は離散伝達関数係数を ADS 注入 | MATLAB で連続→離散変換 (`c2d`) し、係数のみ送信。Build 不要 |
 | D8 | ExperimentLogger は C++ TcCOM ファイルライタ方式 | 8kHz × 100s = 800,000 サンプルの長時間記録に対応。Ring Buffer + ADS ではメモリ制約あり。ファイル I/O でデータ量制限なし |
 | D9 | 2慣性系構成: Motor 入力 / Load FB | トルク指令は Motor 側、位置 FB は Load 側。ログには Motor/Load 両方の信号を記録。VirtualMotorCore は Load 側 1 慣性近似 |
-| D10 | **ModeManager-only 状態制御** | 状態制御フロー (`modeFlags`, `experimentActive`, `resetReq`) は ModeManager (`GVL_MODE`) のみを経由する。MATLAB が ExperimentSequencer に直接書込むのは **テーブルデータのみ** 。詳細は [OpenIssues.md](OpenIssues.md) M2 |
-| D11 | **DriverAdapter でドライバ差異を吸収 (CiA 402 整数型 I/O)** | VirtualMotor と実機 EtherCAT Drive の I/O を CiA 402 準拚の整数型 (position: DINT [pulses], velocity: DINT [pulses/s], torque: INT [‰ rated]) に統一。Adapter の `ENCODER_RESOLUTION` / `RATED_CURRENT` 定数で工学単位変換。Driver 変更時は定数を書き換えて Build するのみ。詳細は [module-specs/DriverAdapter.md](module-specs/DriverAdapter.md) / [module-specs/VirtualMotorCore.md](module-specs/VirtualMotorCore.md) |
+| D10 | **ModeManager-only 状態制御** | 状態制御フロー (`modeFlags`, `experimentActive`, `resetReq`) は ModeManager (`GVL_MODE`) のみを経由する。MATLAB が ExperimentSequencer に直接書込むのは **テーブルデータのみ** 。詳細は [OpenIssues](../status/OpenIssues.md) M2 |
+| D11 | **DriverAdapter でドライバ差異を吸収 (CiA 402 整数型 I/O)** | VirtualMotor と実機 EtherCAT Drive の I/O を CiA 402 準拚の整数型 (position: DINT [pulses], velocity: DINT [pulses/s], torque: INT [‰ rated]) に統一。Adapter の `ENCODER_RESOLUTION` / `RATED_CURRENT` 定数で工学単位変換。Driver 変更時は定数を書き換えて Build するのみ。詳細は [DriverAdapter](../modules/DriverAdapter.md) / [VirtualMotorCore](../modules/VirtualMotorCore.md) |
 | D12 | **相対位置化を ControllerCore → DriverAdapter に移管** | 実機ドライバはエンコーダ絶対値を出力する。相対位置化はドライバ抽象化の一部として Adapter で行うべき。ControllerCore の `positionOffset` / `positionRel` は廃止し、Adapter の `positionOffsetRad` で代替 |
 | D13 | **VirtualMotor に `torqueActualValue` を追加** | CiA 402 ドライバは実トルクを出力する。SIL でも同等の出力を提供することで H3 を解消。Adapter で A 変換後 ExperimentLogger の `motorCurrentAct` に接続 |
 

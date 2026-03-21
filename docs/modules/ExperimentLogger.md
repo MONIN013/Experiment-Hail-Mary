@@ -1,8 +1,9 @@
-# ExperimentLogger Module Spec
+# ExperimentLogger
 
-> Module type: C++ TcCOM (Phase 3)
-> Task: VirtualMotorTask 1 ms (Phase 1-3), ControlTask 125 us (Phase 4)
-> AMS Port: 351
+> **位置づけ:** 実験データのファイルロギングを担うモジュール仕様  
+> **対象読者:** C++ TcCOM 実装者、ロギング基盤の保守担当者  
+> **更新条件:** 入出力項目、ロギング条件、ファイル形式契約が変わったとき  
+> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) / [GvlSeqLogMigrationPlan](../plans/GvlSeqLogMigrationPlan.md) / [OpenIssues](../status/OpenIssues.md)
 
 ## Summary
 ExperimentLogger is a binary file logger for experiment data. `Inputs.preArmReq` pre-opens the file in `SERVO_READY`, `Inputs.loggingReq` gates record append and session close, and `Inputs.playbackDone` provides a same-task fast path that stops record appends immediately when playback completes.

@@ -1,9 +1,9 @@
-# VirtualMotorCore — モジュール仕様書
+# VirtualMotorCore
 
-> **作成日:** 2026-02-27  
-> **実装方式:** C++ TcCOM (既存モジュール改修)  
-> **タスク:** VirtualMotorTask (1 ms) → ControlTask (125 µs)  
-> **参照:** [ArchitectureSpec.md](../ArchitectureSpec.md) §3 / [DriverAdapter.md](DriverAdapter.md) / [OpenIssues.md](../OpenIssues.md)
+> **位置づけ:** SIL 用の仮想モーター物理シミュレーション仕様  
+> **対象読者:** C++ TcCOM 実装者、SIL 検証担当者  
+> **更新条件:** 物理モデル、I/O 契約、Drive エミュレーション前提が変わったとき  
+> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) §3 / [DriverAdapter](./DriverAdapter.md) / [OpenIssues](../status/OpenIssues.md)
 
 ---
 

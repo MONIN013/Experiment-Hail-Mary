@@ -1,4 +1,13 @@
-# プロジェクト設計仕様
+# Project Overview
+
+> **位置づけ:** プロジェクト全体の目的、設計原則、現在地を示す入口文書  
+> **対象読者:** 実装者、実験設計者、初回参入者  
+> **更新条件:** 全体方針、フェーズ定義、正本ドキュメントの導線が変わったとき  
+> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) / [TechnicalReference](../architecture/TechnicalReference.md) / [ExperimentProcedure](../operations/ExperimentProcedure.md) / [OpenIssues](../status/OpenIssues.md)
+
+---
+
+## プロジェクト設計仕様
 本プロジェクトの最終目標は、
 **MATLAB / Simulink + TwinCAT を用いた 8kHz トルク制御実験環境において、Build回数を極限まで削減しつつ、再現性と同期性を保証する実験基盤を確立すること**である。
 
@@ -81,5 +90,5 @@
 
 本文書の設計思想を具体化したモジュール仕様・I/O 定義・パラメータ一覧は以下を参照:
 
-* **[ArchitectureSpec.md](ArchitectureSpec.md)** — モジュール境界・Data Area 接続マップ・ADS シンボル一覧
-* **[NewProjectBlock.pu](NewProjectBlock.pu)** — ブロック図 (PlantUML)
+* **[SystemArchitecture](../architecture/SystemArchitecture.md)** — モジュール境界・Data Area 接続マップ・ADS シンボル一覧
+* **[NewProjectBlock.pu](../architecture/diagrams/NewProjectBlock.pu)** — ブロック図 (PlantUML)

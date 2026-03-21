@@ -1,4 +1,11 @@
-# Plan: MATLAB大規模改修 — ADS Toolbox拡充・ライブラリ責任拡大・統一パラメタライズ
+# Matlab Refactor Plan
+
+> **位置づけ:** MATLAB 層の大規模改修計画  
+> **対象読者:** MATLAB 実装者、改修計画のレビュー担当者  
+> **更新条件:** 改修フェーズ、依存関係、完了条件が変わったとき  
+> **関連文書:** [MatlabSpec](../architecture/MatlabSpec.md) / [NamingConvention](../operations/NamingConvention.md) / [OpenIssues](../status/OpenIssues.md)
+
+## Plan: MATLAB大規模改修 — ADS Toolbox拡充・ライブラリ責任拡大・統一パラメタライズ
 
 ## TL;DR
 MATLAB層を5フェーズで大規模改修する。`+twincat_ads/` を汎用ADS Toolboxとして拡充し、`+experiment/` にサブパッケージ群（波形生成・制御器設計・可視化）を追加、Config体系を構造化された単一階層に統合し、runスクリプトをライブラリ呼び出しの手続き的パイプラインに変換する。dist/FFを第一級市民として完全公開する。
@@ -10,7 +17,7 @@ MATLAB層を5フェーズで大規模改修する。`+twincat_ads/` を汎用ADS
 ### Step 1.1 — 型マッピング拡充 (*独立*)
 - `AdsTransport.net_types()` に `int16`, `int32`, `int64`, `string` を追加
 - `IAdsTransport` の read/write メソッドが新型を透過的にサポートすることを保証
-- **対象**: [+twincat_ads/AdsTransport.m](matlab/+twincat_ads/AdsTransport.m), [+twincat_ads/IAdsTransport.m](matlab/+twincat_ads/IAdsTransport.m)
+- **対象**: [+twincat_ads/AdsTransport.m](../../matlab/+twincat_ads/AdsTransport.m), [+twincat_ads/IAdsTransport.m](../../matlab/+twincat_ads/IAdsTransport.m)
 
 ### Step 1.2 — AdsSession 接続管理クラス (*独立*)
 - 新規 `twincat_ads.AdsSession` クラスを作成
@@ -28,7 +35,7 @@ MATLAB層を5フェーズで大規模改修する。`+twincat_ads/` を汎用ADS
   - `read_struct` → 各フィールドをread_scalarして結果structを返す
   - `write_struct` → 各フィールドをwrite_scalarで一括書込み
 - `AdsTransport` で実装
-- **対象**: [+twincat_ads/IAdsTransport.m](matlab/+twincat_ads/IAdsTransport.m), [+twincat_ads/AdsTransport.m](matlab/+twincat_ads/AdsTransport.m)
+- **対象**: [+twincat_ads/IAdsTransport.m](../../matlab/+twincat_ads/IAdsTransport.m), [+twincat_ads/AdsTransport.m](../../matlab/+twincat_ads/AdsTransport.m)
 
 ### Step 1.4 — ADS Notification 対応 (*Step 1.1 依存*)
 - 新規 `twincat_ads.AdsNotificationManager` クラス
@@ -383,6 +390,6 @@ experiment.plot.current_signals(out);
 - **サブパッケージ構造**: `+waveform/`, `+controller/`, `+plot/` はMATLABネストパッケージ (`experiment.waveform.step()` 形式)
 - **後方互換**: 旧API (`RunConfig`, `send_position_command` 等) は即座に削除せずdeprecation warningを付けて委譲ラッパー化
 - **ADS Notification**: 優先度低。Phase 1の他ステップ完了後に着手。現行heartbeat監視で十分機能中
-- **名前規約**: MATLAB プロパティ・ローカル変数は `snake_case`、クラス名は `PascalCase`、パッケージは小文字 (既存NamingConvention.md準拠)
+- **名前規約**: MATLAB プロパティ・ローカル変数は `snake_case`、クラス名は `PascalCase`、パッケージは小文字 ([NamingConvention](../operations/NamingConvention.md) 準拠)
 - **out.raw フィールド名変更**: `logRefValue` → `ref_value` 等。ExperimentRunner で新形式、旧API は互換フィールドを併存
 - **スコープ外**: Simulink統合、バッチ実験自動化、JSON/YAMLコンフィグファイル読込み (将来拡張)

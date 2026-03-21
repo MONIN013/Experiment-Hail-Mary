@@ -1,11 +1,12 @@
-# 技術リファレンス — モジュール内部動作・ADS シンボル
+# Technical Reference
 
-> **作成日:** 2026-02-26  
-> **対象フェーズ:** Phase 1–3 (1 ms SIL)  
-> **参照:** [ArchitectureSpec.md](ArchitectureSpec.md) / [ExperimentProcedure.md](ExperimentProcedure.md) / [OpenIssues.md](OpenIssues.md)
+> **位置づけ:** モジュール内部動作、GVL/ADS シンボル、実装寄りの技術参照  
+> **対象読者:** TwinCAT / MATLAB 実装者、デバッグ担当者  
+> **更新条件:** 内部ロジック、シンボル、I/O 名、参照先仕様が変わったとき  
+> **関連文書:** [SystemArchitecture](./SystemArchitecture.md) / [ExperimentProcedure](../operations/ExperimentProcedure.md) / [OpenIssues](../status/OpenIssues.md)
 
 本ドキュメントは TwinCAT モジュールの **内部ロジック詳細・GVL 変数一覧・ADS シンボルリファレンス・tsproj Mapping 精査結果** をまとめた実装者向け技術参照である。  
-実験手順については [ExperimentProcedure.md](ExperimentProcedure.md) を参照。
+実験手順については [ExperimentProcedure](../operations/ExperimentProcedure.md) を参照。
 
 ---
 

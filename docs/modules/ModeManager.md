@@ -1,8 +1,9 @@
-# ModeManager Module Spec
+# ModeManager
 
-> Module type: PLC ST (StateMachineControl)
-> Task: PlcTask1 10 ms (Phase 1–3), SupervisionTask 1 ms (Phase 4)
-> AMS Port: 852
+> **位置づけ:** CiA 402 状態制御と実験シーケンス監視を担う FSM モジュール仕様  
+> **対象読者:** PLC 実装者、状態遷移ロジックの保守担当者  
+> **更新条件:** 状態遷移、入力要求、監視条件、安全側動作が変わったとき  
+> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) / [ExperimentProcedure](../operations/ExperimentProcedure.md) / [OpenIssues](../status/OpenIssues.md)
 
 ## Summary
 

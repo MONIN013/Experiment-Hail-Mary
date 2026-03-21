@@ -1,9 +1,9 @@
-# DriverAdapter — モジュール仕様書
+# DriverAdapter
 
-> **作成日:** 2026-02-27  
-> **実装方式:** PLC ST  
-> **タスク:** VirtualMotorTask (1 ms) → ControlTask (125 µs)  
-> **参照:** [ArchitectureSpec.md](../ArchitectureSpec.md) §2B / [VirtualMotorCore.md](VirtualMotorCore.md) / [OpenIssues.md](../OpenIssues.md)
+> **位置づけ:** Driver 境界の変換・中継・差異吸収を定義するモジュール仕様  
+> **対象読者:** PLC / TcCOM 実装者、Drive I/O を変更する設計者  
+> **更新条件:** I/O 契約、変換式、Drive 境界責務が変わったとき  
+> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) §2B / [VirtualMotorCore](./VirtualMotorCore.md) / [OpenIssues](../status/OpenIssues.md)
 
 ---
 
@@ -229,7 +229,7 @@ $$\text{positionRel} = \theta_{rad} - \theta_{offset}$$
 > **移行元:** この相対位置化は従来 ControllerCore (C++ TcCOM) 内の  
 > `positionOffset` / `positionRel` で実装されていた (M5 で実装)。  
 > D12 により DriverAdapter に移管し、ControllerCore は  
-> `positionAct` をそのまま相対位置として使用する (→ [ArchitectureSpec.md](../ArchitectureSpec.md) §2)。
+> `positionAct` をそのまま相対位置として使用する (→ [SystemArchitecture](../architecture/SystemArchitecture.md) §2)。
 >
 > **命名例外:** `targetTorque` / `torqueActualValue` は CiA 402 の Drive 境界に合わせて残す。
 > DriverAdapter より上流の制御・ロギング契約は current [A] が正規契約である。

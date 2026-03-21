@@ -1,6 +1,9 @@
-# 現行システム仕様 — テスト用プログラム
+# Current System
 
-> **位置づけ:** 現行の TE1400（Simulink → TcObject）方式の機能仕様書。
+> **位置づけ:** TE1400（Simulink → TcObject）方式の旧システム記録  
+> **対象読者:** 旧方式との比較が必要な実装者、移行作業者  
+> **更新条件:** 原則更新しない。旧方式の補足や移行注記が必要なときのみ更新  
+> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) / [ProjectOverview](../overview/ProjectOverview.md) / [NewProjectBlock.pu](../architecture/diagrams/NewProjectBlock.pu)
 > **補足 (2026-02-24):** 本文書は旧方式の記録。現行リポジトリでは TwinCAT 側の次世代構成（`ExperimentSequencer` + `ControllerCore` + `VirtualMotorCore`）へ移行中。
 > 
 ---
@@ -32,7 +35,7 @@ servo_activateがFalseの場合はサーボオンに対応するControlWordを�
 
 > **注記 (2026-02):** TE1400 試用版 100kB 制限により、次世代設計では TE1400 を使用せず C++ TcCOM に移行。
 > また、ロギングについても TE1400 File Writer の代わりに C++ TcCOM ファイルライタを採用。
-> → [ArchitectureSpec.md](ArchitectureSpec.md)
+> → [SystemArchitecture](../architecture/SystemArchitecture.md)
 ### input
 - experiment_activate: 実験開始フラグ
 - servo_activate: サーボアクティベートフラグ
@@ -87,8 +90,8 @@ servo_activateがTrueになるとサーボをアクティベートし、その�
 1. **指令値を変更するたびに Build を行う必要がある。**
 2. **制御器に変更を加えるたびに Build を行う必要がある。**
 
-> これらの問題を解決するため、次世代プロジェクト（→ [ArchitectureSpec.md](ArchitectureSpec.md)）では
+> これらの問題を解決するため、次世代プロジェクト（→ [SystemArchitecture](../architecture/SystemArchitecture.md)）では
 > 制御構造を C++ TcCOM で TwinCAT 側に固定し、テーブルリプレイ方式 + ADS パラメータ注入で Build を排除する設計を採用する。
 > ロギングは C++ TcCOM ファイルライタで 8kHz×100s の長時間記録に対応する。
 > TE1400 は試用版 100kB 制限により廃止。
-> ブロック図は [NewProjectBlock.pu](NewProjectBlock.pu) を参照。
+> ブロック図は [NewProjectBlock.pu](../architecture/diagrams/NewProjectBlock.pu) を参照。

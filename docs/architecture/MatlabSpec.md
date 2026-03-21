@@ -1,8 +1,9 @@
-# MATLAB 実装仕様 — MatlabSpec
+# Matlab Spec
 
-> **作成日:** 2026-02-28  
-> **対象:** matlab/ 以下の全 MATLAB コード  
-> **参照:** [ProjectArchitecture.md](ProjectArchitecture.md) / [TechnicalReference.md](TechnicalReference.md) / [NamingConvention.md](NamingConvention.md)
+> **位置づけ:** `matlab/` 以下の MATLAB 実装仕様と責務分離の正本  
+> **対象読者:** MATLAB 実装者、ADS 連携の保守担当者  
+> **更新条件:** MATLAB 側 API、責務境界、パッケージ構成、TwinCAT との契約が変わったとき  
+> **関連文書:** [ProjectOverview](../overview/ProjectOverview.md) / [TechnicalReference](./TechnicalReference.md) / [NamingConvention](../operations/NamingConvention.md)
 
 ---
 

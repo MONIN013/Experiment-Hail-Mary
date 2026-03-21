@@ -1,5 +1,10 @@
 # Open Issues
 
+> **位置づけ:** 未解決課題、技術的負債、後方互換コードの棚卸し  
+> **対象読者:** 実装者、レビュー担当者、次フェーズ計画者  
+> **更新条件:** 課題の追加、解消、優先度変更、撤去判断が発生したとき  
+> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) / [TechnicalReference](../architecture/TechnicalReference.md) / [GvlSeqLogMigrationPlan](../plans/GvlSeqLogMigrationPlan.md)
+
 後方互換・フォールバックコードの技術的負債リスト。
 コード精査日: 2026-03-05
 

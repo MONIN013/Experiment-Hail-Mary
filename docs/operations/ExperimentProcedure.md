@@ -1,11 +1,12 @@
-# 実験手順書 — ExperimentHailMary
+# Experiment Procedure
 
-> **作成日:** 2026-02-26  
-> **対象フェーズ:** Phase 1–3 (1 ms SIL)  
-> **参照:** [ArchitectureSpec.md](ArchitectureSpec.md) / [TechnicalReference.md](TechnicalReference.md) / [OpenIssues.md](OpenIssues.md)
+> **位置づけ:** 実験オペレーター向けの操作手順と確認項目  
+> **対象読者:** 実験実行者、検証担当者  
+> **更新条件:** 実験手順、前提条件、運用フロー、停止条件が変わったとき  
+> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) / [TechnicalReference](../architecture/TechnicalReference.md) / [OpenIssues](../status/OpenIssues.md)
 
 本ドキュメントは実験オペレーター向けの **手順書** である。  
-モジュール内部ロジック・GVL 変数定義・ADS シンボルの詳細は [TechnicalReference.md](TechnicalReference.md) を参照。
+モジュール内部ロジック・GVL 変数定義・ADS シンボルの詳細は [TechnicalReference](../architecture/TechnicalReference.md) を参照。
 
 ---
 
@@ -110,7 +111,7 @@ END_IF
 
 #### リセット処理の既知制約
 
-各モジュールのリセット対応状況を以下にまとめる。詳細は [OpenIssues.md](OpenIssues.md) を参照。
+各モジュールのリセット対応状況を以下にまとめる。詳細は [OpenIssues](../status/OpenIssues.md) を参照。
 
 | モジュール | resetReq 入力 | 検出方式 | リセット内容 | 既知制約 |
 |---|---|---|---|---|
@@ -253,7 +254,7 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 | **ログ制御** | 852 | `MAIN.experimentActiveOut` → `Inputs.loggingReq` | `BOOL` | Auto |
 | **ログ読出し** | 853 | `ExperimentLogger.wrIdx` / `rdIdx` / `log*` | — | R/W |
 
-> 全シンボルの完全な一覧は [TechnicalReference.md](TechnicalReference.md) §8 を参照。
+> 全シンボルの完全な一覧は [TechnicalReference](../architecture/TechnicalReference.md) §8 を参照。
 > `send_position_command` の `mode_flags_symbol` は `GVL_MODE.modeFlags` のみサポートされる。
 
 ---
@@ -288,5 +289,5 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
        % 先頭 8 bytes は seq(uint32) + pad(uint32) → 別途パース要
 ```
 
-> LogRecord フォーマット詳細は [TechnicalReference.md](TechnicalReference.md) §6.4 を参照。
+> LogRecord フォーマット詳細は [TechnicalReference](../architecture/TechnicalReference.md) §6.4 を参照。
 
