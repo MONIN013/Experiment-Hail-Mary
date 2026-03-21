@@ -1,8 +1,9 @@
 classdef ExperimentRunner
   methods (Static)
-    function out = run(conn, cfg)
+    function out = run(conn, cfg, varargin)
       cfg = experiment.ExperimentConfig.from_varargin(cfg);
       experiment.ExperimentRunner.validate_connection(conn);
+      opts = experiment.ExperimentRunner.parse_run_options(varargin{:});
 
       seq_transport = conn.seq;
       ctrl_transport = conn.ctrl;
@@ -86,16 +87,37 @@ classdef ExperimentRunner
         uint32(bitor(ctrl.MODEF_SERVO_ENABLE, ctrl.MODEF_EXPERIMENT_START_REQ)));
 
       if cfg.wait_for_done
-        [done, heartbeat_state] = experiment.ModeManagerControl.wait_until_done( ...
-          ctrl_transport, seq_transport, plc_symbols, ctrl, cfg.done_timeout_s, heartbeat_state);
-        timed_out = ~done;
+        [done, timed_out, stop_reason, abort_requested, abort_diag, heartbeat_state] = ...
+          experiment.ExperimentRunner.wait_for_terminal_state( ...
+            ctrl_transport, seq_transport, plc_symbols, ctrl, cfg, heartbeat_state, opts);
       else
         done = false;
         timed_out = false;
+        stop_reason = "hold_complete";
+        abort_requested = false;
+        abort_diag = experiment.ExperimentRunner.empty_abort_diag();
         while toc(t_run) < cfg.hold_seconds
+          [abort_requested, abort_diag] = experiment.ExperimentRunner.check_abort_condition( ...
+            opts.abort_condition, struct( ...
+              "elapsed_s", toc(t_run), ...
+              "cfg", cfg.to_struct(), ...
+              "heartbeat_state", heartbeat_state));
+          if abort_requested
+            [aborted, abort_diag, heartbeat_state] = experiment.ModeManagerControl.abort_experiment( ...
+              ctrl_transport, ctrl, heartbeat_state, struct( ...
+                "timeout_s", cfg.logger_release_timeout_s, ...
+                "poll_period_s", cfg.abort_check_period_s, ...
+                "tick_heartbeat", true));
+            if ~aborted
+              error("experiment:runner:abortTimeout", ...
+                "Timed out waiting abort completion (%s).", string(abort_diag.detail));
+            end
+            stop_reason = "abort";
+            break;
+          end
           heartbeat_state = experiment.ModeManagerControl.tick_heartbeat( ...
             ctrl_transport, ctrl, heartbeat_state, false);
-          pause(min(0.05, cfg.hold_seconds / 10 + eps));
+          pause(min(cfg.abort_check_period_s, cfg.hold_seconds / 10 + eps));
         end
       end
 
@@ -127,9 +149,13 @@ classdef ExperimentRunner
         "wait_for_done", logical(cfg.wait_for_done), ...
         "done", logical(done), ...
         "timed_out", logical(timed_out), ...
+        "abort_requested", logical(abort_requested), ...
+        "stop_reason", char(string(stop_reason)), ...
+        "abort_diag", abort_diag, ...
         "control_ams_port", double(cfg.control_port), ...
         "host_heartbeat_enable", logical(cfg.host_heartbeat_enable), ...
         "host_heartbeat_period_s", double(cfg.host_heartbeat_period_s), ...
+        "abort_check_period_s", double(cfg.abort_check_period_s), ...
         "logger_release_timeout_s", double(cfg.logger_release_timeout_s), ...
         "control_mode_flags_symbol", char(string(ctrl.modeFlagsSymbol)), ...
         "control_experiment_state_symbol", char(string(ctrl.experimentStateSymbol)));
@@ -165,6 +191,13 @@ classdef ExperimentRunner
   end
 
   methods (Static, Access = private)
+    function opts = parse_run_options(varargin)
+      p = inputParser;
+      p.addParameter("abort_condition", [], @(x) isempty(x) || isa(x, "function_handle"));
+      p.parse(varargin{:});
+      opts = p.Results;
+    end
+
     function validate_connection(conn)
       required = {"seq", "ctrl"};
       for k = 1:numel(required)
@@ -212,6 +245,75 @@ classdef ExperimentRunner
       if ~exist(path_value, "dir")
         mkdir(path_value);
       end
+    end
+
+    function [done, timed_out, stop_reason, abort_requested, abort_diag, heartbeat_state] = wait_for_terminal_state( ...
+        ctrl_transport, seq_transport, plc_symbols, ctrl, cfg, heartbeat_state, opts)
+      t0 = tic;
+      done = false;
+      timed_out = false;
+      stop_reason = "running";
+      abort_requested = false;
+      abort_diag = experiment.ExperimentRunner.empty_abort_diag();
+      while toc(t0) < cfg.done_timeout_s
+        remaining_s = max(cfg.done_timeout_s - toc(t0), eps);
+        [status, heartbeat_state] = experiment.ModeManagerControl.wait_until_inactive( ...
+          ctrl_transport, seq_transport, plc_symbols, ctrl, ...
+          min(cfg.abort_check_period_s, remaining_s), heartbeat_state);
+        if status.completed
+          done = strcmp(status.stop_reason, "done");
+          stop_reason = char(string(status.stop_reason));
+          return;
+        end
+
+        [abort_requested, abort_diag] = experiment.ExperimentRunner.check_abort_condition( ...
+          opts.abort_condition, struct( ...
+            "elapsed_s", toc(t0), ...
+            "status", status, ...
+            "cfg", cfg.to_struct(), ...
+            "heartbeat_state", heartbeat_state));
+        if abort_requested
+          [aborted, abort_diag, heartbeat_state] = experiment.ModeManagerControl.abort_experiment( ...
+            ctrl_transport, ctrl, heartbeat_state, struct( ...
+              "timeout_s", cfg.logger_release_timeout_s, ...
+              "poll_period_s", cfg.abort_check_period_s, ...
+              "tick_heartbeat", true));
+          if ~aborted
+            error("experiment:runner:abortTimeout", ...
+              "Timed out waiting abort completion (%s).", string(abort_diag.detail));
+          end
+          stop_reason = "abort";
+          return;
+        end
+      end
+
+      timed_out = true;
+      stop_reason = "timeout";
+      error("experiment:runner:doneTimeout", ...
+        "Timed out waiting %.3f s for experiment completion or abort.", cfg.done_timeout_s);
+    end
+
+    function [abort_requested, abort_diag] = check_abort_condition(abort_condition, context)
+      abort_requested = false;
+      abort_diag = experiment.ExperimentRunner.empty_abort_diag();
+      if isempty(abort_condition)
+        return;
+      end
+      abort_requested = logical(abort_condition(context));
+      abort_diag.requested_by_callback = logical(abort_requested);
+      abort_diag.callback_elapsed_s = double(context.elapsed_s);
+    end
+
+    function diag = empty_abort_diag()
+      diag = struct( ...
+        "requested_by_callback", false, ...
+        "callback_elapsed_s", NaN, ...
+        "requested_at_s", NaN, ...
+        "modeflags_written", false, ...
+        "stop_confirmed", false, ...
+        "file_released", false, ...
+        "error_code", uint32(0), ...
+        "detail", "");
     end
   end
 end

@@ -40,6 +40,55 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
       testCase.verifyFalse(out.host.done);
       testCase.verifyEqual(out.metrics.sample_count, 0);
     end
+
+    function abortConditionStopsRunWithoutError(testCase)
+      seq = MockAdsTransport();
+      ctrl = MockAdsTransport();
+      module = MockAdsTransport();
+      seed_seq(seq);
+      seed_ctrl(ctrl);
+      ctrl.set_scalar_read_sequence("GVL_MODE.experimentState", [uint32(2); uint32(2); uint32(0)]);
+      ctrl.set_scalar_read_sequence("GVL_MODE.experimentActive", [true; true; false]);
+      ctrl.set_scalar_read_sequence("GVL_MODE.loggerFileReleased", [false; true]);
+      conn = experiment.ConnectionManager.from_transports(seq, ctrl, module);
+      cfg = experiment.ExperimentConfig.from_varargin( ...
+        "ref_profile", [0.1; 0.2; 0.3], ...
+        "wait_for_done", true, ...
+        "done_timeout_s", 0.05, ...
+        "abort_check_period_s", 0.001, ...
+        "read_logs", false, ...
+        "validate_symbols", false);
+
+      out = experiment.ExperimentRunner.run(conn, cfg, ...
+        "abort_condition", @(context) context.elapsed_s >= 0);
+
+      testCase.verifyFalse(out.host.done);
+      testCase.verifyTrue(out.host.abort_requested);
+      testCase.verifyEqual(string(out.host.stop_reason), "abort");
+      testCase.verifyTrue(any(contains(ctrl.operations, "write_scalar:GVL_MODE.modeFlags")));
+    end
+
+    function timeoutStillErrors(testCase)
+      seq = MockAdsTransport();
+      ctrl = MockAdsTransport();
+      module = MockAdsTransport();
+      seed_seq(seq);
+      seed_ctrl(ctrl);
+      ctrl.scalarMap("GVL_MODE.experimentState") = uint32(2);
+      ctrl.set_scalar_read_sequence("GVL_MODE.experimentActive", [false; true; true; true; true]);
+      ctrl.scalarMap("GVL_MODE.loggerFileReleased") = false;
+      conn = experiment.ConnectionManager.from_transports(seq, ctrl, module);
+      cfg = experiment.ExperimentConfig.from_varargin( ...
+        "ref_profile", [0.1; 0.2], ...
+        "wait_for_done", true, ...
+        "done_timeout_s", 0.02, ...
+        "abort_check_period_s", 0.005, ...
+        "read_logs", false, ...
+        "validate_symbols", false);
+
+      testCase.verifyError(@() experiment.ExperimentRunner.run(conn, cfg), ...
+        "experiment:runner:doneTimeout");
+    end
   end
 end
 

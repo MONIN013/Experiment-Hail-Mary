@@ -1,5 +1,7 @@
 function out = send_position_command(varargin)
-legacy_cfg = experiment.PositionCommandConfig.from_varargin(varargin{:});
+abort_condition = [];
+[cfg_args, abort_condition] = split_abort_condition(varargin{:});
+legacy_cfg = experiment.PositionCommandConfig.from_varargin(cfg_args{:});
 cfg = experiment.ExperimentConfig.from_struct(legacy_cfg);
 
 seq_transport = [];
@@ -24,5 +26,20 @@ else
   conn = experiment.ConnectionManager.from_transports(seq_transport, ctrl_transport, module_transport);
 end
 
-out = experiment.ExperimentRunner.run(conn, cfg);
+out = experiment.ExperimentRunner.run(conn, cfg, "abort_condition", abort_condition);
+end
+
+function [cfg_args, abort_condition] = split_abort_condition(varargin)
+cfg_args = varargin;
+abort_condition = [];
+for k = 1:2:numel(varargin)
+  if k == numel(varargin)
+    break;
+  end
+  if strcmpi(string(varargin{k}), "abort_condition")
+    abort_condition = varargin{k + 1};
+    cfg_args(k:min(k + 1, numel(varargin))) = [];
+    return;
+  end
+end
 end

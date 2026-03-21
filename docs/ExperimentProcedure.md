@@ -123,6 +123,7 @@ END_IF
 
 > **注意:** `send_position_command` / `VirtualMotorService` は `wait_for_reset_idle` タイムアウト時に warning 続行せず **error で停止** する。
 > `hostHeartbeatCounter` の更新が 500 ms 以上停止すると ModeManager watchdog が `modeFlags := 0` を実行する。
+> MATLAB 実行中の任意停止は watchdog を待たず、`modeFlags := 0` を明示送信する explicit abort を正規経路とする。
 
 #### サーボ有効化 → CiA 402 状態遷移
 
@@ -147,6 +148,7 @@ statusWord → F_DecodeDriveState → driveState に応じて controlWord を生
 停止条件:
   (a) seqPlaybackDone = TRUE     ← テーブル再生完了
   (b) enableEffective = FALSE    ← サーボ無効化
+  (c) MATLAB explicit abort      ← `modeFlags := 0`
 
 完了ラッチ:
   playbackDone → doneLatched := TRUE
@@ -168,6 +170,12 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 
 > ドライブ自体が OPERATION_ENABLED 以外ではトルクを無視するため、SERVO_READY 状態で
 > `enableCurrentOut = TRUE` であっても機能上の影響はない。
+
+#### 停止経路の使い分け
+
+- **自然完了:** `seqPlaybackDone` により `STATE_DONE` を経由して停止
+- **明示 abort:** MATLAB が `GVL_MODE.modeFlags := 0` を書き、`IDLE` と logger close を待つ
+- **異常停止:** MATLAB 側 heartbeat が止まったとき watchdog が `modeFlags := 0` を自動実行
 
 ---
 

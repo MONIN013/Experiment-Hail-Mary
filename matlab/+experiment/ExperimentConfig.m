@@ -23,6 +23,7 @@ classdef ExperimentConfig
 
     host_heartbeat_enable = true
     host_heartbeat_period_s = 0.1
+    abort_check_period_s = 0.05
     logger_release_timeout_s = 5.0
 
     save_path = ""
@@ -77,6 +78,7 @@ classdef ExperimentConfig
       p.addParameter("hold_seconds", 0.0, @(x) isnumeric(x) && isscalar(x));
       p.addParameter("host_heartbeat_enable", true, @(x) islogical(x) || isnumeric(x));
       p.addParameter("host_heartbeat_period_s", 0.1, @(x) isnumeric(x) && isscalar(x));
+      p.addParameter("abort_check_period_s", 0.05, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("logger_release_timeout_s", defaults.logger_release_timeout_s, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("save_path", "", @(x) ischar(x) || isstring(x));
       p.addParameter("read_logs", true, @(x) islogical(x) || isnumeric(x));
@@ -210,6 +212,7 @@ classdef ExperimentConfig
       out.hold_seconds = double(out.hold_seconds);
       out.host_heartbeat_enable = logical(out.host_heartbeat_enable);
       out.host_heartbeat_period_s = double(out.host_heartbeat_period_s);
+      out.abort_check_period_s = double(out.abort_check_period_s);
       out.logger_release_timeout_s = double(out.logger_release_timeout_s);
       out.read_logs = logical(out.read_logs);
       out.validate_symbols = logical(out.validate_symbols);
@@ -258,6 +261,9 @@ classdef ExperimentConfig
       if ~(isnumeric(obj.host_heartbeat_period_s) && isscalar(obj.host_heartbeat_period_s) && obj.host_heartbeat_period_s > 0)
         error("experiment:config:invalid", "host_heartbeat_period_s must be > 0.");
       end
+      if ~(isnumeric(obj.abort_check_period_s) && isscalar(obj.abort_check_period_s) && obj.abort_check_period_s > 0)
+        error("experiment:config:invalid", "abort_check_period_s must be > 0.");
+      end
       if ~(isnumeric(obj.logger_release_timeout_s) && isscalar(obj.logger_release_timeout_s) && obj.logger_release_timeout_s > 0)
         error("experiment:config:invalid", "logger_release_timeout_s must be > 0.");
       end
@@ -284,6 +290,7 @@ classdef ExperimentConfig
         "hold_seconds", obj.hold_seconds, ...
         "host_heartbeat_enable", obj.host_heartbeat_enable, ...
         "host_heartbeat_period_s", obj.host_heartbeat_period_s, ...
+        "abort_check_period_s", obj.abort_check_period_s, ...
         "logger_release_timeout_s", obj.logger_release_timeout_s, ...
         "save_path", obj.save_path, ...
         "read_logs", obj.read_logs, ...
@@ -370,6 +377,7 @@ s = struct( ...
   "hold_seconds", cfg.hold_seconds, ...
   "host_heartbeat_enable", cfg.host_heartbeat_enable, ...
   "host_heartbeat_period_s", cfg.host_heartbeat_period_s, ...
+  "abort_check_period_s", cfg.abort_check_period_s, ...
   "logger_release_timeout_s", cfg.logger_release_timeout_s, ...
   "read_logs", cfg.read_logs, ...
   "validate_symbols", cfg.validate_symbols, ...

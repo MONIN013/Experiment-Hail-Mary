@@ -197,11 +197,21 @@ ControllerCore の biquad フィルタパラメータ (4 段カスケード) を
 | `dist_profile` | zeros(N,1) | 外乱テーブル |
 | `mode_flags_symbol` | `SystemConfig.position_command_defaults()` | modeFlags 正規シンボル |
 | `repeat_count` | `1` | 同一テーブルの連続再生回数 |
+| `abort_check_period_s` | `0.05` | MATLAB 側の abort callback 評価周期 [s] |
 | `logger_release_timeout_s` | `SystemConfig.position_command_defaults()` | logger close 完了待機時間 [s] |
 
 `send_position_command` は戻り値 `out.logger` を返す。  
 `out.logger` には `error_before/after`, `file_released`, `file_probe_detail`, `file_path` が含まれる。  
+`out.host` には `stop_reason` (`done` / `abort` / `hold_complete`) と `abort_requested`、`abort_diag` が含まれる。  
 logger 状態監視は `GVL_MODE.loggerFileReleased` / `GVL_MODE.loggerErrorCode` を `CONTROL_PORT` で読んで行い、MATLAB は logger TcCOM を直接監視しない。
+
+### 明示 abort API
+
+- `experiment.ModeManagerControl.abort_experiment(control_transport, ctrl, heartbeat_state, opts)` を追加した。
+- 正規動作は `GVL_MODE.modeFlags := 0` を書き込み、`experimentActive=FALSE` と `GVL_MODE.loggerFileReleased=TRUE` を待つ。
+- Heartbeat watchdog は MATLAB 異常停止時の安全停止用であり、通常の任意停止は explicit abort を使う。
+- `ExperimentRunner.run(..., "abort_condition", @f)` と `send_position_command(..., "abort_condition", @f)` は実行中に callback を評価し、`true` なら explicit abort を実行して正常復帰する。
+- callback には `elapsed_s`, `status`, `cfg`, `heartbeat_state` を含む context struct が渡される。
 
 ---
 

@@ -16,6 +16,7 @@ classdef PositionCommandConfig
     reset_timeout_s = 5.0
     host_heartbeat_enable = true
     host_heartbeat_period_s = 0.1
+    abort_check_period_s = 0.05
     logger_release_timeout_s = 5.0
 
     table_max_n = []
@@ -50,6 +51,7 @@ classdef PositionCommandConfig
       p.addParameter("reset_timeout_s", 5.0, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("host_heartbeat_enable", true, @(x) islogical(x) || isnumeric(x));
       p.addParameter("host_heartbeat_period_s", 0.1, @(x) isnumeric(x) && isscalar(x) && x > 0);
+      p.addParameter("abort_check_period_s", 0.05, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("logger_release_timeout_s", defaults.logger_release_timeout_s, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("table_max_n", defaults.table_max_n, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("ads_assembly", "", @(x) ischar(x) || isstring(x));
@@ -103,6 +105,7 @@ classdef PositionCommandConfig
       out.reset_timeout_s = double(out.reset_timeout_s);
       out.host_heartbeat_enable = logical(out.host_heartbeat_enable);
       out.host_heartbeat_period_s = double(out.host_heartbeat_period_s);
+      out.abort_check_period_s = double(out.abort_check_period_s);
       out.logger_release_timeout_s = double(out.logger_release_timeout_s);
       out.table_max_n = double(out.table_max_n);
       out.read_logs = logical(out.read_logs);
@@ -168,6 +171,10 @@ classdef PositionCommandConfig
       if ~(isnumeric(obj.host_heartbeat_period_s) && isscalar(obj.host_heartbeat_period_s) && obj.host_heartbeat_period_s > 0)
         error("experiment:position_command:invalidConfig", ...
           "host_heartbeat_period_s must be > 0.");
+      end
+      if ~(isnumeric(obj.abort_check_period_s) && isscalar(obj.abort_check_period_s) && obj.abort_check_period_s > 0)
+        error("experiment:position_command:invalidConfig", ...
+          "abort_check_period_s must be > 0.");
       end
       if ~(isnumeric(obj.logger_release_timeout_s) && isscalar(obj.logger_release_timeout_s) && obj.logger_release_timeout_s > 0)
         error("experiment:position_command:invalidConfig", ...

@@ -16,6 +16,7 @@ classdef RunConfig
     reset_timeout_s = 5.0
     host_heartbeat_enable = true
     host_heartbeat_period_s = 0.1
+    abort_check_period_s = 0.05
     table_max_n = []
 
     m = 0.01
@@ -81,6 +82,7 @@ classdef RunConfig
       p.addParameter("reset_timeout_s", 5.0, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("host_heartbeat_enable", true, @(x) islogical(x) || isnumeric(x));
       p.addParameter("host_heartbeat_period_s", 0.1, @(x) isnumeric(x) && isscalar(x) && x > 0);
+      p.addParameter("abort_check_period_s", 0.05, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("table_max_n", defaults.table_max_n, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("m", 0.01, @(x) isnumeric(x) && isscalar(x) && x > 0);
       p.addParameter("d", 0.1, @(x) isnumeric(x) && isscalar(x));
@@ -178,6 +180,7 @@ classdef RunConfig
       out.wait_for_done = logical(out.wait_for_done);
       out.host_heartbeat_enable = logical(out.host_heartbeat_enable);
       out.host_heartbeat_period_s = double(out.host_heartbeat_period_s);
+      out.abort_check_period_s = double(out.abort_check_period_s);
       out.table_max_n = uint32(out.table_max_n);
       out.task_dt_ns = uint64(round(1e9 / out.task_rate_hz));
       out.log_require_waveform_exact = logical(out.log_require_waveform_exact);
@@ -221,6 +224,9 @@ classdef RunConfig
       end
       if ~(isnumeric(obj.host_heartbeat_period_s) && isscalar(obj.host_heartbeat_period_s) && obj.host_heartbeat_period_s > 0)
         error("experiment:config:invalid", "host_heartbeat_period_s must be > 0.");
+      end
+      if ~(isnumeric(obj.abort_check_period_s) && isscalar(obj.abort_check_period_s) && obj.abort_check_period_s > 0)
+        error("experiment:config:invalid", "abort_check_period_s must be > 0.");
       end
     end
 

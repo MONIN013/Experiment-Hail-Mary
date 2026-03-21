@@ -159,6 +159,7 @@ MATLAB                              PLC (ModeManager)
 - **タイムアウト**: `HEARTBEAT_TIMEOUT_TICKS` (50 ticks = 500 ms @ 10 ms task)
 - **効果**: `IDLE` に強制遷移 + `modeFlags := 0` + `experimentActive := FALSE` + `watchdogTripCounter++`
 - **解除**: ホスト側が `hostHeartbeatCounter` をインクリメントすると silence ticks リセット
+- **明示 abort との差分**: MATLAB が通常停止で `modeFlags := 0` を書いた場合は watchdog ではないため `watchdogTripCounter` は増えない
 
 ---
 

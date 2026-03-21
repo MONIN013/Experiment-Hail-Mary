@@ -148,23 +148,89 @@ classdef ModeManagerControl
 
     function [done, heartbeat_state] = wait_until_done( ...
         control_transport, plc_transport, plc_symbols, ctrl, timeout_s, heartbeat_state)
+      [status, heartbeat_state] = experiment.ModeManagerControl.wait_until_inactive( ...
+        control_transport, plc_transport, plc_symbols, ctrl, timeout_s, heartbeat_state);
+      done = strcmp(status.stop_reason, "done");
+    end
+
+    function [status, heartbeat_state] = wait_until_inactive( ...
+        control_transport, plc_transport, plc_symbols, ctrl, timeout_s, heartbeat_state)
       if nargin < 6 || isempty(heartbeat_state)
         heartbeat_state = experiment.ModeManagerControl.heartbeat_disabled();
       end
       t = plc_symbols.types;
       t0 = tic;
-      done = false;
       state_supported = strlength(string(ctrl.experimentStateSymbol)) > 0;
       seen_active = false;
+      status = struct( ...
+        "completed", false, ...
+        "stop_reason", "timeout", ...
+        "experiment_state", NaN, ...
+        "experiment_active", false, ...
+        "state_supported", logical(state_supported), ...
+        "seen_active", false);
       while toc(t0) < timeout_s
-        [done, state_supported, seen_active] = experiment.ModeManagerControl.poll_done( ...
+        [status, state_supported, seen_active] = experiment.ModeManagerControl.poll_inactive( ...
           control_transport, plc_transport, plc_symbols, ctrl, t, state_supported, seen_active);
-        if done
+        if status.completed
           return;
         end
         heartbeat_state = experiment.ModeManagerControl.tick_heartbeat(control_transport, ctrl, heartbeat_state, false);
         pause(0.01);
       end
+    end
+
+    function [aborted, diag, heartbeat_state] = abort_experiment( ...
+        control_transport, ctrl, heartbeat_state, opts)
+      if nargin < 3 || isempty(heartbeat_state)
+        heartbeat_state = experiment.ModeManagerControl.heartbeat_disabled();
+      end
+      if nargin < 4 || isempty(opts)
+        opts = struct();
+      end
+
+      timeout_s = experiment.ModeManagerControl.get_opt(opts, "timeout_s", 5.0);
+      poll_period_s = experiment.ModeManagerControl.get_opt(opts, "poll_period_s", 0.01);
+      tick_hb_once = experiment.ModeManagerControl.get_opt(opts, "tick_heartbeat", true);
+
+      t = twincat_ads.AdsTransport.net_types();
+      t0 = tic;
+      diag = struct( ...
+        "requested_at_s", 0.0, ...
+        "modeflags_written", false, ...
+        "stop_confirmed", false, ...
+        "file_released", false, ...
+        "error_code", uint32(0), ...
+        "detail", "abort requested");
+
+      experiment.ModeManagerControl.write_mode_flags(control_transport, ctrl, uint32(0));
+      diag.modeflags_written = true;
+      diag.requested_at_s = toc(t0);
+      if logical(tick_hb_once)
+        heartbeat_state = experiment.ModeManagerControl.tick_heartbeat(control_transport, ctrl, heartbeat_state, true);
+      end
+
+      aborted = false;
+      while toc(t0) < timeout_s
+        diag.stop_confirmed = ~logical(experiment.ModeManagerControl.try_read_experiment_active( ...
+          control_transport, ctrl, t));
+        diag.file_released = logical(control_transport.read_scalar(ctrl.loggerFileReleasedSymbol, t.bool));
+        diag.error_code = uint32(control_transport.read_scalar(ctrl.loggerErrorCodeSymbol, t.u32));
+        if diag.error_code ~= 0
+          diag.detail = sprintf("logger error 0x%08X", diag.error_code);
+          error("experiment:modecontrol:abortLoggerError", ...
+            "Logger reported error while aborting experiment (0x%08X).", uint32(diag.error_code));
+        end
+        if diag.stop_confirmed && diag.file_released
+          aborted = true;
+          diag.detail = "experiment aborted and logger released";
+          return;
+        end
+        heartbeat_state = experiment.ModeManagerControl.tick_heartbeat(control_transport, ctrl, heartbeat_state, false);
+        pause(poll_period_s);
+      end
+
+      diag.detail = sprintf("timed out waiting %.3f s for abort completion", timeout_s);
     end
 
     function [released, diag, heartbeat_state] = wait_for_logger_release( ...
@@ -251,25 +317,42 @@ classdef ModeManagerControl
       state.next_tick_s = elapsed_s + state.period_s;
     end
 
-    function [done, state_supported, seen_active] = poll_done( ...
+    function [status, state_supported, seen_active] = poll_inactive( ...
         control_transport, plc_transport, plc_symbols, ctrl, t, state_supported, seen_active)
-      done = false;
+      exp_active = false;
+      state = NaN;
       if state_supported
         try
           state = uint32(control_transport.read_scalar(ctrl.experimentStateSymbol, t.u32));
-          done = (state == ctrl.STATE_DONE);
-          if done
+          if state == ctrl.STATE_DONE
+            status = struct( ...
+              "completed", true, ...
+              "stop_reason", "done", ...
+              "experiment_state", double(state), ...
+              "experiment_active", false, ...
+              "state_supported", true, ...
+              "seen_active", logical(seen_active));
             return;
           end
         catch
           state_supported = false;
+          state = NaN;
         end
       end
 
       exp_active = experiment.ModeManagerControl.try_read_experiment_active( ...
         control_transport, ctrl, t);
       seen_active = seen_active || logical(exp_active);
-      done = seen_active && (~logical(exp_active));
+      status = struct( ...
+        "completed", logical(seen_active && (~logical(exp_active))), ...
+        "stop_reason", "running", ...
+        "experiment_state", double(state), ...
+        "experiment_active", logical(exp_active), ...
+        "state_supported", logical(state_supported), ...
+        "seen_active", logical(seen_active));
+      if status.completed
+        status.stop_reason = "abort";
+      end
     end
 
     function net_type = modeflags_type(t)
@@ -293,6 +376,13 @@ classdef ModeManagerControl
         error("experiment:modecontrol:readExperimentActiveFailed", ...
           "Failed to read '%s' via control transport (%s: %s).", ...
           char(string(ctrl.experimentActiveSymbol)), string(e.identifier), string(e.message));
+      end
+    end
+
+    function value = get_opt(opts, field_name, default_value)
+      value = default_value;
+      if isstruct(opts) && isfield(opts, field_name) && ~isempty(opts.(field_name))
+        value = opts.(field_name);
       end
     end
   end

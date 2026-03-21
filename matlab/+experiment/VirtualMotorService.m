@@ -27,11 +27,11 @@ classdef VirtualMotorService < handle
       obj.control_transport = control_transport;
     end
 
-    function out = run(obj, cfg)
+    function out = run(obj, cfg, varargin)
       cfg = experiment.ExperimentConfig.from_varargin(cfg);
       conn = experiment.ConnectionManager.from_transports( ...
         obj.plc_transport, obj.control_transport, obj.vm_transport);
-      out = experiment.ExperimentRunner.run(conn, cfg);
+      out = experiment.ExperimentRunner.run(conn, cfg, varargin{:});
     end
   end
 end
