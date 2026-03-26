@@ -16,8 +16,9 @@ package "TwinCAT Real-Time (Phase 1-3: 1 ms / Phase 4: 125 µs = 8 kHz)" {
     [PDO I/O\n(EtherCAT / Virtual)] as PDO
   }
 
-  ' ---- DriverAdapter (PLC ST — ControlInput→Drive整形 + CW/SW中継) ----
-  package "DriverAdapter\n(PLC ST)" as DA {
+  ' ---- DriverAdapter (C++ TcCOM — Motor/Load raw変換 + CW/SW中継) ----
+  package "DriverAdapter\n(C++ TcCOM)" as DA {
+    [Motor/Load\nRaw Transform] as RawXform
     [Dist Adder\n(target = control_input + dist_value)] as DistAddDrv
     [ControlWord\nRelay] as CWRelay
     [StatusWord\nRelay] as SWRelay
@@ -51,7 +52,7 @@ package "TwinCAT Real-Time (Phase 1-3: 1 ms / Phase 4: 125 µs = 8 kHz)" {
   [ExperimentLogger\n(C++ TcCOM, File Writer)] as Log
 
   ' ---- Data flow: Drive → ControllerCore (Load 側 FB) ----
-  PDO --> Err : load_position\n(Load 側 FB)
+  PDO --> Err : load.positionRel\n(Load 側 FB)
   PDO --> Log : motor/load\nposition, velocity\nmotor_current_act
 
   ' ---- ExperimentSequencer → ControllerCore (スカラ) ----
@@ -131,7 +132,8 @@ note right of Seq
 end note
 
 note right of DA
-  **ControlInput → Drive 入力整形アダプタ。**
+  **Motor/Load raw 変換 + Drive relay。**
+  MotorParams / LoadParams は ADS 設定。
   Dist Adder: target = control_input + dist_value
   ModeManager → ControlWord → Drive (中継)
   Drive → StatusWord → ModeManager (中継)

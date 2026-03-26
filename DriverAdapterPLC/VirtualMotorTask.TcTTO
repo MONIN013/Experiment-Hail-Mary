@@ -5,7 +5,7 @@
     <CycleTime>125</CycleTime>
     <Priority>1</Priority>
     <PouCall>
-      <Name>PRG_DriverAdapter</Name>
+      <Name>PRG_DriverAdapterPLC</Name>
     </PouCall>
     <TaskFBGuid>{ebfbd41e-bedc-461b-8bac-92c8b4e47f8f}</TaskFBGuid>
     <Fb_init>{11b0d570-e718-42ab-b76d-3f4901e4f4c2}</Fb_init>

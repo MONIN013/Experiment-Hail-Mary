@@ -9,7 +9,7 @@
     <WriteProductVersion>false</WriteProductVersion>
     <GenerateTpy>false</GenerateTpy>
     <Name>ExperimentSequencer</Name>
-    <ProgramVersion>3.1.4026.20</ProgramVersion>
+    <ProgramVersion>3.1.4026.21</ProgramVersion>
     <Application>{c0f069a8-ac45-4807-9306-fd2e5f23b55c}</Application>
     <TypeSystem>{05b4d9b7-17db-4df4-a8d3-2205478496d4}</TypeSystem>
     <Implicit_Task_Info>{e4cc9ba9-4feb-4c70-a155-93a24c5a5069}</Implicit_Task_Info>

@@ -22,7 +22,7 @@
 | 1 | **ControllerCore** | C++ TcCOM (新規) | VirtualMotorTask 1 ms → ControlTask 125 µs | 誤差計算 + FB 制御チェーン + FF 付加 (スカラ I/O、テーブル非所有) |
 | 2 | **ExperimentSequencer** | PLC ST (新規) | VirtualMotorTask 1 ms → ControlTask 125 µs | テーブルリプレイ（ref / ff / dist スカラ出力のみ） |
 | 3 | **VirtualMotorCore** | C++ TcCOM (既存) | VirtualMotorTask 1 ms → ControlTask 125 µs | 仮想モーター物理シミュレーション (SIL 用、1慣性近似) |
-| 4 | **DriverAdapter** | PLC ST (Phase 1〜) | VirtualMotorTask 1 ms → ControlTask 125 µs | Raw/工学単位変換 + 相対位置化 + 外乱加算 + CW/SW 中継 + 電流ゲート (→ [DriverAdapter](../modules/DriverAdapter.md)) |
+| 4 | **DriverAdapter** | C++ TcCOM (Phase 1〜) | VirtualMotorTask 1 ms → ControlTask 125 µs | Motor/Load raw 変換 + 相対位置化 + 外乱加算 + CW/SW 中継 + 電流ゲート (→ [DriverAdapter](../modules/DriverAdapter.md)) |
 | 5 | **ExperimentLogger** | C++ TcCOM (Phase 3 新規) | VirtualMotorTask 1 ms → ControlTask 125 µs | ファイルロギング専用 (8kHz×100s 対応) |
 | 6 | **ModeManager** | PLC ST (StateMachineControl 拡張) | PlcTask1 10 ms | CiA 402 + 実験シーケンス管理 + 安全監視 |
 
@@ -51,19 +51,19 @@ Phase 4 (125 µs = 8 kHz):
 > テーブルリプレイは PLC ST (ExperimentSequencer) で実装する。
 > ExperimentSequencer は ref / ff / dist のスカラ出力のみを担当する。
 > 外乱加算 (Dist Adder: `controlInput + dist` を [A] で合成し、Drive 境界で `targetTorque` [% rated] に変換) および
-> ControlWord / StatusWord の中継は DriverAdapter (PLC ST) が担当する。
+> ControlWord / StatusWord の中継は DriverAdapter (C++ TcCOM) が担当する。
 >
 > **DriverAdapter によるドライバ差異吸収 (D11):**
-> VirtualMotorCore / EtherCAT Drive の I/O を CiA 402 準拠の整数型に統一し、
+> VirtualMotorCore / EtherCAT Drive の I/O を Motor/Load 専用の raw チャネルへ統一し、
 > DriverAdapter が raw ↔ 工学単位変換と実験開始時の相対位置化を一元的に担う。
-> Driver 変更時は Adapter の `ENCODER_RESOLUTION` / `RATED_CURRENT` を書き換えて
-> Build するのみで、制御ロジック (ControllerCore) の変更は不要。
+> Driver 変更時は Adapter の ADS パラメータ (`MotorParams` / `LoadParams`) を書き換えるだけで、
+> 制御ロジック (ControllerCore) の変更は不要。
 >
 > **2慣性系構成:** 本実験は Motor + Load の 2 慣性系である。
 > Drive 境界の `% rated` 指令 (`targetTorque`) は Motor 側に入力し、
 > 位置フィードバック (`positionAct`) は Load 側エンコーダから取得する。
 > VirtualMotorCore (SIL) は Load 側応答の 1 慣性近似として動作する。
-> Phase 4 (DriverAdapter + EtherCAT) で実機の Motor/Load 両方の信号を取得する。
+> Phase 4 では DriverAdapter が Motor/Load の両方の raw 入力を扱い、同一 C++ ロジックで EtherCAT に差し替える。
 
 ---
 
@@ -95,7 +95,7 @@ Phase 4 (125 µs = 8 kHz):
 3. **FF Adder:** $\text{controlInput} = u_{fb} + \text{ffValue}$
 
 > **D12 移行注記:** 相対位置化 (`positionRel = positionAct - positionOffset`) は DriverAdapter に移管済み。
-> ControllerCore の `positionOffset` / `positionRel` 出力は廃止し、`positionAct` は Adapter の `positionRel` をそのまま受け取る。
+> ControllerCore の `positionOffset` / `positionRel` 出力は廃止し、`positionAct` は Adapter の `load.positionRel` をそのまま受け取る。
 > ControllerCore のリセット時は biquad 内部状態クリアのみを行い、位置オフセット処理は行わない。
 
 ### 2.3 Tunable Parameters (ADS 注入、Build 不要)
@@ -213,79 +213,99 @@ Phase 4 (125 µs = 8 kHz):
 
 ---
 
-## 2B. DriverAdapter — PLC ST 仕様
+## 2B. DriverAdapter — C++ TcCOM 仕様
 
-> **役割:** ドライバ差異吸収層。Drive (VirtualMotorCore / EtherCAT) の raw 信号 (パルス数、‰定格トルク) を
+> **役割:** ドライバ差異吸収層。Drive (VirtualMotorCore / EtherCAT) の Motor/Load raw 信号 (パルス数、‰定格トルク) を
 > 工学単位 (rad, rad/s, A) に変換し、制御モジュール群に統一インターフェースを提供する。
 > 外乱加算 (Dist Adder)、ControlWord / StatusWord 中継、電流ゲート、
 > および実験開始時の相対位置化を担当する。
 > Phase 1–3 では VirtualMotorCore に接続し、Phase 4 で EtherCAT PDO I/O に切り替える。
-> **Driver 変更時は `ENCODER_RESOLUTION` / `RATED_CURRENT` を書き換えて Build するのみ。**
+> **Driver 変更時は `MotorParams` / `LoadParams` の ADS パラメータを書き換えるだけ。**
 > 詳細仕様は [DriverAdapter](../modules/DriverAdapter.md) を参照。
 
 ### 2B.1 機能
 
-1. **Raw → 工学単位変換** — position [pulses]→[rad], velocity [pulses/s]→[rad/s], torque [‰ rated]→[A]
-2. **工学単位 → Raw 変換** — targetTorque [A]→[‰ rated]
-3. **電流クランプ** — `targetCurrentA` を `±MAX_CURRENT_A` でクランプ (モーター保護)
-3. **相対位置化** — リセット時に絶対位置をキャプチャし、以降 `positionRel` として公開 (D12)
-4. **Dist Adder** — $\text{targetTorque} = \text{controlInput} + \text{distValue}$ (最終トルク出力 → Motor 側)
-5. **ControlWord 中継** — ModeManager が生成した `controlWord` を Drive へ転送
-6. **StatusWord 中継** — Drive から受信した `statusWord` を ModeManager へ転送
-7. **電流ゲート** — `enableCurrentOutput = FALSE` または `playbackDone = TRUE` 時に `targetTorque := 0`
+1. **Motor raw → 工学単位変換** — position [pulses]→[rad], velocity [pulses/s]→[rad/s], torque [‰ rated]→[A]
+2. **Load raw → 工学単位変換** — position/velocity を Load 側で変換
+3. **工学単位 → Raw 変換** — `currentCmd` [A]→`targetTorque` [‰ rated]
+4. **電流クランプ** — `currentCmd` を `MotorParams.maxCurrentA` でクランプ (モーター保護)
+5. **相対位置化** — リセット時に Motor/Load の絶対位置をキャプチャし、以降 `positionRel` として公開 (D12)
+6. **Dist Adder** — `currentCmd = clamp(controlInput + distValue, +/- MotorParams.maxCurrentA)` を計算し、その後 `targetTorque` [% rated] へ変換する
+7. **ControlWord 中継** — ModeManager が生成した `controlWord` を Drive へ転送
+8. **StatusWord 中継** — Drive から受信した `statusWord` を ModeManager へ転送
+9. **電流ゲート** — `enableCurrentOutput = FALSE` または `playbackDone = TRUE` 時に `targetTorque := 0`
 
-### 2B.2 定数パラメータ (`GVL_DRV` — `VAR_GLOBAL CONSTANT`)
+### 2B.2 定数パラメータ (`MotorParams` / `LoadParams`)
 
 | 定数名 | データ型 | 例値 | 説明 |
 |---|---|---|---|
-| `ENCODER_RESOLUTION` | `UDINT` | `8388608` (2²³) | エンコーダ分解能 [pulses/rev] |
-| `RATED_CURRENT` | `LREAL` | `1.2` | 定格電流 [A] |
-| `MAX_CURRENT_A` | `LREAL` | `1.5` | 電流クランプ上限 [A] (モーター保護) |
-| `TWO_PI_INV_RES` | `LREAL` | (導出値) | $2\pi / \text{ENCODER\_RESOLUTION}$ [rad/pulse] |
-| `RATED_CURRENT_INV_X1000` | `LREAL` | (導出値) | $1000 / \text{RATED\_CURRENT}$ [‰/A] |
-| `RATED_CURRENT_DIV_1000` | `LREAL` | (導出値) | $\text{RATED\_CURRENT} / 1000$ [A/‰] |
+| `encoderResolution` | `UDINT` | `8388608` (2²³) | エンコーダ分解能 [pulses/rev] |
+| `ratedCurrentA` | `LREAL` | `1.2` | 定格電流 [A] |
+| `maxCurrentA` | `LREAL` | `1.5` | 電流クランプ上限 [A] (モーター保護) |
+| `positionSign` | `DINT` | `+1` | 位置符号 |
+| `velocitySign` | `DINT` | `+1` | 速度符号 |
+| `currentSign` | `DINT` | `+1` | 電流符号 |
+| `enableRelativePosition` | `BOOL` | `TRUE` | 相対位置化の有効化 |
 
 ### 2B.3 入出力
 
-#### 入力 — Drive 側 raw 信号
+#### 入力 — Motor raw 信号
 
 | # | 変数名 | データ型 | ソース | 説明 |
 |---|---|---|---|---|
-| 1 | `positionActualValue` | `DINT` | VirtualMotor / EtherCAT | 実位置 [pulses] |
-| 2 | `velocityActualValue` | `DINT` | VirtualMotor / EtherCAT | 実速度 [pulses/s] |
-| 3 | `torqueActualValue` | `INT` | VirtualMotor / EtherCAT | 実トルク [‰ rated] |
-| 4 | `statusWord` | `UINT` | VirtualMotor / EtherCAT | CiA 402 StatusWord |
+| 1 | `motorRaw.positionActualValue` | `DINT` | VirtualMotor / EtherCAT | Motor 実位置 [pulses] |
+| 2 | `motorRaw.velocityActualValue` | `DINT` | VirtualMotor / EtherCAT | Motor 実速度 [pulses/s] |
+| 3 | `motorRaw.torqueActualValue` | `INT` | VirtualMotor / EtherCAT | Motor 実トルク [‰ rated] |
+| 4 | `motorRaw.statusWord` | `UINT` | VirtualMotor / EtherCAT | Motor 側 StatusWord |
+
+#### 入力 — Load raw 信号
+
+| # | 変数名 | データ型 | ソース | 説明 |
+|---|---|---|---|---|
+| 5 | `load.positionActualValue` | `DINT` | VirtualMotor / EtherCAT | Load 実位置 [pulses] |
+| 6 | `load.velocityActualValue` | `DINT` | VirtualMotor / EtherCAT | Load 実速度 [pulses/s] |
+| 7 | `load.torqueActualValue` | `INT` | VirtualMotor / EtherCAT | Load 実トルク [‰ rated] |
+| 8 | `load.statusWord` | `UINT` | VirtualMotor / EtherCAT | Load 側 StatusWord |
 
 #### 入力 — 制御側
 
 | # | 変数名 | データ型 | ソース | 説明 |
 |---|---|---|---|---|
-| 5 | `controlInput` | `LREAL` | ControllerCore | 制御出力 $u_{fb} + u_{ff}$ [A] |
-| 6 | `distValue` | `LREAL` | ExperimentSequencer | 外乱値 (スカラ) [A] |
-| 7 | `controlWordIn` | `UINT` | ModeManager | CiA 402 ControlWord (ModeManager 生成) |
-| 8 | `enableCurrentOutput` | `BOOL` | ModeManager | 電流ゲート有効フラグ |
-| 9 | `resetReq` | `BOOL` | ModeManager | リセット要求 (エッジ検出) |
+| 9 | `controlInput` | `LREAL` | ControllerCore | 制御出力 $u_{fb} + u_{ff}$ [A] |
+| 10 | `distValue` | `LREAL` | ExperimentSequencer | 外乱値 (スカラ) [A] |
+| 11 | `controlWordIn` | `UINT` | ModeManager | CiA 402 ControlWord |
+| 12 | `enableCurrentOutput` | `BOOL` | ModeManager | 電流ゲート有効フラグ |
+| 13 | `playbackDone` | `BOOL` | ExperimentSequencer | 再生完了通知 |
+| 14 | `resetReq` | `BOOL` | ModeManager | リセット要求 (エッジ検出) |
 
 #### 出力 — 工学単位変換済み
 
 | # | 変数名 | データ型 | 宛先 | 説明 |
 |---|---|---|---|---|
-| 1 | `positionRel` | `LREAL` | ControllerCore / ExperimentLogger | 相対位置 [rad] |
-| 2 | `velocityAct` | `LREAL` | ExperimentLogger | 速度 [rad/s] |
-| 3 | `currentAct` | `LREAL` | ExperimentLogger | 実電流 [A] |
-| 4 | `statusWordOut` | `UINT` | ModeManager | CiA 402 StatusWord (中継) |
+| 1 | `motor.positionAbs` | `LREAL` | Logger / Debug | Motor 絶対位置 [rad] |
+| 2 | `motor.positionRel` | `LREAL` | Debug | Motor 相対位置 [rad] |
+| 3 | `motor.velocityAct` | `LREAL` | Logger / Debug | Motor 速度 [rad/s] |
+| 4 | `motor.currentAct` | `LREAL` | Logger / Debug | Motor 実電流 [A] |
+| 5 | `load.positionAbs` | `LREAL` | Debug | Load 絶対位置 [rad] |
+| 6 | `load.positionRel` | `LREAL` | ControllerCore / Logger | Load 相対位置 [rad] |
+| 7 | `load.velocityAct` | `LREAL` | Logger | Load 速度 [rad/s] |
+| 8 | `load.currentAct` | `LREAL` | Debug | Load 実電流 [A] |
+| 9 | `positionRel` | `LREAL` | ControllerCore / Logger | 互換エイリアス = `load.positionRel` |
+| 10 | `velocityAct` | `LREAL` | ExperimentLogger | 互換エイリアス = `load.velocityAct` |
+| 11 | `currentAct` | `LREAL` | ExperimentLogger | 互換エイリアス = `motor.currentAct` |
+| 12 | `statusWordOut` | `UINT` | ModeManager | Motor 側 StatusWord relay |
 
 #### 出力 — Drive 側 raw
 
 | # | 変数名 | データ型 | 宛先 | 説明 |
 |---|---|---|---|---|
-| 5 | `targetTorque` | `INT` | VirtualMotor / EtherCAT | Drive 境界の指令 [% rated] |
-| 6 | `controlWordOut` | `UINT` | VirtualMotor / EtherCAT | CiA 402 ControlWord (中継) |
+| 13 | `targetTorque` | `INT` | VirtualMotor / EtherCAT | Drive 境界の指令 [% rated] |
+| 14 | `controlWordOut` | `UINT` | VirtualMotor / EtherCAT | CiA 402 ControlWord (中継) |
 
 > **Phase 4 拡張:**
 > EtherCAT PDO マッピングへの切り替えは tsproj の `<Mappings>` 変更のみ。
 > DriverAdapter 内部ロジックの変更は不要。
-> `ENCODER_RESOLUTION` / `RATED_CURRENT` を実機ドライバの仕様に合わせて書き換え → Build。
+> `MotorParams` / `LoadParams` を実機ドライバの仕様に合わせて書き換え → Deploy。
 
 ---
 
@@ -313,17 +333,17 @@ ExperimentSequencer.distValue     ──►  DriverAdapter.distValue
 ### 3.4 DriverAdapter ↔ VirtualMotorCore (Phase 1–3)
 
 ```
-DriverAdapter.targetTorque (INT, ‰ rated)   ──►  VirtualMotorCore.Inputs.targetTorque       (Motor 側入力)
-DriverAdapter.controlWordOut                  ──►  VirtualMotorCore.Inputs.controlWord
-VirtualMotorCore.Outputs.statusWord            ──►  DriverAdapter.statusWord
-VirtualMotorCore.Outputs.positionActualValue   ──►  DriverAdapter.positionActualValue    (DINT, pulses)
-VirtualMotorCore.Outputs.velocityActualValue   ──►  DriverAdapter.velocityActualValue    (DINT, pulses/s)
-VirtualMotorCore.Outputs.torqueActualValue     ──►  DriverAdapter.torqueActualValue      (INT, ‰ rated)
-DriverAdapter.positionRel (LREAL, rad)         ──►  ControllerCore.positionAct          (Load 側 FB, 相対位置化済み)
+DriverAdapter.targetTorque (INT, ‰ rated)     ──►  VirtualMotorCore.Inputs.targetTorque       (Motor 側入力)
+DriverAdapter.controlWordOut                   ──►  VirtualMotorCore.Inputs.controlWord
+VirtualMotorCore.Outputs.statusWord            ──►  DriverAdapter.motorRaw.statusWord
+VirtualMotorCore.Outputs.torqueActualValue     ──►  DriverAdapter.motorRaw.torqueActualValue
+VirtualMotorCore.Outputs.positionActualValue   ──►  DriverAdapter.loadRaw.positionActualValue
+VirtualMotorCore.Outputs.velocityActualValue   ──►  DriverAdapter.loadRaw.velocityActualValue
+DriverAdapter.load.positionRel                 ──►  ControllerCore.positionAct          (Load 側 FB, 相対位置化済み)
 ```
 
 > VirtualMotorCore は CiA 402 PDO 準拚の整数型 I/O を提供 (D11).
-> DriverAdapter が raw → 工学単位変換 + 相対位置化を行い、ControllerCore に `positionRel` を供給。
+> DriverAdapter が Motor/Load raw → 工学単位変換 + 相対位置化を行い、ControllerCore に `load.positionRel` を供給。
 
 ### 3.5 ModeManager ↔ DriverAdapter
 
@@ -332,12 +352,12 @@ ModeManager.controlWord            ──►  DriverAdapter.controlWordIn
 ModeManager.resetOut               ──►  DriverAdapter.resetReq
 ModeManager.enableCurrentOutput     ──►  DriverAdapter.enableCurrentOutput
 ExperimentSequencer.playbackDone   ──►  DriverAdapter.playbackDone        (同一タスク fast-path、即時トルク停止)
-DriverAdapter.statusWordOut       ──►  ModeManager.statusWord
+DriverAdapter.statusWordOut        ──►  ModeManager.statusWord
 ```
 
 > ModeManager が CiA 402 ControlWord を生成し、DriverAdapter が Drive へ中継する。
 > Drive (VirtualMotorCore / EtherCAT) の StatusWord は DriverAdapter 経由で ModeManager に返る。
-> `resetOut` は DriverAdapter の `positionOffsetRad` キャプチャにも使用される (D12)。
+> `resetOut` は DriverAdapter の Motor/Load オフセットキャプチャにも使用される (D12)。
 
 ### 3.6 ModeManager → ExperimentSequencer
 
@@ -348,10 +368,10 @@ ModeManager.experimentActive ──►  ExperimentSequencer.experimentActive
 ### 3.7 各モジュール → ExperimentLogger (Phase 3〜)
 
 ```
-DriverAdapter.positionRel                                  ──►  ExperimentLogger.Inputs.loadPosition    (Adapter 変換済み相対位置)
-DriverAdapter.velocityAct                                  ──►  ExperimentLogger.Inputs.loadVelocity    (Adapter 変換済み速度)
-DriverAdapter.currentAct                                    ──►  ExperimentLogger.Inputs.motorCurrentAct (Adapter 変換済み実電流)
-DriverAdapter.current-domain command [A]                   ──►  ExperimentLogger.Inputs.currentCmd        (指令電流を [A] で記録)
+DriverAdapter.load.positionRel                             ──►  ExperimentLogger.Inputs.loadPosition    (Adapter 変換済み相対位置)
+DriverAdapter.load.velocityAct                             ──►  ExperimentLogger.Inputs.loadVelocity    (Adapter 変換済み速度)
+DriverAdapter.motor.currentAct                             ──►  ExperimentLogger.Inputs.motorCurrentAct (Adapter 変換済み実電流)
+DriverAdapter.currentCmd                                   ──►  ExperimentLogger.Inputs.currentCmd        (指令電流を [A] で記録)
 ExperimentSequencer.refValue                              ──►  ExperimentLogger.Inputs.refValue
 ExperimentSequencer.ffValue                               ──►  ExperimentLogger.Inputs.ffValue
 ControllerCore.controlInput                               ──►  ExperimentLogger.Inputs.controlInput
@@ -359,12 +379,9 @@ ControllerCore.error                                       ──►  Experiment
 ```
 
 > `error` は ControllerCore の Data Area Output として公開する。
-> `currentCmd` は設計上 DriverAdapter から供給する想定だが、現ブランチでは
-> `GVL_DRV.currentCmd` の出力シンボルが未実装であり、接続は未完了。
-> Phase 1–3 (SIL) でも `motorCurrentAct` は VirtualMotorCore の `torqueActualValue` 経由で
-> DriverAdapter が A 変換した値が入る (D13、H3 解消)。
+> `currentCmd` は DriverAdapter 内部の clamp 後 current [A] を記録する。
 > `loadPosition` / `loadVelocity` は DriverAdapter が raw→rad 変換+相対位置化した値が入る。
-> `motorPosition` / `motorVelocity` は Phase 4 で2軸構成時に追加予定。
+> `motorPosition` / `motorVelocity` は Phase 4 で Motor/Load の記録を有効化する前提で追加する。
 
 **制御信号 (ロギング制御 + fast-path 停止):**
 
@@ -381,18 +398,18 @@ ExperimentSequencer.playbackDone                           ──►  Experiment
 ### 3.8 DriverAdapter ↔ EtherCAT Drive (Phase 4)
 
 ```
-DriverAdapter.targetTorque (INT, ‰ rated)     ──►  EtherCAT.PDO.targetTorque      (Motor 側入力)
+DriverAdapter.targetTorque (INT, ‰ rated)       ──►  EtherCAT.PDO.targetTorque      (Motor 側入力)
 DriverAdapter.controlWordOut                    ──►  EtherCAT.PDO.controlWord
-EtherCAT.PDO.statusWord                          ──►  DriverAdapter.statusWord
-EtherCAT.PDO.positionActualValue (DINT, pulses)  ──►  DriverAdapter.positionActualValue
-EtherCAT.PDO.velocityActualValue (DINT, pulses/s)──►  DriverAdapter.velocityActualValue
-EtherCAT.PDO.torqueActualValue (INT, ‰ rated)   ──►  DriverAdapter.torqueActualValue
+EtherCAT.PDO.statusWord                         ──►  DriverAdapter.motorRaw.statusWord
+EtherCAT.PDO.positionActualValue (DINT, pulses) ──►  DriverAdapter.loadRaw.positionActualValue
+EtherCAT.PDO.velocityActualValue (DINT, pulses/s)──►  DriverAdapter.loadRaw.velocityActualValue
+EtherCAT.PDO.torqueActualValue (INT, ‰ rated)   ──►  DriverAdapter.motorRaw.torqueActualValue
 ```
 
 > Phase 4 では DriverAdapter が EtherCAT PDO に接続する。
 > VirtualMotorCore と同一の CiA 402 整数型 I/O を採用し、
 > tsproj の `<Mappings>` 切り替えのみで仮想/実機を選択可能にする (D11)。
-> `ENCODER_RESOLUTION` / `RATED_CURRENT` を実機ドライバの仕様に書き換え → Build。
+> `MotorParams` / `LoadParams` を実機ドライバの仕様に書き換え → Deploy。
 
 ### 3.9 接続マップ図 (Phase 1–3)
 
@@ -424,15 +441,16 @@ EtherCAT.PDO.torqueActualValue (INT, ‰ rated)   ──►  DriverAdapter.torqu
 └──────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────┐
-│       DriverAdapter (PLC ST)                     │
-│       ControlInput → Drive 入力整形              │
+│       DriverAdapter (C++ TcCOM)                  │
+│       Motor/Load raw 変換 + Drive relay          │
 │                                                  │
 │  controlInput ◄───────── ControllerCore         │
 │  distValue    ◄───────── ExperimentSequencer    │
 │  controlWordIn ◄──────── ModeManager            │
 │  statusWord    ◄───────── VirtualMotorCore       │
 │                                                  │
-│  targetTorque = controlInput + distValue      │
+│  currentCmd = clamp(controlInput + distValue) │
+│    -> targetTorque [% rated]                  │
 │                                                  │
 │  targetTorque ──────────► VirtualMotorCore.in (Motor 側)   │
 │  controlWordOut ────────► VirtualMotorCore.controlWord     │
@@ -613,7 +631,7 @@ END_TYPE
 > 8kHz × 100s = 800,000 レコード × 96 bytes ≈ 76.8 MB
 >
 > Phase 1–3 (SIL) では `motorPosition`, `motorVelocity` は 0 埋め。
-> `motorCurrentAct` は VirtualMotorCore の `torqueActualValue` 経由で DriverAdapter が A 変換した値が入る (D13)。
+> `motorCurrentAct` は DriverAdapter の `motor.currentAct` 経由で A 変換した値が入る (D13)。
 > `loadPosition` / `loadVelocity` に DriverAdapter の raw→工学単位変換 + 相対位置化済みの値が入る。
 
 ### 6.2 ファイル書き込み動作
@@ -667,26 +685,30 @@ END_TYPE
 ### 7.1b DriverAdapter 内部フロー
 
 ```
-             DriverAdapter (PLC ST)
-             ドライバ差異吸収層 — raw/工学単位変換 + 相対位置化
+             DriverAdapter (C++ TcCOM)
+             ドライバ差異吸収層 — Motor/Load raw 変換 + 相対位置化
   ┌─────────────────────────────────────────────────────────────────┐
-  │  [Drive → 工学単位]                                               │
-  │  positionActualValue (DINT) ─ ×TWO_PI_INV_RES ─ positionRad     │
-  │  velocityActualValue (DINT) ─ ×TWO_PI_INV_RES ─ velocityAct     │
-  │  torqueActualValue (INT) ─ ×RATED_CURRENT_DIV_1000 ─ currentAct   │
+  │  [Motor raw → 工学単位]                                          │
+  │  motorRaw.positionActualValue ─ ×(2pi / encoderResolution) ─ motor.positionAbs │
+  │  motorRaw.velocityActualValue ─ ×(2pi / encoderResolution) ─ motor.velocityAct │
+  │  motorRaw.torqueActualValue   ─ ×(ratedCurrentA / 1000) ─ motor.currentAct      │
   │                                                                 │
-  │  [相対位置化]                                                    │
-  │  positionRad - positionOffsetRad → positionRel ─► CC / Logger   │
-  │    (resetReq edge → capture offset)                             │
+  │  [Load raw → 工学単位]                                           │
+  │  loadRaw.positionActualValue  ─ ×(2pi / encoderResolution) ─ load.positionAbs  │
+  │  loadRaw.velocityActualValue  ─ ×(2pi / encoderResolution) ─ load.velocityAct  │
+  │  loadRaw.torqueActualValue    ─ ×(ratedCurrentA / 1000) ─ load.currentAct       │
   │                                                                 │
-  │  [工学単位 → Drive]                                              │
-  │  controlInput + distValue → clamp(±MAX_CURRENT_A)                │
-  │    → ×RATED_CURRENT_INV_X1000                                   │
+  │  [相対位置化]                                                   │
+  │  motor/load.positionAbs - offset → motor/load.positionRel      │
+  │                                                                 │
+  │  [工学単位 → Drive]                                             │
+  │  controlInput + distValue → clamp(±MotorParams.maxCurrentA)    │
+  │    → ×(1000 / ratedCurrentA)                                   │
   │    → targetTorque (INT, ‰ rated) ─► Drive                      │
-  │  enableCurrentOutput=FALSE or playbackDone=TRUE                   │
-  │    → targetTorque := 0                                            │
+  │  enableCurrentOutput=FALSE or playbackDone=TRUE                 │
+  │    → targetTorque := 0                                          │
   │                                                                 │
-  │  controlWord 中継 / statusWord 中継                              │
+  │  controlWordIn → controlWordOut / motorRaw.statusWord → statusWordOut │
   └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -718,14 +740,14 @@ Lead / Notch / Reso も同様。bypass 時はフィルタ内部状態をリセ�
 | D3 | 位相最適共振フィルタは Biquad 形式 | Notch と同一構造で実装コストを抑え、係数で特性を変更可能 |
 | D4 | サイクルタイム Phase 1–3 は 1 ms | 既存 VirtualMotorCore の検証済み設定を維持し、段階的に 8 kHz へ移行 |
 | D5 | VirtualMotorCore を SIL 基盤として維持 | DriverAdapter と同一 I/F (Load 側出力) で差し替え可能。1慣性近似としてオフライン検証に利用 |
-| D6 | TmpLogger は Phase 1 で置換完了 | テーブルリプレイ + SIL 暫定ログを `ExperimentSequencer` (PLC ST) に、Dist 加算を `DriverAdapter` (PLC ST) に移管し、旧 TmpLogger は撤去する |
+| D6 | TmpLogger は Phase 1 で置換完了 | テーブルリプレイ + SIL 暫定ログを `ExperimentSequencer` (PLC ST) に、Dist 加算を `DriverAdapter` (C++ TcCOM) に移管し、旧 TmpLogger は撤去する |
 | D7 | Lead / Notch / Reso は離散伝達関数係数を ADS 注入 | MATLAB で連続→離散変換 (`c2d`) し、係数のみ送信。Build 不要 |
 | D8 | ExperimentLogger は C++ TcCOM ファイルライタ方式 | 8kHz × 100s = 800,000 サンプルの長時間記録に対応。Ring Buffer + ADS ではメモリ制約あり。ファイル I/O でデータ量制限なし |
 | D9 | 2慣性系構成: Motor 入力 / Load FB | トルク指令は Motor 側、位置 FB は Load 側。ログには Motor/Load 両方の信号を記録。VirtualMotorCore は Load 側 1 慣性近似 |
 | D10 | **ModeManager-only 状態制御** | 状態制御フロー (`modeFlags`, `experimentActive`, `resetReq`) は ModeManager (`GVL_MODE`) のみを経由する。MATLAB が ExperimentSequencer に直接書込むのは **テーブルデータのみ** 。詳細は [OpenIssues](../status/OpenIssues.md) M2 |
-| D11 | **DriverAdapter でドライバ差異を吸収 (CiA 402 整数型 I/O)** | VirtualMotor と実機 EtherCAT Drive の I/O を CiA 402 準拚の整数型 (position: DINT [pulses], velocity: DINT [pulses/s], torque: INT [‰ rated]) に統一。Adapter の `ENCODER_RESOLUTION` / `RATED_CURRENT` 定数で工学単位変換。Driver 変更時は定数を書き換えて Build するのみ。詳細は [DriverAdapter](../modules/DriverAdapter.md) / [VirtualMotorCore](../modules/VirtualMotorCore.md) |
-| D12 | **相対位置化を ControllerCore → DriverAdapter に移管** | 実機ドライバはエンコーダ絶対値を出力する。相対位置化はドライバ抽象化の一部として Adapter で行うべき。ControllerCore の `positionOffset` / `positionRel` は廃止し、Adapter の `positionOffsetRad` で代替 |
-| D13 | **VirtualMotor に `torqueActualValue` を追加** | CiA 402 ドライバは実トルクを出力する。SIL でも同等の出力を提供することで H3 を解消。Adapter で A 変換後 ExperimentLogger の `motorCurrentAct` に接続 |
+| D11 | **DriverAdapter でドライバ差異を吸収 (CiA 402 整数型 I/O)** | VirtualMotor と実機 EtherCAT Drive の I/O を Motor/Load 専用 raw チャネルへ統一し、Adapter の ADS パラメータ (`MotorParams` / `LoadParams`) で工学単位変換する。Driver 変更時はパラメータを書き換えるだけ。詳細は [DriverAdapter](../modules/DriverAdapter.md) / [VirtualMotorCore](../modules/VirtualMotorCore.md) |
+| D12 | **相対位置化を ControllerCore → DriverAdapter に移管** | 実機ドライバはエンコーダ絶対値を出力する。相対位置化はドライバ抽象化の一部として Adapter で行うべき。ControllerCore の `positionOffset` / `positionRel` は廃止し、Adapter の `load.positionRel` を使用する |
+| D13 | **VirtualMotor に `torqueActualValue` を追加** | CiA 402 ドライバは実トルクを出力する。SIL でも同等の出力を提供することで H3 を解消。Adapter で A 変換後 ExperimentLogger の `motor.currentAct` に接続 |
 
 ### 8.1 ADS アクセス設計方針
 
@@ -737,6 +759,7 @@ MATLAB からの ADS アクセスは以下の原則に従う:
 | **テーブルプリロード** (`refTable`, `ffTable`, `distTable`, `tableLen`) | `GVL_SEQ` に直接書込 (Port 853) | 大容量データ (最大 800KB/テーブル)。ModeManager 経由は非現実的 |
 | **制御パラメータ注入** (`*Params.*`) | ControllerCore TcCOM に直接書込 (Port 351) | C++ Data Area。PLC を経由する設計的理由なし |
 | **VM パラメータ注入** (`VirtualMotor1Parameter.*`) | VirtualMotorCore TcCOM に直接書込 (Port 351) | 同上 |
+| **DriverAdapter パラメータ注入** (`MotorParams.*`, `LoadParams.*`) | DriverAdapter TcCOM に直接書込 (Port 851) | ドライバ差異吸収のための実行時設定 |
 | **ログ制御/読出し** | ExperimentLogger TcCOM (Port 351) / `ExperimentLogger` (Port 853) | Phase 3 以降 |
 | **状態監視** (`experimentState`) | `GVL_MODE` 読出し (Port 852) | 正当 |
 
