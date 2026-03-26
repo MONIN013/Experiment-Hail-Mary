@@ -1,4 +1,4 @@
-# Docs README
+# ドキュメントガイド
 
 この `docs/` は、文書の寿命と読者で整理している。現行仕様の正本は `overview` と `architecture` に置き、運用中の課題や計画は `status` と `plans` に分離する。旧方式は `legacy` に退避し、現行仕様と混同しない。
 
