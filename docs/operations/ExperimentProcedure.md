@@ -15,7 +15,7 @@
 | モジュール | 実装 | Task | 役割 |
 |---|---|---|---|
 | **StateMachineControl** (ModeManager) | PLC ST | PlcTask1 (10 ms) | CiA 402 状態遷移 + フラグ管理 + 実験開始/停止制御 |
-| **ExperimentSequencer** | PLC ST | VirtualMotorTask (125 us / 8 kHz) | テーブルリプレイ + リングバッファログ記録 |
+| **ExperimentSequencer** | PLC ST | VirtualMotorTask (125 us / 8 kHz) | テーブルリプレイ |
 | **ControllerCore** | C++ TcCOM | VirtualMotorTask (125 us / 8 kHz) | 誤差計算 + FB Chain + FF 付加 |
 | **DriverAdapter** | PLC ST | VirtualMotorTask (125 us / 8 kHz) | Raw/工学単位変換 + 相対位置化 + 外乱加算 + CW/SW 中継 + 電流ゲート |
 | **VirtualMotorCore** | C++ TcCOM | VirtualMotorTask (125 us / 8 kHz) | 仮想モーター物理シミュレーション (CiA 402 内蔵) |
@@ -252,10 +252,11 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 | **VM パラメータ** | 351 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.*` | `LREAL` | W |
 | **ログ pre-arm** | 852 | `MAIN.preArmOut` → `Inputs.preArmReq` | `BOOL` | Auto |
 | **ログ制御** | 852 | `MAIN.experimentActiveOut` → `Inputs.loggingReq` | `BOOL` | Auto |
-| **ログ読出し** | 853 | `ExperimentLogger.wrIdx` / `rdIdx` / `log*` | — | R/W |
+| **logger status** | 351 | `ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.*` | `UDINT` | R |
 
 > 全シンボルの完全な一覧は [TechnicalReference](../architecture/TechnicalReference.md) §8 を参照。
 > `send_position_command` の `mode_flags_symbol` は `GVL_MODE.modeFlags` のみサポートされる。
+> ログ本体は ADS では読まず、`GVL_MODE.loggerFileReleased=TRUE` 確認後に `.bin` をファイル読み出しする。
 
 ---
 

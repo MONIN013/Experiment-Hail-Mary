@@ -3,10 +3,10 @@
 > **位置づけ:** 実験データのファイルロギングを担うモジュール仕様  
 > **対象読者:** C++ TcCOM 実装者、ロギング基盤の保守担当者  
 > **更新条件:** 入出力項目、ロギング条件、ファイル形式契約が変わったとき  
-> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) / [GvlSeqLogMigrationPlan](../plans/GvlSeqLogMigrationPlan.md) / [OpenIssues](../status/OpenIssues.md)
+> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) / [TechnicalReference](../architecture/TechnicalReference.md) / [OpenIssues](../status/OpenIssues.md)
 
 ## 概要
-ExperimentLogger は実験データをバイナリ形式で保存する C++ TcCOM ロガーである。`Inputs.preArmReq` により `SERVO_READY` 中に file open を先行完了し、`Inputs.loggingReq` はレコード追記とセッション close のみを担う。`Inputs.playbackDone` は同一タスク内の fast path として働き、再生完了スキャンで新規レコード追記を即時停止する。
+ExperimentLogger は実験データをバイナリ形式で保存する C++ TcCOM ロガーである。`Inputs.preArmReq` により `SERVO_READY` 中に file open を先行完了し、`Inputs.loggingReq` はレコード追記とセッション close のみを担う。`Inputs.playbackDone` は同一タスク内の fast path として働き、再生完了スキャンで新規レコード追記を即時停止する。MATLAB 側の評価経路はこの `.bin` ファイル読み出しのみを正規経路とする。
 
 ## 入力
 | 項目 | 型 | ソース | 備考 |

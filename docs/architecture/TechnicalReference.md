@@ -314,89 +314,10 @@ position_next := position + dt * velocity_next
 
 ---
 
-## 5. ログ記録 — ExperimentLogger リングバッファ
+## 5. ログ経路の移行結果
 
-### 5.1 ExperimentLogger 変数一覧
-
-| 変数 | 型 | 説明 |
-|---|---|---|
-| `LOG_N` | `UDINT` (定数) | リングバッファ長 = **200,000** |
-| `seq` | `UDINT` | シーケンス番号 (累積カウンタ) |
-| `tNs` | `ULINT` | タイムスタンプ [ns] = `seq × task_dt_ns` |
-| `wrIdx` | `UDINT` | 書き込みインデックス (累積、剰余でリング化) |
-| `rdIdx` | `UDINT` | 読み出しインデックス (ADS からインクリメント) |
-| `overflow` | `BOOL` | `wrIdx - rdIdx > LOG_N` 時に `TRUE` |
-| `controlInputTap` | `LREAL` (`AT %I*`) | ControllerCore.controlInput のタップ接続 |
-| `positionRelTap` | `LREAL` (`AT %I*`) | DriverAdapter.positionRel のタップ接続 |
-
-### 5.2 ログ配列 (各 `ARRAY[0..LOG_N-1]`)
-
-| チャネル | 型 | 記録内容 |
-|---|---|---|
-| `logSeq` | `UDINT[]` | シーケンス番号 |
-| `logRefValue` | `LREAL[]` | ExperimentSequencer 出力 refValue |
-| `logFfValue` | `LREAL[]` | ExperimentSequencer 出力 ffValue |
-| `logDistValue` | `LREAL[]` | ExperimentSequencer 出力 distValue |
-| `logControlInput` | `LREAL[]` | ControllerCore 出力 (`controlInputTap`) |
-| `logTargetCurrent` | `LREAL[]` | `controlInputTap + distValue` (DriverAdapter 相当の合計電流) |
-| `logPositionAct` | `LREAL[]` | DriverAdapter 出力 (`positionRelTap`) ※互換名 |
-| `logT` | `ULINT[]` | タイムスタンプ [ns] |
-| `logIdx` | `UDINT[]` | repeat をまたいだ出力サンプル絶対インデックス |
-
-### 5.3 ログ書き込みロジック
-
-ログ書き込みは **`sampleEmittedThisScan = TRUE` の時のみ** 実行される（= テーブルから 1 サンプル出力されたスキャン）。
-
-```
-wrPos := wrIdx MOD LOG_N                        ← リング位置の計算
-
-seq := seq + 1
-tNs := seq × VM_TASK_DT_NS (1,000,000 ns)
-
-logSeq[wrPos]          := seq
-logRefValue[wrPos]     := GVL_SEQ.refValue
-logFfValue[wrPos]      := GVL_SEQ.ffValue
-logDistValue[wrPos]    := GVL_SEQ.distValue
-logControlInput[wrPos] := controlInputTap       ← TcCOM からのタップ入力
-logTargetCurrent[wrPos] := controlInputTap + GVL_SEQ.distValue
-logPositionAct[wrPos]  := positionRelTap         ← TcCOM からのタップ入力
-logT[wrPos]            := tNs
-logIdx[wrPos]          := trialIndex*tableLen + idx_before_increment
-
-wrIdx := wrIdx + 1
-
-IF (wrIdx - rdIdx) > LOG_N THEN
-    overflow := TRUE                             ← 読み出しが追いつかない
-END_IF
-```
-
-### 5.4 リングバッファの読み出し方法 (ADS)
-
-```
-1. wrIdx を ADS Read で取得
-2. readCount := wrIdx - rdIdx  (未読サンプル数)
-3. readCount > 0 なら:
-     startPos := rdIdx MOD LOG_N
-     各ログ配列から startPos 位置以降のデータを ADS Read
-     ※ リング境界をまたぐ場合は 2 回に分けて読む
-4. rdIdx := rdIdx + readCount  を ADS Write
-```
-
-> `overflow = TRUE` になると、古いデータが上書きされて失われる。  
-> 読み出し側は十分な頻度でポーリングする必要がある。  
-> 200,000 サンプル @ 8 kHz = 25 秒分のバッファ容量。
-
-### 5.5 リセット時のログクリア
-
-`GVL_SEQ.resetReq = TRUE` 時にログ変数もクリアされる:
-
-```
-seq      := 0
-tNs      := 0
-wrIdx    := 0
-rdIdx    := 0
-overflow := FALSE
-```
+`GVL_SEQ_LOG` / Port 853 のリングバッファ読出し経路は廃止済みである。  
+MATLAB 側の正規ログ取得は `ExperimentLogger` が出力した `.bin` ファイルの読み出しのみとし、ADS は logger の制御・状態監視に限定する。
 
 > ログ配列の内容自体はゼロクリアされない（インデックスのリセットのみ）。  
 > wrIdx/rdIdx が 0 に戻るため、次の実験で上書きされる。
@@ -408,7 +329,7 @@ overflow := FALSE
 ### 6.1 概要
 
 ExperimentLogger は C++ TcCOM モジュールとして実装されたファイルロガーである。  
-ExperimentLogger のリングバッファ (§5) が ADS ポーリング前提の暫定ログであるのに対し、ExperimentLogger は **RT コンテキストから直接ローカルディスクにバイナリファイルを書き出す**。8kHz × 100s = 800,000 レコードの長時間記録に対応する設計。
+**RT コンテキストから直接ローカルディスクにバイナリファイルを書き出す**。8kHz × 100s = 800,000 レコードの長時間記録に対応する設計。
 
 ### 6.2 Data Area (TcCOM I/O)
 
@@ -556,17 +477,11 @@ Offset   Size  型          フィールド
 
 > `errorCode` は generic open/close/write failure に丸めず、下位 API が返した `HRESULT` を優先して保持する。
 
-### 6.9 ExperimentLogger (リングバッファ) との使い分け
+### 6.9 運用ポリシー
 
-| 特性 | ExperimentLogger (§5) | ExperimentLogger (§6) |
-|---|---|---|
-| 実装 | PLC ST (ExperimentSequencer 内) | C++ TcCOM |
-| 記録先 | PLC メモリ (GVL 配列) | ローカルディスク (バイナリファイル) |
-| 容量 | 200,000 サンプル (固定) | ディスク容量依存 (実質無制限) |
-| 読み出し | ADS ポーリング (rdIdx/wrIdx) | 実験後にファイル転送 |
-| リアルタイム取得 | 可 (実験中ストリーミング) | 不可 (実験後バッチ読み出し) |
-| Phase | Phase 1〜 (暫定) | Phase 3〜 (本格運用) |
-| 8kHz × 100s | リングバッファ溢れリスクあり | 対応可 (76.8 MB) |
+- MATLAB 側の評価・解析は `ExperimentLogger` の `.bin` ファイル読み出しを唯一の正規経路とする。
+- ADS で扱う logger 関連シンボルは `LogControl.filePath` と `Outputs.LogStatus.*` のみとする。
+- サンプル列の読出しは ADS では行わない。
 
 ---
 
@@ -677,7 +592,7 @@ ExperimentSequencer.playbackDone                            ──►  Experimen
 | **351** | C++ TcCOM (ControllerCore, VirtualMotorCore, ExperimentLogger) | C++ | VirtualMotorTask (125 us / 8 kHz) | 46 |
 | **851** | DriverAdapter | PLC ST | VirtualMotorTask (125 us / 8 kHz) | ~88 |
 | **852** | StateMachineControl (ModeManager) | PLC ST | PlcTask (10 ms) | 124 |
-| **853** | ExperimentSequencer + ExperimentLogger | PLC ST | VirtualMotorTask (125 us / 8 kHz) | 137 |
+| **853** | ExperimentSequencer | PLC ST | VirtualMotorTask (125 us / 8 kHz) | 137 |
 
 > Port **355** (StateTask) は PLC ランタイムではなくシステムタスクのため、シンボルブラウズ対象外。
 
@@ -765,25 +680,7 @@ ExperimentSequencer.playbackDone                            ──►  Experimen
 | `GVL_SEQ.resetReq` | `BOOL` | 1 | `AT %I*` | R | リセット要求入力 |
 | `GVL_SEQ.experimentActive` | `BOOL` | 1 | `AT %I*` | R | 実験実行中入力 |
 
-#### ExperimentLogger (リングバッファログ)
-
-| ADS シンボル名 | 型 | Size (B) | R/W | 説明 |
-|---|---|---|---|---|
-| `ExperimentLogger.wrIdx` | `UDINT` | 4 | R | 書き込みインデックス |
-| `ExperimentLogger.rdIdx` | `UDINT` | 4 | **W** | 読み出しインデックス |
-| `ExperimentLogger.overflow` | `BOOL` | 1 | R | オーバーフロー検出 |
-| `ExperimentLogger.seq` | `UDINT` | 4 | R | シーケンス番号 |
-| `ExperimentLogger.tNs` | `ULINT` | 8 | R | タイムスタンプ [ns] |
-| `ExperimentLogger.LOG_N` | `UDINT` | 4 | R | 定数 200,000 |
-| `ExperimentLogger.logSeq` | `ARRAY[0..199999] OF UDINT` | 800,000 | R | ログ: シーケンス番号 |
-| `ExperimentLogger.logRefValue` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 位置指令 |
-| `ExperimentLogger.logFfValue` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: FF 値 |
-| `ExperimentLogger.logDistValue` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 外乱値 |
-| `ExperimentLogger.logControlInput` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 制御出力 |
-| `ExperimentLogger.logTargetCurrent` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 合計電流 |
-| `ExperimentLogger.logPositionAct` | `ARRAY[0..199999] OF LREAL` | 1,600,000 | R | ログ: 実位置 |
-| `ExperimentLogger.logT` | `ARRAY[0..199999] OF ULINT` | 1,600,000 | R | ログ: タイムスタンプ |
-| `ExperimentLogger.logIdx` | `ARRAY[0..199999] OF UDINT` | 800,000 | R | ログ: repeat をまたいだ絶対インデックス |
+> Port 853 に logger サンプル配列は公開しない。logger の制御・状態監視は Port 351、ログ本体は `.bin` ファイル読み出しで扱う。
 
 ### 8.6 Port 351 — C++ TcCOM モジュール
 
@@ -886,13 +783,12 @@ ADS Write:  Port=351  Symbol="VirtualMotorCore_Obj1 (Module1).VirtualMotor1Param
   ...
 ```
 
-#### ⑥ リングバッファログ読み出し → Port 853
+#### ⑥ logger status 読み取り + ファイル読み出し
 
 ```
-ADS Read:   Port=853  Symbol="ExperimentLogger.wrIdx"            → UDINT
-ADS Read:   Port=853  Symbol="ExperimentLogger.logRefValue"      → LREAL[200000]  (部分読み可)
-  ...
-ADS Write:  Port=853  Symbol="ExperimentLogger.rdIdx"            ← rdIdx 更新
+ADS Read:   Port=351  Symbol="ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.recordsWritten"  → UDINT
+ADS Read:   Port=351  Symbol="ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.errorCode"       → UDINT
+File Read:  C:\ExperimentData\experiment_logger.bin
 ```
 
 #### ⑦ ExperimentLogger 制御

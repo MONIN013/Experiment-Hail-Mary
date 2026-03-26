@@ -137,21 +137,16 @@ ControllerCore の biquad フィルタパラメータ (4 段カスケード) を
 
 > **注:** 各ステージのフィールド名は C++ 構造体 (`ST_PID`, `ST_PhaseLead`, `ST_Notch`, `ST_Reso`) に準拠。
 
-### §4.6 read_logger_bin(transport, log_n)
+### §4.6 read_logger_bin(file_path)
 
-`ExperimentLogger` からログを一括読出す（上位読取方式、非ストリーミング）。
+`ExperimentLogger` が出力した固定長バイナリログを読み出す。
 
-- **transport:** `twincat_ads.IAdsTransport` (Port = `SEQ_PORT`)
-- **log_n:** caller が所有する読出し上限
-- **戻り値:** struct with fields:
-  - `logSeq`, `logRefValue`, `logFfValue`, `logDistValue`
-  - `logControlInput`, `logTargetCurrent`, `logPositionAct`
-  - `logT` (uint64 → double), `logIdx`
-  - `wrIdx`, `overflow`
-- 読出し失敗時は warning + 空 struct 返却
+- **file_path:** `.bin` ファイルの絶対/相対パス
+- **戻り値:** struct with fields `file_path`, `record_count`, `summary`, `table`, `raw`
+- **`raw` の主フィールド:** `seq`, `t_ns`, `t_s`, `motor_position`, `motor_velocity`, `motor_current_act`, `load_position`, `load_velocity`, `current_cmd`, `error`, `ref_value`, `ff_value`, `control_input`
+- ファイル不存在、サイズ不正、open failure は error
 
-> `ExperimentLogger` は段階移行中の 代替経路 パスとして維持する。  
-> 正規の評価は `ExperimentLogger` の bin 読み取りを優先する。
+> MATLAB の正規ログ経路は `ExperimentLogger` の bin ファイル読み出しのみとする。
 
 ---
 
@@ -271,10 +266,9 @@ $K_p = 180$ のとき:
 $$\omega_n = \sqrt{0.1 K_p} = \sqrt{18} = 4.24 \text{ rad/s}$$
 $$\zeta = \frac{d}{2\sqrt{m \, k_t \, K_p}} = \frac{6}{2\sqrt{0.1 \times 180}} = 0.707$$
 
-#### repeat 時の logIdx 契約
+#### repeat 時のログ連結
 
-`repeat_count > 1` でも `out.raw.logIdx` は 0 からの**単調増加**（連続インデックス）とする。  
-つまり 10 秒波形を 10 回再生した場合、`logIdx` は 100 秒分を 1 本で入力した場合と同じ添字系列になる。
+`repeat_count > 1` の場合でも、評価対象は trial ごとに分割せず 1 本の連続時系列として扱う。
 
 `done_timeout_s` は `N_REPEAT * per_trial_s + hold_margin_s + 5.0` で計算される。
 
@@ -282,8 +276,8 @@ $$\zeta = \frac{d}{2\sqrt{m \, k_t \, K_p}} = \frac{6}{2\sqrt{0.1 \times 180}} =
 
 2-tile figure（`"P Control Position Demo"`）:
 
-- **上段:** 位置応答 — `logRefValue` (青) vs `logPositionAct` (緑)
-- **下段:** 制御出力 — `logControlInput` (紫) + `logTargetCurrent` (赤破線、存在する場合)
+- **上段:** 位置応答 — `ref_value` (青) vs `position_act` (緑)
+- **下段:** 制御出力 — `control_input` (紫) + `target_current` (赤破線、存在する場合)
 
 ---
 

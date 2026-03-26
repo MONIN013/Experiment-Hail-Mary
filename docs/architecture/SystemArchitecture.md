@@ -11,7 +11,7 @@
 
 * Phase 1 (1 ms SIL) 実装では PLC シンボル名を **`GVL_SEQ` / `ExperimentLogger`** に統一する（`GVL_EXP*` 互換は維持しない）。
 * `TmpLogger` の機能は `ExperimentSequencer` に置換し、Phase 1 統合完了後に撤去する。
-* Phase 3 の `ExperimentLogger` (C++ TcCOM) 導入まで、SIL 検証用の暫定リングバッファ logger を PLC (`ExperimentLogger`) に保持する。
+* Phase 3 完了により、SIL 暫定リングバッファ logger は撤去し、`ExperimentLogger` (C++ TcCOM) のバイナリファイルロギングを単一路とする。
 
 ---
 
