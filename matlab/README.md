@@ -1,262 +1,110 @@
-# MATLAB コード構造 再設計
+# MATLAB Layer
 
-## 実装進捗（Phase 1）
+MATLAB 層の現行正本は `ExperimentConfig + ConnectionManager + ExperimentRunner` である。legacy bridge は削除済みで、実験実行はこの組み合わせだけを前提にする。
 
-| 区分 | 内容 |
+関連文書:
+
+* [MatlabSpec](../docs/architecture/MatlabSpec.md)
+* [SystemArchitecture](../docs/architecture/SystemArchitecture.md)
+* [TechnicalReference](../docs/architecture/TechnicalReference.md)
+
+---
+
+## 現行 API
+
+| API | 役割 |
 |---|---|
-| Done | `+twincat_ads` / `+experiment` への移行、命名規則（`snake_case`）への統一、テスト移行（`TestSymbolBrowserContract` / `TestSymbolTraversal`）、`tests/run_tests.m` 追加、旧 `+ehm` / `eval` / `scripts` 削除 |
-| In Progress | なし |
-| Next | 実機結果を継続監視するための自動レポート化（環境依存） |
+| `experiment.ExperimentConfig` | 実験実行の主 runtime config |
+| `experiment.PlantConfig` | VirtualMotorCore パラメータ |
+| `experiment.ControllerConfig` | ControllerCore パラメータ |
+| `experiment.ConnectionManager` | `AdsSession` ベースの接続構築 |
+| `experiment.ExperimentRunner` | 実験実行と logger 回収 |
+| `twincat_ads.AdsSession` | transport キャッシュ |
+| `twincat_ads.AdsTransport` | ADS 実装 |
+| `twincat_ads.SymbolBrowser` | symbol discovery / validation |
 
-## 実装進捗（Phase 2: 実機スモーク, 2026-02-19）
+削除済みの legacy API:
 
-| 区分 | 内容 |
+* `RunConfig`
+* `PositionCommandConfig`
+* `send_position_command`
+* `run_virtualmotor`
+* `VirtualMotorService`
+
+---
+
+## 接続面
+
+active contract は以下の 3 ポートを使う。
+
+| Port | 用途 |
 |---|---|
-| Done | `run_ads_discovery_demo.m` 実行: Port `851` / `351` とも `Status=ok`、シンボル列挙成功 |
-| Done | `run_preload_and_plot.m` 実行: サマリー `Result OK (6/6 checks passed)` |
-| Done | 実行中に判明した不具合を修正: `SymbolBrowser.list_ports` が上位引数（`top_level_only` 等）を受理できるよう `inputParser.KeepUnmatched=true` を適用 |
-| In Progress | なし |
-| Next | スモーク結果を定期実行できる運用手順の整備（必要なら別ドキュメント化） |
+| `351` | ControllerCore / DriverAdapter / VirtualMotorCore / ExperimentLogger |
+| `852` | ModeManager |
+| `853` | ExperimentSequencer |
 
-## 破壊的変更（2026-02-20）
+`851` は active contract ではない。discovery 補助で必要な場合だけスクリプト内のローカル定数として明示指定する。
 
-- 公開メソッド名を `snake_case` へ統一（互換ラッパーなし）
-- 代表例: `RunConfig.from_varargin`, `VirtualMotorSymbols.from_defaults`, `IAdsTransport.read_scalar`, `SymbolBrowser.discover_ports_and_symbols`
-- 旧 `camelCase` 名を呼び出すコードはすべて更新が必要
+---
 
-## 破壊的変更（2026-03-02）
+## 典型的な実行
 
-- `SystemConfig` は環境 default の所有者のみを担当し、runtime config は保持しない
-- `send_position_command` は `PositionCommandConfig` を canonical config とする
-- helper は hidden `SystemConfig` 依存を廃止し、prefix / limit / `task_dt_ns` / `log_n` を引数で受け取る
+```matlab
+cfg = experiment.ExperimentConfig.defaults();
+cfg.plant = experiment.PlantConfig.from_struct(struct( ...
+  "m", 0.02, ...
+  "d", 0.2, ...
+  "rated_current", 1.2, ...
+  "max_permille", 0.0, ...
+  "tau_limit", 2.4, ...
+  "vel_limit", 2*pi*60));
+cfg.controller = experiment.ControllerConfig.p_only(5);
+cfg.ref_profile = [zeros(16000, 1); 0.25 * ones(16000, 1)];
+cfg.ff_profile = zeros(size(cfg.ref_profile));
+cfg.dist_profile = zeros(size(cfg.ref_profile));
 
-## 現状の問題点
-
-| 問題 | 具体例 |
-|---|---|
-| 意味不明な命名 | `+ehm` が何を意味するか不明 |
-| 冗長なネスト | `+ehm/+adapters/+twincat/` — 2ファイルのために3階層 |
-| 1ファイル1パッケージ | `+config/`, `+contracts/`, `+services/`, `+apps/` 各1ファイルのみ |
-| 汎用/固有の混在 | `TwinCATSymbolCatalog` に汎用ポート走査と `resolveVirtualMotorSymbols` が同居 |
-| 無意味なディレクトリ分割 | `eval/`(2ファイル)、`runners/`(空)、`scripts/`(3ファイル) |
-| adsAssembly のボイラープレート | DLLパス自動検出をスクリプト側で毎回記述 |
-| 不要な抽象 | `ISymbolCatalog`（メソッド名がプロジェクト固有）、`IVirtualMotorGateway`（実装1つ） |
-
-## 新ディレクトリ構成
-
-```
-matlab/
-├── +twincat_ads/                    ← 汎用 ADS 通信ライブラリ
-│   ├── IAdsTransport.m              ← 抽象トランスポートインターフェース
-│   ├── AdsTransport.m               ← 具象TwinCAT ADS トランスポート
-│   ├── SymbolBrowser.m              ← シンボル走査・検証（静的メソッド群）
-│   └── +internal/                   ← 内部実装（公開API外）
-│       └── SymbolTraversal.m        ← BFS走査・.NETヘルパー関数群
-│
-├── +experiment/                     ← プロジェクト固有コード
-│   ├── RunConfig.m                  ← 実験パラメータ設定
-│   ├── PositionCommandConfig.m      ← PLC-only 実行設定
-│   ├── VirtualMotorSymbols.m        ← PLCシンボル名コントラクト
-│   ├── VirtualMotorService.m        ← 実験オーケストレーター
-│   ├── run_virtualmotor.m           ← コンポジションルート関数
-│   ├── preload_eval.m               ← 結果定量評価
-│   └── simulate_position.m          ← 1DOFモデルシミュレーション
-│
-├── run_preload_and_plot.m           ← エントリスクリプト（直下配置）
-├── run_ads_discovery_demo.m         ← ディスカバリーデモスクリプト
-│
-├── results/                         ← 出力結果（生成物）
-│   └── ads_validation/
-│
-├── tests/                           ← テストコード
-│   ├── fixtures/
-│   │   ├── MockAdsTransport.m
-│   │   ├── MockDotNetCollection.m
-│   │   └── MockDotNetSymbol.m
-│   ├── contract/
-│   │   ├── TestSymbolBrowserContract.m
-│   │   └── TestTransportContract.m
-│   └── unit/
-│       ├── TestRunConfig.m
-│       ├── TestSymbolTraversal.m
-│       ├── TestVirtualMotorService.m
-│       └── TestVirtualMotorSymbols.m
-│
-└── README.md
+conn = experiment.ConnectionManager.create(cfg);
+cleanup = onCleanup(@() conn.session.close());
+out = experiment.ExperimentRunner.run(conn, cfg);
 ```
 
-## 設計方針
+出力の正本:
 
-### 依存方向
+* `out.raw`
+* `out.metrics`
+* `out.host`
+* `out.logger`
+* `out.config`
 
-```
-+experiment/  ──depends on──▶  +twincat_ads/
-```
+`out.eval` は存在しない。
 
-`+twincat_ads/` は `+experiment/` に一切依存しない。逆方向の依存は禁止。
+---
 
-### `+twincat_ads/` — 汎用 ADS 通信ライブラリ
+## ルートスクリプト
 
-任意の TwinCAT ADS プロジェクトで再利用可能な汎用レイヤー。プロジェクト固有のシンボル名・ロジックを含まない。
-
-#### 公開 API
-
-| クラス / メソッド | 説明 |
+| スクリプト | 用途 |
 |---|---|
-| `IAdsTransport` | 抽象インターフェース: `connect`, `disconnect`, `read_scalar`, `write_scalar`, `read_array`, `write_array` |
-| `AdsTransport` | `IAdsTransport` の TwinCAT 具象実装。.NET Interop (`TwinCAT.Ads.TcAdsClient`) 経由 |
-| `AdsTransport.net_types()` | .NET型マッピング辞書（`bool`, `double`, `single`, `u32`, `u64`） |
-| `SymbolBrowser.discover_ports_and_symbols(amsNetId, ports, ...)` | ポート走査＋シンボル一覧取得 |
-| `SymbolBrowser.list_ports(amsNetId, ports, ...)` | ポート接続確認 |
-| `SymbolBrowser.list_symbols_for_port(amsNetId, port, ...)` | 指定ポートのシンボルツリー走査 |
-| `SymbolBrowser.validate_symbols(transport, probeList)` | 任意のシンボル存在検証。`probeList` は `{symbol, netType; ...}` セル配列 |
+| `run_position_command_demo.m` | 現行デモ |
+| `run_verify_xar.m` | active contract の検証 |
+| `run_ads_discovery_demo.m` | discovery 補助 |
+| `run_check_logger_bin.m` | logger bin の直接検査 |
+| `run_si_demo.m` | SI デモ |
 
-#### adsAssembly 解決順序
-
-`AdsTransport` コンストラクタで以下の順に解決:
-
-1. `"ads_assembly"` 引数が明示指定されていればそれを使用
-2. 既知パス `C:\Program Files (x86)\Beckhoff\TwinCAT\Functions\TE14xx-ToolsForMatlabAndSimulink\TE140x\NET\TwinCAT.Ads.dll` が存在すれば使用
-3. GAC 登録名 `"TwinCAT.Ads"` で試行
-
-#### 内部パッケージ `+internal/`
-
-`+twincat_ads/+internal/` 内のクラスは公開 API ではない。外部コードからの直接参照は禁止。
-
-| クラス | 説明 |
-|---|---|
-| `SymbolTraversal` | BFS走査、.NETシンボルオブジェクトのプロパティ抽出、テーブル生成等のヘルパー関数群（全static） |
-
-### `+experiment/` — プロジェクト固有コード
-
-仮想モーター実験に特化したオーケストレーション・評価コード。
-
-| ファイル | 説明 |
-|---|---|
-| `RunConfig` | フル実験実行の runtime config。環境 default は `SystemConfig.run_defaults()` から取得 |
-| `PositionCommandConfig` | `send_position_command` 用の PLC-only runtime config |
-| `ModeManagerControl` | ModeManager (`GVL_MODE.modeFlags`) 制御の共通 helper（symbol 解決、reset/start/stop、完了待ち） |
-| `VirtualMotorSymbols` | PLCシンボル名コントラクト。`from_defaults()` (PLC側) / `from_prefix(prefix)` (C++モジュール側) |
-| `VirtualMotorService` | 実験オーケストレーター: シンボル解決→パラメータ書き込み→実行→ログ読み取り→評価→保存 |
-| `run_virtualmotor` | コンポジションルート: `RunConfig` → `AdsTransport`（data:853 / control:852 / module:351）を組み立てて `VirtualMotorService` を実行 |
-| `preload_eval` | 実験結果の定量評価（入力波形一致、サンプリング品質、RMSE、相関係数、合否判定） |
-| `simulate_position` | 前進オイラー法 1DOF 回転モデル: $\tau = \text{clamp}(K_t \cdot I,\; \tau_\text{limit})$, $v_{k+1} = v_k + \frac{T_s}{M}(\tau - D \cdot v_k)$, $x_{k+1} = x_k + T_s \cdot v_{k+1}$ |
-
-### エントリスクリプト — `matlab/` 直下
-
-| ファイル | 説明 |
-|---|---|
-| `run_preload_and_plot.m` | 正弦波電流プロファイル生成 → `experiment.run_virtualmotor` 実行 → 3段プロット＋サマリー表示 |
-| `run_ads_discovery_demo.m` | ADS接続テスト用デモ。`twincat_ads.SymbolBrowser.discover_ports_and_symbols` を呼び、ポート接続状態とシンボル一覧をコンソール表示 |
-
-### 設定所有
-
-- `SystemConfig`: 環境固定の default 値のみを所有
-- `RunConfig`: `VirtualMotorService` / `run_virtualmotor` の runtime config を所有
-- `PositionCommandConfig`: `send_position_command` の runtime config を所有
-- helper は caller が所有する設定を明示引数で受け取る
-
-## 命名規則
-
-| 対象 | 規則 | 例 |
-|---|---|---|
-| パッケージ名 | `snake_case` | `+twincat_ads`, `+experiment`, `+internal` |
-| クラス名 | `PascalCase` | `AdsTransport`, `RunConfig`, `SymbolBrowser` |
-| 関数名 | `snake_case` | `run_virtualmotor`, `preload_eval`, `simulate_position` |
-| プロパティ名 | `snake_case` | `ams_net_id`, `task_rate_hz` |
-| エラーID | `<pkg>:<category>:<name>` | `twincat_ads:transport:connectFailed`, `experiment:config:invalid` |
-
-## 廃止対象
-
-| 対象 | 理由 |
-|---|---|
-| `+ehm/` パッケージ全体 | 意味不明な命名、冗長なネスト |
-| `+ehm/+interfaces/ISymbolCatalog` | メソッド名がプロジェクト固有（`resolveVirtualMotorSymbols`） |
-| `+ehm/+interfaces/IVirtualMotorGateway` | 実装が1つしかなく、抽象化の価値がない |
-| `eval/` ディレクトリ | 関数は `+experiment/` に統合 |
-| `runners/` ディレクトリ | 空ディレクトリ |
-| `scripts/` ディレクトリ | スクリプトは `matlab/` 直下に移動 |
-| `MockSymbolCatalog` フィクスチャ | `ISymbolCatalog` 廃止に伴い不要 |
-
-## 移行マッピング
-
-| 旧パス | 新パス |
-|---|---|
-| `+ehm/+interfaces/IAdsTransport.m` | `+twincat_ads/IAdsTransport.m` |
-| `+ehm/+adapters/+twincat/TwinCATAdsTransport.m` | `+twincat_ads/AdsTransport.m` |
-| `+ehm/+adapters/+twincat/TwinCATSymbolCatalog.m` (汎用部分) | `+twincat_ads/SymbolBrowser.m` + `+twincat_ads/+internal/SymbolTraversal.m` |
-| `+ehm/+adapters/+twincat/TwinCATSymbolCatalog.m` (VM固有部分) | `+experiment/VirtualMotorService.m` に吸収 |
-| `+ehm/+config/RunConfig.m` | `+experiment/RunConfig.m` |
-| `+ehm/+contracts/VirtualMotorSymbols.m` | `+experiment/VirtualMotorSymbols.m` |
-| `+ehm/+services/VirtualMotorService.m` | `+experiment/VirtualMotorService.m` |
-| `+ehm/+apps/run_virtualmotor.m` | `+experiment/run_virtualmotor.m` |
-| `eval/preload_eval.m` | `+experiment/preload_eval.m` |
-| `eval/simulate_position_from_current.m` | `+experiment/simulate_position.m` |
-| `scripts/run_preload_and_plot.m` | `run_preload_and_plot.m` (matlab/直下) |
-| `scripts/run_ads_discovery_demo.m` | `run_ads_discovery_demo.m` (matlab/直下) |
+---
 
 ## テスト
 
 ```matlab
-% matlab/ をカレントディレクトリにして実行
 run('tests/run_tests.m')
 ```
 
-## 簡易位置指令（PLC送信のみ）
+主要テスト:
 
-`ExperimentSequencer` の `GVL_SEQ.refTable` に位置指令ベクトルを直接書き込み、再生完了まで待機する軽量 API を追加。
-
-```matlab
-ref_profile = 0.25 * ones(8000, 1); % 1秒ぶんの一定位置指令 (8 kHz)
-out = experiment.send_position_command( ...
-  "ams_net_id", "192.168.10.3.1.1", ...
-  "ref_profile", ref_profile, ...
-  "task_rate_hz", 8000);
-```
-
-- 351番ポートや module prefix 指定は不要（ADS ポートは `SystemConfig` default を使用）
-- `ff_profile` / `dist_profile` は省略時ゼロ埋め
-- `repeat_count` を指定すると同一テーブルを PLC 側で連続再生する
-- ログは ExperimentLogger の bin 読み取り（`experiment.read_logger_bin`）を使用
-- 分離ポート構成（例: data=`853`, control=`852`）でも modeFlags は `GVL_MODE.modeFlags`（Port 852）を使用する:
-
-```matlab
-out = experiment.send_position_command( ...
-  "ams_net_id", "192.168.10.3.1.1", ...
-  "ams_port", 853, ...
-  "control_ams_port", 852, ...
-  "mode_flags_symbol", "GVL_MODE.modeFlags", ...
-  "mode_flags_ams_port", 852, ...
-  "ref_profile", ref_profile, ...
-  "task_rate_hz", 8000);
-```
-
-実行例は `matlab/run_position_command_demo.m` を参照。demo は `experiment.ExperimentConfig.defaults()` を起点に runtime config を組み立てる。
-
-| カテゴリ | ファイル | 検証内容 |
-|---|---|---|
-| **fixtures** | `MockAdsTransport` | `twincat_ads.IAdsTransport` のモック（`containers.Map` で値保持、操作ログ記録） |
-| **contract** | `TestSymbolBrowserContract` | シンボル検証: 欠損シンボルでエラー、全存在でパス |
-| **contract** | `TestTransportContract` | モックトランスポートのラウンドトリップ（スカラー・配列） |
-| **unit** | `TestRunConfig` | SystemConfig 由来 default と runtime override |
-| **unit** | `TestPositionCommandConfig` | `send_position_command` 用 config 契約 |
-| **unit** | `TestSymbolTraversal` | BFS走査ロジック: 名前フォールバック、フィルタ、重複除去、配列展開抑止 |
-| **unit** | `TestVirtualMotorService` | helper 契約反映後の実験フローとログ処理 |
-| **unit** | `TestVirtualMotorSymbols` | `from_prefix` / `from_defaults` が正しいシンボル名を生成するか |
-
-## ADS 通信フロー
-
-```
-MATLAB  ──.NET Interop──▶  TwinCAT.Ads.TcAdsClient
-  │                           │
-  ├─ Connect(amsNetId, port)  │  Port 851 = PLC Runtime (GVL_VM.*)
-  ├─ Connect(amsNetId, port)  │  Port 351 = C++ Module  (VirtualMotorParameter.*)
-  │                           │
-  ├─ CreateVariableHandle()   │  シンボル名 → ハンドル
-  ├─ ReadAny(handle, type)    │  スカラー/配列読み
-  ├─ WriteAny(handle, value)  │  スカラー/配列書き
-  ├─ DeleteVariableHandle()   │  ハンドル解放 (onCleanup)
-  │                           │
-  └─ SymbolLoaderFactory.Create()  シンボルディスカバリー用
-      └─ loader.Symbols            BFS走査
-```
+* `tests/unit/TestExperimentConfig.m`
+* `tests/unit/TestConnectionManager.m`
+* `tests/unit/TestExperimentRunner.m`
+* `tests/unit/TestPreloadEval.m`
+* `tests/unit/TestRunPositionCommandDemoConfig.m`
+* `tests/unit/TestSystemConfig.m`
+* `tests/contract/TestAdsSession.m`
+* `tests/contract/TestTransportContract.m`

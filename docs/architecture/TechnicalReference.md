@@ -248,6 +248,6 @@
 | `351` | ControllerCore / DriverAdapter / VirtualMotorCore / ExperimentLogger | active |
 | `852` | ModeManager (`GVL_MODE`, `MAIN.*`) | active |
 | `853` | ExperimentSequencer (`GVL_SEQ`) | active |
-| `851` | `SystemConfig.DRIVER_PORT` 等の互換値 | active orchestration の正本ではない |
+| `851` | discovery 用の明示 probe | active orchestration の正本ではない |
 
-> MATLAB の discovery / verify 補助スクリプトには `851` が残るが、checked-in `.tsproj` の active DriverAdapter 契約は `351` 側の C++ TcCOM を基準とする。
+> `851` を見る場合は discovery 用スクリプトのローカル指定でのみ扱う。現行の active 契約と verify の正本は `351/852/853` である。

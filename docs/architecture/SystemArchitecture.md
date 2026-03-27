@@ -218,7 +218,7 @@ ExperimentLogger ◄─ Inputs.control.playbackDone
 | `351` | C++ TcCOM 群 | ControllerCore / DriverAdapter / VirtualMotorCore / ExperimentLogger |
 | `852` | ModeManager | 制御フラグ、reset handshake、状態監視 |
 | `853` | ExperimentSequencer | テーブル書込みと replay 状態 |
-| `851` | 互換/legacy 扱い | `SystemConfig.DRIVER_PORT` や discovery script には残るが、checked-in `.tsproj` の active DriverAdapter 契約ではない |
+| `851` | discovery 用の明示 probe のみ | checked-in `.tsproj` の active DriverAdapter 契約ではなく、正本 API からは参照しない |
 
 ---
 

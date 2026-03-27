@@ -19,7 +19,7 @@
 * 現行の checked-in 構成は **125 us / 8 kHz の `VirtualMotorTask` を前提とした統合系** である。
 * `ExperimentSequencer`, `ControllerCore`, `DriverAdapter`, `VirtualMotorCore`, `ExperimentLogger` は `VirtualMotorTask` 上に配置されている。
 * `StateMachineControl` (ModeManager) は `PlcTask1` (10 ms) で動作し、reset handshake / heartbeat watchdog / logger handshake を担う。
-* MATLAB 側の主実行面は `ExperimentConfig + ConnectionManager + ExperimentRunner` に寄っており、`RunConfig` / `PositionCommandConfig` は互換ブリッジとして残っている。
+* MATLAB 側の主実行面は `ExperimentConfig + ConnectionManager + ExperimentRunner` に一本化されている。
 * `DriverAdapterPLC/` などの旧実装はリポジトリ内に残るが、現行の `.tsproj` における active deployment ではない。
 
 > 旧来の `1 ms SIL` 前提や Phase 途中の記述は履歴情報であり、現行構成の正本ではない。詳細は [SystemArchitecture](../architecture/SystemArchitecture.md) を参照。
