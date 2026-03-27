@@ -250,6 +250,9 @@ classdef ExperimentRunner
     end
 
     function heartbeat_state = wait_for_ready_state(ctrl_transport, ctrl, timeout_s, heartbeat_state)
+      if nargin < 4 || isempty(heartbeat_state)
+        heartbeat_state = experiment.ModeManagerControl.heartbeat_disabled();
+      end
       if strlength(string(ctrl.experimentStateSymbol)) == 0
         return;
       end

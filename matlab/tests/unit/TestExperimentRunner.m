@@ -114,6 +114,27 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
       testCase.verifyError(@() experiment.ExperimentRunner.run(conn, cfg), ...
         "experiment:runner:doneTimeout");
     end
+
+    function missingExperimentStateFallsBackToExperimentActive(testCase)
+      seq = MockAdsTransport();
+      ctrl = MockAdsTransport();
+      module = MockAdsTransport();
+      seed_seq(seq);
+      seed_ctrl_without_state(ctrl);
+      conn = experiment.ConnectionManager.from_transports(seq, ctrl, module);
+      cfg = experiment.ExperimentConfig.from_varargin( ...
+        "ref_profile", [0.1; 0.2], ...
+        "wait_for_done", false, ...
+        "hold_seconds", 0.0, ...
+        "read_logs", false, ...
+        "validate_symbols", false);
+
+      out = experiment.ExperimentRunner.run(conn, cfg);
+
+      testCase.verifyFalse(out.host.done);
+      testCase.verifyEqual(string(out.host.control_experiment_state_symbol), "");
+      testCase.verifyTrue(out.logger.file_released);
+    end
   end
 end
 
@@ -123,12 +144,22 @@ t.scalarMap("GVL_MODE.experimentActive") = false;
 end
 
 function seed_ctrl(t)
-t.scalarMap("GVL_MODE.modeFlags") = uint16(0);
-t.scalarMap("GVL_MODE.resetReq") = false;
-t.scalarMap("GVL_MODE.resetAckCounter") = uint32(0);
+  t.scalarMap("GVL_MODE.modeFlags") = uint16(0);
+  t.scalarMap("GVL_MODE.resetReq") = false;
+  t.scalarMap("GVL_MODE.resetAckCounter") = uint32(0);
 t.scalarMap("GVL_MODE.hostHeartbeatCounter") = uint32(0);
 t.scalarMap("GVL_MODE.experimentActive") = false;
 t.scalarMap("GVL_MODE.experimentState") = uint32(1);
-t.scalarMap("GVL_MODE.loggerFileReleased") = true;
-t.scalarMap("GVL_MODE.loggerErrorCode") = uint32(0);
+  t.scalarMap("GVL_MODE.loggerFileReleased") = true;
+  t.scalarMap("GVL_MODE.loggerErrorCode") = uint32(0);
+end
+
+function seed_ctrl_without_state(t)
+  t.scalarMap("GVL_MODE.modeFlags") = uint16(0);
+  t.scalarMap("GVL_MODE.resetReq") = false;
+  t.scalarMap("GVL_MODE.resetAckCounter") = uint32(0);
+  t.scalarMap("GVL_MODE.hostHeartbeatCounter") = uint32(0);
+  t.scalarMap("GVL_MODE.experimentActive") = false;
+  t.scalarMap("GVL_MODE.loggerFileReleased") = true;
+  t.scalarMap("GVL_MODE.loggerErrorCode") = uint32(0);
 end

@@ -1552,14 +1552,14 @@
 				<Link VarA="Outputs^motor^velocityAct" VarB="Inputs^record^motor^velocity"/>
 			</OwnerB>
 			<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">
-				<Link VarA="Inputs^loadRaw^positionActualValue" VarB="Outputs^VirtualMotor1Outputs^positionActualValue"/>
+				<Link VarA="Inputs^loadRaw^positionActualValue" VarB="Outputs^VirtualMotor2Outputs^positionActualValue"/>
 				<Link VarA="Inputs^loadRaw^statusWord" VarB="Outputs^statusWord2"/>
 				<Link VarA="Inputs^loadRaw^torqueActualValue" VarB="Outputs^VirtualMotor2Outputs^torqueActualValue"/>
-				<Link VarA="Inputs^loadRaw^velocityActualValue" VarB="Outputs^VirtualMotor1Outputs^velocityActualValue"/>
-				<Link VarA="Inputs^motorRaw^positionActualValue" VarB="Outputs^VirtualMotor2Outputs^positionActualValue"/>
+				<Link VarA="Inputs^loadRaw^velocityActualValue" VarB="Outputs^VirtualMotor2Outputs^velocityActualValue"/>
+				<Link VarA="Inputs^motorRaw^positionActualValue" VarB="Outputs^VirtualMotor1Outputs^positionActualValue"/>
 				<Link VarA="Inputs^motorRaw^statusWord" VarB="Outputs^statusWord1"/>
 				<Link VarA="Inputs^motorRaw^torqueActualValue" VarB="Outputs^VirtualMotor1Outputs^torqueActualValue"/>
-				<Link VarA="Inputs^motorRaw^velocityActualValue" VarB="Outputs^VirtualMotor2Outputs^velocityActualValue"/>
+				<Link VarA="Inputs^motorRaw^velocityActualValue" VarB="Outputs^VirtualMotor1Outputs^velocityActualValue"/>
 				<Link VarA="Outputs^controlWordOut" VarB="Inputs^controlWord1"/>
 				<Link VarA="Outputs^controlWordOut" VarB="Inputs^controlWord2"/>
 				<Link VarA="Outputs^targetTorque" VarB="Inputs^VirtualMotor1Inputs^targetTorque"/>

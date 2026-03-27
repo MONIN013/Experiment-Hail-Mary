@@ -54,7 +54,7 @@ classdef TestTsprojMapping < matlab.unittest.TestCase
 
   methods (Static, Access = private)
     function source = read_tsproj()
-      repo_root = fileparts(fileparts(fileparts(mfilename("fullpath"))));
+      repo_root = fileparts(fileparts(fileparts(fileparts(mfilename("fullpath")))));
       source = string(fileread(fullfile(repo_root, "ExperimentHailMary.tsproj")));
     end
   end
