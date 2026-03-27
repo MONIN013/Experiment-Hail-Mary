@@ -47,8 +47,8 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
       module = MockAdsTransport();
       seed_seq(seq);
       seed_ctrl(ctrl);
-      ctrl.set_scalar_read_sequence("GVL_MODE.experimentState", [uint32(1); uint32(2); uint32(2); uint32(0)]);
-      ctrl.set_scalar_read_sequence("GVL_MODE.experimentActive", [true; true; false]);
+      ctrl.set_scalar_read_sequence("GVL_MODE.experimentState", [uint32(1); uint32(1); uint32(2); uint32(2); uint32(0)]);
+      ctrl.set_scalar_read_sequence("GVL_MODE.experimentActive", [false; true; true; false]);
       ctrl.set_scalar_read_sequence("GVL_MODE.loggerFileReleased", [false; true]);
       conn = experiment.ConnectionManager.from_transports(seq, ctrl, module);
       cfg = experiment.ExperimentConfig.from_varargin( ...
@@ -68,13 +68,38 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
       testCase.verifyTrue(any(contains(ctrl.operations, "write_scalar:GVL_MODE.modeFlags")));
     end
 
+    function naturalCompletionAcrossPollingWindowsReturnsDone(testCase)
+      seq = MockAdsTransport();
+      ctrl = MockAdsTransport();
+      module = MockAdsTransport();
+      seed_seq(seq);
+      seed_ctrl(ctrl);
+      ctrl.set_scalar_read_sequence("GVL_MODE.experimentState", [uint32(1); uint32(1); uint32(2); uint32(0)]);
+      ctrl.set_scalar_read_sequence("GVL_MODE.experimentActive", [false; true; false]);
+      ctrl.scalarMap("GVL_MODE.loggerFileReleased") = true;
+      conn = experiment.ConnectionManager.from_transports(seq, ctrl, module);
+      cfg = experiment.ExperimentConfig.from_varargin( ...
+        "ref_profile", [0.1; 0.2], ...
+        "wait_for_done", true, ...
+        "done_timeout_s", 0.05, ...
+        "abort_check_period_s", 0.001, ...
+        "read_logs", false, ...
+        "validate_symbols", false);
+
+      out = experiment.ExperimentRunner.run(conn, cfg);
+
+      testCase.verifyTrue(out.host.done);
+      testCase.verifyFalse(out.host.timed_out);
+      testCase.verifyEqual(string(out.host.stop_reason), "done");
+    end
+
     function timeoutStillErrors(testCase)
       seq = MockAdsTransport();
       ctrl = MockAdsTransport();
       module = MockAdsTransport();
       seed_seq(seq);
       seed_ctrl(ctrl);
-      ctrl.set_scalar_read_sequence("GVL_MODE.experimentState", [uint32(1); uint32(2); uint32(2); uint32(2); uint32(2)]);
+      ctrl.set_scalar_read_sequence("GVL_MODE.experimentState", [uint32(1); uint32(1); uint32(2); uint32(2); uint32(2); uint32(2)]);
       ctrl.set_scalar_read_sequence("GVL_MODE.experimentActive", [false; true; true; true; true]);
       ctrl.scalarMap("GVL_MODE.loggerFileReleased") = false;
       conn = experiment.ConnectionManager.from_transports(seq, ctrl, module);

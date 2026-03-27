@@ -46,15 +46,38 @@ classdef TestModeManagerControl < matlab.unittest.TestCase
         struct("timeout_s", 0.05, "poll_period_s", 0.001)), ...
         "experiment:modecontrol:abortLoggerError");
     end
+
+    function waitUntilInactiveCarriesSeenActiveAcrossCalls(testCase)
+      plc = MockAdsTransport();
+      ctrl_tr = MockAdsTransport();
+      symbols = experiment.VirtualMotorSymbols.from_defaults();
+      ctrl = seed_ctrl_struct();
+      ctrl_tr.set_scalar_read_sequence("GVL_MODE.experimentState", [uint32(2); uint32(0)]);
+      ctrl_tr.set_scalar_read_sequence("GVL_MODE.experimentActive", [true; false]);
+
+      [status1, ~, observer_state] = experiment.ModeManagerControl.wait_until_inactive( ...
+        ctrl_tr, plc, symbols, ctrl, 0.001, [], []);
+      testCase.verifyFalse(status1.completed);
+      testCase.verifyTrue(status1.seen_active);
+      testCase.verifyTrue(observer_state.seen_active);
+
+      [status2, ~, observer_state] = experiment.ModeManagerControl.wait_until_inactive( ...
+        ctrl_tr, plc, symbols, ctrl, 0.001, [], observer_state);
+      testCase.verifyTrue(status2.completed);
+      testCase.verifyEqual(string(status2.stop_reason), "done");
+      testCase.verifyTrue(observer_state.seen_active);
+    end
   end
 end
 
 function ctrl = seed_ctrl_struct()
 ctrl = struct( ...
   "modeFlagsSymbol", "GVL_MODE.modeFlags", ...
+  "experimentStateSymbol", "GVL_MODE.experimentState", ...
   "experimentActiveSymbol", "GVL_MODE.experimentActive", ...
   "loggerFileReleasedSymbol", "GVL_MODE.loggerFileReleased", ...
   "loggerErrorCodeSymbol", "GVL_MODE.loggerErrorCode", ...
   "hostHeartbeatCounterSymbol", "GVL_MODE.hostHeartbeatCounter", ...
-  "MODEF_RESET_REQ", uint32(hex2dec("0004")));
+  "MODEF_RESET_REQ", uint32(hex2dec("0004")), ...
+  "STATE_DONE", uint32(3));
 end
