@@ -17,8 +17,5 @@ END_CLASS_MAP()
 CExperimentLoggerClassFactory::CExperimentLoggerClassFactory() : CObjClassFactory()
 {
 	TcDbgUnitSetImageName(TCDBG_UNIT_IMAGE_NAME_TMX(SRVNAME_EXPERIMENTLOGGER));
-#if defined(TCDBG_UNIT_VERSION)
-	TcDbgUnitSetVersion(TCDBG_UNIT_VERSION(ExperimentLogger));
-#endif //defined(TCDBG_UNIT_VERSION)
 }
 

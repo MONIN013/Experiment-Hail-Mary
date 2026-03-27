@@ -4,15 +4,7 @@
 #pragma hdrstop
 
 #include "Module1.h"
-#if defined(__has_include)
-#if __has_include("ExperimentLoggerVersion.h")
 #include "ExperimentLoggerVersion.h"
-#else
-static const GUID VID_ExperimentLogger = { 0xe98592e3, 0xca10, 0x3536, { 0x98, 0xc2, 0x7f, 0x72, 0xa4, 0xe7, 0x36, 0x9c } };
-#endif
-#else
-#include "ExperimentLoggerVersion.h"
-#endif
 #include "TcFileAccessServices.h"
 #include <cstring>
 

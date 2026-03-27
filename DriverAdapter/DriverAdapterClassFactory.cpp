@@ -17,8 +17,5 @@ END_CLASS_MAP()
 CDriverAdapterClassFactory::CDriverAdapterClassFactory() : CObjClassFactory()
 {
 	TcDbgUnitSetImageName(TCDBG_UNIT_IMAGE_NAME_TMX(SRVNAME_DRIVERADAPTER));
-#if defined(TCDBG_UNIT_VERSION)
-	TcDbgUnitSetVersion(TCDBG_UNIT_VERSION(DriverAdapter));
-#endif //defined(TCDBG_UNIT_VERSION)
 }
 

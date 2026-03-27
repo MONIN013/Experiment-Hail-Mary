@@ -17,8 +17,5 @@ END_CLASS_MAP()
 CVirtualMotorCoreClassFactory::CVirtualMotorCoreClassFactory() : CObjClassFactory()
 {
 	TcDbgUnitSetImageName(TCDBG_UNIT_IMAGE_NAME_TMX(SRVNAME_VIRTUALMOTORCORE));
-#if defined(TCDBG_UNIT_VERSION)
-	TcDbgUnitSetVersion(TCDBG_UNIT_VERSION(VirtualMotorCore));
-#endif //defined(TCDBG_UNIT_VERSION)
 }
 
