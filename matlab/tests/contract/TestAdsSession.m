@@ -3,9 +3,9 @@ classdef TestAdsSession < matlab.unittest.TestCase
     function cachesTransportPerPort(testCase)
       session = twincat_ads.AdsSession("1.2.3.4.5.6", ...
         "transport_factory", @factory);
-      t1 = session.transport(851);
-      t2 = session.transport(851);
-      t3 = session.transport(852);
+      t1 = session.transport(12345);
+      t2 = session.transport(12345);
+      t3 = session.transport(12346);
       testCase.verifyTrue(t1 == t2);
       testCase.verifyFalse(t1 == t3);
       session.close();

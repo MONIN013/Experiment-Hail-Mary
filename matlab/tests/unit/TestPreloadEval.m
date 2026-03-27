@@ -5,6 +5,8 @@ classdef TestPreloadEval < matlab.unittest.TestCase
       metrics = experiment.preload_eval(raw, cmd, cfg);
       testCase.verifyTrue(metrics.acceptance.input_waveform_exact_match);
       testCase.verifyFalse(isfield(metrics, "comparison"));
+      testCase.verifyFalse(isfield(metrics.sampling, "pre_roll_count"));
+      testCase.verifyFalse(isfield(metrics.sampling, "post_roll_count"));
       testCase.verifyTrue(metrics.acceptance.ff_waveform_exact_match);
       testCase.verifyTrue(metrics.acceptance.dist_waveform_exact_match);
       testCase.verifyTrue(metrics.acceptance.torque_sum_exact_match);
@@ -14,7 +16,7 @@ classdef TestPreloadEval < matlab.unittest.TestCase
 
     function seqGapFailsAcceptance(testCase)
       [raw, cmd, cfg] = make_case();
-      raw.logSeq = uint32([1; 3; 4]);
+      raw.seq = uint32([1; 3; 4]);
       metrics = experiment.preload_eval(raw, cmd, cfg);
       testCase.verifyFalse(isfield(metrics, "comparison"));
       testCase.verifyFalse(metrics.acceptance.seq_no_gap);
@@ -23,7 +25,7 @@ classdef TestPreloadEval < matlab.unittest.TestCase
 
     function countMismatchIsDiagnosed(testCase)
       [raw, cmd, cfg] = make_case();
-      raw.logRefValue = raw.logRefValue(1:2);
+      raw.ref_value = raw.ref_value(1:2);
       metrics = experiment.preload_eval(raw, cmd, cfg);
       testCase.verifyFalse(isfield(metrics, "comparison"));
       testCase.verifyFalse(metrics.input_waveform.exact_sample_count_match);
@@ -40,23 +42,21 @@ dist = [0.01; 0.02; 0.03];
 u = [1.0; 2.0; 3.0];
 tau = u + dist;
 
-cfg = struct("task_rate_hz", 1000, "waveform_diag_abs_tol", 1e-12, "waveform_diag_preview_n", 8, ...
-  "m", 1, "d", 0.1, "rated_current", 0.1, "max_permille", 0.0, "tau_limit", 5, "vel_limit", 100);
+  cfg = struct("task_rate_hz", 1000, "waveform_diag_abs_tol", 1e-12, "waveform_diag_preview_n", 8, ...
+    "m", 1, "d", 0.1, "rated_current", 0.1, "max_permille", 0.0, "tau_limit", 5, "vel_limit", 100);
 
-raw = struct();
-raw.log_overflow = false;
-raw.logSeq = uint32((1:3)');
-raw.logRefValue = ref;
-raw.logFfValue = ff;
-raw.logDistValue = dist;
-raw.logControlInput = u;
-raw.logTargetCurrent = tau;
-raw.logPositionAct = [0.0; 0.1; 0.2];
-raw.logT = zeros(3, 1);
+  raw = struct();
+  raw.seq = uint32((1:3)');
+  raw.ref_value = ref;
+  raw.ff_value = ff;
+  raw.dist_value = dist;
+  raw.control_input = u;
+  raw.target_current = tau;
+  raw.position_act = [0.0; 0.1; 0.2];
 
-cmd = struct();
-cmd.ref_profile = ref;
-cmd.ff_profile = ff;
-cmd.dist_profile = dist;
+  cmd = struct();
+  cmd.ref_profile = ref;
+  cmd.ff_profile = ff;
+  cmd.dist_profile = dist;
 cmd.use_profile = true;
 end

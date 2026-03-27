@@ -54,8 +54,7 @@ classdef ExperimentConfig
     end
 
     function out = from_varargin(varargin)
-      if numel(varargin) == 1 && (isstruct(varargin{1}) || isa(varargin{1}, "experiment.ExperimentConfig") || ...
-          isa(varargin{1}, "experiment.RunConfig") || isa(varargin{1}, "experiment.PositionCommandConfig"))
+      if numel(varargin) == 1 && (isstruct(varargin{1}) || isa(varargin{1}, "experiment.ExperimentConfig"))
         out = experiment.ExperimentConfig.from_struct(varargin{1});
         return;
       end
@@ -88,10 +87,6 @@ classdef ExperimentConfig
       p.addParameter("waveform_diag_max_shift_samples", 1, @(x) isnumeric(x) && isscalar(x));
       p.addParameter("waveform_diag_abs_tol", 1e-12, @(x) isnumeric(x) && isscalar(x));
       p.addParameter("waveform_diag_preview_n", 8, @(x) isnumeric(x) && isscalar(x));
-
-      p.addParameter("ams_port", [], @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
-      p.addParameter("control_ams_port", [], @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
-      p.addParameter("module_ams_port", [], @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
       p.addParameter("m", defaults.plant.m, @(x) isnumeric(x) && isscalar(x));
       p.addParameter("d", defaults.plant.d, @(x) isnumeric(x) && isscalar(x));
       p.addParameter("rated_current", defaults.plant.rated_current, @(x) isnumeric(x) && isscalar(x));
@@ -135,24 +130,15 @@ classdef ExperimentConfig
         out.validate();
         return;
       end
-      if isa(s, "experiment.RunConfig")
-        s = s.to_struct();
-      elseif isa(s, "experiment.PositionCommandConfig")
-        s = legacy_position_command_to_struct(s);
+      if ~isstruct(s)
+        error("experiment:config:invalid", ...
+          "ExperimentConfig.from_struct accepts only struct or ExperimentConfig.");
       end
 
+      reject_legacy_inputs(s);
       reject_prefix_overrides(s);
 
       out = experiment.ExperimentConfig.defaults();
-      if isfield(s, "ams_port") && ~isempty(s.ams_port)
-        s.seq_port = s.ams_port;
-      end
-      if isfield(s, "control_ams_port") && ~isempty(s.control_ams_port)
-        s.control_port = s.control_ams_port;
-      end
-      if isfield(s, "module_ams_port") && ~isempty(s.module_ams_port)
-        s.module_port = s.module_ams_port;
-      end
 
       plant_struct = extract_plant_struct(s, out.plant.to_struct());
       controller_struct = extract_controller_struct(s);
@@ -304,6 +290,17 @@ classdef ExperimentConfig
   end
 end
 
+function reject_legacy_inputs(s)
+legacy_keys = ["ams_port", "control_ams_port", "module_ams_port"];
+for k = 1:numel(legacy_keys)
+  key = char(legacy_keys(k));
+  if isfield(s, key)
+    error("experiment:config:invalid", ...
+      "%s is no longer supported. Use seq_port/control_port/module_port.", key);
+  end
+end
+end
+
 function reject_prefix_overrides(s)
 checks = { ...
   "vm_param_symbol_prefix", char(experiment.SystemConfig.VM_PREFIX); ...
@@ -357,30 +354,4 @@ end
 if numel(vec) > n_ref
   error("experiment:config:invalid", "%s length must not exceed ref_profile length.", label);
 end
-end
-
-function s = legacy_position_command_to_struct(cfg)
-s = struct( ...
-  "ams_net_id", cfg.ams_net_id, ...
-  "ams_port", cfg.ams_port, ...
-  "control_ams_port", cfg.control_ams_port, ...
-  "ads_assembly", cfg.ads_assembly, ...
-  "ref_profile", cfg.ref_profile, ...
-  "ff_profile", cfg.ff_profile, ...
-  "dist_profile", cfg.dist_profile, ...
-  "repeat_count", cfg.repeat_count, ...
-  "task_rate_hz", cfg.task_rate_hz, ...
-  "table_max_n", cfg.table_max_n, ...
-  "wait_for_done", cfg.wait_for_done, ...
-  "done_timeout_s", cfg.done_timeout_s, ...
-  "reset_timeout_s", cfg.reset_timeout_s, ...
-  "hold_seconds", cfg.hold_seconds, ...
-  "host_heartbeat_enable", cfg.host_heartbeat_enable, ...
-  "host_heartbeat_period_s", cfg.host_heartbeat_period_s, ...
-  "abort_check_period_s", cfg.abort_check_period_s, ...
-  "logger_release_timeout_s", cfg.logger_release_timeout_s, ...
-  "read_logs", cfg.read_logs, ...
-  "validate_symbols", cfg.validate_symbols, ...
-  "write_plant_params", false, ...
-  "write_controller_params", false);
 end

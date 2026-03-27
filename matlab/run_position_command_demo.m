@@ -59,21 +59,14 @@ fprintf("Target=%.4f rad, stepDuration=%.3f s, preStep=%.3f s, perTrial=%.3f s, 
   target_position_rad, step_sample_n / cfg.task_rate_hz, pre_step_n / cfg.task_rate_hz, per_trial_s, sample_n);
 
 %% ADS 接続
-seq_transport  = twincat_ads.AdsTransport();
-ctrl_transport = twincat_ads.AdsTransport();
-mod_transport  = twincat_ads.AdsTransport();
-cleanup = onCleanup(@() disconnect_all(seq_transport, ctrl_transport, mod_transport));
-
-seq_transport.connect(cfg.ams_net_id, cfg.seq_port);
-ctrl_transport.connect(cfg.ams_net_id, cfg.control_port);
-mod_transport.connect(cfg.ams_net_id, cfg.module_port);
+conn = experiment.ConnectionManager.create(cfg);
+cleanup = onCleanup(@() conn.session.close()); %#ok<NASGU>
 fprintf("Connected: SEQ=%d, CTRL=%d, MODULE=%d\n", cfg.seq_port, cfg.control_port, cfg.module_port);
 fprintf("VM params: m=%.2f d=%.2f rated_current=%.2f\n", ...
   cfg.plant.m, cfg.plant.d, cfg.plant.rated_current);
 fprintf("Controller: Kp=%.1f (pid_b0), enable_pid=%d\n", Kp, logical(cfg.controller.pid.enable));
 
 %% 実験実行
-conn = struct("seq", seq_transport, "ctrl", ctrl_transport, "module", mod_transport);
 out = experiment.ExperimentRunner.run(conn, cfg);
 logger_bin = [];
 latest_bin = experiment.read_latest_logger_bin(logger_dir, logger_file_glob);
@@ -97,13 +90,15 @@ fprintf("loggerReady(before/after)=%d/%d  loggerError(before/after)=0x%08X/0x%08
 fprintf("loggerFileReleased=%s (%s)\n", passfail(out.logger.file_released), string(out.logger.file_probe_detail));
 fprintf("logSource=%s (%s)\n", selected.source_name, string(selected.diagnostics.reason));
 
-print_count_eval(out.eval);
+print_sampling_metrics(out.metrics.sampling, out.metrics.sample_count);
 
-if ~out.eval.input_and_all_log_counts_match
+if ~sampling_counts_match(out.metrics.sampling)
   if logical(out.host.done) && ~logical(out.host.timed_out)
     warning("experiment:demo:countMismatchNonFatal", ...
       "Log count mismatch (input=%d, ref=%d, pos=%d). Repeated playback may extend counts. See docs/ExperimentProcedure.md.", ...
-      out.eval.input_count, out.eval.log_ref_count, out.eval.log_position_count);
+      double(out.metrics.sampling.command_count), ...
+      double(out.metrics.sampling.ref_log_count), ...
+      double(out.metrics.sampling.position_log_count));
   else
     error("experiment:demo:countMismatch", ...
       "Log count mismatch. Increase hold_margin_s or verify PLC sequence.");
@@ -148,24 +143,23 @@ end
 
 %% --- helper functions ---
 
-function disconnect_all(varargin)
-for k = 1:numel(varargin)
-  try
-    varargin{k}.disconnect();
-  catch
-  end
-end
+function print_sampling_metrics(sampling, sample_count)
+fprintf("Counts: input=%d, seq=%d, ref=%d, ff=%d, dist=%d, u=%d, tau=%d, pos=%d\n", ...
+  double(sampling.command_count), double(sample_count), double(sampling.ref_log_count), ...
+  double(sampling.ff_log_count), double(sampling.dist_log_count), ...
+  double(sampling.controlInput_log_count), double(sampling.target_torque_log_count), ...
+  double(sampling.position_log_count));
+fprintf("Check: components=%s, input-ref=%s, input-pos=%s, overall=%s\n", ...
+  passfail(sampling.all_sample_counts_match), ...
+  passfail(double(sampling.command_count) == double(sampling.ref_log_count)), ...
+  passfail(double(sampling.command_count) == double(sampling.position_log_count)), ...
+  passfail(sampling_counts_match(sampling)));
 end
 
-function print_count_eval(ev)
-fprintf("Counts: input=%d, seq=%d, ref=%d, ff=%d, dist=%d, u=%d, tau=%d, pos=%d\n", ...
-  ev.input_count, ev.log_seq_count, ev.log_ref_count, ev.log_ff_count, ev.log_dist_count, ...
-  ev.log_control_input_count, ev.log_target_current_count, ev.log_position_count);
-fprintf("Check: components=%s, input-ref=%s, input-pos=%s, overall=%s\n", ...
-  passfail(ev.log_component_counts_match), ...
-  passfail(ev.input_count_matches_log_ref), ...
-  passfail(ev.input_count_matches_log_position), ...
-  passfail(ev.input_and_all_log_counts_match));
+function tf = sampling_counts_match(sampling)
+tf = logical(sampling.all_sample_counts_match) && ...
+  (double(sampling.command_count) == double(sampling.ref_log_count)) && ...
+  (double(sampling.command_count) == double(sampling.position_log_count));
 end
 
 function s = passfail(flag)

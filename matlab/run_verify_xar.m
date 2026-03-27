@@ -17,7 +17,7 @@ addpath(genpath(base_dir));
 
 sys = experiment.SystemConfig;
 
-ports = [sys.DRIVER_PORT, sys.CONTROL_PORT, sys.SEQ_PORT, sys.MODULE_PORT];
+ports = [sys.CONTROL_PORT, sys.SEQ_PORT, sys.MODULE_PORT];
 results = {};
 n_pass = 0;
 n_fail = 0;
