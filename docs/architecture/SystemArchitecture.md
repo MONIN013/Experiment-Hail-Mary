@@ -48,8 +48,10 @@ ExperimentSequencer.distValue └───────────────�
 ModeManager ─► experimentActive / resetOut / enableCurrentOut / ctrlWord
 ModeManager ◄─ statusWordOut / loggerReady / loggerFileReleased / loggerErrorCode
 
-ExperimentLogger ◄─ refValue / ffValue / controlInput / error / currentCmd /
-                    loadPosition / loadVelocity / motorCurrentAct / playbackDone
+ExperimentLogger ◄─ Inputs.record.(refValue / ffValue / controlInput / error /
+                    currentCmd / load.position / load.velocity /
+                    motor.currentAct)
+ExperimentLogger ◄─ Inputs.control.playbackDone
 ```
 
 ---
@@ -174,19 +176,20 @@ ExperimentLogger ◄─ refValue / ffValue / controlInput / error / currentCmd /
 
 **責務**
 
-* file pre-open: `preArmReq`
-* record append / close: `loggingReq`
-* same-task 停止短縮: `playbackDone`
+* file pre-open: `Inputs.control.preArmReq`
+* record append / close: `Inputs.control.loggingReq`
+* same-task 停止短縮: `Inputs.control.playbackDone`
 
 **主要入力**
 
 | 入力 | 説明 |
 |---|---|
-| `currentCmd` | DriverAdapter clamp 後の current-domain command [A] |
-| `refValue`, `ffValue` | Sequencer 出力 |
-| `controlInput`, `error` | ControllerCore 出力 |
-| `loadPosition`, `loadVelocity` | DriverAdapter 変換済み Load 信号 |
-| `motorCurrentAct` | DriverAdapter 変換済み Motor 電流 |
+| `Inputs.record.currentCmd` | DriverAdapter clamp 後の current-domain command [A] |
+| `Inputs.record.refValue`, `Inputs.record.ffValue` | Sequencer 出力 |
+| `Inputs.record.controlInput`, `Inputs.record.error` | ControllerCore 出力 |
+| `Inputs.record.load.position`, `Inputs.record.load.velocity` | DriverAdapter 変換済み Load 信号 |
+| `Inputs.record.motor.currentAct` | DriverAdapter 変換済み Motor 電流 |
+| `Inputs.control.preArmReq`, `Inputs.control.loggingReq`, `Inputs.control.playbackDone` | logger 制御入力 |
 
 **記録スキーマ**
 

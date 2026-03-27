@@ -167,26 +167,26 @@
 
 | 入力 | 説明 |
 |---|---|
-| `currentCmd` | DriverAdapter clamp 後 command [A] |
-| `refValue`, `ffValue` | Sequencer 出力 |
-| `controlInput`, `error` | ControllerCore 出力 |
-| `motorPosition`, `motorVelocity` | DriverAdapter motor 側信号 |
-| `motorCurrentAct` | DriverAdapter motor 電流 |
-| `loadPosition`, `loadVelocity` | DriverAdapter load 側信号 |
-| `resetReq` | ModeManager reset |
-| `preArmReq` | file pre-open |
-| `loggingReq` | 記録 / close |
-| `playbackDone` | same-task 追記停止 fast-path |
+| `Inputs.record.currentCmd` | DriverAdapter clamp 後 command [A] |
+| `Inputs.record.refValue`, `Inputs.record.ffValue` | Sequencer 出力 |
+| `Inputs.record.controlInput`, `Inputs.record.error` | ControllerCore 出力 |
+| `Inputs.record.motor.position`, `Inputs.record.motor.velocity` | DriverAdapter motor 側信号 |
+| `Inputs.record.motor.currentAct` | DriverAdapter motor 電流 |
+| `Inputs.record.load.position`, `Inputs.record.load.velocity` | DriverAdapter load 側信号 |
+| `Inputs.control.resetReq` | ModeManager reset |
+| `Inputs.control.preArmReq` | file pre-open |
+| `Inputs.control.loggingReq` | 記録 / close |
+| `Inputs.control.playbackDone` | same-task 追記停止 fast-path |
 
 ### 5.2 出力
 
 | 出力 | 説明 |
 |---|---|
-| `Outputs.LogStatus.recordsWritten` | 書込み済みレコード数 |
-| `Outputs.LogStatus.fileSizeKb` | ファイルサイズ |
-| `Outputs.LogStatus.errorCode` | エラーコード |
-| `Outputs.fileReleased` | close 完了 |
-| `Outputs.loggerReady` | pre-open 完了 / write 可能 |
+| `Outputs.status.recordsWritten` | 書込み済みレコード数 |
+| `Outputs.status.fileSizeKb` | ファイルサイズ |
+| `Outputs.status.errorCode` | エラーコード |
+| `Outputs.status.fileReleased` | close 完了 |
+| `Outputs.status.loggerReady` | pre-open 完了 / write 可能 |
 
 ### 5.3 バイナリ形式
 
@@ -218,12 +218,12 @@
 * `MAIN.enableCurrentOut -> DriverAdapter.Inputs.enableCurrentOutput`
 * `MAIN.resetOut -> DriverAdapter.Inputs.resetReq`
 * `DriverAdapter.Outputs.statusWordOut -> MAIN.statWord`
-* `MAIN.preArmOut -> ExperimentLogger.Inputs.preArmReq`
-* `MAIN.experimentActiveOut -> ExperimentLogger.Inputs.loggingReq`
-* `MAIN.resetOut -> ExperimentLogger.Inputs.resetReq`
-* `ExperimentLogger.Outputs.loggerReady -> MAIN.loggerReadyIn`
-* `ExperimentLogger.Outputs.fileReleased -> MAIN.loggerFileReleasedIn`
-* `ExperimentLogger.Outputs.LogStatus.errorCode -> MAIN.loggerErrorCodeIn`
+* `MAIN.preArmOut -> ExperimentLogger.Inputs.control.preArmReq`
+* `MAIN.experimentActiveOut -> ExperimentLogger.Inputs.control.loggingReq`
+* `MAIN.resetOut -> ExperimentLogger.Inputs.control.resetReq`
+* `ExperimentLogger.Outputs.status.loggerReady -> MAIN.loggerReadyIn`
+* `ExperimentLogger.Outputs.status.fileReleased -> MAIN.loggerFileReleasedIn`
+* `ExperimentLogger.Outputs.status.errorCode -> MAIN.loggerErrorCodeIn`
 
 ### 6.4 Driver / VirtualMotor / Logger
 
@@ -233,12 +233,12 @@
 * `VirtualMotor1Outputs.velocityActualValue -> DriverAdapter.Inputs.loadRaw.velocityActualValue`
 * `VirtualMotor1Outputs.torqueActualValue -> DriverAdapter.Inputs.motorRaw.torqueActualValue`
 * `statusWord1 -> DriverAdapter.Inputs.motorRaw.statusWord`
-* `DriverAdapter.Outputs.currentCmd -> ExperimentLogger.Inputs.currentCmd`
-* `DriverAdapter.Outputs.load.positionRel -> ExperimentLogger.Inputs.loadPosition`
-* `DriverAdapter.Outputs.load.velocityAct -> ExperimentLogger.Inputs.loadVelocity`
-* `DriverAdapter.Outputs.motor.currentAct -> ExperimentLogger.Inputs.motorCurrentAct`
-* `DriverAdapter.Outputs.motor.positionAbs -> ExperimentLogger.Inputs.motorPosition`
-* `DriverAdapter.Outputs.motor.velocityAct -> ExperimentLogger.Inputs.motorVelocity`
+* `DriverAdapter.Outputs.currentCmd -> ExperimentLogger.Inputs.record.currentCmd`
+* `DriverAdapter.Outputs.load.positionRel -> ExperimentLogger.Inputs.record.load.position`
+* `DriverAdapter.Outputs.load.velocityAct -> ExperimentLogger.Inputs.record.load.velocity`
+* `DriverAdapter.Outputs.motor.currentAct -> ExperimentLogger.Inputs.record.motor.currentAct`
+* `DriverAdapter.Outputs.motor.positionAbs -> ExperimentLogger.Inputs.record.motor.position`
+* `DriverAdapter.Outputs.motor.velocityAct -> ExperimentLogger.Inputs.record.motor.velocity`
 
 ---
 

@@ -185,13 +185,13 @@ MATLAB                              PLC (ModeManager)
 
 - `statWord` ← VirtualMotorCore (I/O Mapping 経由、DriverAdapter.statusWordOut)
 - `seqPlaybackDone` ← ExperimentSequencer (`GVL_SEQ.playbackDone`)
-- `loggerReadyIn` ← ExperimentLogger (`Outputs.loggerReady`)
-- `loggerFileReleasedIn` ← ExperimentLogger (`Outputs.fileReleased`)
-- `loggerErrorCodeIn` ← ExperimentLogger (`Outputs.LogStatus.errorCode`)
+- `loggerReadyIn` ← ExperimentLogger (`Outputs.status.loggerReady`)
+- `loggerFileReleasedIn` ← ExperimentLogger (`Outputs.status.fileReleased`)
+- `loggerErrorCodeIn` ← ExperimentLogger (`Outputs.status.errorCode`)
 - `ctrlWord` → DriverAdapter (`controlWordIn`)
-- `experimentActiveOut` → ExperimentSequencer (`GVL_SEQ.experimentActive`) / ExperimentLogger
-- `preArmOut` → ExperimentLogger (`Inputs.preArmReq`)
-- `resetOut` → ExperimentSequencer (`GVL_SEQ.resetReq`) / ExperimentLogger
+- `experimentActiveOut` → ExperimentSequencer (`GVL_SEQ.experimentActive`) / ExperimentLogger (`Inputs.control.loggingReq`)
+- `preArmOut` → ExperimentLogger (`Inputs.control.preArmReq`)
+- `resetOut` → ExperimentSequencer (`GVL_SEQ.resetReq`) / ExperimentLogger (`Inputs.control.resetReq`)
 
 ---
 

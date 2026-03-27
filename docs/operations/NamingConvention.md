@@ -35,7 +35,7 @@
 | 種別 | 規則 | 例 |
 |------|------|----|
 | クラス | `C` + PascalCase | `CModule1` |
-| 構造体 (TMC) | `ST_` + PascalCase | `ST_Notch`, `ST_PhaseLead`, `ST_LogStatus` |
+| 構造体 (TMC) | `ST_` + PascalCase | `ST_Notch`, `ST_PhaseLead`, `ST_LoggerStatus` |
 | 構造体 (手書き) | PascalCase | `LogRecord`, `AxisRuntimeState` |
 | enum class | `E` + PascalCase | `EDriveState`, `EFileFsmState` |
 | I/O 構造体 | `Module1Inputs` / `Module1Outputs` | (TwinCAT 規約に従う) |

@@ -270,8 +270,120 @@
 			</SubItem>
 		</DataType>
 		<DataType>
-			<Name GUID="{A58F1A22-EE38-4D58-AE23-3F4335DD3EEF}">ST_LogStatus</Name>
-			<BitSize>96</BitSize>
+			<Name GUID="{C88B2D87-C9BF-4A79-8397-1AA7A5B65131}">ST_LoggerMotorSignals</Name>
+			<BitSize>192</BitSize>
+			<SubItem>
+				<Name>position</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>0</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>velocity</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>64</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>currentAct</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>128</BitOffs>
+			</SubItem>
+		</DataType>
+		<DataType>
+			<Name GUID="{F77CCAAA-7889-4B95-9096-6E794FC34B65}">ST_LoggerLoadSignals</Name>
+			<BitSize>128</BitSize>
+			<SubItem>
+				<Name>position</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>0</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>velocity</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>64</BitOffs>
+			</SubItem>
+		</DataType>
+		<DataType>
+			<Name GUID="{B5BB3647-4067-4A21-8892-0F60A144E5B0}">ST_LoggerRecordInputs</Name>
+			<BitSize>640</BitSize>
+			<SubItem>
+				<Name>currentCmd</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>0</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>refValue</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>64</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>ffValue</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>128</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>controlInput</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>192</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>error</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>256</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>motor</Name>
+				<Type GUID="{C88B2D87-C9BF-4A79-8397-1AA7A5B65131}">ST_LoggerMotorSignals</Type>
+				<BitSize>192</BitSize>
+				<BitOffs>320</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>load</Name>
+				<Type GUID="{F77CCAAA-7889-4B95-9096-6E794FC34B65}">ST_LoggerLoadSignals</Type>
+				<BitSize>128</BitSize>
+				<BitOffs>512</BitOffs>
+			</SubItem>
+		</DataType>
+		<DataType>
+			<Name GUID="{2CA6D7A5-F578-481C-ACE6-CA114A3E5E88}">ST_LoggerControlInputs</Name>
+			<BitSize>32</BitSize>
+			<SubItem>
+				<Name>resetReq</Name>
+				<Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
+				<BitSize>8</BitSize>
+				<BitOffs>0</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>loggingReq</Name>
+				<Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
+				<BitSize>8</BitSize>
+				<BitOffs>8</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>preArmReq</Name>
+				<Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
+				<BitSize>8</BitSize>
+				<BitOffs>16</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>playbackDone</Name>
+				<Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
+				<BitSize>8</BitSize>
+				<BitOffs>24</BitOffs>
+			</SubItem>
+		</DataType>
+		<DataType>
+			<Name GUID="{E3A91B88-20DF-44F0-A6A9-1D8758873850}">ST_LoggerStatus</Name>
+			<BitSize>112</BitSize>
 			<SubItem>
 				<Name>recordsWritten</Name>
 				<Type GUID="{18071995-0000-0000-0000-000000000008}">UDINT</Type>
@@ -289,6 +401,18 @@
 				<Type GUID="{18071995-0000-0000-0000-000000000008}">UDINT</Type>
 				<BitSize>32</BitSize>
 				<BitOffs>64</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>loggerReady</Name>
+				<Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
+				<BitSize>8</BitSize>
+				<BitOffs>96</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>fileReleased</Name>
+				<Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
+				<BitSize>8</BitSize>
+				<BitOffs>104</BitOffs>
 			</SubItem>
 		</DataType>
 		<DataType>
@@ -1000,7 +1124,7 @@
 				</Instance>
 			</Project>
 			<Project GUID="{C71206DC-4213-420E-9368-4499CDF50D92}" Name="ExperimentLogger" PrjFilePath="ExperimentLogger\ExperimentLogger.vcxproj" TmcFilePath="ExperimentLogger\ExperimentLogger.tmc">
-				<Instance Id="#x01010030" KeepUnrestoredLinks="2" AutoReloadTmc="true" ClassFactoryId="C++ Module Vendor|ExperimentLogger|0.0.0.1">
+				<Instance Id="#x01010030" KeepUnrestoredLinks="2" AutoReloadTmc="true" ShowHiddenChilds="true" ClassFactoryId="C++ Module Vendor|ExperimentLogger|0.0.0.1">
 					<Name>ExperimentLogger_Obj1 (Module1)</Name>
 					<TmcDesc GUID="{7F0005F6-007A-4E79-8B14-A232008F0DD2}" ClassFactoryId="C++ Module Vendor|ExperimentLogger|0.0.0.1">
 						<Name>Module1</Name>
@@ -1067,88 +1191,16 @@
 								<ContextId>1</ContextId>
 								<ByteSize>84</ByteSize>
 								<Symbol>
-									<Name>currentCmd</Name>
-									<BitSize>64</BitSize>
-									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
+									<Name>record</Name>
+									<BitSize>640</BitSize>
+									<BaseType GUID="{B5BB3647-4067-4A21-8892-0F60A144E5B0}">ST_LoggerRecordInputs</BaseType>
 									<BitOffs>0</BitOffs>
 								</Symbol>
 								<Symbol>
-									<Name>refValue</Name>
-									<BitSize>64</BitSize>
-									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
-									<BitOffs>64</BitOffs>
-								</Symbol>
-								<Symbol>
-									<Name>ffValue</Name>
-									<BitSize>64</BitSize>
-									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
-									<BitOffs>128</BitOffs>
-								</Symbol>
-								<Symbol>
-									<Name>controlInput</Name>
-									<BitSize>64</BitSize>
-									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
-									<BitOffs>192</BitOffs>
-								</Symbol>
-								<Symbol>
-									<Name>error</Name>
-									<BitSize>64</BitSize>
-									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
-									<BitOffs>256</BitOffs>
-								</Symbol>
-								<Symbol>
-									<Name>motorPosition</Name>
-									<BitSize>64</BitSize>
-									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
-									<BitOffs>320</BitOffs>
-								</Symbol>
-								<Symbol>
-									<Name>motorVelocity</Name>
-									<BitSize>64</BitSize>
-									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
-									<BitOffs>384</BitOffs>
-								</Symbol>
-								<Symbol>
-									<Name>motorCurrentAct</Name>
-									<BitSize>64</BitSize>
-									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
-									<BitOffs>448</BitOffs>
-								</Symbol>
-								<Symbol>
-									<Name>loadPosition</Name>
-									<BitSize>64</BitSize>
-									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
-									<BitOffs>512</BitOffs>
-								</Symbol>
-								<Symbol>
-									<Name>loadVelocity</Name>
-									<BitSize>64</BitSize>
-									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
-									<BitOffs>576</BitOffs>
-								</Symbol>
-								<Symbol>
-									<Name>resetReq</Name>
-									<BitSize>8</BitSize>
-									<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
+									<Name>control</Name>
+									<BitSize>32</BitSize>
+									<BaseType GUID="{2CA6D7A5-F578-481C-ACE6-CA114A3E5E88}">ST_LoggerControlInputs</BaseType>
 									<BitOffs>640</BitOffs>
-								</Symbol>
-								<Symbol>
-									<Name>loggingReq</Name>
-									<BitSize>8</BitSize>
-									<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
-									<BitOffs>648</BitOffs>
-								</Symbol>
-								<Symbol>
-									<Name>preArmReq</Name>
-									<BitSize>8</BitSize>
-									<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
-									<BitOffs>656</BitOffs>
-								</Symbol>
-								<Symbol>
-									<Name>playbackDone</Name>
-									<BitSize>8</BitSize>
-									<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
-									<BitOffs>664</BitOffs>
 								</Symbol>
 							</DataArea>
 							<DataArea>
@@ -1157,22 +1209,10 @@
 								<ContextId>1</ContextId>
 								<ByteSize>14</ByteSize>
 								<Symbol CreateSymbol="true">
-									<Name>LogStatus</Name>
-									<BitSize>96</BitSize>
-									<BaseType GUID="{A58F1A22-EE38-4D58-AE23-3F4335DD3EEF}">ST_LogStatus</BaseType>
+									<Name>status</Name>
+									<BitSize>112</BitSize>
+									<BaseType GUID="{E3A91B88-20DF-44F0-A6A9-1D8758873850}">ST_LoggerStatus</BaseType>
 									<BitOffs>0</BitOffs>
-								</Symbol>
-								<Symbol CreateSymbol="true">
-									<Name>loggerReady</Name>
-									<BitSize>8</BitSize>
-									<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
-									<BitOffs>96</BitOffs>
-								</Symbol>
-								<Symbol CreateSymbol="true">
-									<Name>fileReleased</Name>
-									<BitSize>8</BitSize>
-									<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
-									<BitOffs>104</BitOffs>
 								</Symbol>
 							</DataArea>
 						</DataAreas>
@@ -1486,9 +1526,9 @@
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.playbackDone" VarB="Inputs^playbackDone"/>
 			</OwnerB>
 			<OwnerB Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
-				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.ffValue" VarB="Inputs^ffValue"/>
-				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.playbackDone" VarB="Inputs^playbackDone"/>
-				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.refValue" VarB="Inputs^refValue"/>
+				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.ffValue" VarB="Inputs^record^ffValue"/>
+				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.playbackDone" VarB="Inputs^control^playbackDone"/>
+				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.refValue" VarB="Inputs^record^refValue"/>
 			</OwnerB>
 		</OwnerA>
 		<OwnerA Name="TIPC^StateMachineControl^StateMachineControl Instance">
@@ -1502,12 +1542,12 @@
 				<Link VarA="PlcTask Outputs^MAIN.resetOut" VarB="Inputs^resetReq"/>
 			</OwnerB>
 			<OwnerB Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
-				<Link VarA="PlcTask Inputs^MAIN.loggerErrorCodeIn" VarB="Outputs^LogStatus^errorCode"/>
-				<Link VarA="PlcTask Inputs^MAIN.loggerFileReleasedIn" VarB="Outputs^fileReleased"/>
-				<Link VarA="PlcTask Inputs^MAIN.loggerReadyIn" VarB="Outputs^loggerReady"/>
-				<Link VarA="PlcTask Outputs^MAIN.experimentActiveOut" VarB="Inputs^loggingReq"/>
-				<Link VarA="PlcTask Outputs^MAIN.preArmOut" VarB="Inputs^preArmReq"/>
-				<Link VarA="PlcTask Outputs^MAIN.resetOut" VarB="Inputs^resetReq"/>
+				<Link VarA="PlcTask Inputs^MAIN.loggerErrorCodeIn" VarB="Outputs^status^errorCode"/>
+				<Link VarA="PlcTask Inputs^MAIN.loggerFileReleasedIn" VarB="Outputs^status^fileReleased"/>
+				<Link VarA="PlcTask Inputs^MAIN.loggerReadyIn" VarB="Outputs^status^loggerReady"/>
+				<Link VarA="PlcTask Outputs^MAIN.experimentActiveOut" VarB="Inputs^control^loggingReq"/>
+				<Link VarA="PlcTask Outputs^MAIN.preArmOut" VarB="Inputs^control^preArmReq"/>
+				<Link VarA="PlcTask Outputs^MAIN.resetOut" VarB="Inputs^control^resetReq"/>
 			</OwnerB>
 		</OwnerA>
 		<OwnerA Name="TIXC^ControllerCore^ControllerCore_Obj1 (Module1)">
@@ -1516,18 +1556,18 @@
 				<Link VarA="Outputs^controlInput" VarB="Inputs^controlInput"/>
 			</OwnerB>
 			<OwnerB Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
-				<Link VarA="Outputs^controlInput" VarB="Inputs^controlInput"/>
-				<Link VarA="Outputs^error" VarB="Inputs^error"/>
+				<Link VarA="Outputs^controlInput" VarB="Inputs^record^controlInput"/>
+				<Link VarA="Outputs^error" VarB="Inputs^record^error"/>
 			</OwnerB>
 		</OwnerA>
 		<OwnerA Name="TIXC^DriverAdapter^DriverAdapter_Obj1 (Module1)">
 			<OwnerB Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
-				<Link VarA="Outputs^currentCmd" VarB="Inputs^currentCmd"/>
-				<Link VarA="Outputs^load^positionRel" VarB="Inputs^loadPosition"/>
-				<Link VarA="Outputs^load^velocityAct" VarB="Inputs^loadVelocity"/>
-				<Link VarA="Outputs^motor^currentAct" VarB="Inputs^motorCurrentAct"/>
-				<Link VarA="Outputs^motor^positionAbs" VarB="Inputs^motorPosition"/>
-				<Link VarA="Outputs^motor^velocityAct" VarB="Inputs^motorVelocity"/>
+				<Link VarA="Outputs^currentCmd" VarB="Inputs^record^currentCmd"/>
+				<Link VarA="Outputs^load^positionRel" VarB="Inputs^record^load^position"/>
+				<Link VarA="Outputs^load^velocityAct" VarB="Inputs^record^load^velocity"/>
+				<Link VarA="Outputs^motor^currentAct" VarB="Inputs^record^motor^currentAct"/>
+				<Link VarA="Outputs^motor^positionAbs" VarB="Inputs^record^motor^position"/>
+				<Link VarA="Outputs^motor^velocityAct" VarB="Inputs^record^motor^velocity"/>
 			</OwnerB>
 			<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">
 				<Link VarA="Inputs^loadRaw^positionActualValue" VarB="Outputs^VirtualMotor1Outputs^positionActualValue"/>

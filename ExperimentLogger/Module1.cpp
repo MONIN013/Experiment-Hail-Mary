@@ -292,10 +292,10 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 		++m_cycleCounter;
 	}
 
-	const bool resetCmd = (m_Inputs.resetReq != false);
-	const bool preArmCmd = (m_Inputs.preArmReq != false);
-	const bool loggingCmd = (m_Inputs.loggingReq != false);
-	const bool playbackDone = (m_Inputs.playbackDone != false);
+	const bool resetCmd = (m_Inputs.control.resetReq != false);
+	const bool preArmCmd = (m_Inputs.control.preArmReq != false);
+	const bool loggingCmd = (m_Inputs.control.loggingReq != false);
+	const bool playbackDone = (m_Inputs.control.playbackDone != false);
 	const bool resetEdge = resetCmd && !m_prevResetReq;
 	bool preArmRisingEdge = preArmCmd && !m_prevPreArmReq;
 	bool preArmFallingEdge = !preArmCmd && m_prevPreArmReq;
@@ -811,16 +811,16 @@ bool CModule1::AppendCurrentInputsAsRecord()
 	rec.seq = m_seq;
 	rec.reservedPad0 = 0;
 	rec.tNs = static_cast<ULONGLONG>(m_seq) * m_timestampStepNsRuntime;
-	rec.motorPosition = m_Inputs.motorPosition;
-	rec.motorVelocity = m_Inputs.motorVelocity;
-	rec.motorCurrentAct = m_Inputs.motorCurrentAct;
-	rec.loadPosition = m_Inputs.loadPosition;
-	rec.loadVelocity = m_Inputs.loadVelocity;
-	rec.currentCmd = m_Inputs.currentCmd;
-	rec.error = m_Inputs.error;
-	rec.refValue = m_Inputs.refValue;
-	rec.ffValue = m_Inputs.ffValue;
-	rec.controlInput = m_Inputs.controlInput;
+	rec.motorPosition = m_Inputs.record.motor.position;
+	rec.motorVelocity = m_Inputs.record.motor.velocity;
+	rec.motorCurrentAct = m_Inputs.record.motor.currentAct;
+	rec.loadPosition = m_Inputs.record.load.position;
+	rec.loadVelocity = m_Inputs.record.load.velocity;
+	rec.currentCmd = m_Inputs.record.currentCmd;
+	rec.error = m_Inputs.record.error;
+	rec.refValue = m_Inputs.record.refValue;
+	rec.ffValue = m_Inputs.record.ffValue;
+	rec.controlInput = m_Inputs.record.controlInput;
 
 	++m_bufferCounts[idx];
 	++m_seq;
@@ -855,11 +855,11 @@ ULONG CModule1::InactiveBufferIndex() const
 
 void CModule1::UpdateStatusOutputs()
 {
-	m_Outputs.LogStatus.recordsWritten = m_recordsWritten;
-	m_Outputs.LogStatus.fileSizeKb = static_cast<ULONG>(m_bytesWritten / 1024ULL);
-	m_Outputs.LogStatus.errorCode = m_errorCode;
-	m_Outputs.loggerReady = IsLoggerReady();
-	m_Outputs.fileReleased = m_fileReleased;
+	m_Outputs.status.recordsWritten = m_recordsWritten;
+	m_Outputs.status.fileSizeKb = static_cast<ULONG>(m_bytesWritten / 1024ULL);
+	m_Outputs.status.errorCode = m_errorCode;
+	m_Outputs.status.loggerReady = IsLoggerReady();
+	m_Outputs.status.fileReleased = m_fileReleased;
 }
 
 void CModule1::ResolveFilePath(char* dst, size_t dstSize) const

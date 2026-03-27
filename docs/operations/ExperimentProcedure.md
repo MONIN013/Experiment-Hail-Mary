@@ -100,7 +100,7 @@ resetEdge      := resetReq AND NOT resetReqPrev   ← 立ち上がりエッジ�
 resetOut       := resetEdge                        ← ワンショットパルス出力 (AT %Q*)
                                                       → ExperimentSequencer.resetReq にリンク
                                                       → ControllerCore.Inputs.resetReq にリンク
-                                                      → ExperimentLogger.Inputs.resetReq にリンク
+                                                      → ExperimentLogger.Inputs.control.resetReq にリンク
                                                       → DriverAdapter.resetReq にリンク (D12)
 IF resetEdge THEN
     GVL_MODE.experimentActive := FALSE;
@@ -118,7 +118,7 @@ END_IF
 | **StateMachineControl** | `GVL_MODE.resetReq` | エッジ | `doneLatched` / `experimentActive` クリア, `resetAckCounter` +1, `resetOut` パルス生成 | heartbeat timeout 時に `modeFlags := 0` を自動実行 |
 | **ExperimentSequencer** | `GVL_SEQ.resetReq` (`AT %I*`) | **エッジ** | `idx`/`refValue`/`ffValue`/`distValue`/`playbackDone` クリア, `ExperimentLogger` リセット | M14 解消済み。エッジ検出に統一 |
 | **ControllerCore** | `Inputs.resetReq` | エッジ | biquad 内部状態クリア | 相対位置化は DriverAdapter に移管済み (D12) |
-| **ExperimentLogger** | `Inputs.resetReq` | エッジ | ファイルクローズ, `bufferCount`/`seq`/`recordsWritten` 等クリア | — |
+| **ExperimentLogger** | `Inputs.control.resetReq` | エッジ | ファイルクローズ, `bufferCount`/`seq`/`recordsWritten` 等クリア | — |
 | **VirtualMotorCore** | **なし** | — | — | 設計決定: 実機同等。`position`/`velocity` は実験間で carry-over する。DriverAdapter の `positionOffsetRad` で相対位置は補正される |
 | **DriverAdapter** | `Inputs.resetReq` | エッジ | Motor/Load の位置オフセット再キャプチャ | 相対位置化を担当 (D12、M15 解消) |
 
@@ -250,9 +250,9 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 | **テーブル長** | 853 | `GVL_SEQ.tableLen` | `UDINT` | W |
 | **フィルタ係数** | 351 | `ControllerCore_Obj1 (Module1).*Params.*` | `LREAL` | W |
 | **VM パラメータ** | 351 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.*` | `LREAL` | W |
-| **ログ pre-arm** | 852 | `MAIN.preArmOut` → `Inputs.preArmReq` | `BOOL` | Auto |
-| **ログ制御** | 852 | `MAIN.experimentActiveOut` → `Inputs.loggingReq` | `BOOL` | Auto |
-| **logger status** | 351 | `ExperimentLogger_Obj1 (Module1).Outputs.LogStatus.*` | `UDINT` | R |
+| **ログ pre-arm** | 852 | `MAIN.preArmOut` → `Inputs.control.preArmReq` | `BOOL` | Auto |
+| **ログ制御** | 852 | `MAIN.experimentActiveOut` → `Inputs.control.loggingReq` | `BOOL` | Auto |
+| **logger status** | 351 | `ExperimentLogger_Obj1 (Module1).Outputs.status.*` | `UDINT/BOOL` | R |
 
 > 全シンボルの完全な一覧は [TechnicalReference](../architecture/TechnicalReference.md) §8 を参照。
 > `send_position_command` の `mode_flags_symbol` は `GVL_MODE.modeFlags` のみサポートされる。
@@ -268,14 +268,14 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 
 ② pre-arm
      ModeManager が `SERVO_READY` に入ると `preArmOut` を TRUE にし、
-     `Inputs.preArmReq` 経由で file open を先行完了させる
+     `Inputs.control.preArmReq` 経由で file open を先行完了させる
 
 ③ ロギング開始
      ModeManager が `experimentActiveOut` を TRUE にすると
-     既に pre-open 済みの logger が `Inputs.loggingReq` で記録開始する
+     既に pre-open 済みの logger が `Inputs.control.loggingReq` で記録開始する
 
 ④ ステータス監視 (任意)
-     ADS Read: LogStatus.recordsWritten / fileSizeKb / errorCode
+     ADS Read: status.recordsWritten / fileSizeKb / errorCode
 
 ⑤ ロギング停止
      `playbackDone` でレコード追記を即時停止し、
