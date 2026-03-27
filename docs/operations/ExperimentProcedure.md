@@ -214,8 +214,8 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 │       ControllerCore → controlInput → DriverAdapter                   │
 │       DriverAdapter → targetTorque (Drive 境界, ‰ rated, INT) → VirtualMotorCore │
 │       VirtualMotorCore → positionActualValue (pulses) → DriverAdapter │
-│       DriverAdapter: raw→rad変換 + 相対位置化 → positionRel           │
-│       DriverAdapter.positionRel → ControllerCore (FB)                 │
+│       DriverAdapter: raw→rad変換 + 相対位置化 → load.positionRel      │
+│       DriverAdapter.load.positionRel → ControllerCore (FB)            │
 │                                                                       │
 │  ⑥ (自動)                        idx >= tableLen                      │
 │                                   → playbackDone = TRUE               │

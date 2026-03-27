@@ -28,7 +28,6 @@ DriverAdapter は **ドライバ差異吸収層** である。現行の active �
 | 5 | 電流クランプ | `MotorParams.maxCurrentA` で `currentCmd` を制限する |
 | 6 | 電流ゲート | `enableCurrentOutput = FALSE` または `playbackDone = TRUE` のとき `targetTorque := 0` |
 | 7 | CW/SW relay | `controlWordIn -> controlWordOut`, `motorRaw.statusWord -> statusWordOut` |
-| 8 | 互換出力 | `positionRel = load.positionRel`, `velocityAct = load.velocityAct`, `currentAct = motor.currentAct` |
 
 ---
 
@@ -110,9 +109,6 @@ DriverAdapter は **ドライバ差異吸収層** である。現行の active �
 | `load.velocityAct` | `LREAL` | Load 速度 [rad/s] |
 | `load.currentAct` | `LREAL` | Load 実電流 [A] |
 | `currentCmd` | `LREAL` | `clamp(controlInput + distValue)` 後の指令電流 [A] |
-| `positionRel` | `LREAL` | 互換出力 = `load.positionRel` |
-| `velocityAct` | `LREAL` | 互換出力 = `load.velocityAct` |
-| `currentAct` | `LREAL` | 互換出力 = `motor.currentAct` |
 
 #### Drive 側 raw
 
@@ -149,19 +145,25 @@ DriverAdapter は **ドライバ差異吸収層** である。現行の active �
 
 ## 6. SIL 配線の注記
 
-現行の checked-in `.tsproj` では、SIL 時に主に以下が配線される。
+現行の checked-in `.tsproj` では、SIL 時に Axis 1 を Motor、Axis 2 を Load として以下が配線される。
 
 ```text
-VirtualMotor1Outputs.positionActualValue -> loadRaw.positionActualValue
-VirtualMotor1Outputs.velocityActualValue -> loadRaw.velocityActualValue
+VirtualMotor1Outputs.positionActualValue -> motorRaw.positionActualValue
+VirtualMotor1Outputs.velocityActualValue -> motorRaw.velocityActualValue
 VirtualMotor1Outputs.torqueActualValue   -> motorRaw.torqueActualValue
 statusWord1                              -> motorRaw.statusWord
 
+VirtualMotor2Outputs.positionActualValue -> loadRaw.positionActualValue
+VirtualMotor2Outputs.velocityActualValue -> loadRaw.velocityActualValue
+VirtualMotor2Outputs.torqueActualValue   -> loadRaw.torqueActualValue
+statusWord2                              -> loadRaw.statusWord
+
 targetTorque  -> VirtualMotor1Inputs.targetTorque
 controlWordOut -> controlWord1
+controlWordOut -> controlWord2
 ```
 
-このため、`motorRaw.position/velocity` と `loadRaw.torque/status` は I/F としては存在するが、現行 SIL 配線では未接続でも成立する。
+`targetTorque` は Motor 軸だけを駆動し、Load 軸には直接トルクを入れない。`controlWordOut` は両軸へ relay されるため、Load 軸も CiA 状態遷移だけは追従する。
 
 ---
 

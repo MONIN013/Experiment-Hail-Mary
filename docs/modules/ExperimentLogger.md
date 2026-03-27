@@ -16,8 +16,8 @@ ExperimentLogger は実験データをバイナリ形式で保存する C++ TcCO
 | `record.ffValue` | `LREAL` | ExperimentSequencer | feedforward |
 | `record.controlInput` | `LREAL` | ControllerCore | controller output |
 | `record.error` | `LREAL` | ControllerCore | `ref - loadPosition` |
-| `record.motor.position` | `LREAL` | (Phase 4) | SIL: unconnected (0) |
-| `record.motor.velocity` | `LREAL` | (Phase 4) | SIL: unconnected (0) |
+| `record.motor.position` | `LREAL` | DriverAdapter `motor.positionRel` | zero-based per run |
+| `record.motor.velocity` | `LREAL` | DriverAdapter `motor.velocityAct` | motor velocity |
 | `record.motor.currentAct` | `LREAL` | DriverAdapter `motor.currentAct` (D13) | motor current (SIL: via VirtualMotorCore → DriverAdapter) |
 | `record.load.position` | `LREAL` | DriverAdapter `load.positionRel` (D12) | zero-based per run |
 | `record.load.velocity` | `LREAL` | DriverAdapter `load.velocityAct` (D11) | SIL load velocity |
@@ -56,9 +56,10 @@ ExperimentLogger は実験データをバイナリ形式で保存する C++ TcCO
 11. `status.fileReleased` は reset と新規 pre-arm でクリアされ、close 経路がエラーなく `IDLE` へ戻ったときだけ `TRUE` になる。
 
 ## マッピング (SIL)
+- `record.motor.position <- DriverAdapter.motor.positionRel`
+- `record.motor.velocity <- DriverAdapter.motor.velocityAct`
+- `record.motor.currentAct <- DriverAdapter.motor.currentAct` (D13: SIL でも接続済み)
 - `record.load.position <- DriverAdapter.load.positionRel` (D12: ControllerCore.positionRel から変更)
 - `record.load.velocity <- DriverAdapter.load.velocityAct` (D11: VirtualMotorCore.velocityOut から変更)
-- `record.motor.currentAct <- DriverAdapter.motor.currentAct` (D13: SIL でも接続済み)
 - `control.preArmReq <- ModeManager.preArmOut` (Issue #12: pre-open in `SERVO_READY`)
 - `control.playbackDone <- ExperimentSequencer.GVL_SEQ.playbackDone` (H6: same-task fast-path stop)
-- `record.motor.position` / `record.motor.velocity` は SIL では未接続で 0 埋めとなる。

@@ -61,7 +61,8 @@ TcCOM Data Area として ADS シンボル公開。Build 不要で MATLAB から
 
 > **2軸構成 (実装準拠):** 実装は `kAxisCount = 2` で、`Module1Inputs/Outputs` は
 > Axis 1/2 のペア (`VirtualMotor1*`, `VirtualMotor2*`, `controlWord1/2`, `statusWord1/2`) を持つ。
-> DriverAdapter との接続は現状 Axis 1 を主経路とし、Axis 2 は拡張用に予約される。
+> checked-in `.tsproj` では Axis 1 を Motor、Axis 2 を Load として DriverAdapter に接続する。
+> ただし 2 軸は独立シミュレーションであり、mapping だけで Motor-Load 連成は表現しない。
 
 ### 3.1 入力ポート (Data Area Input)
 

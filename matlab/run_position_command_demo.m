@@ -23,11 +23,11 @@ logger_dir = string(fileparts(char(sys.LOGGER_DEFAULT_FILE_PATH)));
 
 %% Demo runtime config via ExperimentConfig
 target_position_rad = 0.25;
-step_duration_s     = 3.0;
+step_duration_s     = 2.0;
 hold_margin_s       = 0.50;
-pre_step_s          = 3.0;
+pre_step_s          = 2.0;
 N_REPEAT            = 1;
-Kp = 10;
+Kp = 5;
 
 %% Derived waveforms for this demo
 step_sample_n = round(step_duration_s * cfg.task_rate_hz);

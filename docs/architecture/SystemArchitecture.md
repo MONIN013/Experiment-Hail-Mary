@@ -137,18 +137,16 @@ ExperimentLogger ◄─ Inputs.control.playbackDone
 |---|---|---|
 | `motor.*`, `load.*` | struct | 工学単位変換済み信号 |
 | `currentCmd` | `LREAL` | `clamp(controlInput + distValue)` 後の指令電流 [A] |
-| `positionRel` | `LREAL` | `load.positionRel` の互換出力 |
-| `velocityAct` | `LREAL` | `load.velocityAct` の互換出力 |
-| `currentAct` | `LREAL` | `motor.currentAct` の互換出力 |
 | `targetTorque` | `INT` | Drive 境界の指令トルク [‰ rated] |
 | `controlWordOut` | `UINT` | relay |
 | `statusWordOut` | `UINT` | relay |
 
 **SIL 配線上の注意**
 
-* checked-in `.tsproj` では SIL 時に `loadRaw.position/velocity` と `motorRaw.torque/status` が主に接続される。
-* `motorRaw.position/velocity` と `loadRaw.torque/status` は I/F 上は存在するが、現行 SIL 配線では未接続のままでも成立する。
-* そのため logger の `motorPosition` / `motorVelocity` は現行 SIL ではゼロになり得る。
+* checked-in `.tsproj` では SIL 時に Axis 1 を Motor、Axis 2 を Load として接続する。
+* `motorRaw.*` は `VirtualMotor1Outputs.*`、`loadRaw.*` は `VirtualMotor2Outputs.*` を正本とする。
+* `targetTorque` は Axis 1 にのみ入り、`controlWordOut` は Axis 1/2 の両方へ relay する。
+* したがって mapping だけでは Motor と Load の力学連成は表現されず、2 軸は独立に動作する。
 
 ### 2.4 ModeManager
 
@@ -187,8 +185,8 @@ ExperimentLogger ◄─ Inputs.control.playbackDone
 | `Inputs.record.currentCmd` | DriverAdapter clamp 後の current-domain command [A] |
 | `Inputs.record.refValue`, `Inputs.record.ffValue` | Sequencer 出力 |
 | `Inputs.record.controlInput`, `Inputs.record.error` | ControllerCore 出力 |
+| `Inputs.record.motor.position`, `Inputs.record.motor.velocity`, `Inputs.record.motor.currentAct` | DriverAdapter 変換済み Motor 信号 |
 | `Inputs.record.load.position`, `Inputs.record.load.velocity` | DriverAdapter 変換済み Load 信号 |
-| `Inputs.record.motor.currentAct` | DriverAdapter 変換済み Motor 電流 |
 | `Inputs.control.preArmReq`, `Inputs.control.loggingReq`, `Inputs.control.playbackDone` | logger 制御入力 |
 
 **記録スキーマ**
@@ -197,7 +195,8 @@ ExperimentLogger ◄─ Inputs.control.playbackDone
 
 ### 2.6 VirtualMotorCore
 
-* active path は `VirtualMotor1Inputs` / `VirtualMotor1Outputs`
+* checked-in mapping では Axis 1 を Motor、Axis 2 を Load として使う
+* `targetTorque` は `VirtualMotor1Inputs` にのみ投入する
 * `VirtualMotor1Parameter` は `CreateSymbol="true"` で symbol browse 可
 * `VirtualMotor2Parameter` は object parameter として存在するが、通常の symbol browse 対象ではない
 

@@ -55,7 +55,7 @@
 |---|---|---|---|---|
 | 入力 | `refValue` | `LREAL` | `GVL_SEQ.refValue` | 位置指令 [rad] |
 | 入力 | `ffValue` | `LREAL` | `GVL_SEQ.ffValue` | FF 値 [A] |
-| 入力 | `positionAct` | `LREAL` | `DriverAdapter.Outputs.positionRel` | Load 側相対位置 [rad] |
+| 入力 | `positionAct` | `LREAL` | `DriverAdapter.Outputs.load.positionRel` | Load 側相対位置 [rad] |
 | 入力 | `resetReq` | `BOOL` | `MAIN.resetOut` | 内部状態リセット |
 | 出力 | `controlInput` | `LREAL` | DriverAdapter / ExperimentLogger | 制御出力 [A] |
 | 出力 | `error` | `LREAL` | ExperimentLogger | 誤差 [rad] |
@@ -103,9 +103,6 @@
 |---|---|---|
 | `motor`, `load` | `ST_DriverEngineeringSignals` | 工学単位変換済み信号 |
 | `currentCmd` | `double` | `clamp(controlInput + distValue)` 後の指令電流 [A] |
-| `positionRel` | `double` | `load.positionRel` の互換出力 |
-| `velocityAct` | `double` | `load.velocityAct` の互換出力 |
-| `currentAct` | `double` | `motor.currentAct` の互換出力 |
 | `targetTorque` | `SHORT` | 指令トルク [‰ rated] |
 | `controlWordOut` | `USHORT` | relay |
 | `statusWordOut` | `USHORT` | relay |
@@ -121,21 +118,18 @@
 
 ### 3.5 現行 SIL 配線の注記
 
-`.tsproj` の現行 SIL 配線では以下が主経路である。
+`.tsproj` の現行 SIL 配線では Axis 1 を Motor、Axis 2 を Load として扱う。
 
-* `loadRaw.positionActualValue <- VirtualMotor1Outputs.positionActualValue`
-* `loadRaw.velocityActualValue <- VirtualMotor1Outputs.velocityActualValue`
+* `motorRaw.positionActualValue <- VirtualMotor1Outputs.positionActualValue`
+* `motorRaw.velocityActualValue <- VirtualMotor1Outputs.velocityActualValue`
 * `motorRaw.torqueActualValue <- VirtualMotor1Outputs.torqueActualValue`
 * `motorRaw.statusWord <- statusWord1`
+* `loadRaw.positionActualValue <- VirtualMotor2Outputs.positionActualValue`
+* `loadRaw.velocityActualValue <- VirtualMotor2Outputs.velocityActualValue`
+* `loadRaw.torqueActualValue <- VirtualMotor2Outputs.torqueActualValue`
+* `loadRaw.statusWord <- statusWord2`
 
-未接続のまま残る項目:
-
-* `motorRaw.positionActualValue`
-* `motorRaw.velocityActualValue`
-* `loadRaw.torqueActualValue`
-* `loadRaw.statusWord`
-
-そのため、現行 SIL では `motor.positionAbs` / `motor.velocityAct` がゼロになり得る。
+`targetTorque` は `VirtualMotor1Inputs.targetTorque` にのみ接続される。`controlWordOut` は `controlWord1`, `controlWord2` の両方へ relay され、Load 軸も CiA 状態追従だけは行う。
 
 ---
 
@@ -210,7 +204,7 @@
 * `GVL_SEQ.ffValue -> ControllerCore.Inputs.ffValue`
 * `GVL_SEQ.distValue -> DriverAdapter.Inputs.distValue`
 * `ControllerCore.Outputs.controlInput -> DriverAdapter.Inputs.controlInput`
-* `DriverAdapter.Outputs.positionRel -> ControllerCore.Inputs.positionAct`
+* `DriverAdapter.Outputs.load.positionRel -> ControllerCore.Inputs.positionAct`
 
 ### 6.3 ModeManager / Driver / Logger
 
@@ -229,15 +223,20 @@
 
 * `DriverAdapter.Outputs.targetTorque -> VirtualMotor1Inputs.targetTorque`
 * `DriverAdapter.Outputs.controlWordOut -> controlWord1`
-* `VirtualMotor1Outputs.positionActualValue -> DriverAdapter.Inputs.loadRaw.positionActualValue`
-* `VirtualMotor1Outputs.velocityActualValue -> DriverAdapter.Inputs.loadRaw.velocityActualValue`
+* `DriverAdapter.Outputs.controlWordOut -> controlWord2`
+* `VirtualMotor1Outputs.positionActualValue -> DriverAdapter.Inputs.motorRaw.positionActualValue`
+* `VirtualMotor1Outputs.velocityActualValue -> DriverAdapter.Inputs.motorRaw.velocityActualValue`
 * `VirtualMotor1Outputs.torqueActualValue -> DriverAdapter.Inputs.motorRaw.torqueActualValue`
 * `statusWord1 -> DriverAdapter.Inputs.motorRaw.statusWord`
+* `VirtualMotor2Outputs.positionActualValue -> DriverAdapter.Inputs.loadRaw.positionActualValue`
+* `VirtualMotor2Outputs.velocityActualValue -> DriverAdapter.Inputs.loadRaw.velocityActualValue`
+* `VirtualMotor2Outputs.torqueActualValue -> DriverAdapter.Inputs.loadRaw.torqueActualValue`
+* `statusWord2 -> DriverAdapter.Inputs.loadRaw.statusWord`
 * `DriverAdapter.Outputs.currentCmd -> ExperimentLogger.Inputs.record.currentCmd`
 * `DriverAdapter.Outputs.load.positionRel -> ExperimentLogger.Inputs.record.load.position`
 * `DriverAdapter.Outputs.load.velocityAct -> ExperimentLogger.Inputs.record.load.velocity`
 * `DriverAdapter.Outputs.motor.currentAct -> ExperimentLogger.Inputs.record.motor.currentAct`
-* `DriverAdapter.Outputs.motor.positionAbs -> ExperimentLogger.Inputs.record.motor.position`
+* `DriverAdapter.Outputs.motor.positionRel -> ExperimentLogger.Inputs.record.motor.position`
 * `DriverAdapter.Outputs.motor.velocityAct -> ExperimentLogger.Inputs.record.motor.velocity`
 
 ---

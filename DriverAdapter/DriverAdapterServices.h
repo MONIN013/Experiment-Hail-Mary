@@ -87,9 +87,6 @@ typedef struct _Module1Outputs
 	ST_DriverEngineeringSignals motor;
 	ST_DriverEngineeringSignals load;
 	double currentCmd;
-	double positionRel;
-	double velocityAct;
-	double currentAct;
 	SHORT targetTorque;
 	USHORT controlWordOut;
 	USHORT statusWordOut;

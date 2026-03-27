@@ -233,9 +233,6 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 	m_Outputs.load.currentAct = loadCurrentAct;
 
 	m_Outputs.currentCmd = ClampSymmetric(m_Inputs.controlInput + m_Inputs.distValue, m_MotorParams.maxCurrentA);
-	m_Outputs.positionRel = m_Outputs.load.positionRel;
-	m_Outputs.velocityAct = m_Outputs.load.velocityAct;
-	m_Outputs.currentAct = m_Outputs.motor.currentAct;
 
 	const bool currentGateOpen = (m_Inputs.enableCurrentOutput != false) && (m_Inputs.playbackDone == false);
 	if (currentGateOpen && HasValidCurrentScale(m_MotorParams))
