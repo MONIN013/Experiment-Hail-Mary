@@ -5,7 +5,7 @@
 > **更新条件:** 状態遷移、入力要求、監視条件、安全側動作が変わったとき  
 > **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) / [ExperimentProcedure](../operations/ExperimentProcedure.md) / [OpenIssues](../status/OpenIssues.md)
 
-## Summary
+## 概要
 
 ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理・安全監視を担当する有限状態機械 (FSM) である。
 すべての出力は **現在の FSM 状態のみ** に依存し、過渡的なフラグの組み合わせによる暗黙の状態を排除する。
@@ -19,7 +19,7 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 
 ---
 
-## FSM States (`E_ModeState`)
+## FSM 状態 (`E_ModeState`)
 
 | 値 | 状態名 | 意味 |
 |---|---|---|
@@ -31,7 +31,7 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 
 ---
 
-## State Transition Diagram
+## 状態遷移図
 
 ```
                    ┌──────────────────────────┐
@@ -89,9 +89,9 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 
 ---
 
-## Inputs
+## 入力
 
-| Name | Type | Source | Notes |
+| 項目 | 型 | ソース | 備考 |
 |---|---|---|---|
 | `statWord` | `UINT` | DriverAdapter (I/O Mapping) | CiA 402 StatusWord |
 | `seqPlaybackDone` | `BOOL` | ExperimentSequencer (I/O Mapping) | テーブル再生完了ラッチ |
@@ -100,9 +100,9 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 | `GVL_MODE.resetReq` | `BOOL` | MATLAB (ADS Write) | リセット要求 (PLC が edge 検出後に clear) |
 | `GVL_MODE.hostHeartbeatCounter` | `UDINT` | MATLAB (ADS Write) | ホスト側ハートビート |
 
-## Outputs
+## 出力
 
-| Name | Type | Dest | Notes |
+| 項目 | 型 | 宛先 | 備考 |
 |---|---|---|---|
 | `ctrlWord` | `UINT` | DriverAdapter (I/O Mapping) | CiA 402 ControlWord (FB_StateMachineControl 出力) |
 | `experimentActiveOut` | `BOOL` | ExperimentSequencer / ExperimentLogger (I/O Mapping) | 実験アクティブ |
@@ -117,7 +117,7 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 
 ---
 
-## State-Dependent Output Table
+## 状態別出力表
 
 | FSM State | `experimentActive` | `preArmOut` | `resetOut` | `enableCurrentOut` | `experimentState` |
 |---|---|---|---|---|---|
@@ -131,7 +131,7 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 
 ---
 
-## Reset Handshake Protocol
+## Reset ハンドシェイク
 
 ```
 MATLAB                              PLC (ModeManager)
@@ -154,7 +154,7 @@ MATLAB                              PLC (ModeManager)
 
 ---
 
-## Watchdog
+## ウォッチドッグ
 
 - **Arm 条件**: `modeFlags <> 0` OR `experimentActive` OR `servoEnableLatched`
 - **タイムアウト**: `HEARTBEAT_TIMEOUT_TICKS` (50 ticks = 500 ms @ 10 ms task)
@@ -164,9 +164,9 @@ MATLAB                              PLC (ModeManager)
 
 ---
 
-## ADS Symbols (Port 852)
+## ADS シンボル (Port 852)
 
-| Symbol | Type | R/W | Notes |
+| シンボル | 型 | R/W | 備考 |
 |---|---|---|---|
 | `GVL_MODE.modeFlags` | `UINT` | W | ビットフラグ一括制御 |
 | `GVL_MODE.modeState` | `E_ModeState` | R | デバッグ可視化用 FSM 内部状態 |
@@ -181,21 +181,21 @@ MATLAB                              PLC (ModeManager)
 
 ---
 
-## Mapping (SIL)
+## マッピング (SIL)
 
 - `statWord` ← VirtualMotorCore (I/O Mapping 経由、DriverAdapter.statusWordOut)
 - `seqPlaybackDone` ← ExperimentSequencer (`GVL_SEQ.playbackDone`)
-- `loggerReadyIn` ← ExperimentLogger (`Outputs.loggerReady`)
-- `loggerFileReleasedIn` ← ExperimentLogger (`Outputs.fileReleased`)
-- `loggerErrorCodeIn` ← ExperimentLogger (`Outputs.LogStatus.errorCode`)
+- `loggerReadyIn` ← ExperimentLogger (`Outputs.status.loggerReady`)
+- `loggerFileReleasedIn` ← ExperimentLogger (`Outputs.status.fileReleased`)
+- `loggerErrorCodeIn` ← ExperimentLogger (`Outputs.status.errorCode`)
 - `ctrlWord` → DriverAdapter (`controlWordIn`)
-- `experimentActiveOut` → ExperimentSequencer (`GVL_SEQ.experimentActive`) / ExperimentLogger
-- `preArmOut` → ExperimentLogger (`Inputs.preArmReq`)
-- `resetOut` → ExperimentSequencer (`GVL_SEQ.resetReq`) / ExperimentLogger
+- `experimentActiveOut` → ExperimentSequencer (`GVL_SEQ.experimentActive`) / ExperimentLogger (`Inputs.control.loggingReq`)
+- `preArmOut` → ExperimentLogger (`Inputs.control.preArmReq`)
+- `resetOut` → ExperimentSequencer (`GVL_SEQ.resetReq`) / ExperimentLogger (`Inputs.control.resetReq`)
 
 ---
 
-## Implementation Notes
+## 実装メモ
 
 - FSM 本体は `MAIN` プログラム内で `CASE modeState OF` で実装
 - CiA 402 ドライブ制御は `FB_StateMachineControl` に委譲 (変更なし)

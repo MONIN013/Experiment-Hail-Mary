@@ -3,62 +3,63 @@
 > **位置づけ:** 実験データのファイルロギングを担うモジュール仕様  
 > **対象読者:** C++ TcCOM 実装者、ロギング基盤の保守担当者  
 > **更新条件:** 入出力項目、ロギング条件、ファイル形式契約が変わったとき  
-> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) / [GvlSeqLogMigrationPlan](../plans/GvlSeqLogMigrationPlan.md) / [OpenIssues](../status/OpenIssues.md)
+> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) / [TechnicalReference](../architecture/TechnicalReference.md) / [OpenIssues](../status/OpenIssues.md)
 
-## Summary
-ExperimentLogger is a binary file logger for experiment data. `Inputs.preArmReq` pre-opens the file in `SERVO_READY`, `Inputs.loggingReq` gates record append and session close, and `Inputs.playbackDone` provides a same-task fast path that stops record appends immediately when playback completes.
+## 概要
+ExperimentLogger は実験データをバイナリ形式で保存する C++ TcCOM ロガーである。`Inputs.control.preArmReq` により `SERVO_READY` 中に file open を先行完了し、`Inputs.control.loggingReq` はレコード追記とセッション close のみを担う。`Inputs.control.playbackDone` は同一タスク内の fast path として働き、再生完了スキャンで新規レコード追記を即時停止する。`Inputs.record.*` には記録対象信号のみを集約する。MATLAB 側の評価経路はこの `.bin` ファイル読み出しのみを正規経路とする。
 
-## Inputs
-| Name | Type | Source | Notes |
+## 入力
+| 項目 | 型 | ソース | 備考 |
 |---|---|---|---|
-| `currentCmd` | `LREAL` | DriverAdapter | command current [A]; `% rated` drive signals are converted back to current units before logging |
-| `refValue` | `LREAL` | ExperimentSequencer | reference |
-| `ffValue` | `LREAL` | ExperimentSequencer | feedforward |
-| `controlInput` | `LREAL` | ControllerCore | controller output |
-| `error` | `LREAL` | ControllerCore | `ref - loadPosition` |
-| `motorPosition` | `LREAL` | (Phase 4) | SIL: unconnected (0) |
-| `motorVelocity` | `LREAL` | (Phase 4) | SIL: unconnected (0) |
-| `motorCurrentAct` | `LREAL` | DriverAdapter `currentAct` (D13) | motor current (SIL: via VirtualMotorCore → DriverAdapter) |
-| `loadPosition` | `LREAL` | DriverAdapter `positionRel` (D12) | zero-based per run |
-| `loadVelocity` | `LREAL` | DriverAdapter `velocityAct` (D11) | SIL load velocity |
-| `resetReq` | `BOOL` | ModeManager | reset edge |
-| `loggingReq` | `BOOL` | ModeManager `experimentActiveOut` | append gate and session close trigger |
-| `preArmReq` | `BOOL` | ModeManager `preArmOut` | pre-open trigger in `SERVO_READY` |
-| `playbackDone` | `BOOL` | ExperimentSequencer `GVL_SEQ.playbackDone` | same-task write-stop fast path |
+| `record.currentCmd` | `LREAL` | DriverAdapter | command current [A]; `% rated` drive signals are converted back to current units before logging |
+| `record.refValue` | `LREAL` | ExperimentSequencer | reference |
+| `record.ffValue` | `LREAL` | ExperimentSequencer | feedforward |
+| `record.controlInput` | `LREAL` | ControllerCore | controller output |
+| `record.error` | `LREAL` | ControllerCore | `ref - loadPosition` |
+| `record.motor.position` | `LREAL` | DriverAdapter `motor.positionRel` | zero-based per run |
+| `record.motor.velocity` | `LREAL` | DriverAdapter `motor.velocityAct` | motor velocity |
+| `record.motor.currentAct` | `LREAL` | DriverAdapter `motor.currentAct` (D13) | motor current (SIL: via VirtualMotorCore → DriverAdapter) |
+| `record.load.position` | `LREAL` | DriverAdapter `load.positionRel` (D12) | zero-based per run |
+| `record.load.velocity` | `LREAL` | DriverAdapter `load.velocityAct` (D11) | SIL load velocity |
+| `control.resetReq` | `BOOL` | ModeManager | reset edge |
+| `control.loggingReq` | `BOOL` | ModeManager `experimentActiveOut` | append gate and session close trigger |
+| `control.preArmReq` | `BOOL` | ModeManager `preArmOut` | pre-open trigger in `SERVO_READY` |
+| `control.playbackDone` | `BOOL` | ExperimentSequencer `GVL_SEQ.playbackDone` | same-task write-stop fast path |
 
-## Outputs
-| Name | Type | Notes |
+## 出力
+| 項目 | 型 | 備考 |
 |---|---|---|
-| `LogStatus.recordsWritten` | `UDINT` | written records |
-| `LogStatus.fileSizeKb` | `UDINT` | file size in KB |
-| `LogStatus.errorCode` | `UDINT` | 0 = OK, otherwise internal `0xE000000x` code or underlying HRESULT |
-| `loggerReady` | `BOOL` | `ACTIVE` かつ有効 file handle 保持、close/error pending なしのとき `TRUE`。ModeManager が `SERVO_READY → RUNNING` 遷移前の確認に使用 |
-| `fileReleased` | `BOOL` | 直近セッションの close 正常完了後に `TRUE` |
+| `status.recordsWritten` | `UDINT` | written records |
+| `status.fileSizeKb` | `UDINT` | file size in KB |
+| `status.errorCode` | `UDINT` | 0 = OK, otherwise internal `0xE000000x` code or underlying HRESULT |
+| `status.loggerReady` | `BOOL` | `ACTIVE` かつ有効 file handle 保持、close/error pending なしのとき `TRUE`。ModeManager が `SERVO_READY → RUNNING` 遷移前の確認に使用 |
+| `status.fileReleased` | `BOOL` | 直近セッションの close 正常完了後に `TRUE` |
 
-## Control Parameter
-| Symbol | Type | Notes |
+## 制御パラメータ
+| シンボル | 型 | 備考 |
 |---|---|---|
 | `ExperimentLogger_Obj1 (Module1).LogControl.filePath` | `STRING(255)` | output path; parent directory must already exist |
 
-`Inputs.preArmReq` is the only file-open trigger. `Inputs.loggingReq` no longer opens the file and is invalid unless the logger is already `ACTIVE`. `Inputs.playbackDone` suppresses new record appends immediately without taking over session close ownership from ModeManager.
+`Inputs.control.preArmReq` だけが file open を開始できる。`Inputs.control.loggingReq` は file open を兼務せず、logger がすでに `ACTIVE` でなければ不正要求として扱う。`Inputs.control.playbackDone` は ModeManager から close 責務を奪わず、新規レコード追記だけを即時停止する。
 
-## Runtime Behavior
-1. On `preArmReq` rising edge: reset session runtime state, begin file open, and enter the pre-armed `ACTIVE` state once the async open completes.
-2. On `loggingReq` rising edge: require the file FSM to already be `ACTIVE`; otherwise raise an error and mark the session failed.
-3. While `loggingReq = TRUE`, `playbackDone = FALSE`, and the session is not failed: append one full `LogRecord` per cycle. During `WRITE_WAIT`, records continue to accumulate in a second in-memory buffer.
-4. On `playbackDone = TRUE`: stop appending within the same task scan.
-5. On `loggingReq` falling edge: flush remaining buffer and close the file.
-6. On `preArmReq` falling edge while `loggingReq = FALSE`: close any pre-opened file that never entered an active run.
-7. On `resetReq` rising edge: stop the session safely and reset runtime state once any pending async close completes.
-8. Async `OPEN_WAIT` / `WRITE_WAIT` / `CLOSE_WAIT` failures must not remain latched in a wait state. The module aborts the session, releases `ITcFileAccessAsync`, transitions to `ERROR` (or `IDLE` after reset teardown), and preserves the raw failure code in `errorCode`.
-9. `OPEN_WAIT` completion validates the returned file handle before declaring the logger ready. A completed open without a valid handle is treated as a hard failure.
-10. On `loggingReq` falling edge, buffered records are drained in order (`Write -> Write -> ... -> Close`) so records captured during `WRITE_WAIT` are not dropped.
-11. `fileReleased` is cleared on reset and new pre-arm, and becomes `TRUE` only after the close path reaches `IDLE` without error.
+## 実行時動作
+1. `control.preArmReq` 立上りでセッション実行状態を初期化し、非同期 file open を開始する。open 完了後に pre-armed な `ACTIVE` 状態へ入る。
+2. `control.loggingReq` 立上りでは file FSM がすでに `ACTIVE` であることを要求し、満たさなければエラーとしてセッション失敗扱いにする。
+3. `control.loggingReq = TRUE` かつ `control.playbackDone = FALSE` かつセッション未失敗の間は、1 スキャンにつき 1 件の `LogRecord` を `Inputs.record.*` から追記する。`WRITE_WAIT` 中も別バッファへ蓄積を継続する。
+4. `control.playbackDone = TRUE` になったスキャンでは、新規レコード追記を即時停止する。
+5. `control.loggingReq` 立下りで残バッファを flush し、file close を開始する。
+6. `control.loggingReq = FALSE` のまま `control.preArmReq` が立下る場合、実行に入らなかった pre-open 済み file を close する。
+7. `control.resetReq` 立上りでは安全にセッション停止へ入り、保留中の非同期 close 完了後に実行状態を初期化する。
+8. 非同期 `OPEN_WAIT` / `WRITE_WAIT` / `CLOSE_WAIT` の失敗は wait 状態に居座らせず、`ITcFileAccessAsync` を解放してセッションを中断し、`ERROR` または reset teardown 後の `IDLE` へ遷移する。生の失敗コードは `status.errorCode` に保持する。
+9. `OPEN_WAIT` 完了時は返却 file handle の妥当性を検証してから logger ready と判定する。handle 無効の open 完了は致命的失敗として扱う。
+10. `control.loggingReq` 立下り時は `Write -> Write -> ... -> Close` の順でバッファを drain し、`WRITE_WAIT` 中に捕捉したレコードを落とさない。
+11. `status.fileReleased` は reset と新規 pre-arm でクリアされ、close 経路がエラーなく `IDLE` へ戻ったときだけ `TRUE` になる。
 
-## Mapping (SIL)
-- `loadPosition <- DriverAdapter.positionRel` (D12: ControllerCore.positionRel から変更)
-- `loadVelocity <- DriverAdapter.velocityAct` (D11: VirtualMotorCore.velocityOut から変更)
-- `motorCurrentAct <- DriverAdapter.currentAct` (D13: SIL でも接続済み)
-- `preArmReq <- ModeManager.preArmOut` (Issue #12: pre-open in `SERVO_READY`)
-- `playbackDone <- ExperimentSequencer.GVL_SEQ.playbackDone` (H6: same-task fast-path stop)
-- `motorPosition/motorVelocity` are unconnected in SIL (0-fill).
+## マッピング (SIL)
+- `record.motor.position <- DriverAdapter.motor.positionRel`
+- `record.motor.velocity <- DriverAdapter.motor.velocityAct`
+- `record.motor.currentAct <- DriverAdapter.motor.currentAct` (D13: SIL でも接続済み)
+- `record.load.position <- DriverAdapter.load.positionRel` (D12: ControllerCore.positionRel から変更)
+- `record.load.velocity <- DriverAdapter.load.velocityAct` (D11: VirtualMotorCore.velocityOut から変更)
+- `control.preArmReq <- ModeManager.preArmOut` (Issue #12: pre-open in `SERVO_READY`)
+- `control.playbackDone <- ExperimentSequencer.GVL_SEQ.playbackDone` (H6: same-task fast-path stop)

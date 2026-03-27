@@ -74,7 +74,7 @@ classdef TestSendPositionCommand < matlab.unittest.TestCase
     function abortConditionPropagatesThroughEntrypoint(testCase)
       plc = MockAdsTransport();
       seed_state(plc);
-      plc.set_scalar_read_sequence("GVL_MODE.experimentState", [uint32(2); uint32(0)]);
+      plc.set_scalar_read_sequence("GVL_MODE.experimentState", [uint32(1); uint32(1); uint32(2); uint32(0)]);
       plc.set_scalar_read_sequence("GVL_MODE.experimentActive", [true; false]);
       plc.set_scalar_read_sequence("GVL_MODE.loggerFileReleased", [false; true]);
 
@@ -101,7 +101,7 @@ t.scalarMap("GVL_MODE.resetReq") = false;
 t.scalarMap("GVL_MODE.resetAckCounter") = uint32(0);
 t.scalarMap("GVL_MODE.hostHeartbeatCounter") = uint32(0);
 t.scalarMap("GVL_MODE.experimentActive") = false;
-t.scalarMap("GVL_MODE.experimentState") = uint32(3);
+t.scalarMap("GVL_MODE.experimentState") = uint32(1);
 t.scalarMap("GVL_MODE.loggerFileReleased") = true;
 t.scalarMap("GVL_MODE.loggerErrorCode") = uint32(0);
 t.scalarMap("GVL_SEQ.idx") = uint32(0);

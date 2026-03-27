@@ -18,7 +18,7 @@ ExperimentSequencer はテーブル再生専用の PLC モジュールである�
 2. 再生状態管理 (`E_SeqState`)
 3. 繰り返し再生 (`repeatCount`, `trialIndex`)
 4. 完了/異常通知 (`playbackDone`, `seqError`)
-5. 内部ログリング (`ExperimentLogger`)
+5. 再生インデックス管理 (`idx`, `trialIndex`, `tableLenClamped`)
 
 > `modeFlags` 入力は持たない。開始/停止は `experimentActive` と `resetReq` によって制御する。
 
@@ -86,7 +86,7 @@ FAULT 遷移条件:
 
 ## 5. 再生フロー
 
-1. `resetReq` 立上りで `idx/trialIndex/playbackDone` とログリングを初期化し `IDLE`。
+1. `resetReq` 立上りで `idx` / `trialIndex` / `playbackDone` を初期化し `IDLE` に戻る。
 2. `IDLE` で `experimentActive` 立上り時、`tableLenClamped` と `repeatCount` を検証。
 3. 正常時 `PLAYING` へ遷移し、1 スキャンあたり 1 サンプルを出力。
 4. `idx` が trial 終端に到達:
@@ -96,29 +96,9 @@ FAULT 遷移条件:
 
 ---
 
-## 6. ログタップ (`ExperimentLogger`)
+## 6. ADS シンボル (主要)
 
-`ExperimentLogger` は SIL 向けリングバッファで、再生サンプル時のみ追記する。
-
-### 6.1 tap 入力 (`AT %I*`)
-
-| 変数名 | 型 | ソース |
-|---|---|---|
-| `controlInputTap` | `LREAL` | ControllerCore/DriverAdapter 系の制御入力タップ |
-| `positionRelTap` | `LREAL` | DriverAdapter の相対位置タップ |
-
-### 6.2 主なログ配列
-
-`logRefValue`, `logFfValue`, `logDistValue`, `logControlInput`, `logTargetCurrent`, `logPositionAct`, `logT`, `logIdx`
-
-- `logTargetCurrent = controlInputTap + distValue`
-- `logIdx = trialIndex * tableLenClamped + idx` 相当の単調増加インデックス
-
----
-
-## 7. ADS シンボル (主要)
-
-| Symbol | Type | R/W |
+| シンボル | 型 | R/W |
 |---|---|---|
 | `GVL_SEQ.refTable` | `ARRAY[...] OF LREAL` | W |
 | `GVL_SEQ.ffTable` | `ARRAY[...] OF LREAL` | W |
@@ -129,7 +109,3 @@ FAULT 遷移条件:
 | `GVL_SEQ.playbackDone` | `BOOL` | R |
 | `GVL_SEQ.seqError` | `BOOL` | R |
 | `GVL_SEQ.seqState` | `E_SeqState` | R |
-| `ExperimentLogger.controlInputTap` | `LREAL` | I/O Mapping |
-| `ExperimentLogger.positionRelTap` | `LREAL` | I/O Mapping |
-
-

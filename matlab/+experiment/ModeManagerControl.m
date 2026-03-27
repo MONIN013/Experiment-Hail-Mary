@@ -153,15 +153,20 @@ classdef ModeManagerControl
       done = strcmp(status.stop_reason, "done");
     end
 
-    function [status, heartbeat_state] = wait_until_inactive( ...
-        control_transport, plc_transport, plc_symbols, ctrl, timeout_s, heartbeat_state)
+    function [status, heartbeat_state, observer_state] = wait_until_inactive( ...
+        control_transport, plc_transport, plc_symbols, ctrl, timeout_s, heartbeat_state, observer_state)
       if nargin < 6 || isempty(heartbeat_state)
         heartbeat_state = experiment.ModeManagerControl.heartbeat_disabled();
       end
+      if nargin < 7 || isempty(observer_state)
+        observer_state = experiment.ModeManagerControl.default_inactive_observer(ctrl);
+      else
+        observer_state = experiment.ModeManagerControl.normalize_inactive_observer(observer_state, ctrl);
+      end
       t = plc_symbols.types;
       t0 = tic;
-      state_supported = strlength(string(ctrl.experimentStateSymbol)) > 0;
-      seen_active = false;
+      state_supported = logical(observer_state.state_supported);
+      seen_active = logical(observer_state.seen_active);
       status = struct( ...
         "completed", false, ...
         "stop_reason", "timeout", ...
@@ -172,6 +177,8 @@ classdef ModeManagerControl
       while toc(t0) < timeout_s
         [status, state_supported, seen_active] = experiment.ModeManagerControl.poll_inactive( ...
           control_transport, plc_transport, plc_symbols, ctrl, t, state_supported, seen_active);
+        observer_state.state_supported = logical(state_supported);
+        observer_state.seen_active = logical(seen_active);
         if status.completed
           return;
         end
@@ -325,6 +332,7 @@ classdef ModeManagerControl
         try
           state = uint32(control_transport.read_scalar(ctrl.experimentStateSymbol, t.u32));
           if state == ctrl.STATE_DONE
+            seen_active = true;
             status = struct( ...
               "completed", true, ...
               "stop_reason", "done", ...
@@ -351,7 +359,7 @@ classdef ModeManagerControl
         "state_supported", logical(state_supported), ...
         "seen_active", logical(seen_active));
       if status.completed
-        status.stop_reason = "abort";
+        status.stop_reason = "done";
       end
     end
 
@@ -367,6 +375,30 @@ classdef ModeManagerControl
   methods (Static, Access = private)
     function v = cast_modeflags_value(~, value)
       v = uint16(double(value));
+    end
+
+    function observer_state = default_inactive_observer(ctrl)
+      observer_state = struct( ...
+        "state_supported", strlength(string(ctrl.experimentStateSymbol)) > 0, ...
+        "seen_active", false);
+    end
+
+    function observer_state = normalize_inactive_observer(observer_state, ctrl)
+      defaults = experiment.ModeManagerControl.default_inactive_observer(ctrl);
+      if ~isstruct(observer_state)
+        observer_state = defaults;
+        return;
+      end
+      if ~isfield(observer_state, "state_supported") || isempty(observer_state.state_supported)
+        observer_state.state_supported = defaults.state_supported;
+      else
+        observer_state.state_supported = logical(observer_state.state_supported);
+      end
+      if ~isfield(observer_state, "seen_active") || isempty(observer_state.seen_active)
+        observer_state.seen_active = defaults.seen_active;
+      else
+        observer_state.seen_active = logical(observer_state.seen_active);
+      end
     end
 
     function exp_active = try_read_experiment_active(control_transport, ctrl, t)

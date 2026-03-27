@@ -25,6 +25,7 @@ classdef TestVirtualMotorService < matlab.unittest.TestCase
         "ref_profile", [0.1; 0.2], ...
         "wait_for_done", false, ...
         "hold_seconds", 0.0, ...
+        "read_logs", false, ...
         "validate_symbols", false));
       testCase.verifyTrue(isfield(out.raw, "ref_value"));
       testCase.verifyTrue(any(contains(plc.operations, "write_array:GVL_SEQ.refTable")));
@@ -39,7 +40,7 @@ t.scalarMap("GVL_MODE.resetReq") = false;
 t.scalarMap("GVL_MODE.resetAckCounter") = uint32(0);
 t.scalarMap("GVL_MODE.hostHeartbeatCounter") = uint32(0);
 t.scalarMap("GVL_MODE.experimentActive") = false;
-t.scalarMap("GVL_MODE.experimentState") = uint32(3);
+t.scalarMap("GVL_MODE.experimentState") = uint32(1);
 t.scalarMap("GVL_MODE.loggerFileReleased") = true;
 t.scalarMap("GVL_MODE.loggerErrorCode") = uint32(0);
 t.scalarMap("GVL_SEQ.idx") = uint32(0);

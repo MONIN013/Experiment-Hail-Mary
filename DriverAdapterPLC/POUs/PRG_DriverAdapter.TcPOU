@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="PRG_DriverAdapter" Id="{2b6eb1d8-78de-49a3-a5f1-da880c0ef4fc}" SpecialFunc="None">
-    <Declaration><![CDATA[PROGRAM PRG_DriverAdapter
+  <POU Name="PRG_DriverAdapterPLC" Id="{2b6eb1d8-78de-49a3-a5f1-da880c0ef4fc}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM PRG_DriverAdapterPLC
 VAR
     positionRad : LREAL := 0.0;
     targetCurrentA : LREAL := 0.0;

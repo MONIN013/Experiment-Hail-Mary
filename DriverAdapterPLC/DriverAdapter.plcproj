@@ -8,7 +8,7 @@
     <DownloadApplicationInfo>true</DownloadApplicationInfo>
     <WriteProductVersion>false</WriteProductVersion>
     <GenerateTpy>false</GenerateTpy>
-    <Name>DriverAdapter</Name>
+    <Name>DriverAdapterPLC</Name>
     <ProgramVersion>3.1.4026.20</ProgramVersion>
     <Application>{1202c9c4-2ed9-4bc5-985f-6b07f121c402}</Application>
     <TypeSystem>{05a5a7d1-3130-480f-9f29-bfffcf97062c}</TypeSystem>
@@ -22,7 +22,7 @@
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
     </Compile>
-    <Compile Include="POUs\PRG_DriverAdapter.TcPOU">
+    <Compile Include="POUs\PRG_DriverAdapterPLC.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="VirtualMotorTask.TcTTO">
@@ -51,7 +51,7 @@
     </PlaceholderReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="DriverAdapter.tmc">
+    <None Include="DriverAdapterPLC.tmc">
       <SubType>Content</SubType>
     </None>
   </ItemGroup>
