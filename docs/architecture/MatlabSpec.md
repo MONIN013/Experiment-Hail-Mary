@@ -1,466 +1,301 @@
 # Matlab Spec
 
-> **位置づけ:** `matlab/` 以下の MATLAB 実装仕様と責務分離の正本  
+> **位置づけ:** `matlab/` 以下の実装仕様と責務分離の正本  
 > **対象読者:** MATLAB 実装者、ADS 連携の保守担当者  
 > **更新条件:** MATLAB 側 API、責務境界、パッケージ構成、TwinCAT との契約が変わったとき  
-> **関連文書:** [ProjectOverview](../overview/ProjectOverview.md) / [TechnicalReference](./TechnicalReference.md) / [NamingConvention](../operations/NamingConvention.md)
+> **関連文書:** [ProjectOverview](../overview/ProjectOverview.md) / [SystemArchitecture](./SystemArchitecture.md) / [TechnicalReference](./TechnicalReference.md) / [NamingConvention](../operations/NamingConvention.md)
 
 ---
 
-## §1 概要
+## 1. 概要
 
-MATLAB 層は **実験統括・パラメータ設定・ログ取得・解析** のみを担当する。  
-リアルタイム制御は TwinCAT 側 (ExperimentSequencer / ControllerCore / VirtualMotorCore) に完全委譲し、  
-MATLAB からは **ADS 通信**（.NET Interop 経由 `TcAdsClient`）でパラメータ注入とログ読み出しを行う。
+MATLAB 層は **実験統括・パラメータ設定・ログ取得・解析** を担当する。リアルタイム制御は TwinCAT 側に完全委譲し、MATLAB は ADS とファイル I/O を使って以下を行う。
 
-### パッケージ構成
+* `GVL_SEQ` へのテーブル書込み
+* `GVL_MODE` による reset / start / stop / 状態監視
+* ControllerCore / VirtualMotorCore のパラメータ注入
+* logger `.bin` の読出しと解析
+
+---
+
+## 2. パッケージ構成
 
 | パッケージ | パス | 役割 |
 |---|---|---|
-| `+experiment` | `matlab/+experiment/` | プロジェクト固有ロジック (SystemConfig, VirtualMotorService, send_position_command, ヘルパー群) |
-| `+twincat_ads` | `matlab/+twincat_ads/` | 汎用 ADS ライブラリ (AdsTransport, IAdsTransport, SymbolBrowser)。プロジェクト非依存 |
+| `+experiment` | `matlab/+experiment/` | プロジェクト固有の config / orchestration / 解析 |
+| `+twincat_ads` | `matlab/+twincat_ads/` | 汎用 ADS 通信層 |
+| `+twincat_ads/+internal` | `matlab/+twincat_ads/+internal/` | 非公開内部実装 |
 
-依存方向: `+experiment` → `+twincat_ads` （逆依存なし）
-
-> Reset 制御は `modeFlags` パルス方式を廃止し、`GVL_MODE.resetReq` / `GVL_MODE.resetAckCounter` のハンドシェイク方式を使用する。  
-> MATLAB は `resetReq=TRUE` を書き込み、`resetAckCounter` の更新を待つ。`resetReq` のクリアは TwinCAT 側が行う。
+依存方向は `+experiment -> +twincat_ads` のみとする。
 
 ---
 
-## §2 SystemConfig
+## 3. 主 API と責務
 
-**ファイル:** `+experiment/SystemConfig.m`
+### 3.1 現行の正本 API
 
-環境・ハードウェアに紐づく **不変パラメータと runtime config の default 値** を一元定義する。  
-環境切替時はこのファイルのみ変更する。`SystemConfig` 自体は runtime config を保持せず、`RunConfig` / `PositionCommandConfig` に default を供給する。
-
-### 定数一覧
-
-| プロパティ | 型 | 値 | 説明 |
-|---|---|---|---|
-| `AMS_NET_ID` | string | `"192.168.10.3.1.1"` | XAR の AMS Net ID |
-| `SEQ_PORT` | double | `853` | ExperimentSequencer (GVL_SEQ / ExperimentLogger) |
-| `CONTROL_PORT` | double | `852` | StateMachineControl / ModeManager (GVL_MODE) |
-| `DRIVER_PORT` | double | `851` | DriverAdapter (GVL_DRV) |
-| `MODULE_PORT` | double | `351` | C++ TcCOM (ControllerCore / VirtualMotorCore / ExperimentLogger) |
-| `TASK_RATE_HZ` | double | `8000` | VirtualMotorTask 周期 [Hz] |
-| `VM_PREFIX` | string | `"VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter."` | VM パラメータシンボルプレフィクス |
-| `CTRL_PREFIX` | string | `"ControllerCore_Obj1 (Module1)."` | Controller パラメータシンボルプレフィクス |
-| `MODE_FLAGS_SYMBOL` | string | `"GVL_MODE.modeFlags"` | modeFlags 正規書込み先シンボル |
-| `LOGGER_FILE_RELEASED_SYMBOL` | string | `"GVL_MODE.loggerFileReleased"` | logger close 完了公開シンボル |
-| `LOGGER_ERROR_CODE_SYMBOL` | string | `"GVL_MODE.loggerErrorCode"` | logger エラー公開シンボル |
-| `LOGGER_DEFAULT_FILE_PATH` | string | `"C:\ExperimentData\experiment_logger.bin"` | 正規 logger bin パス |
-| `LOGGER_RELEASE_TIMEOUT_S` | double | `5.0` | logger close 完了待機既定時間 [s] |
-| `TABLE_MAX_N` | double | `100000` | refTable / ffTable / distTable 最大長 |
-
-### Static メソッド
-
-| メソッド | 戻り値 | 説明 |
-|---|---|---|
-| `to_struct()` | struct | 全 Constant プロパティを struct で返す |
-| `task_dt_ns()` | uint64 | タスク周期 [ns] (`1e9 / TASK_RATE_HZ`) |
-| `run_defaults()` | struct | `RunConfig` 用の環境既定値を返す |
-| `position_command_defaults()` | struct | `PositionCommandConfig` 用の環境既定値を返す |
-
----
-
-## §3 設定所有
-
-| クラス | 所有する責務 |
+| クラス / 関数 | 役割 |
 |---|---|
-| `SystemConfig` | 環境固定の default 値のみ |
-| `RunConfig` | `run_virtualmotor` / `VirtualMotorService` 用のフル実験 runtime config |
-| `PositionCommandConfig` | `send_position_command` 用の PLC-only runtime config |
+| `experiment.ExperimentConfig` | 現行の主 runtime config |
+| `experiment.PlantConfig` | VirtualMotorCore 用の物理パラメータ |
+| `experiment.ControllerConfig` | ControllerCore 用の 4 段 biquad 設定 |
+| `experiment.ConnectionManager` | `AdsSession` を使った transport 構築 |
+| `experiment.ExperimentRunner` | 実験実行フロー本体 |
+| `twincat_ads.AdsSession` | AMS Net ID 単位の transport キャッシュ |
+| `twincat_ads.AdsTransport` | TwinCAT ADS 実装 |
+| `twincat_ads.SymbolBrowser` | シンボル列挙 / 契約検証 |
 
-後方互換のための別経路や hidden 代替経路 は提供しない。`send_position_command` の独自 parser は廃止し、`PositionCommandConfig` を唯一の正本とする。
+### 3.2 互換ブリッジとして残る API
 
----
-
-## §4 ヘルパー関数 API
-
-テーブル書込み・パラメータ書込み・ログ読出しを **機能単位** で分離した関数群。  
-すべて `+experiment` パッケージ内に配置。
-
-### §4.1 write_ref_table(transport, ref_profile, table_max_n)
-
-位置指令テーブルを `GVL_SEQ.refTable` へ書込み、`GVL_SEQ.tableLen` をセットする。
-
-- **transport:** `twincat_ads.IAdsTransport` (Port = `SEQ_PORT`)
-- **ref_profile:** `double` 列ベクトル [N×1]
-- **table_max_n:** caller が所有する上限値
-- **制約:** `N ≤ table_max_n` でなければエラー
-
-### §4.2 write_ff_table(transport, ff_profile, expected_len)
-
-FF テーブルを `GVL_SEQ.ffTable` へ書込む。
-
-- **expected_len:** caller が所有する期待長
-- 長さ不一致時は error (`experiment:write_ff_table:lengthMismatch`)
-
-### §4.3 write_dist_table(transport, dist_profile, expected_len)
-
-外乱テーブルを `GVL_SEQ.distTable` へ書込む。
-
-### §4.4 write_vm_params(transport, vm_param_symbol_prefix, params, task_dt_ns)
-
-VirtualMotorCore の物理パラメータを Port 351 に書込む。
-
-- **vm_param_symbol_prefix:** caller が所有する VM prefix
-- **params:** struct with fields `m`, `d`, `rated_current`, `max_permille`, `tau_limit`, `vel_limit`
-- **task_dt_ns:** caller が所有するタスク周期 [ns]
-
-| 書込み先 | フィールド |
+| クラス / 関数 | 現在の位置づけ |
 |---|---|
-| `{VM_PREFIX}mass` | `params.m` |
-| `{VM_PREFIX}damping` | `params.d` |
-| `{VM_PREFIX}ratedTorque` | `params.rated_current` (VirtualMotorCore 内部例外。kt=1 前提で外部 `rated_current [A]` と同一値を書き込む) |
-| `{VM_PREFIX}maxPermille` | `params.max_permille` |
-| `{VM_PREFIX}tauLimit` | `params.tau_limit` |
-| `{VM_PREFIX}velLimit` | `params.vel_limit` |
-| `{vm_param_symbol_prefix}taskDtNs` | `task_dt_ns` |
+| `experiment.RunConfig` | legacy adapter。`ExperimentConfig` へ橋渡し可能 |
+| `experiment.PositionCommandConfig` | legacy adapter。`send_position_command` 用の互換入力 |
+| `experiment.send_position_command` | `PositionCommandConfig -> ExperimentConfig -> ExperimentRunner` の entrypoint |
+| `experiment.VirtualMotorService` | `ExperimentRunner` への委譲ラッパー |
+| `experiment.run_virtualmotor` | connection 構築 + wrapper 呼出し |
 
-### §4.5 write_controller_params(transport, controller_param_symbol_prefix, params)
-
-ControllerCore の biquad フィルタパラメータ (4 段カスケード) を Port 351 に書込む。
-
-- **controller_param_symbol_prefix:** caller が所有する Controller prefix
-- **params:** struct with fields:
-  - `pid_b0..pid_a2`, `lead_b0..lead_a2`, `notch_b0..notch_a2`, `reso_b0..reso_a2`
-  - `enable_pid`, `enable_lead`, `enable_notch`, `enable_reso`
-
-| ステージ | シンボル形式 | 係数フィールド名 |
-|---|---|---|
-| PID | `{controller_param_symbol_prefix}PIDParams.pidB0..pidA2` | pidBx / pidAx |
-| Lead | `{controller_param_symbol_prefix}LeadParams.leadB0..leadA2` | leadBx / leadAx |
-| Notch | `{controller_param_symbol_prefix}NotchParams.notchB0..notchA2` | notchBx / notchAx |
-| Reso | `{controller_param_symbol_prefix}ResoParams.resoB0..resoA2` | resoBx / resoAx |
-
-> **注:** 各ステージのフィールド名は C++ 構造体 (`ST_PID`, `ST_PhaseLead`, `ST_Notch`, `ST_Reso`) に準拠。
-
-### §4.6 read_logger_bin(file_path)
-
-`ExperimentLogger` が出力した固定長バイナリログを読み出す。
-
-- **file_path:** `.bin` ファイルの絶対/相対パス
-- **戻り値:** struct with fields `file_path`, `record_count`, `summary`, `table`, `raw`
-- **`raw` の主フィールド:** `seq`, `t_ns`, `t_s`, `motor_position`, `motor_velocity`, `motor_current_act`, `load_position`, `load_velocity`, `current_cmd`, `error`, `ref_value`, `ff_value`, `control_input`
-- ファイル不存在、サイズ不正、open failure は error
-
-> MATLAB の正規ログ経路は `ExperimentLogger` の bin ファイル読み出しのみとする。
+> `send_position_command` は `PositionCommandConfig` 直結の独自実装ではなく、内部で `ExperimentConfig` に橋渡しして `ExperimentRunner.run(...)` を呼ぶ。
 
 ---
 
-## §5 RunConfig
+## 4. Config 所有
 
-**ファイル:** `+experiment/RunConfig.m`
-
-単一実験の全条件を保持する Value Object。  
-`from_varargin(...)` ファクトリで生成。
-
-主要フィールド:
-
-| フィールド | デフォルト | 説明 |
-|---|---|---|
-| `ams_net_id` | `SystemConfig.run_defaults()` | 接続先 AMS Net ID |
-| `ams_port` | `SystemConfig.run_defaults()` | データ ADS ポート |
-| `control_ams_port` | auto | 制御ポート (ams_port=853 のとき 852 に自動設定) |
-| `module_ams_port` | `SystemConfig.run_defaults()` | TcCOM ポート |
-| `vm_param_symbol_prefix` | `SystemConfig.run_defaults()` | VM パラメータプレフィクス |
-| `controller_param_symbol_prefix` | `SystemConfig.run_defaults()` | Controller パラメータプレフィクス |
-| `ref_profile` | (必須) | 位置指令テーブル |
-| `ff_profile` | zeros(N,1) | FF テーブル |
-| `dist_profile` | zeros(N,1) | 外乱テーブル |
-| `task_dt_ns` | auto | タスク周期 [ns] |
-| `save_path` | auto | 結果保存パス |
-
----
-
-## §6 PositionCommandConfig
-
-**ファイル:** `+experiment/PositionCommandConfig.m`
-
-`send_position_command(...)` の唯一の runtime config。`SystemConfig.position_command_defaults()` から環境既定値を取得し、PLC-only 実行に必要な項目だけを保持する。
-
-主要フィールド:
-
-| フィールド | デフォルト | 説明 |
-|---|---|---|
-| `ams_net_id` | `SystemConfig.position_command_defaults()` | 接続先 AMS Net ID |
-| `ams_port` | `SystemConfig.position_command_defaults()` | Sequencer/PLC ポート |
-| `control_ams_port` | auto | `ams_port==SEQ_PORT` なら `CONTROL_PORT`、それ以外は `ams_port` |
-| `ref_profile` | (必須) | 位置指令テーブル |
-| `ff_profile` | zeros(N,1) | FF テーブル |
-| `dist_profile` | zeros(N,1) | 外乱テーブル |
-| `mode_flags_symbol` | `SystemConfig.position_command_defaults()` | modeFlags 正規シンボル |
-| `repeat_count` | `1` | 同一テーブルの連続再生回数 |
-| `abort_check_period_s` | `0.05` | MATLAB 側の abort callback 評価周期 [s] |
-| `logger_release_timeout_s` | `SystemConfig.position_command_defaults()` | logger close 完了待機時間 [s] |
-
-`send_position_command` は戻り値 `out.logger` を返す。  
-`out.logger` には `error_before/after`, `file_released`, `file_probe_detail`, `file_path` が含まれる。  
-`out.host` には `stop_reason` (`done` / `abort` / `hold_complete`) と `abort_requested`、`abort_diag` が含まれる。  
-logger 状態監視は `GVL_MODE.loggerFileReleased` / `GVL_MODE.loggerErrorCode` を `CONTROL_PORT` で読んで行い、MATLAB は logger TcCOM を直接監視しない。
-
-### 明示 abort API
-
-- `experiment.ModeManagerControl.abort_experiment(control_transport, ctrl, heartbeat_state, opts)` を追加した。
-- 正規動作は `GVL_MODE.modeFlags := 0` を書き込み、`experimentActive=FALSE` と `GVL_MODE.loggerFileReleased=TRUE` を待つ。
-- Heartbeat watchdog は MATLAB 異常停止時の安全停止用であり、通常の任意停止は explicit abort を使う。
-- `ExperimentRunner.run(..., "abort_condition", @f)` と `send_position_command(..., "abort_condition", @f)` は実行中に callback を評価し、`true` なら explicit abort を実行して正常復帰する。
-- callback には `elapsed_s`, `status`, `cfg`, `heartbeat_state` を含む context struct が渡される。
-
----
-
-## §7 デモスクリプト
-
-`matlab/` ルートに 4 本のエントリスクリプトがある。  
-いずれも先頭で `restoredefaultpath; addpath(genpath(base_dir));` により独立したパス環境を構築する。
-
----
-
-### §7.1 run_position_command_demo.m
-
-P 制御ステップ応答デモ（同一 trial を `N_REPEAT` 回連続再生）。
-
-#### 処理フロー
-
-1. `experiment.SystemConfig` から接続先 / ポート / タスクレートを取得
-2. VirtualMotorCore 物理パラメータ (`vm_params`) を構築
-3. Controller biquad パラメータ (`ctrl_params`) を構築（PID ステージのみ有効）
-4. 指令波形 (`ref_profile`, `ff_profile`, `dist_profile`) を 1 trial 分生成
-5. 3 本の ADS トランスポートを生成・接続 (SEQ=853, CTRL=852, MODULE=351)
-6. `write_vm_params` / `write_controller_params` でパラメータを TcCOM に書込み (Port 351)
-7. `send_position_command` で実験実行・完了待ち（`repeat_count=N_REPEAT`）
-8. `send_position_command` が `GVL_MODE.loggerFileReleased` を待ち、bin 可読性を保証してから復帰
-9. 共有フォルダ上の最新 valid bin を読み、採用ソースを表示して位置応答・制御入力をプロット
-
-#### 現在の設定パラメータ
-
-| カテゴリ | パラメータ | 値 | 説明 |
-|---|---|---|---|
-| **指令** | `target_position_rad` | `0.25` rad | ステップ指令値 |
-| **指令** | `step_duration_s` | `3.0` s | ステップ区間長 |
-| **指令** | `pre_step_s` | `2.0` s | ステップ前ゼロ区間（リセット残留吸収） |
-| **指令** | `hold_margin_s` | `0.50` s | `done_timeout_s` に加算するマージン |
-| **指令** | `N_REPEAT` | `10` | 同一 trial の連続再生回数 |
-| **VM** | `m` | `1.0` | 慣性モーメント [kg·m²] |
-| **VM** | `d` | `6.0` | 粘性減衰係数 [N·m·s/rad] |
-| **VM** | `rated_current` | `0.1` | 定格トルク電流 [A]（kt=1 前提、`ratedTorque` として書込み） |
-| **VM** | `tau_limit` | `100.0` | トルク上限 [N·m] |
-| **VM** | `vel_limit` | `10.0` | 速度上限 [rad/s] |
-| **制御** | `Kp` (`pid_b0`) | `180` | P ゲイン |
-| **制御** | 他ステージ | 無効 | `lead` / `notch` / `reso` は `enable_*=false` |
-
-#### P 制御設計根拠
-
-プラント:
-
-$$G(s) = \frac{k_t}{m s^2 + d s} = \frac{0.1}{s^2 + 6s}$$
-
-閉ループ:
-
-$$T(s) = \frac{0.1 K_p}{s^2 + 6s + 0.1 K_p}$$
-
-$K_p = 180$ のとき:
-
-$$\omega_n = \sqrt{0.1 K_p} = \sqrt{18} = 4.24 \text{ rad/s}$$
-$$\zeta = \frac{d}{2\sqrt{m \, k_t \, K_p}} = \frac{6}{2\sqrt{0.1 \times 180}} = 0.707$$
-
-#### repeat 時のログ連結
-
-`repeat_count > 1` の場合でも、評価対象は trial ごとに分割せず 1 本の連続時系列として扱う。
-
-`done_timeout_s` は `N_REPEAT * per_trial_s + hold_margin_s + 5.0` で計算される。
-
-#### プロット
-
-2-tile figure（`"P Control Position Demo"`）:
-
-- **上段:** 位置応答 — `ref_value` (青) vs `position_act` (緑)
-- **下段:** 制御出力 — `control_input` (紫) + `target_current` (赤破線、存在する場合)
-
----
-
-### §7.2 run_ads_discovery_demo.m
-
-ADS シンボル列挙デモ。デプロイ後の symbol ブラウズや接続確認に使用する。
-
-#### 設定パラメータ
-
-| パラメータ | 値 | 説明 |
-|---|---|---|
-| `ams_net_id` | `"192.168.10.3.1.1"` | XAR の AMS Net ID |
-| `ports` | `[851 852 853 351]` | 走査対象ポート |
-| `connect_timeout_ms` | `1000` | ポートごとの接続タイムアウト [ms] |
-| `top_level_only` | `false` | ネストシンボルも列挙 |
-| `force_reload` | `true` | キャッシュを無視して再取得 |
-
-#### 処理フロー
-
-1. `SymbolBrowser.discover_ports_and_symbols` で全ポートのシンボルを一括取得
-2. `t_ports`（接続ステータステーブル）を Status 別にカウントして表示
-3. 自動生成プレフィクス（`_`、`TwinCAT_SystemInfoVarList`、`AlarmManager`）を除外し、ポートごとにユーザー定義シンボルのみ表示
-4. 非 `ok` 行がある場合は Name / Status / ErrorMessage を別掲示
-
-#### 標準出力例
-
-```
-[2026-03-02 HH:MM:SS] Starting ADS discovery
-  AmsNetId=192.168.10.3.1.1, ports=[851, 852, 853, 351], timeout=1000 ms
-[2026-03-02 HH:MM:SS] Discovery finished in X.XXX sec
-
-=== Tports ===
-  ...
-=== Tports summary by Status ===
-  ok: 4
-=== Tsymbols (user-defined only) ===
---- Port 851 : N user rows (of M total, non-ok=0) ---
---- Port 852 : ...
---- Port 853 : ...
---- Port 351 : ...
-```
-
----
-
-### §7.3 run_verify_xar.m
-
-XAR デプロイ済みバイナリの Health Check スクリプト。  
-詳細検証内容は §8 を参照。実験実行前に必ずパスさせる。
-
-#### 実行例（全 PASS 時）
-
-```
-=== XAR Verification: 192.168.10.3.1.1 ===
-Ports: 851, 852, 853, 351
-
-Check                                               Result  Detail
-------------------------------------------------------------------------------------------
-ADS connect port 851                                PASS
-ADS connect port 852                                PASS
-ADS connect port 853                                PASS
-ADS connect port 351                                PASS
-Symbol discovery (all ports)                        PASS    4 ports ok, NNN symbols
-PLC required symbols (port 853)                     PASS    N probes OK
-VM param symbols (port 351)                         PASS    N probes OK
-Controller param symbols (port 351)                 PASS    N probes OK
-Read tableLen (port 853)                            PASS    value=0
-Read experimentState (port 852)                     PASS    value=0
-Read LOG_N (port 853)                               PASS    value=200000
-Read controller pidB0 (port 351)                    PASS    value=X.X
-...
-------------------------------------------------------------------------------------------
-Total: 18 PASS, 0 FAIL (of 18)
-```
-
-FAIL がある場合は `warning: experiment:verify:failures` を発行する。
-
----
-
-### §7.4 run_check_logger_bin.m
-
-ExperimentLogger が出力した固定長バイナリ (`experiment_logger*.bin`) を直接検査する補助スクリプト。  
-`experiment.read_logger_bin(...)` を使用し、時系列長・先頭/末尾値・主要信号を可視化する。
-
-主用途:
-
-1. 実験完了直後のログ破損チェック
-2. フィールドマッピング (`currentCmd`, `controlInput`, `loadPosition`) の妥当性確認
-3. 解析前のクイックサニティチェック
-
----
-
-## §8 XAR 検証 (run_verify_xar.m)
-
-192.168.10.3 の XAR に対し以下を自動検証する:
-
-| # | 検証項目 | ポート |
-|---|---|---|
-| 1 | ADS 接続 (4 ポート) | 851, 852, 853, 351 |
-| 2 | シンボル列挙 (SymbolBrowser) | 全ポート |
-| 3 | PLC 必須シンボル存在 | 853 |
-| 4 | VM パラメータシンボル存在 | 351 |
-| 5 | Controller パラメータシンボル存在 | 351 |
-| 6 | 基本スカラー読取 (tableLen, experimentState, LOG_N) | 853, 852 |
-| 7 | Controller パラメータ読出し (pidB0, leadB0 等) | 351 |
-
-実行結果は PASS/FAIL のサマリーテーブルとして表示。
-
----
-
-## §9 命名規則・テスト
-
-### 出力スキーマ互換方針
-
-- MATLAB 公開出力スキーマ（`VirtualMotorService.run(...).raw`, `experiment.preload_eval(...)` の戻り値）は **正規フィールド名のみ** を提供する。
-- 後方互換のための別名（互換エイリアス）は提供しない。
-- 旧互換エイリアス `raw.log_i`, `raw.log_x`, `metrics.comparison.current_command_vs_plc` は使用不可。
-
-### 命名規則
-
-- **パッケージ:** `+experiment`, `+twincat_ads` (snake_case)
-- **クラス:** PascalCase (`SystemConfig`, `RunConfig`, `PositionCommandConfig`)
-- **関数:** snake_case (`write_ref_table`, `read_logger_bin`)
-- **テスト:** `Test` + PascalCase (`TestSystemConfig`, `TestWriteHelpers`)
-- **struct フィールド:** snake_case (`pid_b0`, `tau_limit`)
-- **ADS シンボル:** TwinCAT 側定義に準拠 (PascalCase struct + camelCase field)
-
-### テストファイル
-
-| ファイル | 対象 |
+| 所有者 | 責務 |
 |---|---|
-| `tests/unit/TestSystemConfig.m` | SystemConfig 定数・メソッド |
-| `tests/unit/TestWriteHelpers.m` | helper 関数の explicit config 引数契約 |
-| `tests/unit/TestVirtualMotorSymbols.m` | シンボル名契約 |
-| `tests/unit/TestRunConfig.m` | RunConfig バリデーション |
-| `tests/unit/TestPositionCommandConfig.m` | PositionCommandConfig バリデーション |
-| `tests/unit/TestVirtualMotorService.m` | VirtualMotorService フロー (Mock) |
-| `tests/unit/TestSendPositionCommand.m` | send_position_command フロー (Mock) |
-| `tests/unit/TestModeManagerControl.m` | ModeManagerControl ヘルパー |
-| `tests/unit/TestPreloadEval.m` | プリロード評価 |
-| `tests/unit/TestReadLoggerBin.m` | logger バイナリ読出し |
-| `tests/unit/TestSymbolTraversal.m` | シンボルトラバーサル |
-| `tests/contract/TestTransportContract.m` | IAdsTransport 契約 |
-| `tests/contract/TestSymbolBrowserContract.m` | SymbolBrowser 契約 |
+| `SystemConfig` | 環境固定値と default 値 |
+| `ExperimentConfig` | 現行の正本 runtime config |
+| `PlantConfig` | VM パラメータ |
+| `ControllerConfig` | ControllerCore パラメータ |
+| `RunConfig` | legacy bridge |
+| `PositionCommandConfig` | legacy bridge |
 
-テスト実行: `run('tests/run_tests.m')`
+### 4.1 prefix の扱い
 
-### ファイルツリー (matlab/)
+現行の主実行経路では、VM / Controller の symbol prefix は caller override を前提にしない。`ExperimentRunner` は `SystemConfig.VM_PREFIX` と `SystemConfig.CTRL_PREFIX` を使用する。
 
+---
+
+## 5. `SystemConfig` の主要定数
+
+| プロパティ | 値 | 説明 |
+|---|---|---|
+| `AMS_NET_ID` | `"192.168.10.3.1.1"` | XAR の AMS Net ID |
+| `SEQ_PORT` | `853` | ExperimentSequencer |
+| `CONTROL_PORT` | `852` | ModeManager |
+| `MODULE_PORT` | `351` | C++ TcCOM 群 |
+| `DRIVER_PORT` | `851` | 互換 / discovery 用に残る legacy 定数 |
+| `TASK_RATE_HZ` | `8000` | `VirtualMotorTask` 周波数 |
+| `VM_PREFIX` | `"VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter."` | VM parameter prefix |
+| `CTRL_PREFIX` | `"ControllerCore_Obj1 (Module1)."` | Controller parameter prefix |
+| `MODE_FLAGS_SYMBOL` | `"GVL_MODE.modeFlags"` | start / stop 用 symbol |
+| `LOGGER_FILE_RELEASED_SYMBOL` | `"GVL_MODE.loggerFileReleased"` | logger close 完了 |
+| `LOGGER_ERROR_CODE_SYMBOL` | `"GVL_MODE.loggerErrorCode"` | logger エラー |
+| `LOGGER_DEFAULT_FILE_PATH` | `"\\\\RAINYDAY\\ExperimentData\\experiment_logger.bin"` | 現行 logger bin 既定値 |
+| `TABLE_MAX_N` | `100000` | テーブル長上限 |
+
+> `DRIVER_PORT` は現行 orchestrator の正本経路では使わないが、discovery / verify 補助スクリプトとの互換のため残っている。
+
+---
+
+## 6. ヘルパー関数
+
+以下は `+experiment` の低レベル helper として維持する。
+
+| 関数 | 役割 |
+|---|---|
+| `write_ref_table` | `GVL_SEQ.refTable` 書込み |
+| `write_ff_table` | `GVL_SEQ.ffTable` 書込み |
+| `write_dist_table` | `GVL_SEQ.distTable` 書込み |
+| `write_vm_params` | `VirtualMotor1Parameter.*` 書込み |
+| `write_controller_params` | `ControllerCore_*Params.*` 書込み |
+| `read_logger_bin` | fixed-size logger bin の読出し |
+| `read_latest_logger_bin` | 共有フォルダ上の最新 valid bin 探索 |
+| `resolve_demo_log_source` | demo 用ログソース選択 |
+| `preload_eval` | ログ整合性・再生評価 |
+
+---
+
+## 7. 実行フロー
+
+### 7.1 `ExperimentRunner.run(conn, cfg, ...)`
+
+1. `ExperimentConfig` を正規化 / validate
+2. Symbol contract を必要に応じて検証
+3. `ModeManagerControl` で `resetReq/resetAckCounter` handshake
+4. `GVL_SEQ` へ `ref/ff/dist/tableLen/repeatCount` を書込む
+5. `ControllerCore` / `VirtualMotorCore` へ parameter を書込む
+6. `modeFlags` で servo enable -> experiment start
+7. `GVL_MODE.experimentState` / `experimentActive` を監視
+8. `GVL_MODE.loggerFileReleased` / `loggerErrorCode` を監視
+9. logger `.bin` を読んで `out.raw`, `out.metrics`, `out.eval` を返す
+
+### 7.2 `send_position_command(...)`
+
+* `PositionCommandConfig` を受理する
+* 内部で `ExperimentConfig` に変換する
+* `write_plant_params=false`, `write_controller_params=false` 相当の PLC-only 実行へ橋渡しする
+
+---
+
+## 8. 出力契約
+
+### 8.1 正本出力
+
+`ExperimentRunner.run(...)` / `send_position_command(...)` の `out.raw` は snake_case を正本とする。
+
+主フィールド:
+
+* `seq`
+* `ref_value`
+* `ff_value`
+* `dist_value`
+* `control_input`
+* `target_current`
+* `position_act`
+
+### 8.2 互換ブリッジ
+
+現行実装は `preload_eval` 互換のために `to_legacy_raw(...)` / `to_legacy_eval(...)` を内部で使い、`out.eval` を併せて返す。したがって **legacy bridge はまだ残っている**。新規コードは `out.raw` / `out.metrics` を使う。
+
+---
+
+## 9. ルートスクリプト
+
+### 9.1 `run_position_command_demo.m`
+
+現行デモは `ExperimentConfig` と `ExperimentRunner` を使う。主な設定値は以下。
+
+| パラメータ | 値 |
+|---|---|
+| `target_position_rad` | `0.25` |
+| `step_duration_s` | `3.0` |
+| `pre_step_s` | `3.0` |
+| `hold_margin_s` | `0.50` |
+| `N_REPEAT` | `1` |
+| `Kp` | `10` |
+| `plant.m` | `0.02` |
+| `plant.d` | `0.2` |
+| `plant.rated_current` | `1.2` |
+| `plant.tau_limit` | `2.4` |
+| `plant.vel_limit` | `2*pi*60` |
+
+処理フロー:
+
+1. `ExperimentConfig.defaults()` 取得
+2. plant / controller / waveform を設定
+3. 3 transport 接続
+4. `ExperimentRunner.run(conn, cfg)`
+5. `read_latest_logger_bin` + `resolve_demo_log_source`
+6. 結果表示と plot
+
+### 9.2 `run_ads_discovery_demo.m`
+
+* 現行スクリプトは `ports = [851 852 853 351]` を走査する
+* `851` は compatibility / discovery 用に残る
+* active orchestrator の正本経路は `852`, `853`, `351`
+
+### 9.3 `run_verify_xar.m`
+
+現行スクリプトが検証するのは以下。
+
+1. `ports = [sys.DRIVER_PORT, sys.CONTROL_PORT, sys.SEQ_PORT, sys.MODULE_PORT]` への ADS 接続
+2. 全ポート symbol discovery
+3. `VirtualMotorSymbols.from_defaults()` による PLC 必須 symbol 検証
+4. VM parameter symbol 検証
+5. Controller parameter symbol 検証
+6. 基本 scalar 読出し
+   - `GVL_SEQ.tableLen`
+   - `GVL_MODE.experimentState`
+7. Controller parameter 読出し
+   - `pidB0`
+   - `leadB0`
+   - `notchB0`
+   - `resoB0`
+   - `enablePid`
+
+### 9.4 `run_check_logger_bin.m`
+
+`read_logger_bin(...)` を使って logger file を直接検査する補助スクリプト。
+
+### 9.5 `run_si_demo.m`
+
+`ExperimentConfig` / `ExperimentRunner` と解析 helper を使う SIL デモ。`run_position_command_demo.m` とは別に維持する。
+
+---
+
+## 10. テスト
+
+テスト実行:
+
+```matlab
+run('matlab/tests/run_tests.m')
 ```
+
+主なテスト:
+
+| ファイル | 役割 |
+|---|---|
+| `tests/unit/TestExperimentConfig.m` | 現行正本 config |
+| `tests/unit/TestConnectionManager.m` | transport 構築 |
+| `tests/unit/TestExperimentRunner.m` | 実行フロー本体 |
+| `tests/unit/TestRunConfig.m` | legacy bridge |
+| `tests/unit/TestPositionCommandConfig.m` | legacy bridge |
+| `tests/unit/TestVirtualMotorService.m` | wrapper 委譲確認 |
+| `tests/unit/TestSendPositionCommand.m` | entrypoint 検証 |
+| `tests/unit/TestRunPositionCommandDemoConfig.m` | demo の現行設定 |
+| `tests/unit/TestRunPositionCommandDemoLoggerSelection.m` | demo の logger 選択 |
+| `tests/unit/TestRunSiDemoConfig.m` | SI demo |
+| `tests/unit/TestSystemConfig.m` | 環境固定値 |
+| `tests/unit/TestVirtualMotorSymbols.m` | symbol contract |
+| `tests/contract/TestAdsSession.m` | AdsSession 契約 |
+| `tests/contract/TestTransportContract.m` | transport 契約 |
+| `tests/contract/TestSymbolBrowserContract.m` | symbol browser 契約 |
+
+---
+
+## 11. ファイルツリー
+
+```text
 matlab/
 ├── run_ads_discovery_demo.m
-├── run_position_command_demo.m
-├── run_verify_xar.m
 ├── run_check_logger_bin.m
+├── run_position_command_demo.m
+├── run_si_demo.m
+├── run_verify_xar.m
 ├── +experiment/
-│   ├── SystemConfig.m
-│   ├── VirtualMotorSymbols.m
-│   ├── VirtualMotorService.m
+│   ├── ConnectionManager.m
+│   ├── ControllerConfig.m
+│   ├── ExperimentConfig.m
+│   ├── ExperimentRunner.m
 │   ├── ModeManagerControl.m
-│   ├── RunConfig.m
+│   ├── PlantConfig.m
 │   ├── PositionCommandConfig.m
-│   ├── send_position_command.m
-│   ├── run_virtualmotor.m
-│   ├── write_ref_table.m
-│   ├── write_ff_table.m
-│   ├── write_dist_table.m
-│   ├── write_vm_params.m
-│   ├── write_controller_params.m
-│   ├── read_logger_bin.m
-│   ├── read_logger_bin.m
+│   ├── RunConfig.m
+│   ├── SystemConfig.m
+│   ├── VirtualMotorService.m
+│   ├── VirtualMotorSymbols.m
 │   ├── preload_eval.m
-│   └── simulate_position.m
+│   ├── read_latest_logger_bin.m
+│   ├── read_logger_bin.m
+│   ├── resolve_demo_log_source.m
+│   ├── run_virtualmotor.m
+│   ├── send_position_command.m
+│   ├── write_controller_params.m
+│   ├── write_dist_table.m
+│   ├── write_ff_table.m
+│   ├── write_ref_table.m
+│   └── write_vm_params.m
 ├── +twincat_ads/
+│   ├── AdsSession.m
 │   ├── AdsTransport.m
 │   ├── IAdsTransport.m
-│   └── SymbolBrowser.m
-├── tests/
-│   ├── run_tests.m
-│   ├── unit/
-│   ├── contract/
-│   └── fixtures/
-├── results/
-└── simulink/
+│   ├── SymbolBrowser.m
+│   └── +internal/
+│       └── SymbolTraversal.m
+└── tests/
+    ├── run_tests.m
+    ├── contract/
+    ├── fixtures/
+    └── unit/
 ```
-
-

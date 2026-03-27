@@ -48,7 +48,7 @@ TcCOM Data Area として ADS シンボル公開。Build 不要で MATLAB から
 > `encoderResolution` と `ratedTorque` は実験セットアップの物理定数であり、基本的に変化しない。  
 > `maxPermille` はモーター保護のための入力レベル制限であり、MATLAB から実験ごとに注入可能。  
 > ADS 注入可能な TcCOM パラメータ (`mass` / `damping` 等と同列) として提供する。
-> DriverAdapter にも同一の値を `VAR_GLOBAL CONSTANT` として持たせる (→ [DriverAdapter.md](DriverAdapter.md) §3)。
+> DriverAdapter 側でも同等の換算情報を `MotorParams` / `LoadParams` で保持するが、現行 active 実装は C++ TcCOM parameter struct を使う。
 
 ### 2.3 `ratedTorque` への一本化 (M16 解消)
 
@@ -189,11 +189,5 @@ VirtualMotorCore は実機同等の仕様として `position` / `velocity` を�
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.encoderResolution` | `UDINT` | W |
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.ratedTorque` | `LREAL` | W |
 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.maxPermille` | `LREAL` | W |
-| `VirtualMotorCore_Obj1 (Module1).VirtualMotor2Parameter.mass` | `LREAL` | W |
-| `VirtualMotorCore_Obj1 (Module1).VirtualMotor2Parameter.damping` | `LREAL` | W |
-| `VirtualMotorCore_Obj1 (Module1).VirtualMotor2Parameter.tauLimit` | `LREAL` | W |
-| `VirtualMotorCore_Obj1 (Module1).VirtualMotor2Parameter.velLimit` | `LREAL` | W |
-| `VirtualMotorCore_Obj1 (Module1).VirtualMotor2Parameter.taskDtNs` | `ULINT` | W |
-| `VirtualMotorCore_Obj1 (Module1).VirtualMotor2Parameter.encoderResolution` | `UDINT` | W |
-| `VirtualMotorCore_Obj1 (Module1).VirtualMotor2Parameter.ratedTorque` | `LREAL` | W |
-| `VirtualMotorCore_Obj1 (Module1).VirtualMotor2Parameter.maxPermille` | `LREAL` | W |
+
+> `VirtualMotor2Parameter.*` は object parameter としては存在するが、現行 `.tsproj` では `CreateSymbol="true"` ではない。そのため通常の ADS symbol browse で見える前提では扱わない。

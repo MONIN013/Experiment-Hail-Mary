@@ -1,33 +1,19 @@
 # DriverAdapter
 
-> **位置づけ:** Driver 境界の変換・中継・差異吸収を定義する C++ TcCOM モジュール仕様  
+> **位置づけ:** Driver 境界の変換・中継・差異吸収を定義する active C++ TcCOM モジュール仕様  
 > **対象読者:** TcCOM 実装者、Drive I/O を変更する設計者  
 > **更新条件:** I/O 契約、変換式、Driver 抽象化が変わったとき  
-> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) §2B / [VirtualMotorCore](./VirtualMotorCore.md) / [OpenIssues](../status/OpenIssues.md)
+> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) / [TechnicalReference](../architecture/TechnicalReference.md) / [VirtualMotorCore](./VirtualMotorCore.md)
 
 ---
 
 ## 1. 概要
 
-DriverAdapter は **ドライバ差異吸収層** である。  
-TwinCAT の C++ TcCOM として実装し、Drive 境界の raw 信号を工学単位へ変換し、上流制御へ統一 I/F を提供する。
+DriverAdapter は **ドライバ差異吸収層** である。現行の active 実装は TwinCAT の **C++ TcCOM** (`DriverAdapter_Obj1 (Module1)`) であり、Drive 境界の raw 信号を工学単位へ変換し、上流制御へ統一 I/F を提供する。
 
-本モジュールは **Motor + Load の 2 チャネル専用** とし、内部ではそれぞれの raw 入力を独立に扱う。
-外部契約は current ベース `[A]` を維持し、Drive 境界でのみ `targetTorque` と `torqueActualValue` を `% rated` 整数型に変換する。  
-`positionRel` は Load 側相対位置、`velocityAct` は Load 側速度、`currentAct` は Motor 側実電流の互換エイリアスとして維持する。
+本モジュールは **Motor + Load の 2 チャネル専用** とし、外部契約は current ベース `[A]` を維持する。Drive 境界では `targetTorque` / `torqueActualValue` を **`‰ rated`** 整数値で扱う。
 
-**設計方針:**
-
-1. **Raw ↔ 工学単位の双方向変換** - Motor/Load の raw 信号を rad, rad/s, A に変換する
-2. **実験開始時の相対位置化** - リセット時に Motor/Load の絶対位置をキャプチャし、以降は相対位置を公開する
-3. **外乱加算** - `controlInput + distValue` を current `[A]` で合成し、Drive 境界で `targetTorque` に変換する
-4. **CW/SW 中継** - `controlWordIn -> controlWordOut` と `statusWord -> statusWordOut` を relay する
-5. **電流ゲート** - `enableCurrentOutput = FALSE` または `playbackDone = TRUE` のとき `targetTorque := 0`
-
-**Driver 変更時の対応:**
-
-`MotorParams` / `LoadParams` の ADS パラメータを書き換えて運用する。  
-物理定数は build-time 固定ではなく、TcCOM パラメータとして注入する。
+> リポジトリ内の `DriverAdapterPLC/` は旧 PLC 実装であり、現行 `.tsproj` の active deployment ではない。比較・参照用の legacy として残している。
 
 ---
 
@@ -35,13 +21,14 @@ TwinCAT の C++ TcCOM として実装し、Drive 境界の raw 信号を工学�
 
 | # | 機能 | 説明 |
 |---|---|---|
-| 1 | Motor raw → 工学単位変換 | position, velocity, torque/status を Motor 側で変換する |
-| 2 | Load raw → 工学単位変換 | position, velocity を Load 側で変換する |
-| 3 | 相対位置化 | `resetReq` 立ち上がりで Motor/Load の位置オフセットをキャプチャする |
+| 1 | Motor raw → 工学単位変換 | `position`, `velocity`, `torque/status` を Motor 側で変換する |
+| 2 | Load raw → 工学単位変換 | `position`, `velocity`, `torque/status` を Load 側で変換する |
+| 3 | 相対位置化 | `resetReq` 立上りで Motor/Load の位置オフセットを再キャプチャする |
 | 4 | 外乱加算 | `controlInput + distValue` を current `[A]` で合成する |
-| 5 | CW/SW relay | ModeManager と Drive の間で ControlWord / StatusWord を中継する |
-| 6 | 電流ゲート | 実験停止時に `targetTorque := 0` を強制する |
-| 7 | 互換エイリアス | `positionRel = load.positionRel`, `velocityAct = load.velocityAct`, `currentAct = motor.currentAct` を維持する |
+| 5 | 電流クランプ | `MotorParams.maxCurrentA` で `currentCmd` を制限する |
+| 6 | 電流ゲート | `enableCurrentOutput = FALSE` または `playbackDone = TRUE` のとき `targetTorque := 0` |
+| 7 | CW/SW relay | `controlWordIn -> controlWordOut`, `motorRaw.statusWord -> statusWordOut` |
+| 8 | 互換出力 | `positionRel = load.positionRel`, `velocityAct = load.velocityAct`, `currentAct = motor.currentAct` |
 
 ---
 
@@ -49,90 +36,91 @@ TwinCAT の C++ TcCOM として実装し、Drive 境界の raw 信号を工学�
 
 ### 3.1 `MotorParams`
 
-Motor 側の変換パラメータは ADS から設定する。
-
-| 定数名 | データ型 | 単位 | 説明 |
+| フィールド | 型 | 単位 | 説明 |
 |---|---|---|---|
 | `encoderResolution` | `UDINT` | pulses/rev | Motor 側エンコーダ分解能 |
 | `ratedCurrentA` | `LREAL` | A | Motor 定格電流 |
-| `maxCurrentA` | `LREAL` | A | Motor 電流クランプ上限 |
-| `positionSign` | `DINT` | -1/+1 | 位置符号反転用 |
-| `velocitySign` | `DINT` | -1/+1 | 速度符号反転用 |
-| `currentSign` | `DINT` | -1/+1 | 電流符号反転用 |
+| `maxCurrentA` | `LREAL` | A | 電流クランプ上限 |
+| `positionSign` | `DINT` | -1/+1 | 位置符号 |
+| `velocitySign` | `DINT` | -1/+1 | 速度符号 |
+| `currentSign` | `DINT` | -1/+1 | 電流符号 |
 | `enableRelativePosition` | `BOOL` | - | 相対位置化の有効化 |
 
 ### 3.2 `LoadParams`
 
-Load 側も同じ形で ADS から設定する。
-
-| 定数名 | データ型 | 単位 | 説明 |
+| フィールド | 型 | 単位 | 説明 |
 |---|---|---|---|
 | `encoderResolution` | `UDINT` | pulses/rev | Load 側エンコーダ分解能 |
 | `ratedCurrentA` | `LREAL` | A | Load 側電流換算基準 |
 | `maxCurrentA` | `LREAL` | A | Load 側クランプ上限 |
-| `positionSign` | `DINT` | -1/+1 | 位置符号反転用 |
-| `velocitySign` | `DINT` | -1/+1 | 速度符号反転用 |
-| `currentSign` | `DINT` | -1/+1 | 電流符号反転用 |
+| `positionSign` | `DINT` | -1/+1 | 位置符号 |
+| `velocitySign` | `DINT` | -1/+1 | 速度符号 |
+| `currentSign` | `DINT` | -1/+1 | 電流符号 |
 | `enableRelativePosition` | `BOOL` | - | 相対位置化の有効化 |
 
-> `ratedCurrentA <= 0` または `encoderResolution <= 0` の場合は、そのチャネルの該当変換を無効化して安全側に倒す。
+> `ratedCurrentA <= 0` または `encoderResolution <= 0` の場合、そのチャネルの該当変換は 0 出力へ倒す。
 
 ---
 
 ## 4. I/O 仕様
 
-### 4.1 入力 - Motor raw
+### 4.1 入力 (`Module1Inputs`)
 
-| # | 変数名 | データ型 | 説明 |
-|---|---|---|---|
-| 1 | `motorRaw.positionActualValue` | `DINT` | Motor 実位置 [pulses] |
-| 2 | `motorRaw.velocityActualValue` | `DINT` | Motor 実速度 [pulses/s] |
-| 3 | `motorRaw.torqueActualValue` | `INT` | Motor 実トルク [‰ rated] |
-| 4 | `motorRaw.statusWord` | `UINT` | Motor 状態語 |
+#### Motor raw
 
-### 4.2 入力 - Load raw
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `motorRaw.positionActualValue` | `DINT` | Motor 実位置 [pulses] |
+| `motorRaw.velocityActualValue` | `DINT` | Motor 実速度 [pulses/s] |
+| `motorRaw.torqueActualValue` | `INT` | Motor 実トルク [‰ rated] |
+| `motorRaw.statusWord` | `UINT` | Motor StatusWord |
 
-| # | 変数名 | データ型 | 説明 |
-|---|---|---|---|
-| 5 | `loadRaw.positionActualValue` | `DINT` | Load 実位置 [pulses] |
-| 6 | `loadRaw.velocityActualValue` | `DINT` | Load 実速度 [pulses/s] |
-| 7 | `loadRaw.torqueActualValue` | `INT` | Load 実トルク [‰ rated] |
-| 8 | `loadRaw.statusWord` | `UINT` | Load 状態語 |
+#### Load raw
 
-### 4.3 入力 - 制御側
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `loadRaw.positionActualValue` | `DINT` | Load 実位置 [pulses] |
+| `loadRaw.velocityActualValue` | `DINT` | Load 実速度 [pulses/s] |
+| `loadRaw.torqueActualValue` | `INT` | Load 実トルク [‰ rated] |
+| `loadRaw.statusWord` | `UINT` | Load StatusWord |
 
-| # | 変数名 | データ型 | 説明 |
-|---|---|---|---|
-| 9 | `controlInput` | `LREAL` | 制御出力 `[A]` |
-| 10 | `distValue` | `LREAL` | 外乱値 `[A]` |
-| 11 | `controlWordIn` | `UINT` | CiA 402 ControlWord |
-| 12 | `enableCurrentOutput` | `BOOL` | 電流ゲート有効フラグ |
-| 13 | `playbackDone` | `BOOL` | 再生完了通知 |
-| 14 | `resetReq` | `BOOL` | リセット要求 |
+#### 制御側
 
-### 4.4 出力 - 工学単位
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `controlInput` | `LREAL` | Controller 出力 [A] |
+| `distValue` | `LREAL` | 外乱 [A] |
+| `controlWordIn` | `UINT` | CiA 402 ControlWord |
+| `enableCurrentOutput` | `BOOL` | 電流ゲート |
+| `playbackDone` | `BOOL` | same-task 完了通知 |
+| `resetReq` | `BOOL` | オフセット再キャプチャ要求 |
 
-| # | 変数名 | データ型 | 宛先 | 説明 |
-|---|---|---|---|---|
-| 1 | `motor.positionAbs` | `LREAL` | Logger / Debug | Motor 絶対位置 [rad] |
-| 2 | `motor.positionRel` | `LREAL` | Debug | Motor 相対位置 [rad] |
-| 3 | `motor.velocityAct` | `LREAL` | Logger / Debug | Motor 速度 [rad/s] |
-| 4 | `motor.currentAct` | `LREAL` | Logger / Debug | Motor 実電流 [A] |
-| 5 | `load.positionAbs` | `LREAL` | Debug | Load 絶対位置 [rad] |
-| 6 | `load.positionRel` | `LREAL` | ControllerCore / Logger | Load 相対位置 [rad] |
-| 7 | `load.velocityAct` | `LREAL` | Logger | Load 速度 [rad/s] |
-| 8 | `load.currentAct` | `LREAL` | Debug | Load 実電流 [A] |
-| 9 | `positionRel` | `LREAL` | ControllerCore / Logger | 互換エイリアス = `load.positionRel` |
-| 10 | `velocityAct` | `LREAL` | Logger | 互換エイリアス = `load.velocityAct` |
-| 11 | `currentAct` | `LREAL` | Logger | 互換エイリアス = `motor.currentAct` |
-| 12 | `statusWordOut` | `UINT` | ModeManager | 互換エイリアス = `motorRaw.statusWord` |
+### 4.2 出力 (`Module1Outputs`)
 
-### 4.5 出力 - Drive 側 raw
+#### 工学単位
 
-| # | 変数名 | データ型 | 宛先 | 説明 |
-|---|---|---|---|---|
-| 13 | `targetTorque` | `INT` | Drive | Motor 側指令 [% rated] |
-| 14 | `controlWordOut` | `UINT` | Drive | ControlWord relay |
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `motor.positionAbs` | `LREAL` | Motor 絶対位置 [rad] |
+| `motor.positionRel` | `LREAL` | Motor 相対位置 [rad] |
+| `motor.velocityAct` | `LREAL` | Motor 速度 [rad/s] |
+| `motor.currentAct` | `LREAL` | Motor 実電流 [A] |
+| `load.positionAbs` | `LREAL` | Load 絶対位置 [rad] |
+| `load.positionRel` | `LREAL` | Load 相対位置 [rad] |
+| `load.velocityAct` | `LREAL` | Load 速度 [rad/s] |
+| `load.currentAct` | `LREAL` | Load 実電流 [A] |
+| `currentCmd` | `LREAL` | `clamp(controlInput + distValue)` 後の指令電流 [A] |
+| `positionRel` | `LREAL` | 互換出力 = `load.positionRel` |
+| `velocityAct` | `LREAL` | 互換出力 = `load.velocityAct` |
+| `currentAct` | `LREAL` | 互換出力 = `motor.currentAct` |
+
+#### Drive 側 raw
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `targetTorque` | `INT` | Motor 側指令 [‰ rated] |
+| `controlWordOut` | `UINT` | ControlWord relay |
+| `statusWordOut` | `UINT` | StatusWord relay |
 
 ---
 
@@ -142,70 +130,41 @@ Load 側も同じ形で ADS から設定する。
 
 | 方向 | 変換 | 数式 |
 |---|---|---|
-| raw → rad | position | `theta = raw * 2pi / encoderResolution` |
-| raw → rad/s | velocity | `omega = raw * 2pi / encoderResolution` |
-| raw → A | current | `current = torquePermille * ratedCurrentA / 1000` |
-| A → permille | targetTorque | `permille = round(currentCmd * 1000 / ratedCurrentA)` |
+| raw → rad | position | `theta = sign * raw * 2pi / encoderResolution` |
+| raw → rad/s | velocity | `omega = sign * raw * 2pi / encoderResolution` |
+| raw → A | current | `current = sign * torquePermille * ratedCurrentA / 1000` |
+| A → permille | targetTorque | `permille = sign * currentCmd * 1000 / ratedCurrentA` |
 
 ### 5.2 実行順
 
-1. Motor raw と Load raw を工学単位へ変換する。
-2. `resetReq` の立ち上がりで Motor/Load の位置オフセットをキャプチャする。
+1. `motorRaw`, `loadRaw` を工学単位へ変換する。
+2. `resetReq` 立上りで Motor/Load の位置オフセットを再キャプチャする。
 3. `enableRelativePosition` が有効なら相対位置を公開する。
 4. `currentCmd = clamp(controlInput + distValue, +/- MotorParams.maxCurrentA)` を計算する。
-5. `enableCurrentOutput = FALSE` または `playbackDone = TRUE` なら `targetTorque := 0` にする。
-6. 有効時は `currentCmd` を `targetTorque` に変換し、`INT16` へ飽和させる。
-7. `controlWordIn -> controlWordOut` と `motorRaw.statusWord -> statusWordOut` を relay する。
-
-### 5.3 相対位置化
-
-`resetReq` 立ち上がりで現在の絶対位置を保持し、以降は `positionAbs - offset` を `positionRel` として公開する。  
-ControllerCore は Load 側の `positionRel` をそのまま受け取り、開始時点を 0 とした誤差計算を行う。
+5. `enableCurrentOutput = FALSE` または `playbackDone = TRUE` のとき `targetTorque := 0` にする。
+6. 有効時は `currentCmd` を `targetTorque [‰ rated]` に変換し、`INT16` へ飽和させる。
+7. `controlWordIn -> controlWordOut`, `motorRaw.statusWord -> statusWordOut` を relay する。
 
 ---
 
-## 6. リセット仕様
+## 6. SIL 配線の注記
 
-| 項目 | 仕様 |
-|---|---|
-| 入力 | `resetReq` |
-| 検出方式 | 立ち上がりエッジ |
-| リセット内容 | Motor/Load の位置オフセットを再キャプチャ |
-| 内部状態 | `prevResetReq`, `motorPositionOffsetRad`, `loadPositionOffsetRad` |
+現行の checked-in `.tsproj` では、SIL 時に主に以下が配線される。
+
+```text
+VirtualMotor1Outputs.positionActualValue -> loadRaw.positionActualValue
+VirtualMotor1Outputs.velocityActualValue -> loadRaw.velocityActualValue
+VirtualMotor1Outputs.torqueActualValue   -> motorRaw.torqueActualValue
+statusWord1                              -> motorRaw.statusWord
+
+targetTorque  -> VirtualMotor1Inputs.targetTorque
+controlWordOut -> controlWord1
+```
+
+このため、`motorRaw.position/velocity` と `loadRaw.torque/status` は I/F としては存在するが、現行 SIL 配線では未接続でも成立する。
 
 ---
 
-## 7. 接続例
+## 7. 設計メモ
 
-### 7.1 SIL
-
-```
-VirtualMotorCore.Outputs.positionActualValue  -> loadRaw.positionActualValue
-VirtualMotorCore.Outputs.velocityActualValue  -> loadRaw.velocityActualValue
-VirtualMotorCore.Outputs.torqueActualValue    -> motorRaw.torqueActualValue
-VirtualMotorCore.Outputs.statusWord           -> motorRaw.statusWord
-
-DriverAdapter.targetTorque                    -> VirtualMotorCore.Inputs.targetTorque
-DriverAdapter.controlWordOut                  -> VirtualMotorCore.Inputs.controlWord
-```
-
-### 7.2 Phase 4
-
-```
-EtherCAT motor PDO.positionActualValue        -> motorRaw.positionActualValue
-EtherCAT motor PDO.velocityActualValue        -> motorRaw.velocityActualValue
-EtherCAT motor PDO.torqueActualValue          -> motorRaw.torqueActualValue
-EtherCAT motor PDO.statusWord                 -> motorRaw.statusWord
-
-EtherCAT load encoder.positionActualValue     -> loadRaw.positionActualValue
-EtherCAT load encoder.velocityActualValue     -> loadRaw.velocityActualValue
-EtherCAT load PDO.torqueActualValue           -> loadRaw.torqueActualValue
-EtherCAT load PDO.statusWord                  -> loadRaw.statusWord
-```
-
----
-
-## 8. 設計メモ
-
-`DriverAdapter` は「Motor と Load の差分を吸収する層」であり、上流の制御構造にドライバ差を漏らさないことを主目的とする。  
-そのため、TcCOM パラメータ化は「物理定数を build 時に埋め込む」ではなく、「実機差を ADS で切り替える」方向を採る。
+DriverAdapter の主目的は **Driver 差異を上流制御へ漏らさないこと** である。したがって build-time 固定ではなく、Motor/Load ごとの差分を parameter struct と raw/engineering 変換に閉じ込める。
