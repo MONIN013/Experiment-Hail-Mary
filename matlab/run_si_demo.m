@@ -127,12 +127,15 @@ end
 freq_hz = frf_out.freq_hz(:);
 omega_rad_s = 2 * pi * freq_hz;
 frf_measured = frf_out.frf(:);
-frf_nominal = compute_nominal_two_inertia_frf(cfg.plant, omega_rad_s);
+frf_nominal = compute_nominal_two_inertia_frf( ...
+  cfg.plant, omega_rad_s, ...
+  "Ts", Ts, ...
+  "sample_delay", 4);
 
 mag_measured_db = mag2db(abs(frf_measured));
 mag_nominal_db = mag2db(abs(frf_nominal));
-phase_measured_deg = wrap_phase_at_108(rad2deg(unwrap(angle(frf_measured))));
-phase_nominal_deg = wrap_phase_at_108(rad2deg(unwrap(angle(frf_nominal))));
+phase_measured_deg = wrap_phase_at_180(rad2deg(unwrap(angle(frf_measured))));
+phase_nominal_deg = wrap_phase_at_180(rad2deg(unwrap(angle(frf_nominal))));
 
 figure("Name", "SI Demo", "Color", "w");
 tiledlayout(3, 1, "Padding", "compact", "TileSpacing", "compact");
@@ -154,8 +157,8 @@ hold off;
 grid on;
 xlabel("Frequency [Hz]");
 ylabel("Phase [deg]");
-ylim([-180, 108]);
-yticks([-180, -135, -90, -45, 0, 45, 90, 108]);
+ylim([-180, 180]);
+yticks([-180, -135, -90, -45, 0, 45, 90, 135, 180]);
 legend("Location", "best");
 title("FRF Phase: ffValue -> loadVelocity");
 
@@ -182,11 +185,17 @@ for k = 1:numel(varargin)
 end
 end
 
-function phase_wrapped_deg = wrap_phase_at_108(phase_deg)
-phase_wrapped_deg = mod(phase_deg + 180, 288) - 180;
+function phase_wrapped_deg = wrap_phase_at_180(phase_deg)
+phase_wrapped_deg = mod(phase_deg + 180, 360) - 180;
 end
 
-function frf_nominal = compute_nominal_two_inertia_frf(plant_cfg, omega_rad_s)
+function frf_nominal = compute_nominal_two_inertia_frf(plant_cfg, omega_rad_s, varargin)
+parser = inputParser;
+parser.addParameter("Ts", [], @(x) isempty(x) || (isnumeric(x) && isscalar(x) && isfinite(x) && x > 0));
+parser.addParameter("sample_delay", 0, @(x) isnumeric(x) && isscalar(x) && isfinite(x) && x >= 0);
+parser.parse(varargin{:});
+args = parser.Results;
+
 s = 1i * omega_rad_s(:);
 s(abs(s) == 0) = 1i * eps;
 plant = plant_cfg.to_struct();
@@ -199,4 +208,13 @@ ds = plant.coupling.damping;
 c = ds + ks ./ s;
 den = (jm .* s + bm + c) .* (jl .* s + bl + c) - c .* c;
 frf_nominal = c ./ den;
+
+sample_delay = double(args.sample_delay);
+if sample_delay > 0
+  if isempty(args.Ts)
+    error("experiment:run_si_demo:invalidConfig", ...
+      "Ts is required when sample_delay is nonzero.");
+  end
+  frf_nominal = frf_nominal .* exp(-s * args.Ts * sample_delay);
+end
 end

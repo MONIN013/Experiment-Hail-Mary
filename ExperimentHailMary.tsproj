@@ -1426,7 +1426,7 @@
 								</Symbol>
 							</DataArea>
 							<DataArea>
-								<AreaNo AreaType="OutputSrc">1</AreaNo>
+								<AreaNo AreaType="OutputSrc" ShowSymbols="true">1</AreaNo>
 								<Name>Outputs</Name>
 								<ContextId>1</ContextId>
 								<ByteSize>82</ByteSize>
@@ -1442,7 +1442,7 @@
 									<BaseType GUID="{BDE076FA-0DCF-4280-8B90-28AA4919AD34}">ST_DriverEngineeringSignals</BaseType>
 									<BitOffs>256</BitOffs>
 								</Symbol>
-								<Symbol>
+								<Symbol CreateSymbol="true">
 									<Name>currentCmd</Name>
 									<BitSize>64</BitSize>
 									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
@@ -1562,7 +1562,7 @@
 		<Io/>
 	</Project>
 	<Mappings>
-		<MappingInfo Identifier="{00000000-0040-0201-1000-010140000101}" Id="#x02030050" Watchdog="00000000000000000400000004000000"/>
+		<MappingInfo Identifier="{00000000-0040-0201-1000-010140000101}" Id="#x02030050"/>
 		<MappingInfo Identifier="{00000000-0040-0201-2000-010130000101}" Id="#x02030030"/>
 		<MappingInfo Identifier="{00000000-0040-0201-2000-010140000101}" Id="#x02030060"/>
 		<MappingInfo Identifier="{00000000-0040-0201-3000-010140000101}" Id="#x02030090"/>

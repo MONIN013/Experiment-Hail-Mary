@@ -1,5 +1,5 @@
 function out = build_periodic_chirp(varargin)
-% build_periodic_chirp  周期リセット型 chirp を生成する。
+% build_periodic_chirp  周期リセット型の対数 chirp を生成する。
 %
 %   out = experiment.build_periodic_chirp("Ts", Ts, "Tend", Tend, ...)
 %
@@ -35,6 +35,10 @@ function out = build_periodic_chirp(varargin)
     error("experiment:build_periodic_chirp:invalidConfig", ...
       "f1 must be greater than f0.");
   end
+  if args.f0 <= 0
+    error("experiment:build_periodic_chirp:invalidConfig", ...
+      "f0 must be greater than 0 for logarithmic chirp.");
+  end
   nyquist_hz = 0.5 / args.Ts;
   if args.f1 >= nyquist_hz
     error("experiment:build_periodic_chirp:invalidConfig", ...
@@ -54,10 +58,13 @@ function out = build_periodic_chirp(varargin)
   end
 
   t = args.Ts * (0:sample_count - 1)';
-  t_relative = t - floor(t / args.Tcycle) * args.Tcycle;
-  chirp_rate = (args.f1 - args.f0) / args.Tcycle;
-  signal = args.A * sin(args.initial_phase + ...
-    (2 * pi * (args.f0 * t_relative + 0.5 * chirp_rate * t_relative .^ 2)));
+  t_relative = mod(t, args.Tcycle);
+  sweep_ratio = args.f1 / args.f0;
+  k = sweep_ratio ^ (1 / args.Tcycle);
+  phase = args.initial_phase + ...
+    2 * pi * args.f0 * ((k .^ t_relative) - 1) / log(k);
+  signal = args.A * sin(phase);
+
 
   out = struct( ...
     "t", t, ...

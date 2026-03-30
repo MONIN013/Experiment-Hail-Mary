@@ -19,7 +19,7 @@ step_duration_s     = 2.0;
 hold_margin_s       = 0.50;
 pre_step_s          = 2.0;
 N_REPEAT            = 1;
-Kp = 5;
+Kp = 1.5;
 
 %% Derived waveforms for this demo
 step_sample_n = round(step_duration_s * cfg.task_rate_hz);
