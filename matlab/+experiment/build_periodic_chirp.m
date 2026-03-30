@@ -40,7 +40,7 @@ function out = build_periodic_chirp(varargin)
       "f0 must be greater than 0 for logarithmic chirp.");
   end
   nyquist_hz = 0.5 / args.Ts;
-  if args.f1 >= nyquist_hz
+  if args.f1 > nyquist_hz
     error("experiment:build_periodic_chirp:invalidConfig", ...
       "f1 (%.6g Hz) must be below Nyquist (%.6g Hz).", args.f1, nyquist_hz);
   end

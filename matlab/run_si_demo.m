@@ -29,7 +29,7 @@ initial_phase = 0;
 hold_margin_s = 1.0;
 Kp = 0;
 
-nyquist_guard_hz = 0.45 / Ts;
+nyquist_guard_hz = 0.5 / Ts;
 f1_effective = min(f1, nyquist_guard_hz);
 if f1_effective < f1
   warning("experiment:run_si_demo:f1Clamped", ...
