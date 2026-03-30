@@ -13,7 +13,7 @@ classdef ExperimentRunner
       end
 
       plc_symbols = experiment.VirtualMotorSymbols.from_defaults();
-      vm_symbols = experiment.VirtualMotorSymbols.from_vm_prefix(experiment.SystemConfig.VM_PREFIX);
+      vm_symbols = experiment.VirtualMotorSymbols.from_vm_prefix(experiment.SystemConfig.VM_PLANT_PREFIX);
       controller_symbols = experiment.VirtualMotorSymbols.from_controller_prefix(experiment.SystemConfig.CTRL_PREFIX);
 
       if (cfg.write_plant_params || cfg.write_controller_params) && isempty(module_transport)
@@ -41,7 +41,7 @@ classdef ExperimentRunner
           error("experiment:runner:invalidConfig", "module transport is required when write_plant_params=true.");
         end
         experiment.write_vm_params( ...
-          module_transport, experiment.SystemConfig.VM_PREFIX, ...
+          module_transport, experiment.SystemConfig.VM_PLANT_PREFIX, ...
           cfg.plant.to_struct(), uint64(round(1e9 / cfg.task_rate_hz)));
       end
       if cfg.write_controller_params

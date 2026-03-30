@@ -19,7 +19,7 @@ classdef SystemConfig
     TASK_RATE_HZ       = 8000    % VirtualMotorTask 周期 [Hz]
 
     % --- シンボルプレフィクス ---
-    VM_PREFIX          = "VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter."
+    VM_PLANT_PREFIX    = "VirtualMotorCore_Obj1 (Module1).PlantParameter."
     CTRL_PREFIX        = "ControllerCore_Obj1 (Module1)."
 
     % --- ModeManager ---

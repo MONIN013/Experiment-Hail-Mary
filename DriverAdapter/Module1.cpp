@@ -245,8 +245,10 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 		m_Outputs.targetTorque = 0;
 	}
 
-	m_Outputs.controlWordOut = m_Inputs.controlWordIn;
-	m_Outputs.statusWordOut = m_Inputs.motorRaw.statusWord;
+	m_Outputs.motorControlWordOut = m_Inputs.motorControlWordIn;
+	m_Outputs.loadControlWordOut = m_Inputs.loadControlWordIn;
+	m_Outputs.motorStatusWordOut = m_Inputs.motorRaw.statusWord;
+	m_Outputs.loadStatusWordOut = m_Inputs.loadRaw.statusWord;
 
 	m_prevResetReq = resetReq;
 	return hr;

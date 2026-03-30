@@ -22,33 +22,33 @@ classdef TestTsprojMapping < matlab.unittest.TestCase
         '<Link VarA="Outputs^motor^positionRel" VarB="Inputs^record^load^position"/>'));
     end
 
-    function driverToVirtualMotorLinksUseAxis1ForMotorAxis2ForLoad(testCase)
+    function driverToVirtualMotorLinksUseMotorLoadContracts(testCase)
       source = testCase.read_tsproj();
 
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        '<Link VarA="Inputs^motorRaw^positionActualValue" VarB="Outputs^VirtualMotor1Outputs^positionActualValue"/>'));
+        '<Link VarA="Inputs^motorRaw^positionActualValue" VarB="Outputs^motor^positionActualValue"/>'));
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        '<Link VarA="Inputs^motorRaw^velocityActualValue" VarB="Outputs^VirtualMotor1Outputs^velocityActualValue"/>'));
+        '<Link VarA="Inputs^motorRaw^velocityActualValue" VarB="Outputs^motor^velocityActualValue"/>'));
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        '<Link VarA="Inputs^motorRaw^torqueActualValue" VarB="Outputs^VirtualMotor1Outputs^torqueActualValue"/>'));
+        '<Link VarA="Inputs^motorRaw^torqueActualValue" VarB="Outputs^motor^torqueActualValue"/>'));
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        '<Link VarA="Inputs^motorRaw^statusWord" VarB="Outputs^statusWord1"/>'));
+        '<Link VarA="Inputs^motorRaw^statusWord" VarB="Outputs^motor^statusWord"/>'));
 
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        '<Link VarA="Inputs^loadRaw^positionActualValue" VarB="Outputs^VirtualMotor2Outputs^positionActualValue"/>'));
+        '<Link VarA="Inputs^loadRaw^positionActualValue" VarB="Outputs^load^positionActualValue"/>'));
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        '<Link VarA="Inputs^loadRaw^velocityActualValue" VarB="Outputs^VirtualMotor2Outputs^velocityActualValue"/>'));
+        '<Link VarA="Inputs^loadRaw^velocityActualValue" VarB="Outputs^load^velocityActualValue"/>'));
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        '<Link VarA="Inputs^loadRaw^torqueActualValue" VarB="Outputs^VirtualMotor2Outputs^torqueActualValue"/>'));
+        '<Link VarA="Inputs^loadRaw^torqueActualValue" VarB="Outputs^load^torqueActualValue"/>'));
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        '<Link VarA="Inputs^loadRaw^statusWord" VarB="Outputs^statusWord2"/>'));
+        '<Link VarA="Inputs^loadRaw^statusWord" VarB="Outputs^load^statusWord"/>'));
 
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        '<Link VarA="Outputs^targetTorque" VarB="Inputs^VirtualMotor1Inputs^targetTorque"/>'));
+        '<Link VarA="Outputs^targetTorque" VarB="Inputs^motor^targetTorque"/>'));
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        '<Link VarA="Outputs^controlWordOut" VarB="Inputs^controlWord1"/>'));
+        '<Link VarA="Outputs^motorControlWordOut" VarB="Inputs^motor^controlWord"/>'));
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        '<Link VarA="Outputs^controlWordOut" VarB="Inputs^controlWord2"/>'));
+        '<Link VarA="Outputs^loadControlWordOut" VarB="Inputs^load^controlWord"/>'));
     end
   end
 

@@ -29,5 +29,11 @@ classdef TestExperimentConfig < matlab.unittest.TestCase
         "ref_profile", [1; 2], ...
         "dist_profile", [0; 0; 0]), "experiment:config:invalid");
     end
+
+    function rejectsLegacyPlantAliases(testCase)
+      testCase.verifyError(@() experiment.ExperimentConfig.from_struct(struct( ...
+        "ref_profile", [1; 2], ...
+        "m", 0.1)), "experiment:config:invalid");
+    end
   end
 end

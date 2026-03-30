@@ -65,6 +65,7 @@ classdef ExperimentConfig
       p.addParameter("control_port", [], @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
       p.addParameter("module_port", defaults.module_port, @(x) isnumeric(x) && isscalar(x));
       p.addParameter("ads_assembly", "", @(x) ischar(x) || isstring(x));
+      p.addParameter("plant", defaults.plant, @(x) isa(x, "experiment.PlantConfig") || isstruct(x));
       p.addParameter("ref_profile", [], @isnumeric);
       p.addParameter("ff_profile", [], @isnumeric);
       p.addParameter("dist_profile", [], @isnumeric);
@@ -87,12 +88,6 @@ classdef ExperimentConfig
       p.addParameter("waveform_diag_max_shift_samples", 1, @(x) isnumeric(x) && isscalar(x));
       p.addParameter("waveform_diag_abs_tol", 1e-12, @(x) isnumeric(x) && isscalar(x));
       p.addParameter("waveform_diag_preview_n", 8, @(x) isnumeric(x) && isscalar(x));
-      p.addParameter("m", defaults.plant.m, @(x) isnumeric(x) && isscalar(x));
-      p.addParameter("d", defaults.plant.d, @(x) isnumeric(x) && isscalar(x));
-      p.addParameter("rated_current", defaults.plant.rated_current, @(x) isnumeric(x) && isscalar(x));
-      p.addParameter("max_permille", defaults.plant.max_permille, @(x) isnumeric(x) && isscalar(x));
-      p.addParameter("tau_limit", defaults.plant.tau_limit, @(x) isnumeric(x) && isscalar(x));
-      p.addParameter("vel_limit", defaults.plant.vel_limit, @(x) isnumeric(x) && isscalar(x));
 
       p.addParameter("pid_b0", 0.0, @(x) isnumeric(x) && isscalar(x));
       p.addParameter("pid_b1", 0.0, @(x) isnumeric(x) && isscalar(x));
@@ -137,10 +132,9 @@ classdef ExperimentConfig
 
       reject_legacy_inputs(s);
       reject_prefix_overrides(s);
+      reject_legacy_plant_inputs(s);
 
       out = experiment.ExperimentConfig.defaults();
-
-      plant_struct = extract_plant_struct(s, out.plant.to_struct());
       controller_struct = extract_controller_struct(s);
 
       fields = fieldnames(s);
@@ -152,8 +146,6 @@ classdef ExperimentConfig
       end
       if isfield(s, "plant")
         out.plant = experiment.PlantConfig.from_struct(s.plant);
-      else
-        out.plant = experiment.PlantConfig.from_struct(plant_struct);
       end
       if isfield(s, "controller")
         if isa(s.controller, "experiment.ControllerConfig")
@@ -303,7 +295,7 @@ end
 
 function reject_prefix_overrides(s)
 checks = { ...
-  "vm_param_symbol_prefix", char(experiment.SystemConfig.VM_PREFIX); ...
+  "vm_param_symbol_prefix", char(experiment.SystemConfig.VM_PLANT_PREFIX); ...
   "controller_param_symbol_prefix", char(experiment.SystemConfig.CTRL_PREFIX)};
 for k = 1:size(checks, 1)
   key = checks{k, 1};
@@ -315,13 +307,13 @@ for k = 1:size(checks, 1)
 end
 end
 
-function out = extract_plant_struct(s, defaults)
-out = defaults;
-fields = fieldnames(out);
-for k = 1:numel(fields)
-  key = fields{k};
+function reject_legacy_plant_inputs(s)
+legacy_keys = ["m", "d", "rated_current", "max_permille", "tau_limit", "vel_limit"];
+for k = 1:numel(legacy_keys)
+  key = char(legacy_keys(k));
   if isfield(s, key)
-    out.(key) = s.(key);
+    error("experiment:config:invalid", ...
+      "%s is no longer supported. Use plant.motor/load/coupling.", key);
   end
 end
 end

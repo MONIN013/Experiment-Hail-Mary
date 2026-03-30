@@ -1,5 +1,5 @@
 function pred_x = simulate_position(log_i, cfg)
-% Simulate position from current using the VM forward model.
+% Simulate load position from current using the 2-inertia VM forward model.
 log_i = double(log_i(:));
 sample_n = numel(log_i);
 pred_x = zeros(sample_n, 1);
@@ -7,27 +7,55 @@ if sample_n == 0
   return;
 end
 
-task_dt_s = 1 / cfg.task_rate_hz;
-m_pos = cfg.m;
-d_non_neg = max(0, cfg.d);
-kt_abs = abs(cfg.rated_current);
-tau_lim = abs(cfg.tau_limit);
-vel_lim = abs(cfg.vel_limit);
+plant = normalize_plant_cfg(cfg);
+task_dt_s = 1 / double(cfg.task_rate_hz);
 
-v = 0.0;
-x = 0.0;
+theta_m = 0.0;
+omega_m = 0.0;
+theta_l = 0.0;
+omega_l = 0.0;
+
+jm = max(0.0, plant.motor.inertia);
+jl = max(0.0, plant.load.inertia);
+bm = max(0.0, plant.motor.damping);
+bl = max(0.0, plant.load.damping);
+ks = max(0.0, plant.coupling.stiffness);
+ds = max(0.0, plant.coupling.damping);
+kt_abs = abs(plant.motor.ratedTorque);
+tau_lim = abs(plant.motor.tauLimit);
+vel_lim_motor = abs(plant.motor.velLimit);
+vel_lim_load = abs(plant.load.velLimit);
+
+if jm <= 0 || jl <= 0
+  return;
+end
+
 for k = 1:sample_n
-  tau = clamp_scalar(kt_abs * log_i(k), tau_lim);
-  v = v + (task_dt_s / m_pos) * (tau - d_non_neg * v);
-  v = clamp_scalar(v, vel_lim);
-  x = x + task_dt_s * v;
-  pred_x(k) = x;
+  tau_m = clamp_scalar(kt_abs * log_i(k), tau_lim);
+  tau_s = ks * (theta_m - theta_l) + ds * (omega_m - omega_l);
+  omega_m = clamp_scalar(omega_m + task_dt_s * ((tau_m - tau_s - bm * omega_m) / jm), vel_lim_motor);
+  omega_l = clamp_scalar(omega_l + task_dt_s * ((tau_s - bl * omega_l) / jl), vel_lim_load);
+  theta_m = theta_m + task_dt_s * omega_m;
+  theta_l = theta_l + task_dt_s * omega_l;
+  pred_x(k) = theta_l;
+end
+end
+
+function plant = normalize_plant_cfg(cfg)
+if isa(cfg, "experiment.PlantConfig")
+  plant = cfg.to_struct();
+elseif isstruct(cfg) && isfield(cfg, "plant")
+  plant = experiment.PlantConfig.from_struct(cfg.plant).to_struct();
+else
+  plant = experiment.PlantConfig.from_struct(cfg).to_struct();
 end
 end
 
 function y = clamp_scalar(x, limit)
 lim = abs(limit);
-if x > lim
+if lim <= 0
+  y = 0.0;
+elseif x > lim
   y = lim;
 elseif x < -lim
   y = -lim;

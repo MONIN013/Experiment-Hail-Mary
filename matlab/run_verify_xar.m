@@ -82,7 +82,7 @@ end
 %% 4. VM パラメータシンボル
 mod = find_transport(transports, ports, sys.MODULE_PORT);
 if ~isempty(mod)
-  vm_symbols = experiment.VirtualMotorSymbols.from_vm_prefix(char(sys.VM_PREFIX));
+  vm_symbols = experiment.VirtualMotorSymbols.from_vm_prefix(char(sys.VM_PLANT_PREFIX));
   name = "VM param symbols (port " + string(sys.MODULE_PORT) + ")";
   try
     twincat_ads.SymbolBrowser.validate_symbols(mod, vm_symbols.vmRequiredProbes);
