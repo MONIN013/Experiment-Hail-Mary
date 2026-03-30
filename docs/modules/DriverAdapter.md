@@ -27,7 +27,7 @@ DriverAdapter は **ドライバ差異吸収層** である。現行の active �
 | 4 | 外乱加算 | `controlInput + distValue` を current `[A]` で合成する |
 | 5 | 電流クランプ | `MotorParams.maxCurrentA` で `currentCmd` を制限する |
 | 6 | 電流ゲート | `enableCurrentOutput = FALSE` または `playbackDone = TRUE` のとき `targetTorque := 0` |
-| 7 | CW/SW relay | `controlWordIn -> controlWordOut`, `motorRaw.statusWord -> statusWordOut` |
+| 7 | CW/SW relay | `motorControlWordIn/loadControlWordIn` を個別 relay し、Motor/Load の `statusWord` を個別公開する |
 
 ---
 
@@ -89,7 +89,8 @@ DriverAdapter は **ドライバ差異吸収層** である。現行の active �
 |---|---|---|
 | `controlInput` | `LREAL` | Controller 出力 [A] |
 | `distValue` | `LREAL` | 外乱 [A] |
-| `controlWordIn` | `UINT` | CiA 402 ControlWord |
+| `motorControlWordIn` | `UINT` | Motor CiA 402 ControlWord |
+| `loadControlWordIn` | `UINT` | Load CiA 402 ControlWord |
 | `enableCurrentOutput` | `BOOL` | 電流ゲート |
 | `playbackDone` | `BOOL` | same-task 完了通知 |
 | `resetReq` | `BOOL` | オフセット再キャプチャ要求 |
@@ -109,14 +110,16 @@ DriverAdapter は **ドライバ差異吸収層** である。現行の active �
 | `load.velocityAct` | `LREAL` | Load 速度 [rad/s] |
 | `load.currentAct` | `LREAL` | Load 実電流 [A] |
 | `currentCmd` | `LREAL` | `clamp(controlInput + distValue)` 後の指令電流 [A] |
+| `motorControlWordOut` | `UINT` | Motor ControlWord relay |
+| `loadControlWordOut` | `UINT` | Load ControlWord relay |
+| `motorStatusWordOut` | `UINT` | Motor StatusWord relay |
+| `loadStatusWordOut` | `UINT` | Load StatusWord relay |
 
 #### Drive 側 raw
 
 | フィールド | 型 | 説明 |
 |---|---|---|
 | `targetTorque` | `INT` | Motor 側指令 [‰ rated] |
-| `controlWordOut` | `UINT` | ControlWord relay |
-| `statusWordOut` | `UINT` | StatusWord relay |
 
 ---
 
@@ -139,31 +142,31 @@ DriverAdapter は **ドライバ差異吸収層** である。現行の active �
 4. `currentCmd = clamp(controlInput + distValue, +/- MotorParams.maxCurrentA)` を計算する。
 5. `enableCurrentOutput = FALSE` または `playbackDone = TRUE` のとき `targetTorque := 0` にする。
 6. 有効時は `currentCmd` を `targetTorque [‰ rated]` に変換し、`INT16` へ飽和させる。
-7. `controlWordIn -> controlWordOut`, `motorRaw.statusWord -> statusWordOut` を relay する。
+7. `motorControlWordIn/loadControlWordIn` をそれぞれ `motorControlWordOut/loadControlWordOut` へ relay し、`motorRaw.statusWord/loadRaw.statusWord` を `motorStatusWordOut/loadStatusWordOut` として公開する。
 
 ---
 
 ## 6. SIL 配線の注記
 
-現行の checked-in `.tsproj` では、SIL 時に Axis 1 を Motor、Axis 2 を Load として以下が配線される。
+現行の checked-in `.tsproj` では、SIL 時に `VirtualMotorCore.Outputs.motor/*` を Motor、`VirtualMotorCore.Outputs.load/*` を Load として以下が配線される。
 
 ```text
-VirtualMotor1Outputs.positionActualValue -> motorRaw.positionActualValue
-VirtualMotor1Outputs.velocityActualValue -> motorRaw.velocityActualValue
-VirtualMotor1Outputs.torqueActualValue   -> motorRaw.torqueActualValue
-statusWord1                              -> motorRaw.statusWord
+VirtualMotorCore.Outputs.motor.positionActualValue -> motorRaw.positionActualValue
+VirtualMotorCore.Outputs.motor.velocityActualValue -> motorRaw.velocityActualValue
+VirtualMotorCore.Outputs.motor.torqueActualValue   -> motorRaw.torqueActualValue
+VirtualMotorCore.Outputs.motor.statusWord          -> motorRaw.statusWord
 
-VirtualMotor2Outputs.positionActualValue -> loadRaw.positionActualValue
-VirtualMotor2Outputs.velocityActualValue -> loadRaw.velocityActualValue
-VirtualMotor2Outputs.torqueActualValue   -> loadRaw.torqueActualValue
-statusWord2                              -> loadRaw.statusWord
+VirtualMotorCore.Outputs.load.positionActualValue -> loadRaw.positionActualValue
+VirtualMotorCore.Outputs.load.velocityActualValue -> loadRaw.velocityActualValue
+VirtualMotorCore.Outputs.load.torqueActualValue   -> loadRaw.torqueActualValue
+VirtualMotorCore.Outputs.load.statusWord          -> loadRaw.statusWord
 
-targetTorque  -> VirtualMotor1Inputs.targetTorque
-controlWordOut -> controlWord1
-controlWordOut -> controlWord2
+targetTorque         -> VirtualMotorCore.Inputs.motor.targetTorque
+motorControlWordOut  -> VirtualMotorCore.Inputs.motor.controlWord
+loadControlWordOut   -> VirtualMotorCore.Inputs.load.controlWord
 ```
 
-`targetTorque` は Motor 軸だけを駆動し、Load 軸には直接トルクを入れない。`controlWordOut` は両軸へ relay されるため、Load 軸も CiA 状態遷移だけは追従する。
+`targetTorque` は Motor 軸だけを駆動し、Load 軸には直接トルクを入れない。Load 側 ControlWord は CiA 状態追従と fault 監視のために独立 relay される。
 
 ---
 

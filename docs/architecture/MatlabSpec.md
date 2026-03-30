@@ -77,7 +77,7 @@ MATLAB 層は **実験統括・パラメータ設定・ログ取得・解析** �
 | `CONTROL_PORT` | `852` | ModeManager |
 | `MODULE_PORT` | `351` | C++ TcCOM 群 |
 | `TASK_RATE_HZ` | `8000` | `VirtualMotorTask` 周波数 |
-| `VM_PREFIX` | `"VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter."` | VM parameter prefix |
+| `VM_PLANT_PREFIX` | `"VirtualMotorCore_Obj1 (Module1).PlantParameter."` | VM parameter prefix |
 | `CTRL_PREFIX` | `"ControllerCore_Obj1 (Module1)."` | Controller parameter prefix |
 | `MODE_FLAGS_SYMBOL` | `"GVL_MODE.modeFlags"` | start / stop 用 symbol |
 | `LOGGER_FILE_RELEASED_SYMBOL` | `"GVL_MODE.loggerFileReleased"` | logger close 完了 |

@@ -198,8 +198,7 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 │     を ADS 書込                                                       │
 │                                                                       │
 │  ③ TcCOM パラメータ ADS 書込     ControllerCore: biquad 係数更新      │
-│                                   VirtualMotorCore: mass/damping/ratedTorque 等更新 │
-│                                   (外部設定値は rated_current [A]、VM 内部のみ ratedTorque) │
+│                                   VirtualMotorCore: PlantParameter.motor/load/coupling 更新 │
 │                                                                       │
 │  ④ modeFlags = 0x0001            ModeManager: サーボ有効化            │
 │    (SERVO_ENABLE)                 CiA 402 → OPERATION_ENABLED         │
@@ -249,7 +248,7 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 | **テーブル書込** | 853 | `GVL_SEQ.refTable` / `ffTable` / `distTable` | `LREAL[]` | W |
 | **テーブル長** | 853 | `GVL_SEQ.tableLen` | `UDINT` | W |
 | **フィルタ係数** | 351 | `ControllerCore_Obj1 (Module1).*Params.*` | `LREAL` | W |
-| **VM パラメータ** | 351 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.*` | `LREAL` | W |
+| **VM パラメータ** | 351 | `VirtualMotorCore_Obj1 (Module1).PlantParameter.*` | `LREAL/UDINT/ULINT` | W |
 | **ログ pre-arm** | 852 | `MAIN.preArmOut` → `Inputs.control.preArmReq` | `BOOL` | Auto |
 | **ログ制御** | 852 | `MAIN.experimentActiveOut` → `Inputs.control.loggingReq` | `BOOL` | Auto |
 | **logger status** | 351 | `ExperimentLogger_Obj1 (Module1).Outputs.status.*` | `UDINT/BOOL` | R |

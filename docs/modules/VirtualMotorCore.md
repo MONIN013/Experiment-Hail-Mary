@@ -10,7 +10,7 @@
 ## 1. 概要
 
 VirtualMotorCore は SIL (Software-in-the-Loop) 検証用の仮想モーター物理シミュレータである。
-Load 側 1 慣性近似として動作し、CiA 402 状態機械を内蔵する。
+現行実装は **Motor/Load を 1:1 ねじり結合した 2 慣性モデル** として動作し、Motor/Load それぞれに CiA 402 状態機械を持つ。
 
 **設計方針 (D11/D13):**  
 VirtualMotorCore の外部 I/O を CiA 402 EtherCAT PDO 準拠の **整数型** に変更する。
@@ -22,87 +22,68 @@ I/O 境界で整数変換を行う。
 
 ---
 
-## 2. パラメータ (`ST_VirtualMotorParams`)
+## 2. パラメータ (`ST_VirtualPlantParams`)
 
-TcCOM Data Area として ADS シンボル公開。Build 不要で MATLAB から注入可能。
+TcCOM object parameter `PlantParameter` として ADS シンボル公開され、Build 不要で MATLAB から注入可能。
 
-### 2.1 既存パラメータ
+### 2.1 `PlantParameter.motor`
 
 | パラメータ名 | データ型 | 単位 | 説明 |
 |---|---|---|---|
-| `mass` | `double` | kg·m² | 慣性モーメント (Load 側 1 慣性近似) |
+| `inertia` | `double` | kg·m² | Motor 慣性 |
 | `damping` | `double` | N·m·s/rad | 粘性減衰係数 |
+| `ratedTorque` | `double` | N·m | `‰ rated` 変換基準 |
 | `tauLimit` | `double` | N·m | トルク飽和リミット |
 | `velLimit` | `double` | rad/s | 速度リミット |
-| `taskDtNs` | `ULINT` | ns | タスク周期 (自動取得) |
+| `maxPermille` | `double` | ‰ rated | 入力指令トルク上限。`0.0` は無制限 |
+| `encoderResolution` | `UDINT` | pulses/rev | エンコーダ分解能 |
 
-### 2.2 新規パラメータ
+### 2.2 `PlantParameter.load`
 
-| パラメータ名 | データ型 | 単位 | 例値 | 説明 |
-|---|---|---|---|---|
-| `encoderResolution` | `UDINT` | pulses/rev | `8388608` (2²³) | エンコーダ分解能。実機ドライバのエンコーダ仕様に合わせて設定 |
-| `ratedTorque` | `double` | N·m | `1.2` | 定格トルク。CiA 402 の ‰ rated 変換基準。kt=1 前提で `RATED_CURRENT` と同一値 |
-| `maxPermille` | `double` | ‰ rated | `0.0` | 入力指令トルクの上限 [‰ rated]。`0.0` = 無制限、正値で有効化。超過時 Fault 遷移 |
+| パラメータ名 | データ型 | 単位 | 説明 |
+|---|---|---|---|
+| `inertia` | `double` | kg·m² | Load 慣性 |
+| `damping` | `double` | N·m·s/rad | 粘性減衰係数 |
+| `ratedTorque` | `double` | N·m | `‰ rated` 変換基準 |
+| `tauLimit` | `double` | N·m | 許容伝達トルク上限 |
+| `velLimit` | `double` | rad/s | 速度リミット |
+| `encoderResolution` | `UDINT` | pulses/rev | エンコーダ分解能 |
 
-> **`encoderResolution` / `ratedTorque` / `maxPermille` の位置づけ:**  
-> `encoderResolution` と `ratedTorque` は実験セットアップの物理定数であり、基本的に変化しない。  
-> `maxPermille` はモーター保護のための入力レベル制限であり、MATLAB から実験ごとに注入可能。  
-> ADS 注入可能な TcCOM パラメータ (`mass` / `damping` 等と同列) として提供する。
-> DriverAdapter 側でも同等の換算情報を `MotorParams` / `LoadParams` で保持するが、現行 active 実装は C++ TcCOM parameter struct を使う。
+### 2.3 `PlantParameter.coupling` / `taskDtNs`
 
-### 2.3 `ratedTorque` への一本化 (M16 解消)
-
-`targetTorque` [‰ rated] から内部 Nm への変換は `ratedTorque` のみを使用する。  
-`torqueConstant` は 2026-02-27 の更新で I/F から削除済み。
+| パラメータ名 | データ型 | 単位 | 説明 |
+|---|---|---|---|
+| `coupling.stiffness` | `double` | N·m/rad | ねじり剛性 |
+| `coupling.damping` | `double` | N·m·s/rad | ねじり減衰 |
+| `taskDtNs` | `ULINT` | ns | タスク周期 |
 
 ---
 
 ## 3. I/O インターフェース — CiA 402 PDO 準拠
 
-> **2軸構成 (実装準拠):** 実装は `kAxisCount = 2` で、`Module1Inputs/Outputs` は
-> Axis 1/2 のペア (`VirtualMotor1*`, `VirtualMotor2*`, `controlWord1/2`, `statusWord1/2`) を持つ。
-> checked-in `.tsproj` では Axis 1 を Motor、Axis 2 を Load として DriverAdapter に接続する。
-> ただし 2 軸は独立シミュレーションであり、mapping だけで Motor-Load 連成は表現しない。
+> **2 軸構成 (実装準拠):** `Module1Inputs/Outputs` は `motor` / `load` の構造体を持つ。
+> Motor 側だけが `targetTorque` を受け取り、Load 側は `controlWord` と `statusWord` による drive state 管理のみを持つ。
 
 ### 3.1 入力ポート (Data Area Input)
 
 | # | ポート名 | データ型 | CiA 402 Index | ソース | 説明 |
 |---|---|---|---|---|---|
-| 1 | `targetTorque` | `INT` (16bit) | 0x6071 | DriverAdapter | 指令トルク [‰ rated] |
-| 2 | `controlWord` | `UINT` (16bit) | 0x6040 | DriverAdapter | CiA 402 ControlWord |
+| 1 | `Inputs.motor.targetTorque` | `INT` (16bit) | 0x6071 | DriverAdapter | Motor 指令トルク [‰ rated] |
+| 2 | `Inputs.motor.controlWord` | `UINT` (16bit) | 0x6040 | DriverAdapter | Motor CiA 402 ControlWord |
+| 3 | `Inputs.load.controlWord` | `UINT` (16bit) | 0x6040 | DriverAdapter | Load CiA 402 ControlWord |
 
 ### 3.2 出力ポート (Data Area Output)
 
 | # | ポート名 | データ型 | CiA 402 Index | 宛先 | 説明 |
 |---|---|---|---|---|---|
-| 1 | `positionActualValue` | `DINT` (32bit) | 0x6064 | DriverAdapter | 実位置 [pulses] |
-| 2 | `velocityActualValue` | `DINT` (32bit) | 0x606C | DriverAdapter | 実速度 [pulses/s] |
-| 3 | `torqueActualValue` | `INT` (16bit) | 0x6077 | DriverAdapter | 実トルク [‰ rated] **(新規)** |
-| 4 | `statusWord` | `UINT` (16bit) | 0x6041 | DriverAdapter | CiA 402 StatusWord |
-
-### 3.3 旧 I/O との対応
-
-| 旧ポート名 | 旧型 | 新ポート名 | 新型 | 変更内容 |
-|---|---|---|---|---|
-| `currentIn` | `double` [A] | `targetTorque` | `INT` [‰ rated] | 名称・型・単位すべて変更 |
-| `positionOut` | `double` [rad] | `positionActualValue` | `DINT` [pulses] | 型・単位変更 |
-| `velocityOut` | `double` [rad/s] | `velocityActualValue` | `DINT` [pulses/s] | 型・単位変更 |
-| (なし) | — | `torqueActualValue` | `INT` [‰ rated] | 新規追加 |
-| `statusWord` | `UINT` | `statusWord` | `UINT` | 変更なし |
-| `controlWord` | `UINT` | `controlWord` | `UINT` | 変更なし |
-
-### 3.4 Axis 2 拡張I/F
-
-| 区分 | Axis 1 | Axis 2 |
-|---|---|---|
-| 入力トルク | `Inputs.VirtualMotor1Inputs.targetTorque` | `Inputs.VirtualMotor2Inputs.targetTorque` |
-| 入力 CW | `Inputs.controlWord1` | `Inputs.controlWord2` |
-| 出力位置 | `Outputs.VirtualMotor1Outputs.positionActualValue` | `Outputs.VirtualMotor2Outputs.positionActualValue` |
-| 出力速度 | `Outputs.VirtualMotor1Outputs.velocityActualValue` | `Outputs.VirtualMotor2Outputs.velocityActualValue` |
-| 出力トルク | `Outputs.VirtualMotor1Outputs.torqueActualValue` | `Outputs.VirtualMotor2Outputs.torqueActualValue` |
-| 出力 SW | `Outputs.statusWord1` | `Outputs.statusWord2` |
-
-Axis 2 の数値変換則・状態機械は Axis 1 と同一ロジックを適用する。
+| 1 | `Outputs.motor.positionActualValue` | `DINT` (32bit) | 0x6064 | DriverAdapter | Motor 実位置 [pulses] |
+| 2 | `Outputs.motor.velocityActualValue` | `DINT` (32bit) | 0x606C | DriverAdapter | Motor 実速度 [pulses/s] |
+| 3 | `Outputs.motor.torqueActualValue` | `INT` (16bit) | 0x6077 | DriverAdapter | Motor 実トルク [‰ rated] |
+| 4 | `Outputs.motor.statusWord` | `UINT` (16bit) | 0x6041 | DriverAdapter | Motor StatusWord |
+| 5 | `Outputs.load.positionActualValue` | `DINT` (32bit) | 0x6064 | DriverAdapter | Load 実位置 [pulses] |
+| 6 | `Outputs.load.velocityActualValue` | `DINT` (32bit) | 0x606C | DriverAdapter | Load 実速度 [pulses/s] |
+| 7 | `Outputs.load.torqueActualValue` | `INT` (16bit) | 0x6077 | DriverAdapter | 負荷軸へ伝達されたシャフトトルク [‰ rated] |
+| 8 | `Outputs.load.statusWord` | `UINT` (16bit) | 0x6041 | DriverAdapter | Load StatusWord |
 
 ---
 
@@ -122,13 +103,14 @@ Axis 2 の数値変換則・状態機械は Axis 1 と同一ロジックを適�
 
 $$\tau_{cmd} = \frac{\text{targetTorque}}{1000} \times \text{ratedTorque} \quad [\text{Nm}]$$
 
-### 4.2 物理シミュレーション (既存ロジック維持)
+### 4.2 物理シミュレーション
 
-$$v_{n+1} = v_n + \frac{dt}{m}\left(\tau_{sat} - D \cdot v_n\right)$$
-$$x_{n+1} = x_n + dt \cdot v_{n+1}$$
+$$\tau_s = K_s(\theta_m - \theta_l) + D_s(\omega_m - \omega_l)$$
+$$J_m \dot{\omega}_m = \tau_m - \tau_s - B_m \omega_m$$
+$$J_l \dot{\omega}_l = \tau_s - B_l \omega_l$$
 
-ここで $\tau_{sat} = \text{clamp}(\tau_{cmd},\, -\text{tauLimit},\, +\text{tauLimit})$。  
-速度リミット超過・トルクリミット超過で内部 Fault → CiA 402 `FAULT` 状態遷移。
+各 scan で Euler 積分により $\theta_m, \omega_m, \theta_l, \omega_l$ を更新する。
+Motor 側 torque request 超過、Motor/Load 速度超過、Load 側シャフトトルク超過で各 drive は `FAULT` に遷移する。
 
 ### 4.3 出力変換 (物理単位 → raw)
 
@@ -136,7 +118,9 @@ $$\text{positionActualValue} = \text{round}\!\left(\frac{\theta}{2\pi} \times \t
 
 $$\text{velocityActualValue} = \text{round}\!\left(\frac{\dot{\theta}}{2\pi} \times \text{encoderResolution}\right) \quad [\text{pulses/s}]$$
 
-$$\text{torqueActualValue} = \text{round}\!\left(\frac{\tau_{sat}}{\text{ratedTorque}} \times 1000\right) \quad [\text{‰ rated}]$$
+$$\text{torqueActualValue} = \text{round}\!\left(\frac{\tau}{\text{ratedTorque}} \times 1000\right) \quad [\text{‰ rated}]$$
+
+Motor 側は適用トルク $\tau_m$、Load 側は伝達シャフトトルク $\tau_s$ を使う。
 
 ### 4.4 量子化誤差の見積もり
 
@@ -182,13 +166,7 @@ VirtualMotorCore は実機同等の仕様として `position` / `velocity` を�
 
 | シンボルパス | 型 | R/W |
 |---|---|---|
-| `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.mass` | `LREAL` | W |
-| `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.damping` | `LREAL` | W |
-| `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.tauLimit` | `LREAL` | W |
-| `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.velLimit` | `LREAL` | W |
-| `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.taskDtNs` | `ULINT` | W |
-| `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.encoderResolution` | `UDINT` | W |
-| `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.ratedTorque` | `LREAL` | W |
-| `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.maxPermille` | `LREAL` | W |
-
-> `VirtualMotor2Parameter.*` は object parameter としては存在するが、現行 `.tsproj` では `CreateSymbol="true"` ではない。そのため通常の ADS symbol browse で見える前提では扱わない。
+| `VirtualMotorCore_Obj1 (Module1).PlantParameter.motor.*` | `LREAL/UDINT` | W |
+| `VirtualMotorCore_Obj1 (Module1).PlantParameter.load.*` | `LREAL/UDINT` | W |
+| `VirtualMotorCore_Obj1 (Module1).PlantParameter.coupling.*` | `LREAL` | W |
+| `VirtualMotorCore_Obj1 (Module1).PlantParameter.taskDtNs` | `ULINT` | W |
