@@ -45,8 +45,8 @@ ExperimentSequencer.distValue └───────────────�
                                                                    ▼
                                                            ControllerCore
 
-ModeManager ─► experimentActive / resetOut / enableCurrentOut / ctrlWord
-ModeManager ◄─ statusWordOut / loggerReady / loggerFileReleased / loggerErrorCode
+ModeManager ─► experimentActive / resetOut / enableCurrentOut / motorCtrlWord / loadCtrlWord
+ModeManager ◄─ motorStatusWordOut / loadStatusWordOut / loggerReady / loggerFileReleased / loggerErrorCode
 
 ExperimentLogger ◄─ Inputs.record.(refValue / ffValue / controlInput / error /
                     currentCmd / load.position / load.velocity /
@@ -126,7 +126,8 @@ ExperimentLogger ◄─ Inputs.control.playbackDone
 | `motorRaw`, `loadRaw` | struct | raw position / velocity / torque / status |
 | `controlInput` | `LREAL` | ControllerCore 出力 [A] |
 | `distValue` | `LREAL` | Sequencer 外乱 [A] |
-| `controlWordIn` | `UINT` | ModeManager 生成 ControlWord |
+| `motorControlWordIn` | `UINT` | ModeManager 生成 Motor ControlWord |
+| `loadControlWordIn` | `UINT` | ModeManager 生成 Load ControlWord |
 | `enableCurrentOutput` | `BOOL` | 電流ゲート |
 | `playbackDone` | `BOOL` | same-task fast stop |
 | `resetReq` | `BOOL` | オフセット再キャプチャ |
@@ -138,15 +139,14 @@ ExperimentLogger ◄─ Inputs.control.playbackDone
 | `motor.*`, `load.*` | struct | 工学単位変換済み信号 |
 | `currentCmd` | `LREAL` | `clamp(controlInput + distValue)` 後の指令電流 [A] |
 | `targetTorque` | `INT` | Drive 境界の指令トルク [‰ rated] |
-| `controlWordOut` | `UINT` | relay |
-| `statusWordOut` | `UINT` | relay |
+| `motorControlWordOut`, `loadControlWordOut` | `UINT` | relay |
+| `motorStatusWordOut`, `loadStatusWordOut` | `UINT` | relay |
 
 **SIL 配線上の注意**
 
-* checked-in `.tsproj` では SIL 時に Axis 1 を Motor、Axis 2 を Load として接続する。
-* `motorRaw.*` は `VirtualMotor1Outputs.*`、`loadRaw.*` は `VirtualMotor2Outputs.*` を正本とする。
-* `targetTorque` は Axis 1 にのみ入り、`controlWordOut` は Axis 1/2 の両方へ relay する。
-* したがって mapping だけでは Motor と Load の力学連成は表現されず、2 軸は独立に動作する。
+* checked-in `.tsproj` では SIL 時に `VirtualMotorCore.Outputs.motor/*` を Motor、`VirtualMotorCore.Outputs.load/*` を Load として接続する。
+* `targetTorque` は `VirtualMotorCore.Inputs.motor.targetTorque` にのみ入り、Motor/Load ControlWord は個別 relay する。
+* Motor/Load の力学連成は `VirtualMotorCore` 内部の 2 慣性モデルで表現する。
 
 ### 2.4 ModeManager
 
@@ -195,10 +195,9 @@ ExperimentLogger ◄─ Inputs.control.playbackDone
 
 ### 2.6 VirtualMotorCore
 
-* checked-in mapping では Axis 1 を Motor、Axis 2 を Load として使う
-* `targetTorque` は `VirtualMotor1Inputs` にのみ投入する
-* `VirtualMotor1Parameter` は `CreateSymbol="true"` で symbol browse 可
-* `VirtualMotor2Parameter` は object parameter として存在するが、通常の symbol browse 対象ではない
+* checked-in mapping では `VirtualMotorCore.Inputs/Outputs` の `motor` / `load` struct をそのまま使う
+* `targetTorque` は `VirtualMotorCore.Inputs.motor.targetTorque` にのみ投入する
+* `PlantParameter.*` は `CreateSymbol="true"` で symbol browse 可
 
 ---
 
@@ -218,7 +217,7 @@ ExperimentLogger ◄─ Inputs.control.playbackDone
 | `351` | C++ TcCOM 群 | ControllerCore / DriverAdapter / VirtualMotorCore / ExperimentLogger |
 | `852` | ModeManager | 制御フラグ、reset handshake、状態監視 |
 | `853` | ExperimentSequencer | テーブル書込みと replay 状態 |
-| `851` | 互換/legacy 扱い | `SystemConfig.DRIVER_PORT` や discovery script には残るが、checked-in `.tsproj` の active DriverAdapter 契約ではない |
+| `851` | discovery 用の明示 probe のみ | checked-in `.tsproj` の active DriverAdapter 契約ではなく、正本 API からは参照しない |
 
 ---
 
@@ -229,7 +228,7 @@ ExperimentLogger ◄─ Inputs.control.playbackDone
 | テーブル | `GVL_SEQ.*` (853) | `refTable`, `ffTable`, `distTable`, `tableLen`, `repeatCount` |
 | 状態制御 | `GVL_MODE.*` (852) | `modeFlags`, `resetReq`, `resetAckCounter`, `experimentState` |
 | Controller params | `ControllerCore_Obj1 (Module1).*` (351) | symbol write |
-| VM params | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.*` (351) | symbol write |
+| VM params | `VirtualMotorCore_Obj1 (Module1).PlantParameter.*` (351) | symbol write |
 | logger 監視 | `GVL_MODE.loggerFileReleased/loggerErrorCode` (852) | MATLAB は logger TcCOM を直接待機しない |
 | logger 本体 | `.bin` file read | `read_logger_bin` で解析 |
 

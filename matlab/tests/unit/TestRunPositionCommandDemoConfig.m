@@ -10,8 +10,13 @@ classdef TestRunPositionCommandDemoConfig < matlab.unittest.TestCase
         'logger_dir = string(fileparts(char(sys.LOGGER_DEFAULT_FILE_PATH)));'));
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
         "out = experiment.ExperimentRunner.run(conn, cfg);"));
+      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
+        "conn = experiment.ConnectionManager.create(cfg);"));
+      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
+        "out.metrics"));
       testCase.verifyFalse(contains(source, "logger_share_dir ="));
       testCase.verifyFalse(contains(source, "experiment.send_position_command("));
+      testCase.verifyFalse(contains(source, "out.eval"));
     end
 
     function demoAssignsPlantControllerAndRuntimeFieldsOnCfg(testCase)

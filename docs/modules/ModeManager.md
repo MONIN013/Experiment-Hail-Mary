@@ -93,7 +93,8 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 
 | 項目 | 型 | ソース | 備考 |
 |---|---|---|---|
-| `statWord` | `UINT` | DriverAdapter (I/O Mapping) | CiA 402 StatusWord |
+| `motorStatWord` | `UINT` | DriverAdapter (I/O Mapping) | Motor CiA 402 StatusWord |
+| `loadStatWord` | `UINT` | DriverAdapter (I/O Mapping) | Load CiA 402 StatusWord |
 | `seqPlaybackDone` | `BOOL` | ExperimentSequencer (I/O Mapping) | テーブル再生完了ラッチ |
 | `loggerReadyIn` | `BOOL` | ExperimentLogger (I/O Mapping) | `ACTIVE` かつ valid handle 保持、close/error pending なしのとき `TRUE`。`SERVO_READY → RUNNING` 遷移の確認条件 |
 | `GVL_MODE.modeFlags` | `UINT` | MATLAB (ADS Write) | ビットフラグ: bit0=ServoEnable, bit1=ExperimentStartReq |
@@ -104,7 +105,8 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 
 | 項目 | 型 | 宛先 | 備考 |
 |---|---|---|---|
-| `ctrlWord` | `UINT` | DriverAdapter (I/O Mapping) | CiA 402 ControlWord (FB_StateMachineControl 出力) |
+| `motorCtrlWord` | `UINT` | DriverAdapter (I/O Mapping) | Motor CiA 402 ControlWord |
+| `loadCtrlWord` | `UINT` | DriverAdapter (I/O Mapping) | Load CiA 402 ControlWord |
 | `experimentActiveOut` | `BOOL` | ExperimentSequencer / ExperimentLogger (I/O Mapping) | 実験アクティブ |
 | `preArmOut` | `BOOL` | ExperimentLogger (I/O Mapping) | `SERVO_READY` 中の logger pre-arm |
 | `resetOut` | `BOOL` | ExperimentSequencer / ExperimentLogger (I/O Mapping) | リセットパルス |
@@ -183,12 +185,14 @@ MATLAB                              PLC (ModeManager)
 
 ## マッピング (SIL)
 
-- `statWord` ← VirtualMotorCore (I/O Mapping 経由、DriverAdapter.statusWordOut)
+- `motorStatWord` ← DriverAdapter (`motorStatusWordOut`)
+- `loadStatWord` ← DriverAdapter (`loadStatusWordOut`)
 - `seqPlaybackDone` ← ExperimentSequencer (`GVL_SEQ.playbackDone`)
 - `loggerReadyIn` ← ExperimentLogger (`Outputs.status.loggerReady`)
 - `loggerFileReleasedIn` ← ExperimentLogger (`Outputs.status.fileReleased`)
 - `loggerErrorCodeIn` ← ExperimentLogger (`Outputs.status.errorCode`)
-- `ctrlWord` → DriverAdapter (`controlWordIn`)
+- `motorCtrlWord` → DriverAdapter (`motorControlWordIn`)
+- `loadCtrlWord` → DriverAdapter (`loadControlWordIn`)
 - `experimentActiveOut` → ExperimentSequencer (`GVL_SEQ.experimentActive`) / ExperimentLogger (`Inputs.control.loggingReq`)
 - `preArmOut` → ExperimentLogger (`Inputs.control.preArmReq`)
 - `resetOut` → ExperimentSequencer (`GVL_SEQ.resetReq`) / ExperimentLogger (`Inputs.control.resetReq`)

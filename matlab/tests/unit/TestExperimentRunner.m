@@ -16,9 +16,10 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
       out = experiment.ExperimentRunner.run(conn, cfg);
       testCase.verifyTrue(isfield(out.raw, "ref_value"));
       testCase.verifyEqual(out.raw.ref_value, zeros(0, 1));
+      testCase.verifyFalse(isfield(out, "eval"));
       testCase.verifyTrue(out.logger.file_released);
       testCase.verifyTrue(any(contains(seq.operations, "write_array:GVL_SEQ.refTable")));
-      testCase.verifyTrue(any(contains(module.operations, "write_scalar:VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.mass")));
+      testCase.verifyTrue(any(contains(module.operations, "write_scalar:VirtualMotorCore_Obj1 (Module1).PlantParameter.motor.inertia")));
       testCase.verifyTrue(any(contains(module.operations, "write_scalar:ControllerCore_Obj1 (Module1).PIDParams.pidB0")));
     end
 

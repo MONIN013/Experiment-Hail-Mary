@@ -92,7 +92,8 @@
 | `loadRaw` | `ST_DriverRawSignals` | Load raw `position/velocity/torque/status` |
 | `controlInput` | `double` | Controller 出力 [A] |
 | `distValue` | `double` | 外乱 [A] |
-| `controlWordIn` | `USHORT` | CiA 402 ControlWord |
+| `motorControlWordIn` | `USHORT` | Motor CiA 402 ControlWord |
+| `loadControlWordIn` | `USHORT` | Load CiA 402 ControlWord |
 | `enableCurrentOutput` | `bool` | 電流ゲート |
 | `playbackDone` | `bool` | same-task 完了通知 |
 | `resetReq` | `bool` | オフセット再キャプチャ |
@@ -104,8 +105,8 @@
 | `motor`, `load` | `ST_DriverEngineeringSignals` | 工学単位変換済み信号 |
 | `currentCmd` | `double` | `clamp(controlInput + distValue)` 後の指令電流 [A] |
 | `targetTorque` | `SHORT` | 指令トルク [‰ rated] |
-| `controlWordOut` | `USHORT` | relay |
-| `statusWordOut` | `USHORT` | relay |
+| `motorControlWordOut`, `loadControlWordOut` | `USHORT` | relay |
+| `motorStatusWordOut`, `loadStatusWordOut` | `USHORT` | relay |
 
 ### 3.4 CycleUpdate
 
@@ -114,22 +115,22 @@
 3. `motor.positionRel`, `load.positionRel` を更新
 4. `currentCmd = ClampSymmetric(controlInput + distValue, MotorParams.maxCurrentA)`
 5. `enableCurrentOutput && !playbackDone` のときだけ `currentCmd -> targetTorque [‰ rated]`
-6. `controlWordOut = controlWordIn`, `statusWordOut = motorRaw.statusWord`
+6. `motorControlWordOut = motorControlWordIn`, `loadControlWordOut = loadControlWordIn` を relay し、Motor/Load の `statusWord` を個別公開
 
 ### 3.5 現行 SIL 配線の注記
 
-`.tsproj` の現行 SIL 配線では Axis 1 を Motor、Axis 2 を Load として扱う。
+`.tsproj` の現行 SIL 配線では `VirtualMotorCore.Outputs.motor/*` を Motor、`VirtualMotorCore.Outputs.load/*` を Load として扱う。
 
-* `motorRaw.positionActualValue <- VirtualMotor1Outputs.positionActualValue`
-* `motorRaw.velocityActualValue <- VirtualMotor1Outputs.velocityActualValue`
-* `motorRaw.torqueActualValue <- VirtualMotor1Outputs.torqueActualValue`
-* `motorRaw.statusWord <- statusWord1`
-* `loadRaw.positionActualValue <- VirtualMotor2Outputs.positionActualValue`
-* `loadRaw.velocityActualValue <- VirtualMotor2Outputs.velocityActualValue`
-* `loadRaw.torqueActualValue <- VirtualMotor2Outputs.torqueActualValue`
-* `loadRaw.statusWord <- statusWord2`
+* `motorRaw.positionActualValue <- VirtualMotorCore.Outputs.motor.positionActualValue`
+* `motorRaw.velocityActualValue <- VirtualMotorCore.Outputs.motor.velocityActualValue`
+* `motorRaw.torqueActualValue <- VirtualMotorCore.Outputs.motor.torqueActualValue`
+* `motorRaw.statusWord <- VirtualMotorCore.Outputs.motor.statusWord`
+* `loadRaw.positionActualValue <- VirtualMotorCore.Outputs.load.positionActualValue`
+* `loadRaw.velocityActualValue <- VirtualMotorCore.Outputs.load.velocityActualValue`
+* `loadRaw.torqueActualValue <- VirtualMotorCore.Outputs.load.torqueActualValue`
+* `loadRaw.statusWord <- VirtualMotorCore.Outputs.load.statusWord`
 
-`targetTorque` は `VirtualMotor1Inputs.targetTorque` にのみ接続される。`controlWordOut` は `controlWord1`, `controlWord2` の両方へ relay され、Load 軸も CiA 状態追従だけは行う。
+`targetTorque` は `VirtualMotorCore.Inputs.motor.targetTorque` にのみ接続される。Motor/Load ControlWord は個別に relay され、Load 軸は CiA 状態追従と fault 監視のみを担当する。
 
 ---
 
@@ -137,21 +138,16 @@
 
 ### 4.1 パラメータ公開
 
-* `VirtualMotor1Parameter` は `CreateSymbol="true"` のため通常の symbol browse 対象
-* `VirtualMotor2Parameter` は object parameter として存在するが、`CreateSymbol="true"` ではない
+* `PlantParameter` は `CreateSymbol="true"` のため通常の symbol browse 対象
 
 ### 4.2 主要パラメータ
 
 | シンボル | 型 | 説明 |
 |---|---|---|
-| `VirtualMotor1Parameter.mass` | `LREAL` | 慣性 |
-| `VirtualMotor1Parameter.damping` | `LREAL` | 粘性 |
-| `VirtualMotor1Parameter.tauLimit` | `LREAL` | トルクリミット |
-| `VirtualMotor1Parameter.velLimit` | `LREAL` | 速度リミット |
-| `VirtualMotor1Parameter.taskDtNs` | `ULINT` | タスク周期 |
-| `VirtualMotor1Parameter.ratedTorque` | `LREAL` | 定格トルク |
-| `VirtualMotor1Parameter.maxPermille` | `LREAL` | 入力上限 [‰ rated] |
-| `VirtualMotor1Parameter.encoderResolution` | `ULONG` | 分解能 |
+| `PlantParameter.motor.*` | `LREAL/UDINT` | Motor 慣性・減衰・制限値・換算基準 |
+| `PlantParameter.load.*` | `LREAL/UDINT` | Load 慣性・減衰・制限値・換算基準 |
+| `PlantParameter.coupling.*` | `LREAL` | ねじり剛性・減衰 |
+| `PlantParameter.taskDtNs` | `ULINT` | タスク周期 |
 
 ---
 
@@ -208,10 +204,12 @@
 
 ### 6.3 ModeManager / Driver / Logger
 
-* `MAIN.ctrlWord -> DriverAdapter.Inputs.controlWordIn`
+* `MAIN.motorCtrlWord -> DriverAdapter.Inputs.motorControlWordIn`
+* `MAIN.loadCtrlWord -> DriverAdapter.Inputs.loadControlWordIn`
 * `MAIN.enableCurrentOut -> DriverAdapter.Inputs.enableCurrentOutput`
 * `MAIN.resetOut -> DriverAdapter.Inputs.resetReq`
-* `DriverAdapter.Outputs.statusWordOut -> MAIN.statWord`
+* `DriverAdapter.Outputs.motorStatusWordOut -> MAIN.motorStatWord`
+* `DriverAdapter.Outputs.loadStatusWordOut -> MAIN.loadStatWord`
 * `MAIN.preArmOut -> ExperimentLogger.Inputs.control.preArmReq`
 * `MAIN.experimentActiveOut -> ExperimentLogger.Inputs.control.loggingReq`
 * `MAIN.resetOut -> ExperimentLogger.Inputs.control.resetReq`
@@ -221,17 +219,17 @@
 
 ### 6.4 Driver / VirtualMotor / Logger
 
-* `DriverAdapter.Outputs.targetTorque -> VirtualMotor1Inputs.targetTorque`
-* `DriverAdapter.Outputs.controlWordOut -> controlWord1`
-* `DriverAdapter.Outputs.controlWordOut -> controlWord2`
-* `VirtualMotor1Outputs.positionActualValue -> DriverAdapter.Inputs.motorRaw.positionActualValue`
-* `VirtualMotor1Outputs.velocityActualValue -> DriverAdapter.Inputs.motorRaw.velocityActualValue`
-* `VirtualMotor1Outputs.torqueActualValue -> DriverAdapter.Inputs.motorRaw.torqueActualValue`
-* `statusWord1 -> DriverAdapter.Inputs.motorRaw.statusWord`
-* `VirtualMotor2Outputs.positionActualValue -> DriverAdapter.Inputs.loadRaw.positionActualValue`
-* `VirtualMotor2Outputs.velocityActualValue -> DriverAdapter.Inputs.loadRaw.velocityActualValue`
-* `VirtualMotor2Outputs.torqueActualValue -> DriverAdapter.Inputs.loadRaw.torqueActualValue`
-* `statusWord2 -> DriverAdapter.Inputs.loadRaw.statusWord`
+* `DriverAdapter.Outputs.targetTorque -> VirtualMotorCore.Inputs.motor.targetTorque`
+* `DriverAdapter.Outputs.motorControlWordOut -> VirtualMotorCore.Inputs.motor.controlWord`
+* `DriverAdapter.Outputs.loadControlWordOut -> VirtualMotorCore.Inputs.load.controlWord`
+* `VirtualMotorCore.Outputs.motor.positionActualValue -> DriverAdapter.Inputs.motorRaw.positionActualValue`
+* `VirtualMotorCore.Outputs.motor.velocityActualValue -> DriverAdapter.Inputs.motorRaw.velocityActualValue`
+* `VirtualMotorCore.Outputs.motor.torqueActualValue -> DriverAdapter.Inputs.motorRaw.torqueActualValue`
+* `VirtualMotorCore.Outputs.motor.statusWord -> DriverAdapter.Inputs.motorRaw.statusWord`
+* `VirtualMotorCore.Outputs.load.positionActualValue -> DriverAdapter.Inputs.loadRaw.positionActualValue`
+* `VirtualMotorCore.Outputs.load.velocityActualValue -> DriverAdapter.Inputs.loadRaw.velocityActualValue`
+* `VirtualMotorCore.Outputs.load.torqueActualValue -> DriverAdapter.Inputs.loadRaw.torqueActualValue`
+* `VirtualMotorCore.Outputs.load.statusWord -> DriverAdapter.Inputs.loadRaw.statusWord`
 * `DriverAdapter.Outputs.currentCmd -> ExperimentLogger.Inputs.record.currentCmd`
 * `DriverAdapter.Outputs.load.positionRel -> ExperimentLogger.Inputs.record.load.position`
 * `DriverAdapter.Outputs.load.velocityAct -> ExperimentLogger.Inputs.record.load.velocity`
@@ -248,6 +246,6 @@
 | `351` | ControllerCore / DriverAdapter / VirtualMotorCore / ExperimentLogger | active |
 | `852` | ModeManager (`GVL_MODE`, `MAIN.*`) | active |
 | `853` | ExperimentSequencer (`GVL_SEQ`) | active |
-| `851` | `SystemConfig.DRIVER_PORT` 等の互換値 | active orchestration の正本ではない |
+| `851` | discovery 用の明示 probe | active orchestration の正本ではない |
 
-> MATLAB の discovery / verify 補助スクリプトには `851` が残るが、checked-in `.tsproj` の active DriverAdapter 契約は `351` 側の C++ TcCOM を基準とする。
+> `851` を見る場合は discovery 用スクリプトのローカル指定でのみ扱う。現行の active 契約と verify の正本は `351/852/853` である。

@@ -15,5 +15,11 @@ classdef TestBuildPeriodicChirp < matlab.unittest.TestCase
         "Ts", 0.01, "Tend", 1.0, "Tcycle", 0.5, "f0", 1, "f1", 60), ...
         "experiment:build_periodic_chirp:invalidConfig");
     end
+
+    function rejectsNonPositiveStartFrequency(testCase)
+      testCase.verifyError(@() experiment.build_periodic_chirp( ...
+        "Ts", 0.01, "Tend", 1.0, "Tcycle", 0.5, "f0", 0, "f1", 10), ...
+        "experiment:build_periodic_chirp:invalidConfig");
+    end
   end
 end

@@ -17,7 +17,7 @@ addpath(genpath(base_dir));
 
 sys = experiment.SystemConfig;
 
-ports = [sys.DRIVER_PORT, sys.CONTROL_PORT, sys.SEQ_PORT, sys.MODULE_PORT];
+ports = [sys.CONTROL_PORT, sys.SEQ_PORT, sys.MODULE_PORT];
 results = {};
 n_pass = 0;
 n_fail = 0;
@@ -82,7 +82,7 @@ end
 %% 4. VM パラメータシンボル
 mod = find_transport(transports, ports, sys.MODULE_PORT);
 if ~isempty(mod)
-  vm_symbols = experiment.VirtualMotorSymbols.from_vm_prefix(char(sys.VM_PREFIX));
+  vm_symbols = experiment.VirtualMotorSymbols.from_vm_prefix(char(sys.VM_PLANT_PREFIX));
   name = "VM param symbols (port " + string(sys.MODULE_PORT) + ")";
   try
     twincat_ads.SymbolBrowser.validate_symbols(mod, vm_symbols.vmRequiredProbes);

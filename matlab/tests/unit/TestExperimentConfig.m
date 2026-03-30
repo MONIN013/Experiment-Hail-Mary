@@ -10,19 +10,12 @@ classdef TestExperimentConfig < matlab.unittest.TestCase
       testCase.verifyEqual(cfg.logger_release_timeout_s, double(sys.LOGGER_RELEASE_TIMEOUT_S));
     end
 
-    function fromVararginAcceptsLegacyFlatFields(testCase)
-      cfg = experiment.ExperimentConfig.from_varargin( ...
+    function rejectsLegacyAliasesAndRemovedBridgeFiles(testCase)
+      testCase.verifyError(@() experiment.ExperimentConfig.from_struct(struct( ...
         "ams_port", 851, ...
-        "ref_profile", [1; 2; 3], ...
-        "ff_profile", [9; 8], ...
-        "pid_b0", 2.5, ...
-        "enable_pid", true, ...
-        "write_plant_params", false);
-      testCase.verifyEqual(cfg.seq_port, 851);
-      testCase.verifyEqual(cfg.control_port, 851);
-      testCase.verifyEqual(cfg.ff_profile(:), [9; 8; 0]);
-      testCase.verifyEqual(cfg.controller.pid.b0, 2.5);
-      testCase.verifyFalse(cfg.write_plant_params);
+        "ref_profile", [1; 2])), "experiment:config:invalid");
+      testCase.verifyEqual(which("experiment.RunConfig"), '');
+      testCase.verifyEqual(which("experiment.PositionCommandConfig"), '');
     end
 
     function rejectsPrefixOverride(testCase)
@@ -35,6 +28,12 @@ classdef TestExperimentConfig < matlab.unittest.TestCase
       testCase.verifyError(@() experiment.ExperimentConfig.from_varargin( ...
         "ref_profile", [1; 2], ...
         "dist_profile", [0; 0; 0]), "experiment:config:invalid");
+    end
+
+    function rejectsLegacyPlantAliases(testCase)
+      testCase.verifyError(@() experiment.ExperimentConfig.from_struct(struct( ...
+        "ref_profile", [1; 2], ...
+        "m", 0.1)), "experiment:config:invalid");
     end
   end
 end

@@ -146,7 +146,7 @@
 
 | 種別 | 規則 | 例 |
 |------|------|----|
-| クラス | PascalCase | `RunConfig`, `AdsTransport` |
+| クラス | PascalCase | `ExperimentConfig`, `AdsTransport` |
 | インターフェース | `I` + PascalCase | `IAdsTransport` |
 | パッケージ | camelCase (フォルダ名 `+xxx`) | `+experiment`, `+twincatAds` |
 
@@ -169,7 +169,7 @@
 | プライベートメソッド | camelCase | `writeVmParams`, `pulseReset`, `waitUntilDone` |
 | スタンドアロン関数 | camelCase | `preloadEval`, `runVirtualmotor` |
 | スタティックメソッド | camelCase | `fromVarargin`, `fromStruct`, `fromDefaults` |
-| テスト関数 | `test` + PascalCase | `testReadScalar`, `testRunConfig` |
+| テスト関数 | `test` + PascalCase | `testReadScalar`, `testExperimentRunner` |
 
 ### 3.4 スクリプトファイル名
 

@@ -101,7 +101,6 @@ CModule1::CModule1()
 	memset(&m_LeadParams, 0, sizeof(m_LeadParams));
 	memset(&m_ResoParams, 0, sizeof(m_ResoParams));
 	memset(&m_EnableParams, 0, sizeof(m_EnableParams));
-	m_EnableParams.enablePid = true;
 	memset(&m_PIDParams, 0, sizeof(m_PIDParams));
 	memset(&m_Inputs, 0, sizeof(m_Inputs));
 	memset(&m_Outputs, 0, sizeof(m_Outputs));

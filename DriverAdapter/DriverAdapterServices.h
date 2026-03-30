@@ -74,7 +74,8 @@ typedef struct _Module1Inputs
 	ST_DriverRawSignals loadRaw;
 	double controlInput;
 	double distValue;
-	USHORT controlWordIn;
+	USHORT motorControlWordIn;
+	USHORT loadControlWordIn;
 	bool enableCurrentOutput;
 	bool playbackDone;
 	bool resetReq;
@@ -88,8 +89,10 @@ typedef struct _Module1Outputs
 	ST_DriverEngineeringSignals load;
 	double currentCmd;
 	SHORT targetTorque;
-	USHORT controlWordOut;
-	USHORT statusWordOut;
+	USHORT motorControlWordOut;
+	USHORT loadControlWordOut;
+	USHORT motorStatusWordOut;
+	USHORT loadStatusWordOut;
 } Module1Outputs, *PModule1Outputs;
 #pragma pack(pop)
 

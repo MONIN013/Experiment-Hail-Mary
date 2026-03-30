@@ -17,8 +17,5 @@ END_CLASS_MAP()
 CControllerCoreClassFactory::CControllerCoreClassFactory() : CObjClassFactory()
 {
 	TcDbgUnitSetImageName(TCDBG_UNIT_IMAGE_NAME_TMX(SRVNAME_CONTROLLERCORE));
-#if defined(TCDBG_UNIT_VERSION)
-	TcDbgUnitSetVersion(TCDBG_UNIT_VERSION(ControllerCore));
-#endif //defined(TCDBG_UNIT_VERSION)
 }
 

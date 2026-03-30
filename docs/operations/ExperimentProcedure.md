@@ -122,7 +122,7 @@ END_IF
 | **VirtualMotorCore** | **なし** | — | — | 設計決定: 実機同等。`position`/`velocity` は実験間で carry-over する。DriverAdapter の `positionOffsetRad` で相対位置は補正される |
 | **DriverAdapter** | `Inputs.resetReq` | エッジ | Motor/Load の位置オフセット再キャプチャ | 相対位置化を担当 (D12、M15 解消) |
 
-> **注意:** `send_position_command` / `VirtualMotorService` は `wait_for_reset_idle` タイムアウト時に warning 続行せず **error で停止** する。
+> **注意:** `ExperimentRunner` は `wait_for_reset_idle` タイムアウト時に warning 続行せず **error で停止** する。
 > `hostHeartbeatCounter` の更新が 500 ms 以上停止すると ModeManager watchdog が `modeFlags := 0` を実行する。
 > MATLAB 実行中の任意停止は watchdog を待たず、`modeFlags := 0` を明示送信する explicit abort を正規経路とする。
 
@@ -198,8 +198,7 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 │     を ADS 書込                                                       │
 │                                                                       │
 │  ③ TcCOM パラメータ ADS 書込     ControllerCore: biquad 係数更新      │
-│                                   VirtualMotorCore: mass/damping/ratedTorque 等更新 │
-│                                   (外部設定値は rated_current [A]、VM 内部のみ ratedTorque) │
+│                                   VirtualMotorCore: PlantParameter.motor/load/coupling 更新 │
 │                                                                       │
 │  ④ modeFlags = 0x0001            ModeManager: サーボ有効化            │
 │    (SERVO_ENABLE)                 CiA 402 → OPERATION_ENABLED         │
@@ -249,13 +248,13 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 | **テーブル書込** | 853 | `GVL_SEQ.refTable` / `ffTable` / `distTable` | `LREAL[]` | W |
 | **テーブル長** | 853 | `GVL_SEQ.tableLen` | `UDINT` | W |
 | **フィルタ係数** | 351 | `ControllerCore_Obj1 (Module1).*Params.*` | `LREAL` | W |
-| **VM パラメータ** | 351 | `VirtualMotorCore_Obj1 (Module1).VirtualMotor1Parameter.*` | `LREAL` | W |
+| **VM パラメータ** | 351 | `VirtualMotorCore_Obj1 (Module1).PlantParameter.*` | `LREAL/UDINT/ULINT` | W |
 | **ログ pre-arm** | 852 | `MAIN.preArmOut` → `Inputs.control.preArmReq` | `BOOL` | Auto |
 | **ログ制御** | 852 | `MAIN.experimentActiveOut` → `Inputs.control.loggingReq` | `BOOL` | Auto |
 | **logger status** | 351 | `ExperimentLogger_Obj1 (Module1).Outputs.status.*` | `UDINT/BOOL` | R |
 
 > 全シンボルの完全な一覧は [TechnicalReference](../architecture/TechnicalReference.md) §8 を参照。
-> `send_position_command` の `mode_flags_symbol` は `GVL_MODE.modeFlags` のみサポートされる。
+> `modeFlags` の正規書込み先は `GVL_MODE.modeFlags` のみであり、reset は `resetReq/resetAckCounter` handshake を使う。
 > ログ本体は ADS では読まず、`GVL_MODE.loggerFileReleased=TRUE` 確認後に `.bin` をファイル読み出しする。
 
 ---

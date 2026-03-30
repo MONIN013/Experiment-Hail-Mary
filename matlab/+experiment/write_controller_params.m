@@ -5,7 +5,7 @@ function write_controller_params(transport, controller_param_symbol_prefix, para
 %
 %   transport — 接続済み twincat_ads.IAdsTransport (Port = SystemConfig.MODULE_PORT)
 %   controller_param_symbol_prefix — ControllerCore prefix
-%   params    — struct or RunConfig with fields:
+%   params    — struct with fields:
 %               pid_b0..pid_a2, lead_b0..lead_a2, notch_b0..notch_a2, reso_b0..reso_a2,
 %               enable_pid, enable_lead, enable_notch, enable_reso
 %
