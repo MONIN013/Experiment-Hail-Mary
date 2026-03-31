@@ -56,7 +56,7 @@ cfg.wait_for_done = true;
 cfg.hold_seconds = Tend + hold_margin_s;
 cfg.done_timeout_s = repeat_count * Tend + hold_margin_s + 5.0;
 cfg.logger_release_timeout_s = max(5.0, repeat_count * Tend / 10);
-cfg.plant = experiment.PlantConfig.from_struct(struct( ...
+vm_cfg = virtualMotor.PlantConfig.from_struct(struct( ...
   "motor", struct( ...
     "inertia", 0.02, ...
     "damping", 0.2, ...
@@ -85,18 +85,12 @@ fprintf("f0=%.3f Hz, f1(requested)=%.3f Hz, f1(effective)=%.3f Hz, transient_cyc
 fprintf("Samples=%d, cycles=%.2f, loggerDir=%s\n", sample_n, chirp_cfg.cycle_count, logger_dir);
 
 %% ADS connect
-seq_transport = twincat_ads.AdsTransport();
-ctrl_transport = twincat_ads.AdsTransport();
-mod_transport = twincat_ads.AdsTransport();
-cleanup = onCleanup(@() disconnect_all(seq_transport, ctrl_transport, mod_transport)); %#ok<NASGU>
-
-seq_transport.connect(cfg.ams_net_id, cfg.seq_port);
-ctrl_transport.connect(cfg.ams_net_id, cfg.control_port);
-mod_transport.connect(cfg.ams_net_id, cfg.module_port);
+conn = experiment.ConnectionManager.create(cfg);
+cleanup = onCleanup(@() conn.session.close()); %#ok<NASGU>
 fprintf("Connected: SEQ=%d, CTRL=%d, MODULE=%d\n", cfg.seq_port, cfg.control_port, cfg.module_port);
 
 %% Run experiment and read logger
-conn = struct("seq", seq_transport, "ctrl", ctrl_transport, "module", mod_transport);
+virtualMotor.writeParams(conn, vm_cfg);
 run_out = experiment.ExperimentRunner.run(conn, cfg);
 latest_bin = experiment.read_latest_logger_bin(logger_dir, logger_file_glob);
 if ~latest_bin.ok
@@ -128,7 +122,7 @@ freq_hz = frf_out.freq_hz(:);
 omega_rad_s = 2 * pi * freq_hz;
 frf_measured = frf_out.frf(:);
 frf_nominal = compute_nominal_two_inertia_frf( ...
-  cfg.plant, omega_rad_s, ...
+  vm_cfg, omega_rad_s, ...
   "Ts", Ts, ...
   "sample_delay", 4);
 
@@ -175,15 +169,6 @@ si_out = struct( ...
   "logger_bin", logger_bin, ...
   "frf", frf_out, ...
   "chirp", chirp_cfg); %#ok<NASGU>
-
-function disconnect_all(varargin)
-for k = 1:numel(varargin)
-  try
-    varargin{k}.disconnect();
-  catch
-  end
-end
-end
 
 function phase_wrapped_deg = wrap_phase_at_180(phase_deg)
 phase_wrapped_deg = mod(phase_deg + 180, 360) - 180;

@@ -2,7 +2,7 @@ classdef TestSymbolBrowserContract < matlab.unittest.TestCase
   methods (Test)
     function validateRequiredSymbolsReportsMissing(testCase)
       transport = MockAdsTransport();
-      symbols = experiment.VirtualMotorSymbols.from_defaults();
+      symbols = experiment.RuntimeSymbols.from_defaults();
       testCase.verifyError( ...
         @()twincat_ads.SymbolBrowser.validate_symbols(transport, symbols.plcRequiredProbes), ...
         "twincat_ads:symbol:notFound");
@@ -10,7 +10,7 @@ classdef TestSymbolBrowserContract < matlab.unittest.TestCase
 
     function validateRequiredSymbolsPassesWhenPresent(testCase)
       transport = MockAdsTransport();
-      s = experiment.VirtualMotorSymbols.from_defaults();
+      s = experiment.RuntimeSymbols.from_defaults();
       transport.scalarMap(char(s.reset)) = false;
       transport.scalarMap(char(s.experimentActive)) = false;
       transport.scalarMap(char(s.tableLen)) = uint32(0);

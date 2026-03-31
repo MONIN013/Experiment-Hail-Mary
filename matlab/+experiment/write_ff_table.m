@@ -23,7 +23,7 @@ function write_ff_table(transport, ff_profile, expected_len)
       numel(ff_profile), expected_len);
   end
 
-  symbols = experiment.VirtualMotorSymbols.from_defaults();
+  symbols = experiment.RuntimeSymbols.from_defaults();
   t = symbols.types;
 
   transport.write_array(symbols.ffTable, ff_profile, t.double);

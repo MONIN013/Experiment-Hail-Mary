@@ -13,7 +13,7 @@ DriverAdapter は **ドライバ差異吸収層** である。現行の active �
 
 本モジュールは **Motor + Load の 2 チャネル専用** とし、外部契約は current ベース `[A]` を維持する。Drive 境界では `targetTorque` / `torqueActualValue` を **`‰ rated`** 整数値で扱う。
 
-> リポジトリ内の `DriverAdapterPLC/` は旧 PLC 実装であり、現行 `.tsproj` の active deployment ではない。比較・参照用の legacy として残している。
+> リポジトリ内の `DriverAdapterPLC/` は旧 PLC 実装であり、現行 TwinCAT project (`ExperimentHailMary.tsproj` / `ExperimentHailMary.RealMotor.tsproj`) の active deployment ではない。比較・参照用の legacy として残している。
 
 ---
 

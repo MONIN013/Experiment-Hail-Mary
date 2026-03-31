@@ -19,11 +19,11 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
       testCase.verifyFalse(isfield(out, "eval"));
       testCase.verifyTrue(out.logger.file_released);
       testCase.verifyTrue(any(contains(seq.operations, "write_array:GVL_SEQ.refTable")));
-      testCase.verifyTrue(any(contains(module.operations, "write_scalar:VirtualMotorCore_Obj1 (Module1).PlantParameter.motor.inertia")));
       testCase.verifyTrue(any(contains(module.operations, "write_scalar:ControllerCore_Obj1 (Module1).PIDParams.pidB0")));
+      testCase.verifyFalse(any(contains(module.operations, "PlantParameter.")));
     end
 
-    function skipsModuleWritesWhenDisabled(testCase)
+    function runsWithoutModuleWhenControllerWritesDisabled(testCase)
       seq = MockAdsTransport();
       ctrl = MockAdsTransport();
       seed_seq(seq);
@@ -35,7 +35,6 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
         "hold_seconds", 0.0, ...
         "read_logs", false, ...
         "validate_symbols", false, ...
-        "write_plant_params", false, ...
         "write_controller_params", false);
       out = experiment.ExperimentRunner.run(conn, cfg);
       testCase.verifyFalse(out.host.done);
@@ -114,6 +113,22 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
 
       testCase.verifyError(@() experiment.ExperimentRunner.run(conn, cfg), ...
         "experiment:runner:doneTimeout");
+    end
+
+    function errorsWhenControllerWritesNeedModuleTransport(testCase)
+      seq = MockAdsTransport();
+      ctrl = MockAdsTransport();
+      seed_seq(seq);
+      seed_ctrl(ctrl);
+      conn = experiment.ConnectionManager.from_transports(seq, ctrl);
+      cfg = experiment.ExperimentConfig.from_varargin( ...
+        "ref_profile", [0.1; 0.2], ...
+        "read_logs", false, ...
+        "validate_symbols", false, ...
+        "write_controller_params", true);
+
+      testCase.verifyError(@() experiment.ExperimentRunner.run(conn, cfg), ...
+        "experiment:runner:invalidConfig");
     end
 
     function missingExperimentStateFallsBackToExperimentActive(testCase)

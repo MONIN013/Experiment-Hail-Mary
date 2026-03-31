@@ -32,7 +32,7 @@
 | 項目 | 内容 |
 |------|------|
 | 状態 | GitHub issue 化済み: [#25](https://github.com/KosekiLab/Experiment-Hail-Mary/issues/25) |
-| ファイル | `StateMachineControl/GVLs/GVL_MODE.TcGVL`, `matlab/+experiment/VirtualMotorSymbols.m`, `matlab/+experiment/ModeManagerControl.m`, `matlab/run_verify_xar.m` |
+| ファイル | `StateMachineControl/GVLs/GVL_MODE.TcGVL`, `matlab/+experiment/RuntimeSymbols.m`, `matlab/+experiment/ModeManagerControl.m`, `matlab/run_verify_xar.m` |
 | 問題 | PLC 側は `modeState : E_ModeState` を持つのに、MATLAB は依然として `experimentState : UINT` を読み続けている。状態表現が二重化されている。 |
 | 対処 | 状態監視を `modeState` 正本へ移し、`experimentState : UINT` を削除できる状態まで contract・テスト・docs を更新する。 |
 

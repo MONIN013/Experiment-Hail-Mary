@@ -3,7 +3,7 @@ classdef TestModeManagerControl < matlab.unittest.TestCase
     function waitForResetIdleDoesNotRequireLogIndex(testCase)
       plc = MockAdsTransport();
       ctrl_tr = plc;
-      symbols = experiment.VirtualMotorSymbols.from_defaults();
+      symbols = experiment.RuntimeSymbols.from_defaults();
       plc.scalarMap("GVL_SEQ.idx") = uint32(0);
       plc.scalarMap("GVL_MODE.experimentActive") = false;
       ctrl = struct("experimentActiveSymbol", "GVL_MODE.experimentActive");
@@ -50,7 +50,7 @@ classdef TestModeManagerControl < matlab.unittest.TestCase
     function waitUntilInactiveCarriesSeenActiveAcrossCalls(testCase)
       plc = MockAdsTransport();
       ctrl_tr = MockAdsTransport();
-      symbols = experiment.VirtualMotorSymbols.from_defaults();
+      symbols = experiment.RuntimeSymbols.from_defaults();
       ctrl = seed_ctrl_struct();
       ctrl_tr.set_scalar_read_sequence("GVL_MODE.experimentState", [uint32(2); uint32(0)]);
       ctrl_tr.set_scalar_read_sequence("GVL_MODE.experimentActive", [true; false]);

@@ -22,31 +22,31 @@ classdef PlantConfig
 
   methods (Static)
     function out = from_struct(s)
-      out = experiment.PlantConfig();
+      out = virtualMotor.PlantConfig();
       if nargin < 1 || isempty(s)
         out = out.normalize();
         return;
       end
-      if isa(s, "experiment.PlantConfig")
+      if isa(s, "virtualMotor.PlantConfig")
         out = s.normalize();
         return;
       end
       if ~isstruct(s)
-        error("experiment:plant:invalid", ...
+        error("virtualMotor:plant:invalid", ...
           "PlantConfig.from_struct accepts only struct or PlantConfig.");
       end
 
       required_fields = ["motor", "load", "coupling"];
       actual_fields = string(fieldnames(s));
       if ~isempty(setdiff(actual_fields, required_fields))
-        error("experiment:plant:invalid", ...
+        error("virtualMotor:plant:invalid", ...
           "PlantConfig accepts only motor/load/coupling fields.");
       end
 
       for k = 1:numel(required_fields)
         key = char(required_fields(k));
         if ~isfield(s, key)
-          error("experiment:plant:invalid", ...
+          error("virtualMotor:plant:invalid", ...
             "PlantConfig requires '%s'.", key);
         end
       end
@@ -99,19 +99,19 @@ else
     "encoderResolution", uint32(8388608));
 end
 if ~isstruct(axis)
-  error("experiment:plant:invalid", ...
+  error("virtualMotor:plant:invalid", ...
     "%s must be a struct.", label);
 end
 actual_fields = string(fieldnames(axis));
 expected_fields = string(fieldnames(defaults));
 unknown = setdiff(actual_fields, expected_fields);
 if ~isempty(unknown)
-  error("experiment:plant:invalid", ...
+  error("virtualMotor:plant:invalid", ...
     "%s accepts only %s.", label, strjoin(expected_fields, ", "));
 end
 missing = setdiff(expected_fields, actual_fields);
 if ~isempty(missing)
-  error("experiment:plant:invalid", ...
+  error("virtualMotor:plant:invalid", ...
     "%s is missing %s.", label, strjoin(missing, ", "));
 end
 if strcmp(label, "motor")
@@ -136,19 +136,19 @@ end
 
 function coupling = normalize_coupling_struct(coupling)
 if ~isstruct(coupling)
-  error("experiment:plant:invalid", ...
+  error("virtualMotor:plant:invalid", ...
     "coupling must be a struct.");
 end
 expected_fields = ["stiffness", "damping"];
 actual_fields = string(fieldnames(coupling));
 unknown = setdiff(actual_fields, expected_fields);
 if ~isempty(unknown)
-  error("experiment:plant:invalid", ...
+  error("virtualMotor:plant:invalid", ...
     "coupling accepts only stiffness and damping.");
 end
 missing = setdiff(expected_fields, actual_fields);
 if ~isempty(missing)
-  error("experiment:plant:invalid", ...
+  error("virtualMotor:plant:invalid", ...
     "coupling is missing %s.", strjoin(missing, ", "));
 end
 coupling = struct( ...

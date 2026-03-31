@@ -8,7 +8,7 @@ if sample_n == 0
 end
 
 plant = normalize_plant_cfg(cfg);
-task_dt_s = 1 / double(cfg.task_rate_hz);
+task_dt_s = 1 / double(resolve_task_rate_hz(cfg));
 
 theta_m = 0.0;
 omega_m = 0.0;
@@ -42,12 +42,20 @@ end
 end
 
 function plant = normalize_plant_cfg(cfg)
-if isa(cfg, "experiment.PlantConfig")
+if isa(cfg, "virtualMotor.PlantConfig")
   plant = cfg.to_struct();
 elseif isstruct(cfg) && isfield(cfg, "plant")
-  plant = experiment.PlantConfig.from_struct(cfg.plant).to_struct();
+  plant = virtualMotor.PlantConfig.from_struct(cfg.plant).to_struct();
 else
-  plant = experiment.PlantConfig.from_struct(cfg).to_struct();
+  plant = virtualMotor.PlantConfig.from_struct(cfg).to_struct();
+end
+end
+
+function task_rate_hz = resolve_task_rate_hz(cfg)
+if isstruct(cfg) && isfield(cfg, "task_rate_hz")
+  task_rate_hz = double(cfg.task_rate_hz);
+else
+  task_rate_hz = double(experiment.SystemConfig.TASK_RATE_HZ);
 end
 end
 

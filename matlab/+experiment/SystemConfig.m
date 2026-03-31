@@ -13,13 +13,12 @@ classdef SystemConfig
     % --- ポート番号 ---
     SEQ_PORT           = 853     % ExperimentSequencer (GVL_SEQ)
     CONTROL_PORT       = 852     % StateMachineControl / ModeManager (GVL_MODE)
-    MODULE_PORT        = 351     % C++ TcCOM (ControllerCore / VirtualMotorCore / ExperimentLogger)
+    MODULE_PORT        = 351     % C++ TcCOM (ControllerCore / ExperimentLogger / optional VM access)
 
     % --- タスク周期 ---
-    TASK_RATE_HZ       = 8000    % VirtualMotorTask 周期 [Hz]
+    TASK_RATE_HZ       = 8000    % active real-time task 周期 [Hz]
 
     % --- シンボルプレフィクス ---
-    VM_PLANT_PREFIX    = "VirtualMotorCore_Obj1 (Module1).PlantParameter."
     CTRL_PREFIX        = "ControllerCore_Obj1 (Module1)."
 
     % --- ModeManager ---

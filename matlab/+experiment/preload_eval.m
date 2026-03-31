@@ -60,7 +60,7 @@ metrics.acceptance.command_and_position_sample_count_match = (n_cmd == numel(log
 metrics.notes = {
   "ExperimentSequencer contract: ref/ff/dist table replay (DriverAdapter combines current-domain controlInput + distValue, and the resulting command current is recorded in logs)."
   "ControllerCore contract: controlInput = u_fb + ffValue."
-  "VirtualMotorCore position is logged via ExperimentLogger load_position."
+  "Load-side position is logged via ExperimentLogger load_position."
 };
 end
 

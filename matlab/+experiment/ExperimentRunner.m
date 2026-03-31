@@ -12,20 +12,16 @@ classdef ExperimentRunner
         module_transport = conn.module;
       end
 
-      plc_symbols = experiment.VirtualMotorSymbols.from_defaults();
-      vm_symbols = experiment.VirtualMotorSymbols.from_vm_prefix(experiment.SystemConfig.VM_PLANT_PREFIX);
-      controller_symbols = experiment.VirtualMotorSymbols.from_controller_prefix(experiment.SystemConfig.CTRL_PREFIX);
+      plc_symbols = experiment.RuntimeSymbols.from_defaults();
+      controller_symbols = experiment.RuntimeSymbols.from_controller_prefix(experiment.SystemConfig.CTRL_PREFIX);
 
-      if (cfg.write_plant_params || cfg.write_controller_params) && isempty(module_transport)
+      if cfg.write_controller_params && isempty(module_transport)
         error("experiment:runner:invalidConfig", ...
-          "module transport is required when module parameter writes are enabled.");
+          "module transport is required when controller parameter writes are enabled.");
       end
 
       if cfg.validate_symbols
         twincat_ads.SymbolBrowser.validate_symbols(seq_transport, plc_symbols.plcRequiredProbes);
-        if cfg.write_plant_params
-          twincat_ads.SymbolBrowser.validate_symbols(module_transport, vm_symbols.vmRequiredProbes);
-        end
         if cfg.write_controller_params
           twincat_ads.SymbolBrowser.validate_symbols(module_transport, controller_symbols.controllerRequiredProbes);
         end
@@ -36,14 +32,6 @@ classdef ExperimentRunner
       heartbeat_state = experiment.ModeManagerControl.init_heartbeat( ...
         ctrl_transport, ctrl, cfg.host_heartbeat_enable, cfg.host_heartbeat_period_s);
 
-      if cfg.write_plant_params
-        if isempty(module_transport)
-          error("experiment:runner:invalidConfig", "module transport is required when write_plant_params=true.");
-        end
-        experiment.write_vm_params( ...
-          module_transport, experiment.SystemConfig.VM_PLANT_PREFIX, ...
-          cfg.plant.to_struct(), uint64(round(1e9 / cfg.task_rate_hz)));
-      end
       if cfg.write_controller_params
         if isempty(module_transport)
           error("experiment:runner:invalidConfig", "module transport is required when write_controller_params=true.");

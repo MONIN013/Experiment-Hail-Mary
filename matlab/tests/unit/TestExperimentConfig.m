@@ -8,6 +8,7 @@ classdef TestExperimentConfig < matlab.unittest.TestCase
       testCase.verifyEqual(cfg.control_port, double(sys.CONTROL_PORT));
       testCase.verifyEqual(cfg.module_port, double(sys.MODULE_PORT));
       testCase.verifyEqual(cfg.logger_release_timeout_s, double(sys.LOGGER_RELEASE_TIMEOUT_S));
+      testCase.verifyFalse(isprop(cfg, "plant"));
     end
 
     function rejectsLegacyAliasesAndRemovedBridgeFiles(testCase)
@@ -18,10 +19,16 @@ classdef TestExperimentConfig < matlab.unittest.TestCase
       testCase.verifyEqual(which("experiment.PositionCommandConfig"), '');
     end
 
-    function rejectsPrefixOverride(testCase)
+    function rejectsRemovedVmFields(testCase)
       testCase.verifyError(@() experiment.ExperimentConfig.from_varargin( ...
         "ref_profile", [1; 2], ...
-        "vm_param_symbol_prefix", "Vm."), "experiment:config:invalid");
+        "vm_param_symbol_prefix", "Vm."), "MATLAB:InputParser:UnmatchedParameter");
+      testCase.verifyError(@() experiment.ExperimentConfig.from_struct(struct( ...
+        "ref_profile", [1; 2], ...
+        "plant", struct())), "experiment:config:invalid");
+      testCase.verifyError(@() experiment.ExperimentConfig.from_struct(struct( ...
+        "ref_profile", [1; 2], ...
+        "write_plant_params", true)), "experiment:config:invalid");
     end
 
     function rejectsWaveformLongerThanReference(testCase)

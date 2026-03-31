@@ -1,7 +1,7 @@
 classdef TestTsprojMapping < matlab.unittest.TestCase
   methods (Test)
     function driverToLoggerLinksUseMatchingMotorLoadChannels(testCase)
-      source = testCase.read_tsproj();
+      source = testCase.read_vm_tsproj();
 
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
         '<Link VarA="Outputs^motor^currentAct" VarB="Inputs^record^motor^currentAct"/>'));
@@ -22,8 +22,8 @@ classdef TestTsprojMapping < matlab.unittest.TestCase
         '<Link VarA="Outputs^motor^positionRel" VarB="Inputs^record^load^position"/>'));
     end
 
-    function driverToVirtualMotorLinksUseMotorLoadContracts(testCase)
-      source = testCase.read_tsproj();
+    function vmProjectUsesVirtualMotorLinksUseMotorLoadContracts(testCase)
+      source = testCase.read_vm_tsproj();
 
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
         '<Link VarA="Inputs^motorRaw^positionActualValue" VarB="Outputs^motor^positionActualValue"/>'));
@@ -50,12 +50,36 @@ classdef TestTsprojMapping < matlab.unittest.TestCase
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
         '<Link VarA="Outputs^loadControlWordOut" VarB="Inputs^load^controlWord"/>'));
     end
+
+    function realMotorProjectReplacesVirtualMotorOwnerWithRealMotorPdo(testCase)
+      source = testCase.read_real_motor_tsproj();
+
+      testCase.verifyFalse(contains(source, ...
+        '<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">'));
+      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
+        '<OwnerB Name="TIID^RealMotorPdo^RealMotorPdo Instance">'));
+      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
+        '<Link VarA="Inputs^motorRaw^positionActualValue" VarB="Outputs^motor^positionActualValue"/>'));
+      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
+        '<Link VarA="Inputs^loadRaw^positionActualValue" VarB="Outputs^load^positionActualValue"/>'));
+      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
+        '<Link VarA="Outputs^targetTorque" VarB="Inputs^motor^targetTorque"/>'));
+      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
+        '<Link VarA="Outputs^motorControlWordOut" VarB="Inputs^motor^controlWord"/>'));
+      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
+        '<Link VarA="Outputs^loadControlWordOut" VarB="Inputs^load^controlWord"/>'));
+    end
   end
 
   methods (Static, Access = private)
-    function source = read_tsproj()
+    function source = read_vm_tsproj()
       repo_root = fileparts(fileparts(fileparts(fileparts(mfilename("fullpath")))));
       source = string(fileread(fullfile(repo_root, "ExperimentHailMary.tsproj")));
+    end
+
+    function source = read_real_motor_tsproj()
+      repo_root = fileparts(fileparts(fileparts(fileparts(mfilename("fullpath")))));
+      source = string(fileread(fullfile(repo_root, "ExperimentHailMary.RealMotor.tsproj")));
     end
   end
 end

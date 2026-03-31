@@ -1,4 +1,4 @@
-classdef VirtualMotorSymbols
+classdef RuntimeSymbols
   properties
     reset
     modeResetReq
@@ -22,18 +22,16 @@ classdef VirtualMotorSymbols
     ffValue
     distValue
     log
-    vmParams
     controllerParams
     types
     plcRequiredProbes
-    vmRequiredProbes
     controllerRequiredProbes
     requiredProbes
   end
 
   methods (Static)
     function out = from_defaults()
-      out = experiment.VirtualMotorSymbols.base_contract();
+      out = experiment.RuntimeSymbols.base_contract();
       t = out.types;
       out.plcRequiredProbes = {
         out.reset, t.bool;
@@ -42,63 +40,16 @@ classdef VirtualMotorSymbols
         out.idx, t.u32;
         out.repeatCount, t.u32;
         out.trialIndex, t.u32;
-      out.refValue, t.double;
-      out.ffValue, t.double;
-      out.distValue, t.double
+        out.refValue, t.double;
+        out.ffValue, t.double;
+        out.distValue, t.double
       };
       out.requiredProbes = out.plcRequiredProbes;
     end
 
-    function out = from_vm_prefix(prefix)
-      out = experiment.VirtualMotorSymbols.base_contract();
-      prefix = experiment.VirtualMotorSymbols.require_prefix(prefix, "vm_param_symbol_prefix");
-      out.vmParams = struct( ...
-        "motor", struct( ...
-          "inertia", string(prefix) + "motor.inertia", ...
-          "damping", string(prefix) + "motor.damping", ...
-          "ratedTorque", string(prefix) + "motor.ratedTorque", ...
-          "tauLimit", string(prefix) + "motor.tauLimit", ...
-          "velLimit", string(prefix) + "motor.velLimit", ...
-          "maxPermille", string(prefix) + "motor.maxPermille", ...
-          "encoderResolution", string(prefix) + "motor.encoderResolution"), ...
-        "load", struct( ...
-          "inertia", string(prefix) + "load.inertia", ...
-          "damping", string(prefix) + "load.damping", ...
-          "ratedTorque", string(prefix) + "load.ratedTorque", ...
-          "tauLimit", string(prefix) + "load.tauLimit", ...
-          "velLimit", string(prefix) + "load.velLimit", ...
-          "encoderResolution", string(prefix) + "load.encoderResolution"), ...
-        "coupling", struct( ...
-          "stiffness", string(prefix) + "coupling.stiffness", ...
-          "damping", string(prefix) + "coupling.damping"), ...
-        "taskDtNs", string(prefix) + "taskDtNs");
-      t = out.types;
-      out.vmRequiredProbes = {
-        out.vmParams.motor.inertia, t.double;
-        out.vmParams.motor.damping, t.double;
-        out.vmParams.motor.ratedTorque, t.double;
-        out.vmParams.motor.maxPermille, t.double;
-        out.vmParams.motor.tauLimit, t.double;
-        out.vmParams.motor.velLimit, t.double;
-        out.vmParams.motor.encoderResolution, t.u32;
-        out.vmParams.load.inertia, t.double;
-        out.vmParams.load.damping, t.double;
-        out.vmParams.load.ratedTorque, t.double;
-        out.vmParams.load.tauLimit, t.double;
-        out.vmParams.load.velLimit, t.double;
-        out.vmParams.load.encoderResolution, t.u32;
-        out.vmParams.coupling.stiffness, t.double;
-        out.vmParams.coupling.damping, t.double;
-        out.vmParams.taskDtNs, t.u64
-      };
-      out.requiredProbes = out.vmRequiredProbes;
-    end
-
     function out = from_controller_prefix(prefix)
-      out = experiment.VirtualMotorSymbols.base_contract();
-      prefix = experiment.VirtualMotorSymbols.require_prefix(prefix, "controller_param_symbol_prefix");
-      % GUI-generated ControllerCore in this repo currently uses grouped parameter structs.
-      % Each struct uses its own field-name prefix (pidBx, leadBx, notchBx, resoBx).
+      out = experiment.RuntimeSymbols.base_contract();
+      prefix = experiment.RuntimeSymbols.require_prefix(prefix, "controller_param_symbol_prefix");
       out.controllerParams = struct( ...
         "pidB0", string(prefix) + "PIDParams.pidB0", ...
         "pidB1", string(prefix) + "PIDParams.pidB1", ...
@@ -133,21 +84,17 @@ classdef VirtualMotorSymbols
       };
       out.requiredProbes = out.controllerRequiredProbes;
     end
-
-    function out = from_prefix(prefix)
-      out = experiment.VirtualMotorSymbols.from_vm_prefix(prefix);
-    end
   end
 
   methods (Static, Access = private)
     function out = base_contract()
       t = twincat_ads.AdsTransport.net_types();
-      out = experiment.VirtualMotorSymbols();
+      out = experiment.RuntimeSymbols();
       out.reset = "GVL_SEQ.resetReq";
       out.modeResetReq = "GVL_MODE.resetReq";
       out.modeResetAckCounter = "GVL_MODE.resetAckCounter";
       out.hostHeartbeatCounter = "GVL_MODE.hostHeartbeatCounter";
-      out.experimentActive = "GVL_SEQ.experimentActive";
+      out.experimentActive = "GVL_MODE.experimentActive";
       out.experimentState = "GVL_MODE.experimentState";
       out.loggerFileReleased = "GVL_MODE.loggerFileReleased";
       out.loggerErrorCode = "GVL_MODE.loggerErrorCode";
@@ -165,11 +112,9 @@ classdef VirtualMotorSymbols
       out.ffValue = "GVL_SEQ.ffValue";
       out.distValue = "GVL_SEQ.distValue";
       out.log = struct();
-      out.vmParams = struct();
       out.controllerParams = struct();
       out.types = t;
       out.plcRequiredProbes = cell(0, 2);
-      out.vmRequiredProbes = cell(0, 2);
       out.controllerRequiredProbes = cell(0, 2);
       out.requiredProbes = cell(0, 2);
     end
@@ -182,5 +127,3 @@ classdef VirtualMotorSymbols
     end
   end
 end
-
-

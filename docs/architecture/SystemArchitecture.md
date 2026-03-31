@@ -9,7 +9,8 @@
 
 ## 0. 現行構成の要点
 
-* checked-in `.tsproj` の現行実装は **`VirtualMotorTask = 125 us (8 kHz)`** を正とする。
+* checked-in TwinCAT project は `ExperimentHailMary.tsproj` (VM variant) と `ExperimentHailMary.RealMotor.tsproj` (real-motor mapping scaffold) の 2 本を持つ。
+* どちらの project でも **`VirtualMotorTask = 125 us (8 kHz)`** を正とする。
 * `ExperimentSequencer`, `ControllerCore`, `DriverAdapter`, `VirtualMotorCore`, `ExperimentLogger` は同一 RT タスク上で動作する。
 * `ModeManager` は `StateMachineControl` 内の PLC FSM として `PlcTask1 (10 ms)` で動作し、reset handshake / watchdog / logger handshake を管理する。
 * `DriverAdapter` の active 実装は **C++ TcCOM** (`DriverAdapter_Obj1 (Module1)`) である。
