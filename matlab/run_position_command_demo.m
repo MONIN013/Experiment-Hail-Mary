@@ -20,6 +20,7 @@ hold_margin_s       = 0.50;
 pre_step_s          = 2.0;
 N_REPEAT            = 1;
 Kp = 1.5;
+vm_cfg = virtualMotor.PlantConfig();
 
 %% Derived waveforms for this demo
 step_sample_n = round(step_duration_s * cfg.task_rate_hz);
@@ -48,6 +49,7 @@ conn = experiment.ConnectionManager.create(cfg);
 cleanup = onCleanup(@() conn.session.close()); %#ok<NASGU>
 fprintf("Connected: SEQ=%d, CTRL=%d, MODULE=%d\n", cfg.seq_port, cfg.control_port, cfg.module_port);
 fprintf("Controller: Kp=%.1f (pid_b0), enable_pid=%d\n", Kp, logical(cfg.controller.pid.enable));
+virtualMotor.writeParams(conn, vm_cfg);
 
 %% 実験実行
 out = experiment.ExperimentRunner.run(conn, cfg);

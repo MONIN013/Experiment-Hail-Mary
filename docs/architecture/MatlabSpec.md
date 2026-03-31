@@ -14,6 +14,7 @@ MATLAB 層は **実験統括・パラメータ設定・ログ取得・解析** �
 * `GVL_SEQ` への `ref/ff/dist` テーブル書込み
 * `GVL_MODE` による reset / start / stop / 状態監視
 * ControllerCore のパラメータ注入
+* VirtualMotorCore のパラメータ注入 (`virtualMotor.writeParams`)
 * logger `.bin` の読出しと再生評価
 
 ---
@@ -109,6 +110,12 @@ active contract は `351/852/853` のみを使う。`851` は discovery 用に�
 * `create_plc_only(cfg)` は `seq`, `ctrl` だけを返す
 * `from_transports(...)` は既存 transport を runner 契約へ束ねる
 
+### 6.3 VM parameter write
+
+* VM parameter は `ExperimentRunner` ではなく `virtualMotor.writeParams(conn, vm_cfg)` で明示的に書き込む
+* `ExperimentConfig` は VM parameter や `write_plant_params` を保持しない
+* step demo / SI demo は実行前に必要な VM preset を自分で適用する
+
 ---
 
 ## 7. 出力契約
@@ -144,7 +151,7 @@ active contract は `351/852/853` のみを使う。`851` は discovery 用に�
 
 | スクリプト | 位置づけ |
 |---|---|
-| `run_position_command_demo.m` | `ExperimentConfig` + `ConnectionManager` + `ExperimentRunner` を使う現行デモ |
+| `run_position_command_demo.m` | `virtualMotor.writeParams` を明示的に使う VM step response demo |
 | `run_si_demo.m` | `virtualMotor.writeParams` を明示的に使う VM デモ |
 | `run_verify_xar.m` | active contract (`852/853/351`) の接続・symbol・読み出し確認 |
 | `run_verify_virtual_motor.m` | VirtualMotorCore parameter symbol の確認 |
