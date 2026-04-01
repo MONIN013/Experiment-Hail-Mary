@@ -7,7 +7,12 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <PreprocessorDefinitions>THIS_FILE=__FILE__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\CommonLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>..\CommonLib\Build\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>CommonLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>TC_CFG_PLTF=$(Configuration)|$(Platform);</PreprocessorDefinitions>
     </ResourceCompile>

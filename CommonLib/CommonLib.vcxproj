@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<Import Condition="Exists('$(TWINCATSDK)\MsBuild\TwinCAT Common')" Project="$(TWINCATSDK)\MsBuild\TwinCAT Common\*.targets" />
+	<ItemGroup Label="ProjectConfigurations">
+		<ProjectConfiguration Include="Debug|TwinCAT OS (x64)">
+			<Configuration>Debug</Configuration>
+			<Platform>TwinCAT OS (x64)</Platform>
+		</ProjectConfiguration>
+		<ProjectConfiguration Include="Debug|TwinCAT OS (x64-E)">
+			<Configuration>Debug</Configuration>
+			<Platform>TwinCAT OS (x64-E)</Platform>
+		</ProjectConfiguration>
+		<ProjectConfiguration Include="Debug|TwinCAT OS (ARMV8-A)">
+			<Configuration>Debug</Configuration>
+			<Platform>TwinCAT OS (ARMV8-A)</Platform>
+		</ProjectConfiguration>
+		<ProjectConfiguration Include="Debug|TwinCAT RT (x64)">
+			<Configuration>Debug</Configuration>
+			<Platform>TwinCAT RT (x64)</Platform>
+		</ProjectConfiguration>
+		<ProjectConfiguration Include="Debug|TwinCAT RT (x86)">
+			<Configuration>Debug</Configuration>
+			<Platform>TwinCAT RT (x86)</Platform>
+		</ProjectConfiguration>
+		<ProjectConfiguration Include="Release|TwinCAT OS (x64)">
+			<Configuration>Release</Configuration>
+			<Platform>TwinCAT OS (x64)</Platform>
+		</ProjectConfiguration>
+		<ProjectConfiguration Include="Release|TwinCAT OS (x64-E)">
+			<Configuration>Release</Configuration>
+			<Platform>TwinCAT OS (x64-E)</Platform>
+		</ProjectConfiguration>
+		<ProjectConfiguration Include="Release|TwinCAT OS (ARMV8-A)">
+			<Configuration>Release</Configuration>
+			<Platform>TwinCAT OS (ARMV8-A)</Platform>
+		</ProjectConfiguration>
+		<ProjectConfiguration Include="Release|TwinCAT RT (x64)">
+			<Configuration>Release</Configuration>
+			<Platform>TwinCAT RT (x64)</Platform>
+		</ProjectConfiguration>
+		<ProjectConfiguration Include="Release|TwinCAT RT (x86)">
+			<Configuration>Release</Configuration>
+			<Platform>TwinCAT RT (x86)</Platform>
+		</ProjectConfiguration>
+	</ItemGroup>
+	<PropertyGroup Label="Globals">
+		<ProjectGuid>{cd6f677b-44c0-4198-b1a3-b1c9319ab73b}</ProjectGuid>
+		<RootNamespace>CommonLib</RootNamespace>
+		<Keyword>Win32Proj</Keyword>
+		<AutomaticRetargetPlatformVersion>true</AutomaticRetargetPlatformVersion>
+	</PropertyGroup>
+	<Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|TwinCAT RT (x86)'" Label="Configuration">
+		<ConfigurationType>StaticLibrary</ConfigurationType>
+		<PlatformToolset>v142</PlatformToolset>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|TwinCAT RT (x86)'" Label="Configuration">
+		<ConfigurationType>StaticLibrary</ConfigurationType>
+		<PlatformToolset>v142</PlatformToolset>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|TwinCAT RT (x64)'" Label="Configuration">
+		<ConfigurationType>StaticLibrary</ConfigurationType>
+		<PlatformToolset>v142</PlatformToolset>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|TwinCAT RT (x64)'" Label="Configuration">
+		<ConfigurationType>StaticLibrary</ConfigurationType>
+		<PlatformToolset>v142</PlatformToolset>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|TwinCAT OS (x64)'" Label="Configuration">
+		<ConfigurationType>StaticLibrary</ConfigurationType>
+		<PlatformToolset>v142</PlatformToolset>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|TwinCAT OS (x64)'" Label="Configuration">
+		<ConfigurationType>StaticLibrary</ConfigurationType>
+		<PlatformToolset>v142</PlatformToolset>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|TwinCAT OS (x64-E)'" Label="Configuration">
+		<ConfigurationType>StaticLibrary</ConfigurationType>
+		<PlatformToolset>TwinCAT_LLVM_ELF</PlatformToolset>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|TwinCAT OS (x64-E)'" Label="Configuration">
+		<ConfigurationType>StaticLibrary</ConfigurationType>
+		<PlatformToolset>TwinCAT_LLVM_ELF</PlatformToolset>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|TwinCAT OS (ARMV8-A)'" Label="Configuration">
+		<ConfigurationType>StaticLibrary</ConfigurationType>
+		<PlatformToolset>TwinCAT_LLVM_ELF</PlatformToolset>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|TwinCAT OS (ARMV8-A)'" Label="Configuration">
+		<ConfigurationType>StaticLibrary</ConfigurationType>
+		<PlatformToolset>TwinCAT_LLVM_ELF</PlatformToolset>
+	</PropertyGroup>
+	<Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+	<ImportGroup Label="ExtensionSettings">
+		<Import Condition="Exists('$(TWINCATSDK)\Build\MsBuild\TwinCAT Common\Extensions')" Project="$(TWINCATSDK)\Build\MsBuild\TwinCAT Common\Extensions\*.props" />
+	</ImportGroup>
+	<!-- common propertysheet -->
+	<ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|TwinCAT RT (x86)'" Label="PropertySheets" >
+		<Import Project="CommonLib.props" />
+	</ImportGroup>
+	<ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|TwinCAT RT (x86)'" Label="PropertySheets" >
+		<Import Project="CommonLib.props" />
+	</ImportGroup>
+	<ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|TwinCAT RT (x64)'" Label="PropertySheets" >
+		<Import Project="CommonLib.props" />
+	</ImportGroup>
+	<ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|TwinCAT RT (x64)'" Label="PropertySheets" >
+		<Import Project="CommonLib.props" />
+	</ImportGroup>
+	<ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|TwinCAT OS (x64)'" Label="PropertySheets" >
+		<Import Project="CommonLib.props" />
+	</ImportGroup>
+	<ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|TwinCAT OS (x64)'" Label="PropertySheets" >
+		<Import Project="CommonLib.props" />
+	</ImportGroup>
+	<ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|TwinCAT OS (x64-E)'" Label="PropertySheets" >
+		<Import Project="CommonLib.props" />
+	</ImportGroup>
+	<ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|TwinCAT OS (x64-E)'" Label="PropertySheets" >
+		<Import Project="CommonLib.props" />
+	</ImportGroup>
+	<ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|TwinCAT OS (ARMV8-A)'" Label="PropertySheets" >
+		<Import Project="CommonLib.props" />
+	</ImportGroup>
+	<ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|TwinCAT OS (ARMV8-A)'" Label="PropertySheets" >
+		<Import Project="CommonLib.props" />
+	</ImportGroup>
+	<PropertyGroup Label="UserMacros" />
+	<PropertyGroup>
+		<TargetName>CommonLib</TargetName>
+		<OutDir>$(ProjectDir)Build\$(Platform)\$(Configuration)\</OutDir>
+		<IntDir>$(ProjectDir)Build\obj\$(Platform)\$(Configuration)\</IntDir>
+	</PropertyGroup>
+	<ItemDefinitionGroup>
+		<ClCompile>
+			<WarningLevel>Level3</WarningLevel>
+		</ClCompile>
+	</ItemDefinitionGroup>
+	<ItemGroup>
+		<ClCompile Include="TcPch.cpp">
+			<PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|TwinCAT RT (x86)'">Create</PrecompiledHeader>
+			<PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|TwinCAT RT (x64)'">Create</PrecompiledHeader>
+			<PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|TwinCAT OS (x64)'">Create</PrecompiledHeader>
+			<PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|TwinCAT OS (x64-E)'">Create</PrecompiledHeader>
+			<PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|TwinCAT RT (x86)'">Create</PrecompiledHeader>
+			<PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|TwinCAT RT (x64)'">Create</PrecompiledHeader>
+			<PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|TwinCAT OS (x64)'">Create</PrecompiledHeader>
+			<PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|TwinCAT OS (x64-E)'">Create</PrecompiledHeader>
+		</ClCompile>
+	</ItemGroup>
+	<ItemGroup>
+		<ClCompile Include="TcNumeric.cpp">
+			<PrecompiledHeader>NotUsing</PrecompiledHeader>
+		</ClCompile>
+		<ClCompile Include="TcUnits.cpp">
+			<PrecompiledHeader>NotUsing</PrecompiledHeader>
+		</ClCompile>
+	</ItemGroup>
+	<ItemGroup>
+		<ClInclude Include="TcPch.h" />
+		<ClInclude Include="CommonLibInterfaces.h" />
+		<ClInclude Include="CommonLibServices.h" />
+		<ClInclude Include="TcNumeric.h" />
+		<ClInclude Include="TcUnits.h" />
+	</ItemGroup>
+	<ItemGroup>
+		<None Include="CommonLib.tmc"/>
+	</ItemGroup>
+	<Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+	<ImportGroup Label="ExtensionTargets">
+		<Import Condition="Exists('$(TWINCATSDK)\Build\MsBuild\TwinCAT Common\Extensions')" Project="$(TWINCATSDK)\Build\MsBuild\TwinCAT Common\Extensions\*.targets" />
+	</ImportGroup>
+</Project>

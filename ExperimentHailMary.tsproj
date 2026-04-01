@@ -1558,6 +1558,7 @@
 					</TmcDesc>
 				</Instance>
 			</Project>
+			<Project GUID="{CD6F677B-44C0-4198-B1A3-B1C9319AB73B}" Name="CommonLib" PrjFilePath="CommonLib\CommonLib.vcxproj" TmcFilePath="CommonLib\CommonLib.tmc"/>
 		</Cpp>
 		<Io/>
 	</Project>

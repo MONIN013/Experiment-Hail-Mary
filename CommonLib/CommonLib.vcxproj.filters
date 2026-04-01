@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<ItemGroup>
+		<Filter Include="Header Files">
+			<UniqueIdentifier>{3037b9a6-5dbe-4002-8c6e-47ef65d635d8}</UniqueIdentifier>
+		</Filter>
+		<Filter Include="Source Files">
+			<UniqueIdentifier>{f526e737-7c4f-471b-9793-a62aeaac9d76}</UniqueIdentifier>
+		</Filter>
+		<Filter Include="TMC Files">
+			<UniqueIdentifier>{c9c9e68d-ae42-4071-a98f-22a0e5de59e1}</UniqueIdentifier>
+		</Filter>
+  </ItemGroup>
+	<ItemGroup>
+		<ClInclude Include="TcPch.h">
+			<Filter>Header Files</Filter>
+		</ClInclude>
+		<ClInclude Include="CommonLibInterfaces.h">
+			<Filter>Header Files</Filter>
+		</ClInclude>
+		<ClInclude Include="CommonLibServices.h">
+			<Filter>Header Files</Filter>
+		</ClInclude>
+		<ClInclude Include="TcNumeric.h">
+			<Filter>Header Files</Filter>
+		</ClInclude>
+		<ClInclude Include="TcUnits.h">
+			<Filter>Header Files</Filter>
+		</ClInclude>
+	</ItemGroup>
+	<ItemGroup>
+		<ClCompile Include="TcPch.cpp">
+			<Filter>Source Files</Filter>
+		</ClCompile>
+		<ClCompile Include="TcNumeric.cpp">
+			<Filter>Source Files</Filter>
+		</ClCompile>
+		<ClCompile Include="TcUnits.cpp">
+			<Filter>Source Files</Filter>
+		</ClCompile>
+	</ItemGroup>
+	<ItemGroup>
+		<None Include="CommonLib.tmc">
+			<Filter>TMC Files</Filter>
+		</None>
+  </ItemGroup>
+</Project>
