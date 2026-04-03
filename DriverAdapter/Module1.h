@@ -36,17 +36,6 @@ protected:
 
 	HRESULT AddModuleToCaller();
 	VOID RemoveModuleFromCaller();
-
-	static double NormalizeSign(LONG sign);
-	static bool HasValidPositionScale(const ST_DriverChannelParams& params);
-	static bool HasValidCurrentScale(const ST_DriverChannelParams& params);
-	static double ClampSymmetric(double value, double limit);
-	static double ConvertPositionToRad(LONG rawValue, const ST_DriverChannelParams& params);
-	static double ConvertVelocityToRad(LONG rawValue, const ST_DriverChannelParams& params);
-	static double ConvertPermilleToCurrent(SHORT rawValue, const ST_DriverChannelParams& params);
-	static double ConvertCurrentToPermille(double currentA, const ST_DriverChannelParams& params);
-	static double ComputeRelativePosition(double positionAbs, const ST_DriverChannelParams& params, double offsetRad);
-	static SHORT SaturatingRoundToInt(double value);
 	void ResetRuntimeState();
 
 	// Tracing

@@ -69,14 +69,10 @@ protected:
 
 	HRESULT AddModuleToCaller();
 	VOID RemoveModuleFromCaller();
-	static double ClampSymmetric(double value, double limit);
-	static LONG SaturatingRoundToDint(double value);
-	static SHORT SaturatingRoundToInt(double value);
 	static double EffectiveRatedTorque(const ST_VirtualMotorMotorParams& params);
 	static double EffectiveRatedTorque(const ST_VirtualMotorLoadParams& params);
 	static ULONG EffectiveEncoderResolution(const ST_VirtualMotorMotorParams& params);
 	static ULONG EffectiveEncoderResolution(const ST_VirtualMotorLoadParams& params);
-	static double NonNegativeOrZero(double value);
 	void UpdateDriveState(int axisIndex, USHORT controlWord);
 	USHORT ComposeStatusWord(int axisIndex) const;
 	void ResetRuntimeState();

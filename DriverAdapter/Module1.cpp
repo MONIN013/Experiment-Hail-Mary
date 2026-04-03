@@ -3,16 +3,24 @@
 #include "TcPch.h"
 #pragma hdrstop
 
-#include <cmath>
-#include <limits>
+#include "TcNumeric.h"
+#include "TcUnits.h"
 #include "Module1.h"
 #include "DriverAdapterVersion.h"
 
 namespace
 {
-const double kTwoPi = 6.28318530717958647692;
-const double kShortMaxAsDouble = static_cast<double>(std::numeric_limits<SHORT>::max());
-const double kShortMinAsDouble = static_cast<double>(std::numeric_limits<SHORT>::min());
+tccommon::units::AxisScaling MakeAxisScaling(const ST_DriverChannelParams& params)
+{
+	tccommon::units::AxisScaling scaling = {};
+	scaling.encoderResolution = static_cast<std::uint32_t>(params.encoderResolution);
+	scaling.ratedCurrentA = params.ratedCurrentA;
+	scaling.positionSign = static_cast<int>(params.positionSign);
+	scaling.velocitySign = static_cast<int>(params.velocitySign);
+	scaling.currentSign = static_cast<int>(params.currentSign);
+	scaling.enableRelativePosition = (params.enableRelativePosition != false);
+	return scaling;
+}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -203,42 +211,53 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 
 	const bool resetReq = (m_Inputs.resetReq != false);
 	const bool resetEdge = resetReq && !m_prevResetReq;
+	const tccommon::units::AxisScaling motorScaling = MakeAxisScaling(m_MotorParams);
+	const tccommon::units::AxisScaling loadScaling = MakeAxisScaling(m_LoadParams);
 
-	const double motorPositionAbs = ConvertPositionToRad(m_Inputs.motorRaw.positionActualValue, m_MotorParams);
-	const double motorVelocityAct = ConvertVelocityToRad(m_Inputs.motorRaw.velocityActualValue, m_MotorParams);
-	const double motorCurrentAct = ConvertPermilleToCurrent(m_Inputs.motorRaw.torqueActualValue, m_MotorParams);
+	const double motorPositionAbs = tccommon::units::ConvertPositionCountsToRad(
+		static_cast<std::int32_t>(m_Inputs.motorRaw.positionActualValue), motorScaling);
+	const double motorVelocityAct = tccommon::units::ConvertVelocityCountsToRad(
+		static_cast<std::int32_t>(m_Inputs.motorRaw.velocityActualValue), motorScaling);
+	const double motorCurrentAct = tccommon::units::ConvertPermilleToCurrentA(
+		static_cast<std::int16_t>(m_Inputs.motorRaw.torqueActualValue), motorScaling);
 
-	const double loadPositionAbs = ConvertPositionToRad(m_Inputs.loadRaw.positionActualValue, m_LoadParams);
-	const double loadVelocityAct = ConvertVelocityToRad(m_Inputs.loadRaw.velocityActualValue, m_LoadParams);
-	const double loadCurrentAct = ConvertPermilleToCurrent(m_Inputs.loadRaw.torqueActualValue, m_LoadParams);
+	const double loadPositionAbs = tccommon::units::ConvertPositionCountsToRad(
+		static_cast<std::int32_t>(m_Inputs.loadRaw.positionActualValue), loadScaling);
+	const double loadVelocityAct = tccommon::units::ConvertVelocityCountsToRad(
+		static_cast<std::int32_t>(m_Inputs.loadRaw.velocityActualValue), loadScaling);
+	const double loadCurrentAct = tccommon::units::ConvertPermilleToCurrentA(
+		static_cast<std::int16_t>(m_Inputs.loadRaw.torqueActualValue), loadScaling);
 
 	if (resetEdge)
 	{
-		m_motorPositionOffsetRad = (m_MotorParams.enableRelativePosition && HasValidPositionScale(m_MotorParams))
+		m_motorPositionOffsetRad = (motorScaling.enableRelativePosition && tccommon::units::HasValidPositionScale(motorScaling))
 			? motorPositionAbs
 			: 0.0;
-		m_loadPositionOffsetRad = (m_LoadParams.enableRelativePosition && HasValidPositionScale(m_LoadParams))
+		m_loadPositionOffsetRad = (loadScaling.enableRelativePosition && tccommon::units::HasValidPositionScale(loadScaling))
 			? loadPositionAbs
 			: 0.0;
 	}
 
 	m_Outputs.motor.positionAbs = motorPositionAbs;
-	m_Outputs.motor.positionRel = ComputeRelativePosition(motorPositionAbs, m_MotorParams, m_motorPositionOffsetRad);
+	m_Outputs.motor.positionRel = tccommon::units::ComputeRelativePosition(
+		motorPositionAbs, motorScaling, m_motorPositionOffsetRad);
 	m_Outputs.motor.velocityAct = motorVelocityAct;
 	m_Outputs.motor.currentAct = motorCurrentAct;
 
 	m_Outputs.load.positionAbs = loadPositionAbs;
-	m_Outputs.load.positionRel = ComputeRelativePosition(loadPositionAbs, m_LoadParams, m_loadPositionOffsetRad);
+	m_Outputs.load.positionRel = tccommon::units::ComputeRelativePosition(
+		loadPositionAbs, loadScaling, m_loadPositionOffsetRad);
 	m_Outputs.load.velocityAct = loadVelocityAct;
 	m_Outputs.load.currentAct = loadCurrentAct;
 
-	m_Outputs.currentCmd = ClampSymmetric(m_Inputs.controlInput + m_Inputs.distValue, m_MotorParams.maxCurrentA);
+	m_Outputs.currentCmd = tccommon::numeric::ClampSymmetric(
+		m_Inputs.controlInput + m_Inputs.distValue, m_MotorParams.maxCurrentA);
 
 	const bool currentGateOpen = (m_Inputs.enableCurrentOutput != false) && (m_Inputs.playbackDone == false);
-	if (currentGateOpen && HasValidCurrentScale(m_MotorParams))
+	if (currentGateOpen && tccommon::units::HasValidCurrentScale(motorScaling))
 	{
-		m_Outputs.targetTorque = SaturatingRoundToInt(
-			ConvertCurrentToPermille(m_Outputs.currentCmd, m_MotorParams));
+		m_Outputs.targetTorque = static_cast<SHORT>(tccommon::numeric::SaturatingRoundToInt16(
+			tccommon::units::ConvertCurrentAToPermille(m_Outputs.currentCmd, motorScaling)));
 	}
 	else
 	{
@@ -254,121 +273,6 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 	return hr;
 }
 ///</AutoGeneratedContent>
-
-double CModule1::NormalizeSign(LONG sign)
-{
-	return (sign < 0) ? -1.0 : 1.0;
-}
-
-bool CModule1::HasValidPositionScale(const ST_DriverChannelParams& params)
-{
-	return params.encoderResolution > 0UL;
-}
-
-bool CModule1::HasValidCurrentScale(const ST_DriverChannelParams& params)
-{
-	return std::isfinite(params.ratedCurrentA) && (params.ratedCurrentA > 0.0);
-}
-
-double CModule1::ClampSymmetric(double value, double limit)
-{
-	if (!std::isfinite(value))
-	{
-		return 0.0;
-	}
-
-	const double absLimit = std::fabs(limit);
-	if (!std::isfinite(absLimit) || absLimit <= 0.0)
-	{
-		return 0.0;
-	}
-	if (value > absLimit)
-	{
-		return absLimit;
-	}
-	if (value < -absLimit)
-	{
-		return -absLimit;
-	}
-	return value;
-}
-
-double CModule1::ConvertPositionToRad(LONG rawValue, const ST_DriverChannelParams& params)
-{
-	if (!HasValidPositionScale(params))
-	{
-		return 0.0;
-	}
-
-	return NormalizeSign(params.positionSign)
-		* static_cast<double>(rawValue)
-		* (kTwoPi / static_cast<double>(params.encoderResolution));
-}
-
-double CModule1::ConvertVelocityToRad(LONG rawValue, const ST_DriverChannelParams& params)
-{
-	if (!HasValidPositionScale(params))
-	{
-		return 0.0;
-	}
-
-	return NormalizeSign(params.velocitySign)
-		* static_cast<double>(rawValue)
-		* (kTwoPi / static_cast<double>(params.encoderResolution));
-}
-
-double CModule1::ConvertPermilleToCurrent(SHORT rawValue, const ST_DriverChannelParams& params)
-{
-	if (!HasValidCurrentScale(params))
-	{
-		return 0.0;
-	}
-
-	return NormalizeSign(params.currentSign)
-		* static_cast<double>(rawValue)
-		* (params.ratedCurrentA / 1000.0);
-}
-
-double CModule1::ConvertCurrentToPermille(double currentA, const ST_DriverChannelParams& params)
-{
-	if (!HasValidCurrentScale(params) || !std::isfinite(currentA))
-	{
-		return 0.0;
-	}
-
-	return currentA
-		* NormalizeSign(params.currentSign)
-		* (1000.0 / params.ratedCurrentA);
-}
-
-double CModule1::ComputeRelativePosition(double positionAbs, const ST_DriverChannelParams& params, double offsetRad)
-{
-	if (!HasValidPositionScale(params))
-	{
-		return 0.0;
-	}
-
-	return params.enableRelativePosition ? (positionAbs - offsetRad) : positionAbs;
-}
-
-SHORT CModule1::SaturatingRoundToInt(double value)
-{
-	if (!std::isfinite(value))
-	{
-		return 0;
-	}
-
-	const double rounded = (value >= 0.0) ? std::floor(value + 0.5) : std::ceil(value - 0.5);
-	if (rounded > kShortMaxAsDouble)
-	{
-		return std::numeric_limits<SHORT>::max();
-	}
-	if (rounded < kShortMinAsDouble)
-	{
-		return std::numeric_limits<SHORT>::min();
-	}
-	return static_cast<SHORT>(rounded);
-}
 
 void CModule1::ResetRuntimeState()
 {
