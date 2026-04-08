@@ -6,7 +6,6 @@ classdef ExperimentConfig
     module_port = []
     ads_assembly = ""
 
-    plant experiment.PlantConfig = experiment.PlantConfig()
     controller experiment.ControllerConfig = experiment.ControllerConfig()
 
     ref_profile = zeros(0, 1)
@@ -30,7 +29,6 @@ classdef ExperimentConfig
     read_logs = true
     validate_symbols = true
 
-    write_plant_params = true
     write_controller_params = true
 
     waveform_diag_max_shift_samples = 1
@@ -49,7 +47,6 @@ classdef ExperimentConfig
       out.task_rate_hz = double(sys.TASK_RATE_HZ);
       out.table_max_n = double(sys.TABLE_MAX_N);
       out.logger_release_timeout_s = double(sys.LOGGER_RELEASE_TIMEOUT_S);
-      out.plant = experiment.PlantConfig();
       out.controller = experiment.ControllerConfig();
     end
 
@@ -65,7 +62,6 @@ classdef ExperimentConfig
       p.addParameter("control_port", [], @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
       p.addParameter("module_port", defaults.module_port, @(x) isnumeric(x) && isscalar(x));
       p.addParameter("ads_assembly", "", @(x) ischar(x) || isstring(x));
-      p.addParameter("plant", defaults.plant, @(x) isa(x, "experiment.PlantConfig") || isstruct(x));
       p.addParameter("ref_profile", [], @isnumeric);
       p.addParameter("ff_profile", [], @isnumeric);
       p.addParameter("dist_profile", [], @isnumeric);
@@ -83,7 +79,6 @@ classdef ExperimentConfig
       p.addParameter("save_path", "", @(x) ischar(x) || isstring(x));
       p.addParameter("read_logs", true, @(x) islogical(x) || isnumeric(x));
       p.addParameter("validate_symbols", true, @(x) islogical(x) || isnumeric(x));
-      p.addParameter("write_plant_params", true, @(x) islogical(x) || isnumeric(x));
       p.addParameter("write_controller_params", true, @(x) islogical(x) || isnumeric(x));
       p.addParameter("waveform_diag_max_shift_samples", 1, @(x) isnumeric(x) && isscalar(x));
       p.addParameter("waveform_diag_abs_tol", 1e-12, @(x) isnumeric(x) && isscalar(x));
@@ -113,7 +108,6 @@ classdef ExperimentConfig
       p.addParameter("enable_lead", false, @(x) islogical(x) || isnumeric(x));
       p.addParameter("enable_notch", false, @(x) islogical(x) || isnumeric(x));
       p.addParameter("enable_reso", false, @(x) islogical(x) || isnumeric(x));
-      p.addParameter("vm_param_symbol_prefix", [], @(x) isempty(x) || ischar(x) || isstring(x));
       p.addParameter("controller_param_symbol_prefix", [], @(x) isempty(x) || ischar(x) || isstring(x));
       p.parse(varargin{:});
       out = experiment.ExperimentConfig.from_struct(p.Results);
@@ -133,6 +127,7 @@ classdef ExperimentConfig
       reject_legacy_inputs(s);
       reject_prefix_overrides(s);
       reject_legacy_plant_inputs(s);
+      reject_removed_vm_inputs(s);
 
       out = experiment.ExperimentConfig.defaults();
       controller_struct = extract_controller_struct(s);
@@ -143,9 +138,6 @@ classdef ExperimentConfig
         if isprop(out, key)
           out.(key) = s.(key);
         end
-      end
-      if isfield(s, "plant")
-        out.plant = experiment.PlantConfig.from_struct(s.plant);
       end
       if isfield(s, "controller")
         if isa(s.controller, "experiment.ControllerConfig")
@@ -194,17 +186,11 @@ classdef ExperimentConfig
       out.logger_release_timeout_s = double(out.logger_release_timeout_s);
       out.read_logs = logical(out.read_logs);
       out.validate_symbols = logical(out.validate_symbols);
-      out.write_plant_params = logical(out.write_plant_params);
       out.write_controller_params = logical(out.write_controller_params);
       out.waveform_diag_max_shift_samples = double(floor(out.waveform_diag_max_shift_samples));
       out.waveform_diag_abs_tol = double(out.waveform_diag_abs_tol);
       out.waveform_diag_preview_n = double(floor(out.waveform_diag_preview_n));
       out.save_path = char(string(out.save_path));
-      if ~isa(out.plant, "experiment.PlantConfig")
-        out.plant = experiment.PlantConfig.from_struct(out.plant);
-      else
-        out.plant = out.plant.normalize();
-      end
       if ~isa(out.controller, "experiment.ControllerConfig")
         out.controller = experiment.ControllerConfig.from_flat_struct(out.controller);
       end
@@ -254,7 +240,6 @@ classdef ExperimentConfig
         "control_port", obj.control_port, ...
         "module_port", obj.module_port, ...
         "ads_assembly", obj.ads_assembly, ...
-        "plant", obj.plant.to_struct(), ...
         "controller", obj.controller.to_flat_struct(), ...
         "ref_profile", obj.ref_profile, ...
         "ff_profile", obj.ff_profile, ...
@@ -273,7 +258,6 @@ classdef ExperimentConfig
         "save_path", obj.save_path, ...
         "read_logs", obj.read_logs, ...
         "validate_symbols", obj.validate_symbols, ...
-        "write_plant_params", obj.write_plant_params, ...
         "write_controller_params", obj.write_controller_params, ...
         "waveform_diag_max_shift_samples", obj.waveform_diag_max_shift_samples, ...
         "waveform_diag_abs_tol", obj.waveform_diag_abs_tol, ...
@@ -295,7 +279,6 @@ end
 
 function reject_prefix_overrides(s)
 checks = { ...
-  "vm_param_symbol_prefix", char(experiment.SystemConfig.VM_PLANT_PREFIX); ...
   "controller_param_symbol_prefix", char(experiment.SystemConfig.CTRL_PREFIX)};
 for k = 1:size(checks, 1)
   key = checks{k, 1};
@@ -308,12 +291,23 @@ end
 end
 
 function reject_legacy_plant_inputs(s)
-legacy_keys = ["m", "d", "rated_current", "max_permille", "tau_limit", "vel_limit"];
+legacy_keys = ["m", "d", "rated_current", "max_permille", "tau_limit", "vel_limit", "plant"];
 for k = 1:numel(legacy_keys)
   key = char(legacy_keys(k));
   if isfield(s, key)
     error("experiment:config:invalid", ...
-      "%s is no longer supported. Use plant.motor/load/coupling.", key);
+      "%s is no longer supported in ExperimentConfig.", key);
+  end
+end
+end
+
+function reject_removed_vm_inputs(s)
+removed_keys = ["write_plant_params", "vm_param_symbol_prefix"];
+for k = 1:numel(removed_keys)
+  key = char(removed_keys(k));
+  if isfield(s, key)
+    error("experiment:config:invalid", ...
+      "%s is no longer supported in ExperimentConfig.", key);
   end
 end
 end

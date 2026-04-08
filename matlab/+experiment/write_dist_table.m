@@ -23,7 +23,7 @@ function write_dist_table(transport, dist_profile, expected_len)
       numel(dist_profile), expected_len);
   end
 
-  symbols = experiment.VirtualMotorSymbols.from_defaults();
+  symbols = experiment.RuntimeSymbols.from_defaults();
   t = symbols.types;
 
   transport.write_array(symbols.distTable, dist_profile, t.double);

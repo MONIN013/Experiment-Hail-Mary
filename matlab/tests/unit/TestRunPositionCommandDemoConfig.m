@@ -24,7 +24,7 @@ classdef TestRunPositionCommandDemoConfig < matlab.unittest.TestCase
       source = string(fileread(script_path));
 
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        "cfg.plant = experiment.PlantConfig.from_struct(struct("));
+        "vm_cfg = virtualMotor.PlantConfig();"));
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
         "cfg.controller = experiment.ControllerConfig.p_only(Kp);"));
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
@@ -33,6 +33,9 @@ classdef TestRunPositionCommandDemoConfig < matlab.unittest.TestCase
         "cfg.hold_seconds = per_trial_s + hold_margin_s;"));
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
         "cfg.done_timeout_s = N_REPEAT * per_trial_s + hold_margin_s + 5.0;"));
+      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
+        "virtualMotor.writeParams(conn, vm_cfg);"));
+      testCase.verifyFalse(contains(source, "cfg.plant ="));
     end
 
     function loggerDirectoryDerivesFromSystemConfig(testCase)

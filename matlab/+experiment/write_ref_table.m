@@ -24,7 +24,7 @@ function write_ref_table(transport, ref_profile, table_max_n)
       "ref_profile length (%d) exceeds table_max_n (%d).", n, table_max_n);
   end
 
-  symbols = experiment.VirtualMotorSymbols.from_defaults();
+  symbols = experiment.RuntimeSymbols.from_defaults();
   t = symbols.types;
 
   transport.write_array(symbols.refTable, ref_profile, t.double);

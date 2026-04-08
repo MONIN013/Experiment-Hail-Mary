@@ -13,7 +13,8 @@ MATLAB 層は **実験統括・パラメータ設定・ログ取得・解析** �
 
 * `GVL_SEQ` への `ref/ff/dist` テーブル書込み
 * `GVL_MODE` による reset / start / stop / 状態監視
-* ControllerCore / VirtualMotorCore のパラメータ注入
+* ControllerCore のパラメータ注入
+* VirtualMotorCore のパラメータ注入 (`virtualMotor.writeParams`)
 * logger `.bin` の読出しと再生評価
 
 ---
@@ -37,10 +38,11 @@ MATLAB 層は **実験統括・パラメータ設定・ログ取得・解析** �
 | クラス / 関数 | 役割 |
 |---|---|
 | `experiment.ExperimentConfig` | 実験実行の主 runtime config |
-| `experiment.PlantConfig` | VirtualMotorCore 用の物理パラメータ |
 | `experiment.ControllerConfig` | ControllerCore 用の 4 段 biquad 設定 |
 | `experiment.ConnectionManager` | `AdsSession` を使った transport 構築 |
 | `experiment.ExperimentRunner` | 実験実行フロー本体 |
+| `virtualMotor.PlantConfig` | VirtualMotorCore 用の物理パラメータ |
+| `virtualMotor.writeParams` | VirtualMotorCore parameter write |
 | `twincat_ads.AdsSession` | AMS Net ID 単位の transport キャッシュ |
 | `twincat_ads.AdsTransport` | TwinCAT ADS 実装 |
 | `twincat_ads.SymbolBrowser` | シンボル列挙 / 契約検証 |
@@ -61,8 +63,8 @@ MATLAB 層は **実験統括・パラメータ設定・ログ取得・解析** �
 |---|---|
 | `SystemConfig` | 環境固定値 |
 | `ExperimentConfig` | 実行時設定 |
-| `PlantConfig` | VM パラメータ |
 | `ControllerConfig` | ControllerCore パラメータ |
+| `virtualMotor.PlantConfig` | VM パラメータ |
 
 `ExperimentConfig` は canonical field のみを受理する。`ams_port` / `control_ams_port` / `module_ams_port` や legacy config object は受理しない。
 
@@ -77,7 +79,6 @@ MATLAB 層は **実験統括・パラメータ設定・ログ取得・解析** �
 | `CONTROL_PORT` | `852` | ModeManager |
 | `MODULE_PORT` | `351` | C++ TcCOM 群 |
 | `TASK_RATE_HZ` | `8000` | `VirtualMotorTask` 周波数 |
-| `VM_PLANT_PREFIX` | `"VirtualMotorCore_Obj1 (Module1).PlantParameter."` | VM parameter prefix |
 | `CTRL_PREFIX` | `"ControllerCore_Obj1 (Module1)."` | Controller parameter prefix |
 | `MODE_FLAGS_SYMBOL` | `"GVL_MODE.modeFlags"` | start / stop 用 symbol |
 | `LOGGER_FILE_RELEASED_SYMBOL` | `"GVL_MODE.loggerFileReleased"` | logger close 完了 |
@@ -97,7 +98,7 @@ active contract は `351/852/853` のみを使う。`851` は discovery 用に�
 2. Symbol contract を必要に応じて検証
 3. `ModeManagerControl` で `resetReq/resetAckCounter` handshake
 4. `GVL_SEQ` へ `ref/ff/dist/tableLen/repeatCount` を書き込む
-5. `ControllerCore` / `VirtualMotorCore` へ parameter を書き込む
+5. `ControllerCore` へ parameter を書き込む
 6. `modeFlags` で servo enable -> experiment start
 7. `GVL_MODE.experimentState` / `experimentActive` を監視
 8. `GVL_MODE.loggerFileReleased` / `loggerErrorCode` を監視
@@ -108,6 +109,12 @@ active contract は `351/852/853` のみを使う。`851` は discovery 用に�
 * `create(cfg)` は `seq`, `ctrl`, `module` をまとめて返す
 * `create_plc_only(cfg)` は `seq`, `ctrl` だけを返す
 * `from_transports(...)` は既存 transport を runner 契約へ束ねる
+
+### 6.3 VM parameter write
+
+* VM parameter は `ExperimentRunner` ではなく `virtualMotor.writeParams(conn, vm_cfg)` で明示的に書き込む
+* `ExperimentConfig` は VM parameter や `write_plant_params` を保持しない
+* step demo / SI demo は実行前に必要な VM preset を自分で適用する
 
 ---
 
@@ -144,11 +151,12 @@ active contract は `351/852/853` のみを使う。`851` は discovery 用に�
 
 | スクリプト | 位置づけ |
 |---|---|
-| `run_position_command_demo.m` | `ExperimentConfig` + `ConnectionManager` + `ExperimentRunner` を使う現行デモ |
+| `run_position_command_demo.m` | `virtualMotor.writeParams` を明示的に使う VM step response demo |
+| `run_si_demo.m` | `virtualMotor.writeParams` を明示的に使う VM デモ |
 | `run_verify_xar.m` | active contract (`852/853/351`) の接続・symbol・読み出し確認 |
+| `run_verify_virtual_motor.m` | VirtualMotorCore parameter symbol の確認 |
 | `run_ads_discovery_demo.m` | discovery 補助。必要なら `851` をローカル指定で probe する |
 | `run_check_logger_bin.m` | logger bin の直接検査 |
-| `run_si_demo.m` | SI デモ |
 
 ---
 
@@ -170,6 +178,7 @@ run('matlab/tests/run_tests.m')
 | `tests/unit/TestPreloadEval.m` | snake_case raw の replay 評価 |
 | `tests/unit/TestRunPositionCommandDemoConfig.m` | demo の現行設定 |
 | `tests/unit/TestSystemConfig.m` | 環境固定値 |
-| `tests/unit/TestVirtualMotorSymbols.m` | symbol contract |
+| `tests/unit/TestRuntimeSymbols.m` | experiment symbol contract |
+| `tests/unit/TestVirtualMotorSymbols.m` | VM symbol contract |
 | `tests/contract/TestAdsSession.m` | AdsSession 契約 |
 | `tests/contract/TestTransportContract.m` | transport 契約 |

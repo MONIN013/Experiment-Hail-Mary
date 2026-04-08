@@ -24,7 +24,6 @@ classdef TestSystemConfig < matlab.unittest.TestCase
       testCase.verifyTrue(isfield(s, 'CONTROL_PORT'));
       testCase.verifyTrue(isfield(s, 'MODULE_PORT'));
       testCase.verifyTrue(isfield(s, 'TASK_RATE_HZ'));
-      testCase.verifyTrue(isfield(s, 'VM_PLANT_PREFIX'));
       testCase.verifyTrue(isfield(s, 'CTRL_PREFIX'));
       testCase.verifyTrue(isfield(s, 'MODE_FLAGS_SYMBOL'));
       testCase.verifyTrue(isfield(s, 'LOGGER_FILE_RELEASED_SYMBOL'));
@@ -34,9 +33,8 @@ classdef TestSystemConfig < matlab.unittest.TestCase
       testCase.verifyFalse(isfield(s, 'DRIVER_PORT'));
     end
 
-    function prefixesAreNonEmpty(testCase)
+    function controllerPrefixIsNonEmpty(testCase)
       sys = experiment.SystemConfig;
-      testCase.verifyGreaterThan(strlength(sys.VM_PLANT_PREFIX), 0);
       testCase.verifyGreaterThan(strlength(sys.CTRL_PREFIX), 0);
     end
 

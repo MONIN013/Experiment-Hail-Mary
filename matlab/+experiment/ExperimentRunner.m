@@ -12,20 +12,16 @@ classdef ExperimentRunner
         module_transport = conn.module;
       end
 
-      plc_symbols = experiment.VirtualMotorSymbols.from_defaults();
-      vm_symbols = experiment.VirtualMotorSymbols.from_vm_prefix(experiment.SystemConfig.VM_PLANT_PREFIX);
-      controller_symbols = experiment.VirtualMotorSymbols.from_controller_prefix(experiment.SystemConfig.CTRL_PREFIX);
+      plc_symbols = experiment.RuntimeSymbols.from_defaults();
+      controller_symbols = experiment.RuntimeSymbols.from_controller_prefix(experiment.SystemConfig.CTRL_PREFIX);
 
-      if (cfg.write_plant_params || cfg.write_controller_params) && isempty(module_transport)
+      if cfg.write_controller_params && isempty(module_transport)
         error("experiment:runner:invalidConfig", ...
-          "module transport is required when module parameter writes are enabled.");
+          "module transport is required when controller parameter writes are enabled.");
       end
 
       if cfg.validate_symbols
-        twincat_ads.SymbolBrowser.validate_symbols(seq_transport, plc_symbols.plcRequiredProbes);
-        if cfg.write_plant_params
-          twincat_ads.SymbolBrowser.validate_symbols(module_transport, vm_symbols.vmRequiredProbes);
-        end
+        experiment.ExperimentRunner.validate_runtime_symbols(seq_transport, ctrl_transport, plc_symbols);
         if cfg.write_controller_params
           twincat_ads.SymbolBrowser.validate_symbols(module_transport, controller_symbols.controllerRequiredProbes);
         end
@@ -36,14 +32,6 @@ classdef ExperimentRunner
       heartbeat_state = experiment.ModeManagerControl.init_heartbeat( ...
         ctrl_transport, ctrl, cfg.host_heartbeat_enable, cfg.host_heartbeat_period_s);
 
-      if cfg.write_plant_params
-        if isempty(module_transport)
-          error("experiment:runner:invalidConfig", "module transport is required when write_plant_params=true.");
-        end
-        experiment.write_vm_params( ...
-          module_transport, experiment.SystemConfig.VM_PLANT_PREFIX, ...
-          cfg.plant.to_struct(), uint64(round(1e9 / cfg.task_rate_hz)));
-      end
       if cfg.write_controller_params
         if isempty(module_transport)
           error("experiment:runner:invalidConfig", "module transport is required when write_controller_params=true.");
@@ -210,6 +198,31 @@ classdef ExperimentRunner
       if isfield(conn, "module") && ~isempty(conn.module) && ~isa(conn.module, "twincat_ads.IAdsTransport")
         error("experiment:runner:invalidConfig", "Connection 'module' must implement twincat_ads.IAdsTransport.");
       end
+    end
+
+    function validate_runtime_symbols(seq_transport, ctrl_transport, plc_symbols)
+      t = plc_symbols.types;
+      seq_required = {
+        plc_symbols.reset, t.bool;
+        plc_symbols.tableLen, t.u32;
+        plc_symbols.idx, t.u32;
+        plc_symbols.repeatCount, t.u32;
+        plc_symbols.trialIndex, t.u32;
+        plc_symbols.refValue, t.double;
+        plc_symbols.ffValue, t.double;
+        plc_symbols.distValue, t.double
+      };
+      ctrl_required = {
+        plc_symbols.modeResetReq, t.bool;
+        plc_symbols.modeResetAckCounter, t.u32;
+        plc_symbols.hostHeartbeatCounter, t.u32;
+        plc_symbols.experimentActive, t.bool;
+        plc_symbols.loggerFileReleased, t.bool;
+        plc_symbols.loggerErrorCode, t.u32
+      };
+
+      twincat_ads.SymbolBrowser.validate_symbols(seq_transport, seq_required);
+      twincat_ads.SymbolBrowser.validate_symbols(ctrl_transport, ctrl_required);
     end
 
     function raw = read_log_payload(read_logs, logger_path)

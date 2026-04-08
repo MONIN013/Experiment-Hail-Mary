@@ -5,7 +5,7 @@
 > **更新条件:** 内部ロジック、シンボル、I/O 名、配線が変わったとき  
 > **関連文書:** [SystemArchitecture](./SystemArchitecture.md) / [ExperimentProcedure](../operations/ExperimentProcedure.md) / [OpenIssues](../status/OpenIssues.md)
 
-本ドキュメントは checked-in ソースと `.tsproj` を前提に、**現在の実装が実際に何を公開しているか**をまとめた技術参照である。運用手順は [ExperimentProcedure](../operations/ExperimentProcedure.md) を参照。
+本ドキュメントは checked-in ソースと `ExperimentHailMary.tsproj` / `ExperimentHailMary.RealMotor.tsproj` を前提に、**現在の実装が実際に何を公開しているか**をまとめた技術参照である。運用手順は [ExperimentProcedure](../operations/ExperimentProcedure.md) を参照。
 
 ---
 

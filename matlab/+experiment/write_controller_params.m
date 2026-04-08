@@ -20,7 +20,7 @@ function write_controller_params(transport, controller_param_symbol_prefix, para
     params    struct
   end
 
-  symbols = experiment.VirtualMotorSymbols.from_controller_prefix(char(string(controller_param_symbol_prefix)));
+  symbols = experiment.RuntimeSymbols.from_controller_prefix(char(string(controller_param_symbol_prefix)));
   t = symbols.types;
   p = symbols.controllerParams;
 

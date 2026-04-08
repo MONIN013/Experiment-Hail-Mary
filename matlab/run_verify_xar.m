@@ -4,10 +4,9 @@
 %    1. 全 4 ポートへの ADS 接続
 %    2. シンボル列挙 (SymbolBrowser)
 %    3. PLC 必須シンボルの存在検証
-%    4. VM パラメータシンボルの存在検証
-%    5. Controller パラメータシンボルの存在検証
-%    6. 基本スカラー読み取り
-%    7. Controller パラメータ読み出し (PIDParams 等)
+%    4. Controller パラメータシンボルの存在検証
+%    5. 基本スカラー読み取り
+%    6. Controller パラメータ読み出し (PIDParams 等)
 %
 %  参照: docs/MatlabSpec.md §7.3 / §8
 
@@ -64,7 +63,7 @@ end
 %% 3. PLC 必須シンボルの存在
 seq = find_transport(transports, ports, sys.SEQ_PORT);
 if ~isempty(seq)
-  plc_symbols = experiment.VirtualMotorSymbols.from_defaults();
+  plc_symbols = experiment.RuntimeSymbols.from_defaults();
   name = "PLC required symbols (port " + string(sys.SEQ_PORT) + ")";
   try
     twincat_ads.SymbolBrowser.validate_symbols(seq, plc_symbols.plcRequiredProbes);
@@ -79,27 +78,10 @@ else
   n_fail = n_fail + 1;
 end
 
-%% 4. VM パラメータシンボル
+%% 4. Controller パラメータシンボル
 mod = find_transport(transports, ports, sys.MODULE_PORT);
 if ~isempty(mod)
-  vm_symbols = experiment.VirtualMotorSymbols.from_vm_prefix(char(sys.VM_PLANT_PREFIX));
-  name = "VM param symbols (port " + string(sys.MODULE_PORT) + ")";
-  try
-    twincat_ads.SymbolBrowser.validate_symbols(mod, vm_symbols.vmRequiredProbes);
-    results = add_result(results, char(name), true, sprintf("%d probes OK", size(vm_symbols.vmRequiredProbes, 1)));
-    n_pass = n_pass + 1;
-  catch e
-    results = add_result(results, char(name), false, e.message);
-    n_fail = n_fail + 1;
-  end
-else
-  results = add_result(results, "VM param symbols", false, "MODULE transport unavailable");
-  n_fail = n_fail + 1;
-end
-
-%% 5. Controller パラメータシンボル
-if ~isempty(mod)
-  ctrl_symbols = experiment.VirtualMotorSymbols.from_controller_prefix(char(sys.CTRL_PREFIX));
+  ctrl_symbols = experiment.RuntimeSymbols.from_controller_prefix(char(sys.CTRL_PREFIX));
   name = "Controller param symbols (port " + string(sys.MODULE_PORT) + ")";
   try
     twincat_ads.SymbolBrowser.validate_symbols(mod, ctrl_symbols.controllerRequiredProbes);
@@ -114,7 +96,7 @@ else
   n_fail = n_fail + 1;
 end
 
-%% 6. 基本スカラー読み取り
+%% 5. 基本スカラー読み取り
 t = twincat_ads.AdsTransport.net_types();
 scalar_checks = {
   sys.SEQ_PORT,     "GVL_SEQ.tableLen",          t.u32,    "tableLen"
@@ -142,9 +124,9 @@ for k = 1:size(scalar_checks, 1)
   end
 end
 
-%% 7. Controller パラメータ読み出し
+%% 6. Controller パラメータ読み出し
 if ~isempty(mod)
-  ctrl_sym = experiment.VirtualMotorSymbols.from_controller_prefix(char(sys.CTRL_PREFIX));
+  ctrl_sym = experiment.RuntimeSymbols.from_controller_prefix(char(sys.CTRL_PREFIX));
   param_keys = {"pidB0", "leadB0", "notchB0", "resoB0", "enablePid"};
   for k = 1:numel(param_keys)
     key = param_keys{k};

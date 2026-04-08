@@ -1,13 +1,11 @@
 classdef TestVirtualMotorSymbols < matlab.unittest.TestCase
   methods (Test)
-    function fromDefaultsExcludesDriverSymbols(testCase)
-      s = experiment.VirtualMotorSymbols.from_defaults();
-      testCase.verifyTrue(isstruct(s.log));
-      testCase.verifyTrue(isempty(fieldnames(s.log)));
-      probe_names = string(s.plcRequiredProbes(:, 1));
-      testCase.verifyFalse(any(contains(probe_names, "SEQ_LOG")));
-      testCase.verifyFalse(any(probe_names == "GVL_DRV.controlInput"));
-      testCase.verifyFalse(any(probe_names == "GVL_DRV.positionRel"));
+    function fromDefaultsOwnsVmSymbolsOnly(testCase)
+      s = virtualMotor.Symbols.from_defaults();
+      probe_names = string(s.requiredProbes(:, 1));
+      testCase.verifyTrue(all(startsWith(probe_names, "VirtualMotorCore_Obj1 (Module1).PlantParameter.")));
+      testCase.verifyFalse(any(contains(probe_names, "GVL_SEQ")));
+      testCase.verifyFalse(any(contains(probe_names, "GVL_MODE")));
     end
   end
 end
