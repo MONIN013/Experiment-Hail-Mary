@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcModuleClass xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2009/05/TcModuleClass">
+  <Vendor>
+    <Name>C++ Module Vendor</Name>
+  </Vendor>
+  <DataTypes>
+    <DataType>
+      <Name GUID="{41fa275b-9129-407e-8a60-478f066fe304}">ST_DriverChannelParams</Name>
+      <BitSize>320</BitSize>
+      <SubItem>
+        <Name>encoderResolution</Name>
+        <Type GUID="{18071995-0000-0000-0000-000000000008}">UDINT</Type>
+      </SubItem>
+      <SubItem>
+        <Name>ratedCurrentA</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>maxCurrentA</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>positionSign</Name>
+        <Type GUID="{18071995-0000-0000-0000-000000000009}">DINT</Type>
+      </SubItem>
+      <SubItem>
+        <Name>velocitySign</Name>
+        <Type GUID="{18071995-0000-0000-0000-000000000009}">DINT</Type>
+      </SubItem>
+      <SubItem>
+        <Name>currentSign</Name>
+        <Type GUID="{18071995-0000-0000-0000-000000000009}">DINT</Type>
+      </SubItem>
+      <SubItem>
+        <Name>enableRelativePosition</Name>
+        <Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
+      </SubItem>
+    </DataType>
+    <DataType>
+      <Name GUID="{239c9daa-833b-4e20-9510-fd1deb403323}">ST_DriverRawSignals</Name>
+      <BitSize>96</BitSize>
+      <SubItem>
+        <Name>positionActualValue</Name>
+        <Type GUID="{18071995-0000-0000-0000-000000000009}">DINT</Type>
+      </SubItem>
+      <SubItem>
+        <Name>velocityActualValue</Name>
+        <Type GUID="{18071995-0000-0000-0000-000000000009}">DINT</Type>
+      </SubItem>
+      <SubItem>
+        <Name>torqueActualValue</Name>
+        <Type GUID="{18071995-0000-0000-0000-000000000006}">INT</Type>
+      </SubItem>
+      <SubItem>
+        <Name>statusWord</Name>
+        <Type GUID="{18071995-0000-0000-0000-000000000005}">UINT</Type>
+      </SubItem>
+    </DataType>
+    <DataType>
+      <Name GUID="{bde076fa-0dcf-4280-8b90-28aa4919ad34}">ST_DriverEngineeringSignals</Name>
+      <BitSize>256</BitSize>
+      <SubItem>
+        <Name>positionAbs</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>positionRel</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>velocityAct</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>currentAct</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+    </DataType>
+  </DataTypes>
+  <Groups>
+    <Group SortOrder="701">
+      <Name>C++</Name>
+      <DisplayName>C++ Modules</DisplayName>
+    </Group>
+  </Groups>
+  <Modules>
+    <Module GUID="{f3b475e1-aff8-48ec-a403-05d40e190dc8}" Group="C++">
+      <Name>Module1</Name>
+      <CLSID ClassFactory="DriverAdapter">{f3b475e1-aff8-48ec-a403-05d40e190dc8}</CLSID>
+      <Licenses>
+        <License>
+          <LicenseId>{304D006A-8299-4560-AB79-438534B50288}</LicenseId>
+          <Comment>TC3 C++</Comment>
+        </License>
+      </Licenses>
+      <InitSequence>PSO</InitSequence>
+      <Contexts>
+        <Context>
+          <Id>1</Id>
+        </Context>
+      </Contexts>
+      <Interfaces>
+        <Interface DisableCodeGeneration="true">
+          <Type GUID="{00000012-0000-0000-E000-000000000064}">ITComObject</Type>
+        </Interface>
+        <Interface>
+          <Type GUID="{03000010-0000-0000-E000-000000000064}">ITcCyclic</Type>
+        </Interface>
+        <Interface DisableCodeGeneration="true">
+          <Type GUID="{03000012-0000-0000-E000-000000000064}">ITcADI</Type>
+        </Interface>
+        <Interface DisableCodeGeneration="true">
+          <Type GUID="{03000018-0000-0000-E000-000000000064}">ITcWatchSource</Type>
+        </Interface>
+      </Interfaces>
+      <Parameters>
+        <Parameter HideParameter="true">
+          <Name>TraceLevelMax</Name>
+          <Comment>Controls the amount of log messages.</Comment>
+          <BaseType GUID="{8007ae3b-86bb-40f2-b385-ef87fcc239a4}">TcTraceLevel</BaseType>
+          <PTCID>#x03002103</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
+        <Parameter CreateSymbol="true">
+          <Name>MotorParams</Name>
+          <BaseType GUID="{41fa275b-9129-407e-8a60-478f066fe304}">ST_DriverChannelParams</BaseType>
+          <PTCID>#x00000001</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
+        <Parameter CreateSymbol="true">
+          <Name>LoadParams</Name>
+          <BaseType GUID="{41fa275b-9129-407e-8a60-478f066fe304}">ST_DriverChannelParams</BaseType>
+          <PTCID>#x00000002</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
+      </Parameters>
+      <DataAreas>
+        <DataArea>
+          <AreaNo AreaType="InputDst" CreateSymbols="true">0</AreaNo>
+          <Name>Inputs</Name>
+          <ContextId>1</ContextId>
+          <Symbol>
+            <Name>motorRaw</Name>
+            <BaseType GUID="{239c9daa-833b-4e20-9510-fd1deb403323}">ST_DriverRawSignals</BaseType>
+          </Symbol>
+          <Symbol>
+            <Name>loadRaw</Name>
+            <BaseType GUID="{239c9daa-833b-4e20-9510-fd1deb403323}">ST_DriverRawSignals</BaseType>
+          </Symbol>
+          <Symbol>
+            <Name>controlInput</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType>
+          </Symbol>
+          <Symbol>
+            <Name>distValue</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType>
+          </Symbol>
+          <Symbol>
+            <Name>motorControlWordIn</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-000000000005}">UINT</BaseType>
+          </Symbol>
+          <Symbol>
+            <Name>loadControlWordIn</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-000000000005}">UINT</BaseType>
+          </Symbol>
+          <Symbol>
+            <Name>enableCurrentOutput</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
+          </Symbol>
+          <Symbol>
+            <Name>playbackDone</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
+          </Symbol>
+          <Symbol>
+            <Name>resetReq</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
+          </Symbol>
+        </DataArea>
+        <DataArea>
+          <AreaNo AreaType="OutputSrc" CreateSymbols="true">1</AreaNo>
+          <Name>Outputs</Name>
+          <ContextId>1</ContextId>
+          <Symbol>
+            <Name>motor</Name>
+            <BaseType GUID="{bde076fa-0dcf-4280-8b90-28aa4919ad34}">ST_DriverEngineeringSignals</BaseType>
+          </Symbol>
+          <Symbol>
+            <Name>load</Name>
+            <BaseType GUID="{bde076fa-0dcf-4280-8b90-28aa4919ad34}">ST_DriverEngineeringSignals</BaseType>
+          </Symbol>
+          <Symbol CreateSymbol="true">
+            <Name>currentCmd</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType>
+          </Symbol>
+          <Symbol>
+            <Name>targetTorque</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-000000000006}">INT</BaseType>
+          </Symbol>
+          <Symbol>
+            <Name>motorControlWordOut</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-000000000005}">UINT</BaseType>
+          </Symbol>
+          <Symbol>
+            <Name>loadControlWordOut</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-000000000005}">UINT</BaseType>
+          </Symbol>
+          <Symbol>
+            <Name>motorStatusWordOut</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-000000000005}">UINT</BaseType>
+          </Symbol>
+          <Symbol>
+            <Name>loadStatusWordOut</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-000000000005}">UINT</BaseType>
+          </Symbol>
+        </DataArea>
+      </DataAreas>
+      <InterfacePointers>
+        <InterfacePointer>
+          <PTCID>#x03002060</PTCID>
+          <Name>CyclicCaller</Name>
+          <Type GUID="{0300001e-0000-0000-e000-000000000064}">ITcCyclicCaller</Type>
+        </InterfacePointer>
+      </InterfacePointers>
+      <DataPointers />
+      <Deployment />
+    </Module>
+  </Modules>
+  <Library>
+    <Name>DriverAdapter</Name>
+    <Version>0.0.0.1</Version>
+  </Library>
+</TcModuleClass>

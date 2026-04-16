@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcModuleClass xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2009/05/TcModuleClass">
+  <Vendor>
+    <Name>C++ Module Vendor</Name>
+  </Vendor>
+  <DataTypes>
+    <DataType>
+      <Name GUID="{c88b2d87-c9bf-4a79-8397-1aa7a5b65131}">ST_LoggerMotorSignals</Name>
+      <BitSize>192</BitSize>
+      <SubItem>
+        <Name>position</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>velocity</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>currentAct</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+    </DataType>
+    <DataType>
+      <Name GUID="{f77ccaaa-7889-4b95-9096-6e794fc34b65}">ST_LoggerLoadSignals</Name>
+      <BitSize>128</BitSize>
+      <SubItem>
+        <Name>position</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>velocity</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+    </DataType>
+    <DataType>
+      <Name GUID="{b5bb3647-4067-4a21-8892-0f60a144e5b0}">ST_LoggerRecordInputs</Name>
+      <BitSize>640</BitSize>
+      <SubItem>
+        <Name>currentCmd</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>refValue</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>ffValue</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>controlInput</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>error</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>motor</Name>
+        <Type GUID="{c88b2d87-c9bf-4a79-8397-1aa7a5b65131}">ST_LoggerMotorSignals</Type>
+      </SubItem>
+      <SubItem>
+        <Name>load</Name>
+        <Type GUID="{f77ccaaa-7889-4b95-9096-6e794fc34b65}">ST_LoggerLoadSignals</Type>
+      </SubItem>
+    </DataType>
+    <DataType>
+      <Name GUID="{2ca6d7a5-f578-481c-ace6-ca114a3e5e88}">ST_LoggerControlInputs</Name>
+      <BitSize>32</BitSize>
+      <SubItem>
+        <Name>resetReq</Name>
+        <Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>loggingReq</Name>
+        <Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>preArmReq</Name>
+        <Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>playbackDone</Name>
+        <Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
+      </SubItem>
+    </DataType>
+    <DataType>
+      <Name GUID="{e3a91b88-20df-44f0-a6a9-1d8758873850}">ST_LoggerStatus</Name>
+      <BitSize>112</BitSize>
+      <SubItem>
+        <Name>recordsWritten</Name>
+        <Type GUID="{18071995-0000-0000-0000-000000000008}">UDINT</Type>
+      </SubItem>
+      <SubItem>
+        <Name>fileSizeKb</Name>
+        <Type GUID="{18071995-0000-0000-0000-000000000008}">UDINT</Type>
+      </SubItem>
+      <SubItem>
+        <Name>errorCode</Name>
+        <Type GUID="{18071995-0000-0000-0000-000000000008}">UDINT</Type>
+      </SubItem>
+      <SubItem>
+        <Name>loggerReady</Name>
+        <Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>fileReleased</Name>
+        <Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
+      </SubItem>
+    </DataType>
+  </DataTypes>
+  <Groups>
+    <Group SortOrder="701">
+      <Name>C++</Name>
+      <DisplayName>C++ Modules</DisplayName>
+    </Group>
+  </Groups>
+  <Modules>
+    <Module GUID="{7f0005f6-007a-4e79-8b14-a232008f0dd2}" Group="C++">
+      <Name>Module1</Name>
+      <CLSID ClassFactory="ExperimentLogger">{7f0005f6-007a-4e79-8b14-a232008f0dd2}</CLSID>
+      <Licenses>
+        <License>
+          <LicenseId>{304D006A-8299-4560-AB79-438534B50288}</LicenseId>
+          <Comment>TC3 C++</Comment>
+        </License>
+      </Licenses>
+      <InitSequence>PSO</InitSequence>
+      <Contexts>
+        <Context>
+          <Id>1</Id>
+        </Context>
+      </Contexts>
+      <Interfaces>
+        <Interface DisableCodeGeneration="true">
+          <Type GUID="{00000012-0000-0000-E000-000000000064}">ITComObject</Type>
+        </Interface>
+        <Interface>
+          <Type GUID="{03000010-0000-0000-E000-000000000064}">ITcCyclic</Type>
+        </Interface>
+        <Interface DisableCodeGeneration="true">
+          <Type GUID="{03000012-0000-0000-E000-000000000064}">ITcADI</Type>
+        </Interface>
+        <Interface DisableCodeGeneration="true">
+          <Type GUID="{03000018-0000-0000-E000-000000000064}">ITcWatchSource</Type>
+        </Interface>
+      </Interfaces>
+      <Parameters>
+        <Parameter HideParameter="true">
+          <Name>TraceLevelMax</Name>
+          <Comment>Controls the amount of log messages.</Comment>
+          <BaseType GUID="{8007ae3b-86bb-40f2-b385-ef87fcc239a4}">TcTraceLevel</BaseType>
+          <PTCID>#x03002103</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
+        <Parameter CreateSymbol="true">
+          <Name>LogControl</Name>
+          <SubItem>
+            <Name>filePath</Name>
+            <Type GUID="{18071995-0000-0000-0000-0001000000ff}">STRING(255)</Type>
+            <Default>
+              <String><![CDATA[C:\ExperimentData\experiment_logger.bin]]></String>
+            </Default>
+          </SubItem>
+          <PTCID>#x00000001</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
+      </Parameters>
+      <DataAreas>
+        <DataArea>
+          <AreaNo AreaType="InputDst">0</AreaNo>
+          <Name>Inputs</Name>
+          <ContextId>1</ContextId>
+          <Symbol><Name>record</Name><BaseType GUID="{b5bb3647-4067-4a21-8892-0f60a144e5b0}">ST_LoggerRecordInputs</BaseType></Symbol>
+          <Symbol><Name>control</Name><BaseType GUID="{2ca6d7a5-f578-481c-ace6-ca114a3e5e88}">ST_LoggerControlInputs</BaseType></Symbol>
+        </DataArea>
+        <DataArea>
+          <AreaNo AreaType="OutputSrc">1</AreaNo>
+          <Name>Outputs</Name>
+          <ContextId>1</ContextId>
+          <Symbol CreateSymbol="true"><Name>status</Name><BaseType GUID="{e3a91b88-20df-44f0-a6a9-1d8758873850}">ST_LoggerStatus</BaseType></Symbol>
+        </DataArea>
+      </DataAreas>
+      <InterfacePointers>
+        <InterfacePointer>
+          <PTCID>#x03002060</PTCID>
+          <Name>CyclicCaller</Name>
+          <Type GUID="{0300001e-0000-0000-e000-000000000064}">ITcCyclicCaller</Type>
+        </InterfacePointer>
+      </InterfacePointers>
+      <DataPointers />
+      <Deployment />
+    </Module>
+  </Modules>
+  <Library>
+    <Name>ExperimentLogger</Name>
+    <Version>0.0.0.1</Version>
+  </Library>
+</TcModuleClass>

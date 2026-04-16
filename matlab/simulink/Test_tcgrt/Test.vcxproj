@@ -1,0 +1,200 @@
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<Import Condition="Exists('$(TWINCATSDK)\Sdk.props')" Project="$(TWINCATSDK)\Sdk.props"/>
+	<Import Condition="Exists('$(TWINCATSDK)\MsBuild\TwinCAT Common')" Project="$(TWINCATSDK)\MsBuild\TwinCAT Common\*.targets"/>
+	<ItemGroup Label="ProjectConfigurations">
+		<ProjectConfiguration Include="Debug|TwinCAT RT (x86)">
+			<Configuration>Debug</Configuration>
+			<Platform>TwinCAT RT (x86)</Platform>
+		</ProjectConfiguration>
+		<ProjectConfiguration Include="Release|TwinCAT RT (x86)">
+			<Configuration>Release</Configuration>
+			<Platform>TwinCAT RT (x86)</Platform>
+		</ProjectConfiguration>
+		<ProjectConfiguration Include="Debug|TwinCAT RT (x64)">
+			<Configuration>Debug</Configuration>
+			<Platform>TwinCAT RT (x64)</Platform>
+		</ProjectConfiguration>
+		<ProjectConfiguration Include="Release|TwinCAT RT (x64)">
+			<Configuration>Release</Configuration>
+			<Platform>TwinCAT RT (x64)</Platform>
+		</ProjectConfiguration>
+		<ProjectConfiguration Include="Debug|TwinCAT OS (x64)">
+			<Configuration>Debug</Configuration>
+			<Platform>TwinCAT OS (x64)</Platform>
+		</ProjectConfiguration>
+		<ProjectConfiguration Include="Release|TwinCAT OS (x64)">
+			<Configuration>Release</Configuration>
+			<Platform>TwinCAT OS (x64)</Platform>
+		</ProjectConfiguration>
+		<ProjectConfiguration Include="Debug|TwinCAT OS (x64-E)">
+			<Configuration>Debug</Configuration>
+			<Platform>TwinCAT OS (x64-E)</Platform>
+		</ProjectConfiguration>
+		<ProjectConfiguration Include="Release|TwinCAT OS (x64-E)">
+			<Configuration>Release</Configuration>
+			<Platform>TwinCAT OS (x64-E)</Platform>
+		</ProjectConfiguration>
+		<ProjectConfiguration Include="Debug|TwinCAT OS (ARMV8-A)">
+			<Configuration>Debug</Configuration>
+			<Platform>TwinCAT OS (ARMV8-A)</Platform>
+		</ProjectConfiguration>
+		<ProjectConfiguration Include="Release|TwinCAT OS (ARMV8-A)">
+			<Configuration>Release</Configuration>
+			<Platform>TwinCAT OS (ARMV8-A)</Platform>
+		</ProjectConfiguration>
+	</ItemGroup>
+	<PropertyGroup Label="Globals">
+		<RootNamespace>Test</RootNamespace>
+		<AutomaticRetargetPlatformVersion>true</AutomaticRetargetPlatformVersion>
+		<TcSignTwinCatCertName>TcTestCert</TcSignTwinCatCertName>
+		<TcPublishAddFiles>Test_ModuleInfo.xml;;$(TcPublishAddFiles)</TcPublishAddFiles>
+		<PreferredToolArchitecture>x64</PreferredToolArchitecture>
+		<_IsNativeEnvironment>true</_IsNativeEnvironment>
+		<ProjectGuid>{CB9BB38C-F84E-4051-83A9-B045D3E30A3B}</ProjectGuid>
+	</PropertyGroup>
+	<Import Project="TestGlobals.props"/>
+	<Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props"/>
+	<PropertyGroup Label="Configuration">
+		<PlatformToolset Condition="!$(Platform.Contains('ARM')) AND !$(Platform.Contains('-E'))">v143</PlatformToolset>
+		<PlatformToolset Condition="$(Platform.Contains('ARMV7'))">TwinCAT_LLVM</PlatformToolset>
+		<PlatformToolset Condition="$(Platform.Contains('ARMV8')) OR $(Platform.Contains('-E'))">TwinCAT_LLVM_ELF</PlatformToolset>
+		<TcGeneralUseTmx>true</TcGeneralUseTmx>
+	</PropertyGroup>
+	<Import Project="$(VCTargetsPath)\Microsoft.Cpp.props"/>
+	<ImportGroup Label="ExtensionSettings">
+		<Import Project="$(ModuleGeneratorSdk)\MsBuild\Targets\*.props"/>
+		<Import Project="$(TE140xSdk)\MsBuild\Targets\*.props" Condition="'$(TE140xSdk)'!='$(ModuleGeneratorSdk)'"/>
+		<Import Project="$(TWINCATSDK)\Build\MsBuild\TwinCAT Common\Extensions\*.props" Condition="Exists('$(TWINCATSDK)\Build\MsBuild\TwinCAT Common\Extensions')"/>
+	</ImportGroup>
+	<ImportGroup Label="PropertySheets">
+		<Import Project="$(ModuleGeneratorSdk)\MsBuild\Props\*.props"/>
+		<Import Project="$(TE140xSdk)\MsBuild\Props\*.props" Condition="'$(TE140xSdk)'!='$(ModuleGeneratorSdk)'"/>
+		<Import Project="TestArtifacts.props"/>
+	</ImportGroup>
+	<PropertyGroup Label="UserMacros"/>
+	<PropertyGroup>
+		<TcIntrinEnable>true</TcIntrinEnable>
+		<TcPostPublishCommand>$(TcPostPublishCommand)
+
+echo "LibVendor=[LibVendor]" &gt; "$(ProjectDir)\Test_PublishInfo.txt"
+echo "LibName=[LibName]" &gt;&gt; "$(ProjectDir)\Test_PublishInfo.txt"
+echo "LibVersion=[LibVersion]" &gt;&gt; "$(ProjectDir)\Test_PublishInfo.txt"
+echo "Date=[Date]" &gt;&gt; "$(ProjectDir)\Test_PublishInfo.txt"
+echo "Time=[Time]" &gt;&gt; "$(ProjectDir)\Test_PublishInfo.txt"
+echo "PublishArchiveFile=[PublishArchiveFile]" &gt;&gt; "$(ProjectDir)\Test_PublishInfo.txt"
+echo "PublishIntDir=[PublishIntDir]" &gt;&gt; "$(ProjectDir)\Test_PublishInfo.txt"
+echo "PublishDstDir=[PublishDstDir]" &gt;&gt; "$(ProjectDir)\Test_PublishInfo.txt"
+</TcPostPublishCommand>
+	</PropertyGroup>
+	<ItemDefinitionGroup>
+		<ClCompile>
+			<AdditionalIncludeDirectories Condition="$(Platform.StartsWith('TwinCAT RT'))">$(ProjectDir)\TwinCAT RT\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<AdditionalIncludeDirectories Condition="$(Platform.StartsWith('TwinCAT OS'))">$(ProjectDir)\TwinCAT OS\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<AdditionalIncludeDirectories Condition="$(Platform.StartsWith('TwinCAT UM'))">$(ProjectDir)\TwinCAT UM\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<AdditionalIncludeDirectories Condition="$(Platform.StartsWith('TwinCAT CE'))">$(ProjectDir)\TwinCAT CE\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<LanguageStandard Condition="'Default'!='Default'">Default</LanguageStandard>
+			<LanguageStandard_C Condition="'Default'!='Default'">Default</LanguageStandard_C>
+			<AdditionalOptionsForCpp Condition="'Default'!='Default'">%(AdditionalOptionsForCpp) -std=Default</AdditionalOptionsForCpp>
+			<AdditionalOptionsForC Condition="'Default'!='Default'">%(AdditionalOptionsForC) -std=Default</AdditionalOptionsForC>
+			<PreprocessorDefinitions>TCMATH_BLOCK_STANDARDLIB=0;TC_BUILD_MIN=4026;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+			<PreprocessorDefinitions>TcDrvVersioned;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+		</ClCompile>
+		<Link>
+			<AdditionalDependencies>TcMgFramework.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+	<ItemGroup>
+		<ClInclude Include="TcPch.h"/>
+		<ClInclude Include="TestServices.h"/>
+		<ClInclude Include="TestDuts.h"/>
+		<ClInclude Include="TestInterfaces.h"/>
+		<ClInclude Include="TestClassFactory.h"/>
+		<ClInclude Include="TestDrv.h"/>
+		<ClInclude Include="TestCtrl.h"/>
+		<ClInclude Include="TestW32.h"/>
+		<ClInclude Include="TestW32Resource.h"/>
+		<ClInclude Include="TcComTest.h"/>
+		<ClInclude Include="TestInternal.h"/>
+		<ClInclude Include="$(Simulink_Test_START_DIR)\Test_tcgrt\rt_nonfinite.h"/>
+		<ClInclude Include="$(Simulink_Test_START_DIR)\Test_tcgrt\Test.h"/>
+		<ClInclude Include="$(Simulink_Test_START_DIR)\Test_tcgrt\Test_private.h"/>
+		<ClInclude Include="$(Simulink_Test_START_DIR)\Test_tcgrt\Test_types.h"/>
+		<ClInclude Include="$(Simulink_Test_START_DIR)\Test_tcgrt\builtin_typeid_types.h"/>
+		<ClInclude Include="$(Simulink_Test_START_DIR)\Test_tcgrt\multiword_types.h"/>
+		<ClInclude Include="$(Simulink_Test_START_DIR)\Test_tcgrt\rtmodel.h"/>
+		<ClInclude Include="$(Simulink_Test_START_DIR)\Test_tcgrt\rtwtypes.h"/>
+		<ClInclude Include="$(Simulink_Test_MATLAB_ROOT)\rtw\c\src\rt_logging.h"/>
+		<ClInclude Include="$(Simulink_Test_MATLAB_ROOT)\simulink\include\rtw_continuous.h"/>
+		<ClInclude Include="$(Simulink_Test_MATLAB_ROOT)\simulink\include\rtw_solver.h"/>
+	</ItemGroup>
+	<ItemGroup>
+		<ClCompile Include="TcPch.cpp">
+			<PrecompiledHeader>Create</PrecompiledHeader>
+		</ClCompile>
+		<ClCompile Include="TestClassFactory.cpp"/>
+		<ClCompile Include="TestDrv.cpp">
+			<ExcludedFromBuild Condition="!$(Platform.StartsWith('TwinCAT RT'))">true</ExcludedFromBuild>
+		</ClCompile>
+		<ClCompile Include="TestModulesMain.cpp">
+			<ExcludedFromBuild Condition="!$(Platform.StartsWith('TwinCAT OS'))">true</ExcludedFromBuild>
+		</ClCompile>
+		<ClCompile Include="TestCtrl.cpp">
+			<ExcludedFromBuild Condition="!$(Platform.StartsWith('TwinCAT UM'))">true</ExcludedFromBuild>
+		</ClCompile>
+		<ClCompile Include="TestW32.cpp">
+			<ExcludedFromBuild Condition="!$(Platform.StartsWith('TwinCAT UM'))">true</ExcludedFromBuild>
+		</ClCompile>
+		<ClCompile Include="TcComTest.cpp">
+			<PreprocessorDefinitions>$(Simulink_Test_Definitions)%(PreprocessorDefinitions)</PreprocessorDefinitions>
+			<AdditionalIncludeDirectories>$(Simulink_Test_IncludeDir)%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+		<ClCompile Include="$(Simulink_Test_MATLAB_ROOT)\rtw\c\src\rt_logging.c">
+			<PreprocessorDefinitions>$(Simulink_Test_Definitions)%(PreprocessorDefinitions)</PreprocessorDefinitions>
+			<AdditionalIncludeDirectories>$(Simulink_Test_IncludeDir)%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<PrecompiledHeader>NotUsing</PrecompiledHeader>
+		</ClCompile>
+		<ClCompile Include="$(Simulink_Test_START_DIR)\Test_tcgrt\Test.cpp">
+			<PreprocessorDefinitions>$(Simulink_Test_Definitions)%(PreprocessorDefinitions)</PreprocessorDefinitions>
+			<AdditionalIncludeDirectories>$(Simulink_Test_IncludeDir)%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<PrecompiledHeader>NotUsing</PrecompiledHeader>
+		</ClCompile>
+		<ClCompile Include="$(Simulink_Test_START_DIR)\Test_tcgrt\Test_data.cpp">
+			<PreprocessorDefinitions>$(Simulink_Test_Definitions)%(PreprocessorDefinitions)</PreprocessorDefinitions>
+			<AdditionalIncludeDirectories>$(Simulink_Test_IncludeDir)%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<PrecompiledHeader>NotUsing</PrecompiledHeader>
+		</ClCompile>
+		<ClCompile Include="$(Simulink_Test_START_DIR)\Test_tcgrt\rt_nonfinite.cpp">
+			<PreprocessorDefinitions>$(Simulink_Test_Definitions)%(PreprocessorDefinitions)</PreprocessorDefinitions>
+			<AdditionalIncludeDirectories>$(Simulink_Test_IncludeDir)%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<PrecompiledHeader>NotUsing</PrecompiledHeader>
+		</ClCompile>
+		<ClCompile Include="$(Simulink_Test_MATLAB_ROOT)\rtw\c\src\common\rt_main.cpp">
+			<PreprocessorDefinitions>$(Simulink_Test_Definitions)%(PreprocessorDefinitions)</PreprocessorDefinitions>
+			<AdditionalIncludeDirectories>$(Simulink_Test_IncludeDir)%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<PrecompiledHeader>NotUsing</PrecompiledHeader>
+			<ExcludedFromBuild>true</ExcludedFromBuild>
+		</ClCompile>
+	</ItemGroup>
+	<ItemGroup>
+		<ResourceCompile Include="TestW32.rc">
+			<ExcludedFromBuild Condition="!$(Platform.StartsWith('TwinCAT UM'))">true</ExcludedFromBuild>
+		</ResourceCompile>
+		<ResourceCompile Include="Test.rc"/>
+	</ItemGroup>
+	<ItemGroup>
+		<None Include="TestGlobals.props"/>
+		<None Include="TestArtifacts.props"/>
+		<None Include="TestW32.def">
+			<ExcludedFromBuild Condition="!$(Platform.StartsWith('TwinCAT UM'))">true</ExcludedFromBuild>
+		</None>
+		<None Include="Test_ModuleInfo.xml"/>
+		<None Include="Test.libcat.xml"/>
+		<None Include="Test.tmc"/>
+	</ItemGroup>
+	<Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets"/>
+	<ImportGroup Label="ExtensionTargets">
+		<Import Project="$(ModuleGeneratorSdk)\MsBuild\Targets\*.targets"/>
+		<Import Project="$(TE140xSdk)\MsBuild\Targets\*.targets" Condition="'$(TE140xSdk)'!='$(ModuleGeneratorSdk)'"/>
+		<Import Project="$(TWINCATSDK)\Build\MsBuild\TwinCAT Common\Extensions\*.targets" Condition="Exists('$(TWINCATSDK)\Build\MsBuild\TwinCAT Common\Extensions')"/>
+	</ImportGroup>
+</Project>

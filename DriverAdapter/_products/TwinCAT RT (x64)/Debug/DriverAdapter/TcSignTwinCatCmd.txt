@@ -1,0 +1,1 @@
+"C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\bin\TcSignTool.exe" sign "C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\DriverAdapter\_products\TwinCAT RT (x64)\Debug\DriverAdapter.tmx" /f "C:\ProgramData\Beckhoff\TwinCAT\3.1\CustomConfig\Certificates\TcTestCert.tccert" /p "1" /q

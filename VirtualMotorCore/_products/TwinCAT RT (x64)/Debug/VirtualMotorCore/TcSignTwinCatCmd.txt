@@ -1,0 +1,1 @@
+"C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\bin\TcSignTool.exe" sign "C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\VirtualMotorCore\_products\TwinCAT RT (x64)\Debug\VirtualMotorCore.tmx" /f "C:\ProgramData\Beckhoff\TwinCAT\3.1\CustomConfig\Certificates\TcTestCert.tccert" /p "1" /q

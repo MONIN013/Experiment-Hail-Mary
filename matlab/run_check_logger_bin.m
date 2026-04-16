@@ -1,4 +1,4 @@
-%% Check ExperimentLogger bin files on \\RAINYDAY\ExperimentData
+%% Check ExperimentLogger bin files on \\sunnyday\ExperimentData
 %
 %  共有フォルダ上の最新 .bin を既定で読み、概要表示と簡易プロットを行う。
 
@@ -6,7 +6,7 @@ base_dir = fileparts(mfilename("fullpath"));
 restoredefaultpath;
 addpath(genpath(base_dir));
 
-share_dir = "\\RAINYDAY\ExperimentData";
+share_dir = "\\sunnyday\ExperimentData";
 file_glob = "*.bin";
 target_file = "";
 

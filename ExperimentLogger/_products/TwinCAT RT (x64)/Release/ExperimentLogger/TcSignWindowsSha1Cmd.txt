@@ -1,0 +1,1 @@
+"C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x86\signtool.exe" sign /fd sha1 /as /s "PrivateCertStore" /n "MyTestSigningCert" "C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\ExperimentLogger\_products\TwinCAT RT (x64)\Release\ExperimentLogger.tmx"

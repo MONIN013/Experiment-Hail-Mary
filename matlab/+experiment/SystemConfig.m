@@ -26,7 +26,7 @@ classdef SystemConfig
     LOGGER_FILE_RELEASED_SYMBOL = "GVL_MODE.loggerFileReleased"
     LOGGER_ERROR_CODE_SYMBOL    = "GVL_MODE.loggerErrorCode"
     % LOGGER_DEFAULT_FILE_PATH    = "C:\ExperimentData\experiment_logger.bin"
-    LOGGER_DEFAULT_FILE_PATH    = "\\RAINYDAY\ExperimentData\experiment_logger.bin"
+    LOGGER_DEFAULT_FILE_PATH    = "\\sunnyday\ExperimentData\experiment_logger.bin"
 
     % --- ログ / テーブル ---
     TABLE_MAX_N        = 100000  % refTable / ffTable / distTable 最大長

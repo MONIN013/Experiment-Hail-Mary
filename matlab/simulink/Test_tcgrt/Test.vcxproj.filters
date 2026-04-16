@@ -1,0 +1,176 @@
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<ItemGroup>
+		<Filter Include="TwinCAT">
+			<UniqueIdentifier>{859E0C2B-B049-7477-C7EE-DA349FBD1982}</UniqueIdentifier>
+		</Filter>
+		<Filter Include="TwinCAT\ClassFactory">
+			<UniqueIdentifier>{D9700890-6AE3-31A2-7C3E-6707CDF9706F}</UniqueIdentifier>
+		</Filter>
+		<Filter Include="TwinCAT\RT">
+			<UniqueIdentifier>{77C4DABA-7188-25EE-873C-D789A2E45657}</UniqueIdentifier>
+		</Filter>
+		<Filter Include="TwinCAT\OS">
+			<UniqueIdentifier>{CB207EDE-2CB2-7451-E2DF-5E7E8DC8B4E1}</UniqueIdentifier>
+		</Filter>
+		<Filter Include="TwinCAT\UM">
+			<UniqueIdentifier>{BAB29601-20BF-B3C8-EB9E-A86F43A54DC8}</UniqueIdentifier>
+		</Filter>
+		<Filter Include="TwinCAT\Classes">
+			<UniqueIdentifier>{076FE77A-EBB1-3058-818F-FDC7EBFFE2EA}</UniqueIdentifier>
+		</Filter>
+		<Filter Include="TwinCAT\Classes\Test">
+			<UniqueIdentifier>{3DDF3057-9AF7-08BD-42F1-8F2AF12E1E93}</UniqueIdentifier>
+		</Filter>
+		<Filter Include="Resource Files">
+			<UniqueIdentifier>{42A20B37-7C4D-D3BE-ADFB-D4BE10235675}</UniqueIdentifier>
+		</Filter>
+		<Filter Include="Simulink">
+			<UniqueIdentifier>{084D27F3-D769-487F-B6F8-61757B56B64D}</UniqueIdentifier>
+		</Filter>
+		<Filter Include="Simulink\Test">
+			<UniqueIdentifier>{E2BBEF7F-79DB-9E55-40CA-75A97DBC1F94}</UniqueIdentifier>
+		</Filter>
+		<Filter Include="Simulink\Test\Sources">
+			<UniqueIdentifier>{08B761EA-92D8-902A-275E-E656186229E1}</UniqueIdentifier>
+		</Filter>
+		<Filter Include="Simulink\Test\Includes">
+			<UniqueIdentifier>{BC5B5DDA-C8EF-7716-A004-899460B2860A}</UniqueIdentifier>
+		</Filter>
+		<Filter Include="xml">
+			<UniqueIdentifier>{2C08A608-95F7-FD5C-4E46-DFD673875980}</UniqueIdentifier>
+		</Filter>
+		<Filter Include="TMx">
+			<UniqueIdentifier>{E5AAA6C6-BC2A-F32A-65F0-72FF42B32F44}</UniqueIdentifier>
+		</Filter>
+	</ItemGroup>
+	<ItemGroup>
+		<ClInclude Include="TcPch.h">
+			<Filter>TwinCAT</Filter>
+		</ClInclude>
+		<ClInclude Include="TestServices.h">
+			<Filter>TwinCAT</Filter>
+		</ClInclude>
+		<ClInclude Include="TestDuts.h">
+			<Filter>TwinCAT</Filter>
+		</ClInclude>
+		<ClInclude Include="TestInterfaces.h">
+			<Filter>TwinCAT</Filter>
+		</ClInclude>
+		<ClInclude Include="TestClassFactory.h">
+			<Filter>TwinCAT\ClassFactory</Filter>
+		</ClInclude>
+		<ClInclude Include="TestDrv.h">
+			<Filter>TwinCAT\RT</Filter>
+		</ClInclude>
+		<ClInclude Include="TestCtrl.h">
+			<Filter>TwinCAT\UM</Filter>
+		</ClInclude>
+		<ClInclude Include="TestW32.h">
+			<Filter>TwinCAT\UM</Filter>
+		</ClInclude>
+		<ClInclude Include="TestW32Resource.h">
+			<Filter>TwinCAT\UM</Filter>
+		</ClInclude>
+		<ClInclude Include="TcComTest.h">
+			<Filter>TwinCAT\Classes\Test</Filter>
+		</ClInclude>
+		<ClInclude Include="TestInternal.h">
+			<Filter>TwinCAT\Classes\Test</Filter>
+		</ClInclude>
+		<ClInclude Include="$(Simulink_Test_START_DIR)\Test_tcgrt\rt_nonfinite.h">
+			<Filter>Simulink\Test\Includes</Filter>
+		</ClInclude>
+		<ClInclude Include="$(Simulink_Test_START_DIR)\Test_tcgrt\Test.h">
+			<Filter>Simulink\Test\Includes</Filter>
+		</ClInclude>
+		<ClInclude Include="$(Simulink_Test_START_DIR)\Test_tcgrt\Test_private.h">
+			<Filter>Simulink\Test\Includes</Filter>
+		</ClInclude>
+		<ClInclude Include="$(Simulink_Test_START_DIR)\Test_tcgrt\Test_types.h">
+			<Filter>Simulink\Test\Includes</Filter>
+		</ClInclude>
+		<ClInclude Include="$(Simulink_Test_START_DIR)\Test_tcgrt\builtin_typeid_types.h">
+			<Filter>Simulink\Test\Includes</Filter>
+		</ClInclude>
+		<ClInclude Include="$(Simulink_Test_START_DIR)\Test_tcgrt\multiword_types.h">
+			<Filter>Simulink\Test\Includes</Filter>
+		</ClInclude>
+		<ClInclude Include="$(Simulink_Test_START_DIR)\Test_tcgrt\rtmodel.h">
+			<Filter>Simulink\Test\Includes</Filter>
+		</ClInclude>
+		<ClInclude Include="$(Simulink_Test_START_DIR)\Test_tcgrt\rtwtypes.h">
+			<Filter>Simulink\Test\Includes</Filter>
+		</ClInclude>
+		<ClInclude Include="$(Simulink_Test_MATLAB_ROOT)\rtw\c\src\rt_logging.h">
+			<Filter>Simulink\Test\Includes</Filter>
+		</ClInclude>
+		<ClInclude Include="$(Simulink_Test_MATLAB_ROOT)\simulink\include\rtw_continuous.h">
+			<Filter>Simulink\Test\Includes</Filter>
+		</ClInclude>
+		<ClInclude Include="$(Simulink_Test_MATLAB_ROOT)\simulink\include\rtw_solver.h">
+			<Filter>Simulink\Test\Includes</Filter>
+		</ClInclude>
+	</ItemGroup>
+	<ItemGroup>
+		<ClCompile Include="TcPch.cpp">
+			<Filter>TwinCAT</Filter>
+		</ClCompile>
+		<ClCompile Include="TestClassFactory.cpp">
+			<Filter>TwinCAT\ClassFactory</Filter>
+		</ClCompile>
+		<ClCompile Include="TestDrv.cpp">
+			<Filter>TwinCAT\RT</Filter>
+		</ClCompile>
+		<ClCompile Include="TestModulesMain.cpp">
+			<Filter>TwinCAT\OS</Filter>
+		</ClCompile>
+		<ClCompile Include="TestCtrl.cpp">
+			<Filter>TwinCAT\UM</Filter>
+		</ClCompile>
+		<ClCompile Include="TestW32.cpp">
+			<Filter>TwinCAT\UM</Filter>
+		</ClCompile>
+		<ClCompile Include="TcComTest.cpp">
+			<Filter>TwinCAT\Classes\Test</Filter>
+		</ClCompile>
+		<ClCompile Include="$(Simulink_Test_MATLAB_ROOT)\rtw\c\src\rt_logging.c">
+			<Filter>Simulink\Test\Sources</Filter>
+		</ClCompile>
+		<ClCompile Include="$(Simulink_Test_START_DIR)\Test_tcgrt\Test.cpp">
+			<Filter>Simulink\Test\Sources</Filter>
+		</ClCompile>
+		<ClCompile Include="$(Simulink_Test_START_DIR)\Test_tcgrt\Test_data.cpp">
+			<Filter>Simulink\Test\Sources</Filter>
+		</ClCompile>
+		<ClCompile Include="$(Simulink_Test_START_DIR)\Test_tcgrt\rt_nonfinite.cpp">
+			<Filter>Simulink\Test\Sources</Filter>
+		</ClCompile>
+		<ClCompile Include="$(Simulink_Test_MATLAB_ROOT)\rtw\c\src\common\rt_main.cpp">
+			<Filter>Simulink\Test\Sources</Filter>
+		</ClCompile>
+	</ItemGroup>
+	<ItemGroup>
+		<ResourceCompile Include="TestW32.rc">
+			<Filter>TwinCAT\UM</Filter>
+		</ResourceCompile>
+		<ResourceCompile Include="Test.rc">
+			<Filter>Resource Files</Filter>
+		</ResourceCompile>
+	</ItemGroup>
+	<ItemGroup>
+		<None Include="TestGlobals.props"/>
+		<None Include="TestArtifacts.props"/>
+		<None Include="TestW32.def">
+			<Filter>TwinCAT\UM</Filter>
+		</None>
+		<None Include="Test_ModuleInfo.xml">
+			<Filter>TwinCAT\Classes\Test</Filter>
+		</None>
+		<None Include="Test.libcat.xml">
+			<Filter>xml</Filter>
+		</None>
+		<None Include="Test.tmc">
+			<Filter>TMx</Filter>
+		</None>
+	</ItemGroup>
+</Project>

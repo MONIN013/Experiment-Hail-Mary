@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcModuleClass xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2009/05/TcModuleClass">
+  <Vendor>
+    <Name>C++ Module Vendor</Name>
+  </Vendor>
+  <DataTypes>
+    <DataType>
+      <Name GUID="{27a4e77b-8a48-4cb9-9658-9b41f4a85d86}">ST_VirtualMotorMotorParams</Name>
+      <BitSize>448</BitSize>
+      <SubItem><Name>inertia</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem>
+      <SubItem><Name>damping</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem>
+      <SubItem><Name>ratedTorque</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem>
+      <SubItem><Name>tauLimit</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem>
+      <SubItem><Name>velLimit</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem>
+      <SubItem><Name>maxPermille</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem>
+      <SubItem><Name>encoderResolution</Name><Type GUID="{18071995-0000-0000-0000-000000000008}">UDINT</Type></SubItem>
+    </DataType>
+    <DataType>
+      <Name GUID="{b8d1cda2-5a24-4a1a-9e4b-7a783e6dce51}">ST_VirtualMotorLoadParams</Name>
+      <BitSize>384</BitSize>
+      <SubItem><Name>inertia</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem>
+      <SubItem><Name>damping</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem>
+      <SubItem><Name>ratedTorque</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem>
+      <SubItem><Name>tauLimit</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem>
+      <SubItem><Name>velLimit</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem>
+      <SubItem><Name>encoderResolution</Name><Type GUID="{18071995-0000-0000-0000-000000000008}">UDINT</Type></SubItem>
+    </DataType>
+    <DataType>
+      <Name GUID="{acd3e92b-73b1-44cf-9735-a06e33a32d13}">ST_VirtualMotorCouplingParams</Name>
+      <BitSize>128</BitSize>
+      <SubItem><Name>stiffness</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem>
+      <SubItem><Name>damping</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem>
+    </DataType>
+    <DataType>
+      <Name GUID="{7cf95a33-8192-4358-8261-51c0a8d0cbf5}">ST_VirtualPlantParams</Name>
+      <BitSize>1024</BitSize>
+      <SubItem><Name>motor</Name><Type GUID="{27a4e77b-8a48-4cb9-9658-9b41f4a85d86}">ST_VirtualMotorMotorParams</Type></SubItem>
+      <SubItem><Name>load</Name><Type GUID="{b8d1cda2-5a24-4a1a-9e4b-7a783e6dce51}">ST_VirtualMotorLoadParams</Type></SubItem>
+      <SubItem><Name>coupling</Name><Type GUID="{acd3e92b-73b1-44cf-9735-a06e33a32d13}">ST_VirtualMotorCouplingParams</Type></SubItem>
+      <SubItem><Name>taskDtNs</Name><Type GUID="{18071995-0000-0000-0000-00000000000b}">ULINT</Type></SubItem>
+    </DataType>
+    <DataType>
+      <Name GUID="{c7d9d453-404e-418e-8096-3e282f7ca354}">ST_VirtualMotorMotorInputs</Name>
+      <BitSize>32</BitSize>
+      <SubItem><Name>targetTorque</Name><Type GUID="{18071995-0000-0000-0000-000000000006}">INT</Type></SubItem>
+      <SubItem><Name>controlWord</Name><Type GUID="{18071995-0000-0000-0000-000000000005}">UINT</Type></SubItem>
+    </DataType>
+    <DataType>
+      <Name GUID="{9d78c875-11f8-4279-89f1-1a4389b230cb}">ST_VirtualMotorLoadInputs</Name>
+      <BitSize>16</BitSize>
+      <SubItem><Name>controlWord</Name><Type GUID="{18071995-0000-0000-0000-000000000005}">UINT</Type></SubItem>
+    </DataType>
+    <DataType>
+      <Name GUID="{f5b9d60d-b8cc-462f-9282-62aa3154a401}">ST_VirtualMotorAxisOutputs</Name>
+      <BitSize>96</BitSize>
+      <SubItem><Name>positionActualValue</Name><Type GUID="{18071995-0000-0000-0000-000000000009}">DINT</Type></SubItem>
+      <SubItem><Name>velocityActualValue</Name><Type GUID="{18071995-0000-0000-0000-000000000009}">DINT</Type></SubItem>
+      <SubItem><Name>torqueActualValue</Name><Type GUID="{18071995-0000-0000-0000-000000000006}">INT</Type></SubItem>
+      <SubItem><Name>statusWord</Name><Type GUID="{18071995-0000-0000-0000-000000000005}">UINT</Type></SubItem>
+    </DataType>
+  </DataTypes>
+  <Groups>
+    <Group SortOrder="701">
+      <Name>C++</Name>
+      <DisplayName>C++ Modules</DisplayName>
+    </Group>
+  </Groups>
+  <Modules>
+    <Module GUID="{9fdb9e89-7da5-406e-bd80-db7a4bdeaf68}" Group="C++">
+      <Name>Module1</Name>
+      <CLSID ClassFactory="VirtualMotorCore">{9fdb9e89-7da5-406e-bd80-db7a4bdeaf68}</CLSID>
+      <Licenses>
+        <License>
+          <LicenseId>{304D006A-8299-4560-AB79-438534B50288}</LicenseId>
+          <Comment>TC3 C++</Comment>
+        </License>
+      </Licenses>
+      <InitSequence>PSO</InitSequence>
+      <Contexts>
+        <Context>
+          <Id>1</Id>
+        </Context>
+      </Contexts>
+      <Interfaces>
+        <Interface DisableCodeGeneration="true">
+          <Type GUID="{00000012-0000-0000-E000-000000000064}">ITComObject</Type>
+        </Interface>
+        <Interface>
+          <Type GUID="{03000010-0000-0000-E000-000000000064}">ITcCyclic</Type>
+        </Interface>
+        <Interface DisableCodeGeneration="true">
+          <Type GUID="{03000012-0000-0000-E000-000000000064}">ITcADI</Type>
+        </Interface>
+        <Interface DisableCodeGeneration="true">
+          <Type GUID="{03000018-0000-0000-E000-000000000064}">ITcWatchSource</Type>
+        </Interface>
+      </Interfaces>
+      <Parameters>
+        <Parameter HideParameter="true">
+          <Name>TraceLevelMax</Name>
+          <Comment>Controls the amount of log messages.</Comment>
+          <BaseType GUID="{8007ae3b-86bb-40f2-b385-ef87fcc239a4}">TcTraceLevel</BaseType>
+          <PTCID>#x03002103</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
+        <Parameter CreateSymbol="true">
+          <Name>PlantParameter</Name>
+          <BaseType GUID="{7cf95a33-8192-4358-8261-51c0a8d0cbf5}">ST_VirtualPlantParams</BaseType>
+          <PTCID>#x00000001</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
+      </Parameters>
+      <DataAreas>
+        <DataArea>
+          <AreaNo AreaType="InputDst" CreateSymbols="true">0</AreaNo>
+          <Name>Inputs</Name>
+          <ContextId>1</ContextId>
+          <Symbol><Name>motor</Name><BaseType GUID="{c7d9d453-404e-418e-8096-3e282f7ca354}">ST_VirtualMotorMotorInputs</BaseType></Symbol>
+          <Symbol><Name>load</Name><BaseType GUID="{9d78c875-11f8-4279-89f1-1a4389b230cb}">ST_VirtualMotorLoadInputs</BaseType></Symbol>
+        </DataArea>
+        <DataArea>
+          <AreaNo AreaType="OutputSrc" CreateSymbols="true">1</AreaNo>
+          <Name>Outputs</Name>
+          <ContextId>1</ContextId>
+          <Symbol><Name>motor</Name><BaseType GUID="{f5b9d60d-b8cc-462f-9282-62aa3154a401}">ST_VirtualMotorAxisOutputs</BaseType></Symbol>
+          <Symbol><Name>load</Name><BaseType GUID="{f5b9d60d-b8cc-462f-9282-62aa3154a401}">ST_VirtualMotorAxisOutputs</BaseType></Symbol>
+        </DataArea>
+      </DataAreas>
+      <InterfacePointers>
+        <InterfacePointer>
+          <PTCID>#x03002060</PTCID>
+          <Name>CyclicCaller</Name>
+          <Type GUID="{0300001e-0000-0000-e000-000000000064}">ITcCyclicCaller</Type>
+        </InterfacePointer>
+      </InterfacePointers>
+      <DataPointers />
+      <Deployment />
+    </Module>
+  </Modules>
+  <Library>
+    <Name>VirtualMotorCore</Name>
+    <Version>0.0.0.1</Version>
+  </Library>
+</TcModuleClass>

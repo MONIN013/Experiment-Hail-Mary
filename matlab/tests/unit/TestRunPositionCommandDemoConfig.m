@@ -42,7 +42,7 @@ classdef TestRunPositionCommandDemoConfig < matlab.unittest.TestCase
       logger_path = string(experiment.SystemConfig.LOGGER_DEFAULT_FILE_PATH);
       testCase.verifyEqual( ...
         string(fileparts(char(logger_path))), ...
-        "\\RAINYDAY\ExperimentData");
+        "\\sunnyday\ExperimentData");
     end
   end
 end

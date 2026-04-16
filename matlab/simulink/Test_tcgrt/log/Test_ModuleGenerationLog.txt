@@ -1,0 +1,82 @@
+2026-02-24 13:04:46: ### Start model export with TE1400
+2026-02-24 13:04:46: ### Versions
+2026-02-24 13:04:46:   MATLAB 25.1.0.2973910 (R2025a) Update 1 (win64), C:\Program Files\MATLAB\R2025a
+2026-02-24 13:04:46:   TE140x-TargetForMatlabSimulink 2.11.81.0, C:\Program Files (x86)\Beckhoff\TwinCAT\Functions\TE14xx-ToolsForMatlabAndSimulink\TE140x
+2026-02-24 13:04:46: ### ビルド プロシージャを開始中: Test
+2026-02-24 13:04:53: ### Save TLC export
+2026-02-24 13:04:54: ### Export block diagram
+2026-02-24 13:04:55:   Block diagram export succeeded
+2026-02-24 13:04:55: ### Export TwinCAT C++ project
+2026-02-24 13:04:55: ### Init TMX exporter for Simulink model Test
+2026-02-24 13:04:55: ### Init project
+2026-02-24 13:04:55: ### Init TMX exporter for Simulink model 'Test'
+### Importing TlcExport file from directory C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt
+2026-02-24 13:04:55: ### Import model information for 'Test'
+2026-02-24 13:04:55: ### Import type information for 'Test'
+### 52160: running code analysis
+### 29660: running code analysis
+### 52160: [1/3] Processing file C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\Test.cpp.
+### 29660: [1/3] Processing file C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\Test.cpp.
+### 52160: In file included from C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\Test.cpp:21:
+### 52160: In file included from C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\Test.h:29:
+### 52160: In file included from C:\Program Files (x86)\Beckhoff\TwinCAT\Functions\TE14xx-ToolsForMatlabAndSimulink\TE140x\SDK\Include\TcMatFileStream.h:2:
+### 52160: C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\\Include\TcInterfaces.h(138,15): warning: 'ITComArchiveStream2::Peek' hides overloaded virtual function [-Woverloaded-virtual]
+### 52160: C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\\Include\TcInterfaces.h(122,15): note: hidden overloaded virtual function 'ITComArchiveStream::Peek' declared here: different number of parameters (0 vs 2)
+### 29660: In file included from C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\Test.cpp:21:
+### 29660: In file included from C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\Test.h:29:
+### 29660: In file included from C:\Program Files (x86)\Beckhoff\TwinCAT\Functions\TE14xx-ToolsForMatlabAndSimulink\TE140x\SDK\Include\TcMatFileStream.h:2:
+### 29660: C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\\Include\TcInterfaces.h(138,15): warning: 'ITComArchiveStream2::Peek' hides overloaded virtual function [-Woverloaded-virtual]
+### 29660: C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\\Include\TcInterfaces.h(122,15): note: hidden overloaded virtual function 'ITComArchiveStream::Peek' declared here: different number of parameters (0 vs 2)
+### 29660: [2/3] Processing file C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\Test_data.cpp.
+### 52160: [2/3] Processing file C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\Test_data.cpp.
+### 29660: In file included from C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\Test_data.cpp:21:
+### 29660: In file included from C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\Test.h:29:
+### 29660: In file included from C:\Program Files (x86)\Beckhoff\TwinCAT\Functions\TE14xx-ToolsForMatlabAndSimulink\TE140x\SDK\Include\TcMatFileStream.h:2:
+### 29660: C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\\Include\TcInterfaces.h(138,15): warning: 'ITComArchiveStream2::Peek' hides overloaded virtual function [-Woverloaded-virtual]
+### 29660: C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\\Include\TcInterfaces.h(122,15): note: hidden overloaded virtual function 'ITComArchiveStream::Peek' declared here: different number of parameters (0 vs 2)
+### 52160: In file included from C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\Test_data.cpp:21:
+### 52160: In file included from C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\Test.h:29:
+### 52160: In file included from C:\Program Files (x86)\Beckhoff\TwinCAT\Functions\TE14xx-ToolsForMatlabAndSimulink\TE140x\SDK\Include\TcMatFileStream.h:2:
+### 52160: C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\\Include\TcInterfaces.h(138,15): warning: 'ITComArchiveStream2::Peek' hides overloaded virtual function [-Woverloaded-virtual]
+### 52160: C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\\Include\TcInterfaces.h(122,15): note: hidden overloaded virtual function 'ITComArchiveStream::Peek' declared here: different number of parameters (0 vs 2)
+### 29660: [3/3] Processing file C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\rt_nonfinite.cpp.
+### 52160: [3/3] Processing file C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\rt_nonfinite.cpp.
+2026-02-24 13:04:57: ### Save project "Test"
+### The TwinCAT C++ project "C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\Test.vcxproj" was generated successfully
+2026-02-24 13:04:57: ### Publish TMX
+### Configuration:  "Release"
+### Platform(s):  "TwinCAT RT (x86);TwinCAT RT (x64)"
+### TwinCAT SDK:  "C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\" (Version 3.1.4026.20)
+### Platform Toolset:  V143 (Automatically selected)
+### MSBuild 縺ｮ繝舌・繧ｸ繝ｧ繝ｳ 17.14.40+3e7442088 (.NET Framework)
+### C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\Include\TcMath\mathfuncs_composite_extra.h(1,1): warning C4819: The file contains a character that cannot be represented in the current code page (932). Save the file in Unicode format to prevent data loss [C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\Test.vcxproj]
+### C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\Include\TcMath\mathfuncs_composite_extra.h(1,1): warning C4819: The file contains a character that cannot be represented in the current code page (932). Save the file in Unicode format to prevent data loss [C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\Test.vcxproj]
+### C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\Include\TcMath\mathfuncs_composite_extra.h(1,1): warning C4819: The file contains a character that cannot be represented in the current code page (932). Save the file in Unicode format to prevent data loss [C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\Test.vcxproj]
+### C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\Include\TcMath\mathfuncs_composite_extra.h(1,1): warning C4819: The file contains a character that cannot be represented in the current code page (932). Save the file in Unicode format to prevent data loss [C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\Test.vcxproj]
+### C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\Include\TcMath\mathfuncs_composite_extra.h(1,1): warning C4819: The file contains a character that cannot be represented in the current code page (932). Save the file in Unicode format to prevent data loss [C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\Test.vcxproj]
+### C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\Include\TcMath\mathfuncs_composite_extra.h(1,1): warning C4819: The file contains a character that cannot be represented in the current code page (932). Save the file in Unicode format to prevent data loss [C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\Test.vcxproj]
+### C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\Include\TcMath\mathfuncs_composite_extra.h(1,1): warning C4819: The file contains a character that cannot be represented in the current code page (932). Save the file in Unicode format to prevent data loss [C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\Test.vcxproj]
+### C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\Include\TcMath\mathfuncs_composite_extra.h(1,1): warning C4819: The file contains a character that cannot be represented in the current code page (932). Save the file in Unicode format to prevent data loss [C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\Test.vcxproj]
+### Publish procedure completed successfully
+### See log file "C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\log\Test_PublishLog.txt" for details
+2026-02-24 13:04:59: ### Publish summary
+### Configuration:  "Release"
+### Platform(s):  "TwinCAT RT (x86);TwinCAT RT (x64)"
+### TwinCAT SDK:  "C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\" (Version 3.1.4026.20)
+### Platform Toolset:  V143 (Automatically selected)
+### Vendor name: TE140x Module Vendor
+### Library name: Test
+### Library version: 0.0.0.10
+### Local installation folder: "C:\ProgramData\Beckhoff\TwinCAT\3.1\Repository\TE140x Module Vendor\Test\0.0.0.10"
+### TMX archive: -
+### Signatures:
+###   File 'C:\ProgramData\Beckhoff\TwinCAT\3.1\Repository\TE140x Module Vendor\Test\0.0.0.10\TwinCAT RT (x86)\Test.tmx' has signature.
+###      issuer TcTestCert (sakalib), certificate expires on 02/18/2028
+###   Warning: Signature found, but OEM certificate was not signed by Beckhoff. Driver can only be used in test mode.
+###   File 'C:\ProgramData\Beckhoff\TwinCAT\3.1\Repository\TE140x Module Vendor\Test\0.0.0.10\TwinCAT RT (x64)\Test.tmx' has signature.
+###      issuer TcTestCert (sakalib), certificate expires on 02/18/2028
+###   Warning: Signature found, but OEM certificate was not signed by Beckhoff. Driver can only be used in test mode.
+2026-02-24 13:04:56: ### Import model information for Test: Block diagram
+2026-02-24 13:04:59:   コード生成が正常に完了: Test
+2026-02-24 13:04:59: ### Finish model export
+2026-02-24 13:04:59:   Model export duration: 12.9 s

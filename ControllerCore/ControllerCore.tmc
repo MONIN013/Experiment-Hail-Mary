@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcModuleClass xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2009/05/TcModuleClass">
+  <Vendor>
+    <Name>C++ Module Vendor</Name>
+  </Vendor>
+  <DataTypes ><DataType><Name GUID="{7a41b282-b6ef-4da2-b9cd-74b2d70476b6}">ST_Notch</Name><SubItem><Name>notchB0</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>notchB1</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>notchB2</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>notchA1</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>notchA2</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem></DataType><DataType><Name GUID="{f0efd512-8498-4cbc-a25f-04d8e2741f50}">ST_Reso</Name><SubItem><Name>resoB0</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>resoB1</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>resoB2</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>resoA1</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>resoA2</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><Hides><Hide GUID="{7a41b282-b6ef-4da2-b9cd-74b2d70476b6}" /></Hides></DataType><DataType><Name GUID="{13107610-cd3f-4eb5-abff-3afc341e6827}">ST_FilterEnable</Name><SubItem><Name>enablePid</Name><Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type></SubItem><SubItem><Name>enableLead</Name><Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type></SubItem><SubItem><Name>enableNotch</Name><Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type></SubItem><SubItem><Name>enableReso</Name><Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type></SubItem></DataType><DataType><Name GUID="{601dea5d-cd1f-4da3-90a4-3260b161e2ac}">ST_PID</Name><SubItem><Name>pidB0</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>pidB1</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>pidB2</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>pidA1</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>pidA2</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem></DataType><DataType><Name GUID="{fe53c40b-e294-450d-ad06-deef6d604a43}">ST_PhaseLead</Name><SubItem><Name>leadB0</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>leadB1</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>leadB2</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>leadA1</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>leadA2</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem></DataType></DataTypes>
+  <Groups>
+    <Group SortOrder="701">
+      <Name>C++</Name>
+      <DisplayName>C++ Modules</DisplayName>
+    </Group>
+  </Groups>
+  <Modules>
+    <Module GUID="{0424a75d-ebd0-493b-be31-e3fb024b65c5}" Group="C++">
+      <Name>Module1</Name>
+      <CLSID ClassFactory="ControllerCore">{0424a75d-ebd0-493b-be31-e3fb024b65c5}</CLSID>
+      <Licenses>
+        <License>
+          <LicenseId>{304D006A-8299-4560-AB79-438534B50288}</LicenseId>
+          <Comment>TC3 C++</Comment>
+        </License>
+      </Licenses>
+      <InitSequence>PSO</InitSequence>
+      <Contexts>
+        <Context>
+          <Id>1</Id>
+        </Context>
+      </Contexts>
+      <Interfaces>
+        <Interface DisableCodeGeneration="true">
+          <Type GUID="{00000012-0000-0000-E000-000000000064}">ITComObject</Type>
+        </Interface>
+        <Interface>
+          <Type GUID="{03000010-0000-0000-E000-000000000064}">ITcCyclic</Type>
+        </Interface>
+        <Interface DisableCodeGeneration="true">
+          <Type GUID="{03000012-0000-0000-E000-000000000064}">ITcADI</Type>
+        </Interface>
+        <Interface DisableCodeGeneration="true">
+          <Type GUID="{03000018-0000-0000-E000-000000000064}">ITcWatchSource</Type>
+        </Interface>
+      </Interfaces>
+      <Parameters>
+        <Parameter HideParameter="true">
+          <Name>TraceLevelMax</Name>
+          <Comment>Controls the amount of log messages.</Comment>
+          <BaseType GUID="{8007ae3b-86bb-40f2-b385-ef87fcc239a4}">TcTraceLevel</BaseType>
+          <PTCID>#x03002103</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter><Parameter CreateSymbol="true"><Name>NotchParams</Name><BaseType GUID="{7a41b282-b6ef-4da2-b9cd-74b2d70476b6}">ST_Notch</BaseType><PTCID>#x00000002</PTCID><ContextId>1</ContextId></Parameter><Parameter CreateSymbol="true"><Name>LeadParams</Name><BaseType GUID="{fe53c40b-e294-450d-ad06-deef6d604a43}">ST_PhaseLead</BaseType><PTCID>#x00000004</PTCID><ContextId>1</ContextId></Parameter><Parameter CreateSymbol="true"><Name>ResoParams</Name><BaseType GUID="{f0efd512-8498-4cbc-a25f-04d8e2741f50}">ST_Reso</BaseType><PTCID>#x00000006</PTCID><ContextId>1</ContextId></Parameter><Parameter CreateSymbol="true"><Name>EnableParams</Name><BaseType GUID="{13107610-cd3f-4eb5-abff-3afc341e6827}">ST_FilterEnable</BaseType><PTCID>#x00000005</PTCID><ContextId>1</ContextId></Parameter><Parameter CreateSymbol="true"><Name>PIDParams</Name><BaseType GUID="{601dea5d-cd1f-4da3-90a4-3260b161e2ac}">ST_PID</BaseType><PTCID>#x00000001</PTCID><ContextId>1</ContextId></Parameter>
+      </Parameters>
+      <DataAreas>
+        <DataArea>
+          <AreaNo AreaType="InputDst">0</AreaNo>
+          <Name>Inputs</Name>
+          <ContextId>1</ContextId><Symbol><Name>refValue</Name><BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType></Symbol><Symbol><Name>ffValue</Name><BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType></Symbol><Symbol><Name>positionAct</Name><BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType></Symbol><Symbol><Name>resetReq</Name><BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType></Symbol>
+        </DataArea>
+        <DataArea>
+          <AreaNo AreaType="OutputSrc">1</AreaNo>
+          <Name>Outputs</Name>
+          <ContextId>1</ContextId><Symbol><Name>controlInput</Name><BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType></Symbol><Symbol><Name>error</Name><BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType></Symbol>
+        </DataArea>
+      </DataAreas>
+      <InterfacePointers>
+        <InterfacePointer>
+          <PTCID>#x03002060</PTCID>
+          <Name>CyclicCaller</Name>
+          <Type GUID="{0300001e-0000-0000-e000-000000000064}">ITcCyclicCaller</Type>
+        </InterfacePointer>
+      </InterfacePointers>
+      <DataPointers />
+      <Deployment />
+    </Module>
+  </Modules>
+  <Library>
+    <Name>ControllerCore</Name>
+    <Version>0.0.0.1</Version>
+  </Library>
+</TcModuleClass>
+
+
