@@ -1,6 +1,8 @@
-matlab_root = fileparts(fileparts(mfilename("fullpath")));
+stack = dbstack("-completenames");
+script_dir = fileparts(stack(1).file);
+matlab_root = fileparts(script_dir);
 restoredefaultpath;
-addpath(genpath(matlab_root));
+addpath(matlab_root, fullfile(matlab_root, "experiment"), fullfile(script_dir, "fixtures"));
 
 suite = testsuite(fullfile(matlab_root, "tests"), "IncludeSubfolders", true);
 results = run(suite);

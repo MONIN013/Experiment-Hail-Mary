@@ -36,7 +36,7 @@ function out = read_logger_bin(file_path)
     error("experiment:read_logger_bin:openFailed", ...
       "Failed to open logger bin file: %s", string(msg));
   end
-  cleaner = onCleanup(@() fclose(fid)); %#ok<NASGU>
+  cleaner = onCleanup(@() fclose(fid)); 
 
   raw_bytes = fread(fid, [record_size, inf], "*uint8");
   record_count = size(raw_bytes, 2);

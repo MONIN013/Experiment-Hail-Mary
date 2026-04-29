@@ -2,13 +2,9 @@
 %
 %  VirtualMotorCore の parameter symbols が active contract と一致するかを確認する。
 
-base_dir = fileparts(mfilename("fullpath"));
-restoredefaultpath;
-addpath(genpath(base_dir));
-
 cfg = experiment.ExperimentConfig.defaults();
 conn = experiment.ConnectionManager.create(cfg);
-cleanup = onCleanup(@() conn.session.close()); %#ok<NASGU>
+cleanup = onCleanup(@() conn.session.close()); 
 
 symbols = virtualMotor.Symbols.from_defaults();
 twincat_ads.SymbolBrowser.validate_symbols(conn.module, symbols.requiredProbes);

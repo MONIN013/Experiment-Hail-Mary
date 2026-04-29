@@ -36,7 +36,7 @@ classdef SystemConfig
   methods (Static)
     function s = to_struct()
     % to_struct  全 Constant プロパティを struct として返す。
-      mc = ?experiment.SystemConfig;
+      mc = ?config.SystemConfig;
       props = mc.PropertyList;
       s = struct();
       for k = 1:numel(props)
@@ -48,7 +48,7 @@ classdef SystemConfig
 
     function task_dt_ns = task_dt_ns()
     % task_dt_ns  タスク周期を [ns] 単位で返す。
-      task_dt_ns = uint64(round(1e9 / experiment.SystemConfig.TASK_RATE_HZ));
+      task_dt_ns = uint64(round(1e9 / config.SystemConfig.TASK_RATE_HZ));
     end
   end
 end

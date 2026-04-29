@@ -55,7 +55,7 @@ function task_rate_hz = resolve_task_rate_hz(cfg)
 if isstruct(cfg) && isfield(cfg, "task_rate_hz")
   task_rate_hz = double(cfg.task_rate_hz);
 else
-  task_rate_hz = double(experiment.SystemConfig.TASK_RATE_HZ);
+  task_rate_hz = double(config.SystemConfig.TASK_RATE_HZ);
 end
 end
 

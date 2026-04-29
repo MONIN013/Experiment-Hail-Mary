@@ -3,12 +3,8 @@
 %  P 制御を ControllerCore にロードし、同一ステップ位置指令を
 %  N_REPEAT 回だけ連続再生する。
 
-base_dir = fileparts(mfilename("fullpath"));
-restoredefaultpath;
-addpath(genpath(base_dir));
-
 %% Environment defaults from SystemConfig
-sys = experiment.SystemConfig;
+sys = config.SystemConfig;
 cfg = experiment.ExperimentConfig.defaults();
 logger_file_glob = "*.bin";
 logger_dir = string(fileparts(char(sys.LOGGER_DEFAULT_FILE_PATH)));
@@ -46,7 +42,7 @@ fprintf("Target=%.4f rad, stepDuration=%.3f s, preStep=%.3f s, perTrial=%.3f s, 
 
 %% ADS 接続
 conn = experiment.ConnectionManager.create(cfg);
-cleanup = onCleanup(@() conn.session.close()); %#ok<NASGU>
+cleanup = onCleanup(@() conn.session.close()); 
 fprintf("Connected: SEQ=%d, CTRL=%d, MODULE=%d\n", cfg.seq_port, cfg.control_port, cfg.module_port);
 fprintf("Controller: Kp=%.1f (pid_b0), enable_pid=%d\n", Kp, logical(cfg.controller.pid.enable));
 virtualMotor.writeParams(conn, vm_cfg);

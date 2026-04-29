@@ -66,7 +66,7 @@ classdef SymbolBrowser
       errors = repmat("", n, 1);
 
       try
-        loader = twincat_ads.AdsTransport("ads_assembly", cfg.ads_assembly); %#ok<NASGU>
+        loader = twincat_ads.AdsTransport("ads_assembly", cfg.ads_assembly); 
       catch e
         status(:) = "assembly_failed";
         errors(:) = string(e.message);

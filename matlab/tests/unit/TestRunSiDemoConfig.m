@@ -16,6 +16,8 @@ classdef TestRunSiDemoConfig < matlab.unittest.TestCase
         "run_out = experiment.ExperimentRunner.run(conn, cfg);"));
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
         "frf_out = experiment.analyze_si_frf(logger_bin, ..."));
+      testCase.verifyFalse(contains(source, "restoredefaultpath;"));
+      testCase.verifyFalse(contains(source, "addpath(genpath("));
     end
 
     function demoPinsSiSpecificProfiles(testCase)
@@ -38,6 +40,8 @@ classdef TestRunSiDemoConfig < matlab.unittest.TestCase
         "vm_cfg = virtualMotor.PlantConfig.from_struct(struct("));
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
         "cfg.controller = experiment.ControllerConfig.p_only(Kp);"));
+      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
+        "experiment.wrap_phase_at_180("));
     end
   end
 end

@@ -1,7 +1,7 @@
 classdef TestSystemConfig < matlab.unittest.TestCase
   methods (Test)
     function constantsHaveExpectedValues(testCase)
-      sys = experiment.SystemConfig;
+      sys = config.SystemConfig;
       testCase.verifyEqual(sys.AMS_NET_ID, "192.168.10.3.1.1");
       testCase.verifyEqual(sys.SEQ_PORT, 853);
       testCase.verifyEqual(sys.CONTROL_PORT, 852);
@@ -12,12 +12,12 @@ classdef TestSystemConfig < matlab.unittest.TestCase
     end
 
     function taskDtNsReturnsOneEighthMsInNanoseconds(testCase)
-      dt = experiment.SystemConfig.task_dt_ns();
+      dt = config.SystemConfig.task_dt_ns();
       testCase.verifyEqual(dt, uint64(125000));
     end
 
     function toStructReturnsAllConstants(testCase)
-      s = experiment.SystemConfig.to_struct();
+      s = config.SystemConfig.to_struct();
       testCase.verifyTrue(isstruct(s));
       testCase.verifyTrue(isfield(s, 'AMS_NET_ID'));
       testCase.verifyTrue(isfield(s, 'SEQ_PORT'));
@@ -34,12 +34,12 @@ classdef TestSystemConfig < matlab.unittest.TestCase
     end
 
     function controllerPrefixIsNonEmpty(testCase)
-      sys = experiment.SystemConfig;
+      sys = config.SystemConfig;
       testCase.verifyGreaterThan(strlength(sys.CTRL_PREFIX), 0);
     end
 
     function modeFlagsSymbolIsString(testCase)
-      sys = experiment.SystemConfig;
+      sys = config.SystemConfig;
       testCase.verifyClass(sys.MODE_FLAGS_SYMBOL, 'string');
       testCase.verifyTrue(contains(sys.MODE_FLAGS_SYMBOL, "modeFlags"));
     end

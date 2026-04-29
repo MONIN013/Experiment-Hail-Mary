@@ -3,7 +3,7 @@ classdef TestRunPositionCommandDemoLoggerSelection < matlab.unittest.TestCase
     function picksLatestBinFile(testCase)
       temp_dir = tempname;
       mkdir(temp_dir);
-      cleaner = onCleanup(@() cleanup_dir(temp_dir)); %#ok<NASGU>
+      cleaner = onCleanup(@() cleanup_dir(temp_dir)); 
 
       older_path = fullfile(temp_dir, "older.bin");
       latest_path = fullfile(temp_dir, "latest.bin");
@@ -22,7 +22,7 @@ classdef TestRunPositionCommandDemoLoggerSelection < matlab.unittest.TestCase
     function failsWhenNoBinFiles(testCase)
       temp_dir = tempname;
       mkdir(temp_dir);
-      cleaner = onCleanup(@() cleanup_dir(temp_dir)); %#ok<NASGU>
+      cleaner = onCleanup(@() cleanup_dir(temp_dir)); 
 
       out = experiment.read_latest_logger_bin(temp_dir, "*.bin");
 
@@ -34,7 +34,7 @@ classdef TestRunPositionCommandDemoLoggerSelection < matlab.unittest.TestCase
     function picksNewestValidBinWhenLatestHasZeroRecords(testCase)
       temp_dir = tempname;
       mkdir(temp_dir);
-      cleaner = onCleanup(@() cleanup_dir(temp_dir)); %#ok<NASGU>
+      cleaner = onCleanup(@() cleanup_dir(temp_dir)); 
 
       valid_path = fullfile(temp_dir, "valid.bin");
       latest_empty_path = fullfile(temp_dir, "latest_empty.bin");
@@ -53,7 +53,7 @@ classdef TestRunPositionCommandDemoLoggerSelection < matlab.unittest.TestCase
     function failsWhenAllBinFilesAreUnusable(testCase)
       temp_dir = tempname;
       mkdir(temp_dir);
-      cleaner = onCleanup(@() cleanup_dir(temp_dir)); %#ok<NASGU>
+      cleaner = onCleanup(@() cleanup_dir(temp_dir)); 
 
       malformed_path = fullfile(temp_dir, "older_malformed.bin");
       latest_empty_path = fullfile(temp_dir, "latest_empty.bin");
@@ -76,7 +76,7 @@ end
 function write_sample_file(file_path, n_records)
 [fid, msg] = fopen(char(file_path), "wb", "ieee-le");
 assert(fid >= 0, msg);
-cleaner = onCleanup(@() fclose(fid)); %#ok<NASGU>
+cleaner = onCleanup(@() fclose(fid)); 
 
 for k = 1:n_records
   fwrite(fid, uint32(k), "uint32");
@@ -95,7 +95,7 @@ end
 function write_malformed_file(file_path)
 [fid, msg] = fopen(char(file_path), "wb");
 assert(fid >= 0, msg);
-cleaner = onCleanup(@() fclose(fid)); %#ok<NASGU>
+cleaner = onCleanup(@() fclose(fid)); 
 fwrite(fid, uint8([1 2 3 4 5]), "uint8");
 end
 

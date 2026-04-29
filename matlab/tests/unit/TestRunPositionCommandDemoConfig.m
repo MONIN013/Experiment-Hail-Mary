@@ -17,6 +17,8 @@ classdef TestRunPositionCommandDemoConfig < matlab.unittest.TestCase
       testCase.verifyFalse(contains(source, "logger_share_dir ="));
       testCase.verifyFalse(contains(source, "experiment.send_position_command("));
       testCase.verifyFalse(contains(source, "out.eval"));
+      testCase.verifyFalse(contains(source, "restoredefaultpath;"));
+      testCase.verifyFalse(contains(source, "addpath(genpath("));
     end
 
     function demoAssignsPlantControllerAndRuntimeFieldsOnCfg(testCase)
@@ -39,7 +41,7 @@ classdef TestRunPositionCommandDemoConfig < matlab.unittest.TestCase
     end
 
     function loggerDirectoryDerivesFromSystemConfig(testCase)
-      logger_path = string(experiment.SystemConfig.LOGGER_DEFAULT_FILE_PATH);
+      logger_path = string(config.SystemConfig.LOGGER_DEFAULT_FILE_PATH);
       testCase.verifyEqual( ...
         string(fileparts(char(logger_path))), ...
         "\\sunnyday\ExperimentData");

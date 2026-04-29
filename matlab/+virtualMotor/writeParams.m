@@ -6,7 +6,7 @@ if ~isstruct(conn)
 end
 
 parser = inputParser;
-parser.addParameter("taskDtNs", experiment.SystemConfig.task_dt_ns(), @(x) isnumeric(x) && isscalar(x) && x > 0);
+parser.addParameter("taskDtNs", config.SystemConfig.task_dt_ns(), @(x) isnumeric(x) && isscalar(x) && x > 0);
 parser.addParameter("validateSymbols", true, @(x) islogical(x) || isnumeric(x));
 parser.parse(varargin{:});
 opts = parser.Results;

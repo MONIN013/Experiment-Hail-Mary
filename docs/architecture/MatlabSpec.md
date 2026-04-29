@@ -23,11 +23,12 @@ MATLAB 層は **実験統括・パラメータ設定・ログ取得・解析** �
 
 | パッケージ | パス | 役割 |
 |---|---|---|
-| `+experiment` | `matlab/+experiment/` | プロジェクト固有の config / orchestration / 解析 |
+| `+config` | `matlab/+config/` | 環境設定、MATLAB 起動 bootstrap |
+| `+experiment` | `matlab/+experiment/` | orchestration / 解析 / TwinCAT 実行補助 |
 | `+twincat_ads` | `matlab/+twincat_ads/` | 汎用 ADS 通信層 |
 | `+twincat_ads/+internal` | `matlab/+twincat_ads/+internal/` | 非公開内部実装 |
 
-依存方向は `+experiment -> +twincat_ads` のみとする。
+依存方向は `+experiment -> +config` と `+experiment -> +twincat_ads` のみとする。
 
 ---
 
@@ -37,10 +38,12 @@ MATLAB 層は **実験統括・パラメータ設定・ログ取得・解析** �
 
 | クラス / 関数 | 役割 |
 |---|---|
-| `experiment.ExperimentConfig` | 実験実行の主 runtime config |
-| `experiment.ControllerConfig` | ControllerCore 用の 4 段 biquad 設定 |
+| `config.SystemConfig` | 環境固定値 |
+| `config.MatlabEnvironment` | startup / path cache の管理 |
 | `experiment.ConnectionManager` | `AdsSession` を使った transport 構築 |
 | `experiment.ExperimentRunner` | 実験実行フロー本体 |
+| `experiment.ExperimentConfig` | 実験実行の主 runtime config |
+| `experiment.ControllerConfig` | ControllerCore 用の 4 段 biquad 設定 |
 | `virtualMotor.PlantConfig` | VirtualMotorCore 用の物理パラメータ |
 | `virtualMotor.writeParams` | VirtualMotorCore parameter write |
 | `twincat_ads.AdsSession` | AMS Net ID 単位の transport キャッシュ |
@@ -61,16 +64,28 @@ MATLAB 層は **実験統括・パラメータ設定・ログ取得・解析** �
 
 | 所有者 | 責務 |
 |---|---|
-| `SystemConfig` | 環境固定値 |
-| `ExperimentConfig` | 実行時設定 |
-| `ControllerConfig` | ControllerCore パラメータ |
+| `config.SystemConfig` | 環境固定値 |
+| `config.MatlabEnvironment` | startup / path cache 管理 |
+| `experiment.ExperimentConfig` | 実行時設定 |
+| `experiment.ControllerConfig` | ControllerCore パラメータ |
 | `virtualMotor.PlantConfig` | VM パラメータ |
 
-`ExperimentConfig` は canonical field のみを受理する。`ams_port` / `control_ams_port` / `module_ams_port` や legacy config object は受理しない。
+`experiment.ExperimentConfig` は canonical field のみを受理する。`ams_port` / `control_ams_port` / `module_ams_port` や legacy config object は受理しない。
 
 ---
 
-## 5. `SystemConfig` の主要定数
+## 5. PATH 初期化
+
+初回セットアップは一度だけ `run('matlab/setup_matlab_environment.m')` を実行する。
+
+* `prefdir/ExperimentHailMaryPathCache.mat` に `matlab_root` と exact `path_entries` を保存する
+* `prefdir/startup.m` の managed block を更新し、次回以降の MATLAB 起動で cache を読む
+* cache が欠落または stale の場合は探索せず、setup の再実行を警告する
+* 起動時に追加する path は `matlab/` と `matlab/experiment/` の 2 本だけとする
+
+---
+
+## 6. `SystemConfig` の主要定数
 
 | プロパティ | 値 | 説明 |
 |---|---|---|
@@ -83,18 +98,18 @@ MATLAB 層は **実験統括・パラメータ設定・ログ取得・解析** �
 | `MODE_FLAGS_SYMBOL` | `"GVL_MODE.modeFlags"` | start / stop 用 symbol |
 | `LOGGER_FILE_RELEASED_SYMBOL` | `"GVL_MODE.loggerFileReleased"` | logger close 完了 |
 | `LOGGER_ERROR_CODE_SYMBOL` | `"GVL_MODE.loggerErrorCode"` | logger エラー |
-| `LOGGER_DEFAULT_FILE_PATH` | `"\\\\RAINYDAY\\ExperimentData\\experiment_logger.bin"` | logger bin 既定値 |
+| `LOGGER_DEFAULT_FILE_PATH` | `"\\\\sunnyday\\ExperimentData\\experiment_logger.bin"` | logger bin 既定値 |
 | `TABLE_MAX_N` | `100000` | テーブル長上限 |
 
 active contract は `351/852/853` のみを使う。`851` は discovery 用にローカルで明示指定する場合だけ扱う。
 
 ---
 
-## 6. 実行フロー
+## 7. 実行フロー
 
-### 6.1 `ExperimentRunner.run(conn, cfg, ...)`
+### 7.1 `ExperimentRunner.run(conn, cfg, ...)`
 
-1. `ExperimentConfig` を normalize / validate
+1. `experiment.ExperimentConfig` を normalize / validate
 2. Symbol contract を必要に応じて検証
 3. `ModeManagerControl` で `resetReq/resetAckCounter` handshake
 4. `GVL_SEQ` へ `ref/ff/dist/tableLen/repeatCount` を書き込む
@@ -104,23 +119,23 @@ active contract は `351/852/853` のみを使う。`851` は discovery 用に�
 8. `GVL_MODE.loggerFileReleased` / `loggerErrorCode` を監視
 9. logger `.bin` を読んで `out.raw` と `out.metrics` を返す
 
-### 6.2 `ConnectionManager`
+### 7.2 `ConnectionManager`
 
 * `create(cfg)` は `seq`, `ctrl`, `module` をまとめて返す
 * `create_plc_only(cfg)` は `seq`, `ctrl` だけを返す
 * `from_transports(...)` は既存 transport を runner 契約へ束ねる
 
-### 6.3 VM parameter write
+### 7.3 VM parameter write
 
 * VM parameter は `ExperimentRunner` ではなく `virtualMotor.writeParams(conn, vm_cfg)` で明示的に書き込む
-* `ExperimentConfig` は VM parameter や `write_plant_params` を保持しない
+* `experiment.ExperimentConfig` は VM parameter や `write_plant_params` を保持しない
 * step demo / SI demo は実行前に必要な VM preset を自分で適用する
 
 ---
 
-## 7. 出力契約
+## 8. 出力契約
 
-### 7.1 正本出力
+### 8.1 正本出力
 
 `ExperimentRunner.run(...)` の `out.raw` は snake_case を正本とする。
 
@@ -134,7 +149,7 @@ active contract は `351/852/853` のみを使う。`851` は discovery 用に�
 * `target_current`
 * `position_act`
 
-### 7.2 評価結果
+### 8.2 評価結果
 
 `out.metrics` が唯一の評価出力であり、`out.eval` は存在しない。
 
@@ -147,7 +162,9 @@ active contract は `351/852/853` のみを使う。`851` は discovery 用に�
 
 ---
 
-## 8. ルートスクリプト
+## 9. ルートスクリプト
+
+各ルートスクリプトは `restoredefaultpath` / `genpath` を持たず、startup で復元された PATH を前提にする。
 
 | スクリプト | 位置づけ |
 |---|---|
@@ -160,7 +177,7 @@ active contract は `351/852/853` のみを使う。`851` は discovery 用に�
 
 ---
 
-## 9. テスト
+## 10. テスト
 
 テスト実行:
 
@@ -172,7 +189,8 @@ run('matlab/tests/run_tests.m')
 
 | ファイル | 役割 |
 |---|---|
-| `tests/unit/TestExperimentConfig.m` | 現行正本 config |
+| `tests/unit/TestExperimentConfig.m` | 現行正本 runtime config |
+| `tests/unit/TestMatlabEnvironment.m` | startup / path cache 管理 |
 | `tests/unit/TestConnectionManager.m` | transport 構築 |
 | `tests/unit/TestExperimentRunner.m` | 実行フロー本体 |
 | `tests/unit/TestPreloadEval.m` | snake_case raw の replay 評価 |

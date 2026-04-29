@@ -7,11 +7,7 @@
 %    - SIL の current branch では motor_velocity が未配線のため対象外
 %    - f1 は Nyquist 未満にクランプして使用する
 
-base_dir = fileparts(mfilename("fullpath"));
-restoredefaultpath;
-addpath(genpath(base_dir));
-
-sys = experiment.SystemConfig;
+sys = config.SystemConfig;
 cfg = experiment.ExperimentConfig.defaults();
 logger_file_glob = "*.bin";
 logger_dir = string(fileparts(char(sys.LOGGER_DEFAULT_FILE_PATH)));
@@ -86,7 +82,7 @@ fprintf("Samples=%d, cycles=%.2f, loggerDir=%s\n", sample_n, chirp_cfg.cycle_cou
 
 %% ADS connect
 conn = experiment.ConnectionManager.create(cfg);
-cleanup = onCleanup(@() conn.session.close()); %#ok<NASGU>
+cleanup = onCleanup(@() conn.session.close()); 
 fprintf("Connected: SEQ=%d, CTRL=%d, MODULE=%d\n", cfg.seq_port, cfg.control_port, cfg.module_port);
 
 %% Run experiment and read logger
@@ -128,8 +124,8 @@ frf_nominal = compute_nominal_two_inertia_frf( ...
 
 mag_measured_db = mag2db(abs(frf_measured));
 mag_nominal_db = mag2db(abs(frf_nominal));
-phase_measured_deg = wrap_phase_at_180(rad2deg(unwrap(angle(frf_measured))));
-phase_nominal_deg = wrap_phase_at_180(rad2deg(unwrap(angle(frf_nominal))));
+phase_measured_deg = experiment.wrap_phase_at_180(rad2deg(unwrap(angle(frf_measured))));
+phase_nominal_deg = experiment.wrap_phase_at_180(rad2deg(unwrap(angle(frf_nominal))));
 
 figure("Name", "SI Demo", "Color", "w");
 tiledlayout(3, 1, "Padding", "compact", "TileSpacing", "compact");
@@ -168,11 +164,7 @@ si_out = struct( ...
   "run", run_out, ...
   "logger_bin", logger_bin, ...
   "frf", frf_out, ...
-  "chirp", chirp_cfg); %#ok<NASGU>
-
-function phase_wrapped_deg = wrap_phase_at_180(phase_deg)
-phase_wrapped_deg = mod(phase_deg + 180, 360) - 180;
-end
+  "chirp", chirp_cfg); 
 
 function frf_nominal = compute_nominal_two_inertia_frf(plant_cfg, omega_rad_s, varargin)
 parser = inputParser;

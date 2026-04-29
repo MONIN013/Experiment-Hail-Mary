@@ -56,7 +56,7 @@ classdef AdsTransport < twincat_ads.IAdsTransport
     function value = read_scalar(obj, symbol, net_type)
       c = obj.require_client();
       handle = c.CreateVariableHandle(char(symbol));
-      cleanup_obj = onCleanup(@()obj.safe_delete_handle(c, handle)); %#ok<NASGU>
+      cleanup_obj = onCleanup(@()obj.safe_delete_handle(c, handle)); 
 
       type_obj = obj.resolve_net_type(net_type);
       o = c.ReadAny(handle, type_obj);
@@ -66,7 +66,7 @@ classdef AdsTransport < twincat_ads.IAdsTransport
     function write_scalar(obj, symbol, value, net_type)
       c = obj.require_client();
       handle = c.CreateVariableHandle(char(symbol));
-      cleanup_obj = onCleanup(@()obj.safe_delete_handle(c, handle)); %#ok<NASGU>
+      cleanup_obj = onCleanup(@()obj.safe_delete_handle(c, handle)); 
       net_value = obj.to_net_scalar(value, net_type);
       c.WriteAny(handle, net_value);
     end
@@ -120,7 +120,7 @@ classdef AdsTransport < twincat_ads.IAdsTransport
       end
 
       handle = c.CreateVariableHandle(char(symbol));
-      cleanup_obj = onCleanup(@()obj.safe_delete_handle(c, handle)); %#ok<NASGU>
+      cleanup_obj = onCleanup(@()obj.safe_delete_handle(c, handle)); 
 
       switch char(string(net_type))
         case "System.Double"
@@ -197,7 +197,7 @@ classdef AdsTransport < twincat_ads.IAdsTransport
       end
 
       handle = c.CreateVariableHandle(char(symbol));
-      cleanup_obj = onCleanup(@()obj.safe_delete_handle(c, handle)); %#ok<NASGU>
+      cleanup_obj = onCleanup(@()obj.safe_delete_handle(c, handle)); 
 
       elem_type = obj.resolve_net_type(net_type);
       array_type = elem_type.MakeArrayType();

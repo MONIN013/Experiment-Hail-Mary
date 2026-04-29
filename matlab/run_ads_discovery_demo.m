@@ -2,10 +2,6 @@
 %
 %  参照: docs/MatlabSpec.md §7.2
 
-base_dir = fileparts(mfilename("fullpath"));
-restoredefaultpath;
-addpath(genpath(base_dir));
-
 ams_net_id = "192.168.10.3.1.1";
 ports = [851 852 853 351];
 connect_timeout_ms = 1000;

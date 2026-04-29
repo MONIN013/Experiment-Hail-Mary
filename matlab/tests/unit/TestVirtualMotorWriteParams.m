@@ -21,7 +21,7 @@ classdef TestVirtualMotorWriteParams < matlab.unittest.TestCase
       testCase.verifyTrue(any(contains(module.operations, "write_scalar:VirtualMotorCore_Obj1 (Module1).PlantParameter.motor.inertia")));
       testCase.verifyEqual(module.scalarMap(char(symbols.vmParams.motor.inertia)), 1);
       testCase.verifyEqual(module.scalarMap(char(symbols.vmParams.load.velLimit)), 12);
-      testCase.verifyEqual(module.scalarMap(char(symbols.vmParams.taskDtNs)), experiment.SystemConfig.task_dt_ns());
+      testCase.verifyEqual(module.scalarMap(char(symbols.vmParams.taskDtNs)), config.SystemConfig.task_dt_ns());
     end
   end
 end

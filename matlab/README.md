@@ -1,6 +1,6 @@
 # MATLAB Layer
 
-MATLAB 層の現行正本は `ExperimentConfig + ConnectionManager + ExperimentRunner` である。legacy bridge は削除済みで、実験実行はこの組み合わせだけを前提にする。
+MATLAB 層の現行正本は `experiment.ExperimentConfig + experiment.ConnectionManager + experiment.ExperimentRunner` である。`config` は環境構築時に触る設定と bootstrap 用に限定する。legacy bridge は削除済みで、実験実行はこの組み合わせだけを前提にする。
 
 関連文書:
 
@@ -10,14 +10,28 @@ MATLAB 層の現行正本は `ExperimentConfig + ConnectionManager + ExperimentR
 
 ---
 
+## セットアップ
+
+一度だけ以下を実行し、`prefdir/startup.m` と path cache を更新する。
+
+```matlab
+run('matlab/setup_matlab_environment.m')
+```
+
+起動時に追加される path は `matlab/` と `matlab/experiment/` の 2 本だけで、`genpath` は使わない。
+
+---
+
 ## 現行 API
 
 | API | 役割 |
 |---|---|
-| `experiment.ExperimentConfig` | 実験実行の主 runtime config |
-| `experiment.ControllerConfig` | ControllerCore パラメータ |
+| `config.SystemConfig` | 環境固定値 |
 | `experiment.ConnectionManager` | `AdsSession` ベースの接続構築 |
 | `experiment.ExperimentRunner` | 実験実行と logger 回収 |
+| `experiment.ExperimentConfig` | 実験実行の主 runtime config |
+| `experiment.ControllerConfig` | ControllerCore パラメータ |
+| `config.MatlabEnvironment` | startup / path cache 管理 |
 | `virtualMotor.PlantConfig` | VirtualMotorCore パラメータ |
 | `virtualMotor.writeParams` | VirtualMotorCore parameter write |
 | `twincat_ads.AdsSession` | transport キャッシュ |
@@ -97,7 +111,7 @@ out = experiment.ExperimentRunner.run(conn, cfg);
 ## テスト
 
 ```matlab
-run('tests/run_tests.m')
+run('matlab/tests/run_tests.m')
 ```
 
 主要テスト:

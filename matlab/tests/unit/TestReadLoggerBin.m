@@ -2,7 +2,7 @@ classdef TestReadLoggerBin < matlab.unittest.TestCase
   methods (Test)
     function decodesFixedSizeRecords(testCase)
       file_path = [tempname, '.bin'];
-      cleaner = onCleanup(@() delete_if_exists(file_path)); %#ok<NASGU>
+      cleaner = onCleanup(@() delete_if_exists(file_path)); 
       write_sample_file(file_path);
 
       out = experiment.read_logger_bin(file_path);
@@ -21,7 +21,7 @@ classdef TestReadLoggerBin < matlab.unittest.TestCase
 
     function rejectsNonAlignedFileSize(testCase)
       file_path = [tempname, '.bin'];
-      cleaner = onCleanup(@() delete_if_exists(file_path)); %#ok<NASGU>
+      cleaner = onCleanup(@() delete_if_exists(file_path)); 
 
       [fid, msg] = fopen(char(file_path), "wb");
       testCase.assertGreaterThanOrEqual(fid, 0, msg);
@@ -37,7 +37,7 @@ end
 function write_sample_file(file_path)
   [fid, msg] = fopen(char(file_path), "wb", "ieee-le");
   assert(fid >= 0, msg);
-  cleaner = onCleanup(@() fclose(fid)); %#ok<NASGU>
+  cleaner = onCleanup(@() fclose(fid)); 
 
   rows = [ ...
     1, 1000, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0; ...

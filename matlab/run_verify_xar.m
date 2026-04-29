@@ -10,11 +10,7 @@
 %
 %  参照: docs/MatlabSpec.md §7.3 / §8
 
-base_dir = fileparts(mfilename("fullpath"));
-restoredefaultpath;
-addpath(genpath(base_dir));
-
-sys = experiment.SystemConfig;
+sys = config.SystemConfig;
 
 ports = [sys.CONTROL_PORT, sys.SEQ_PORT, sys.MODULE_PORT];
 results = {};
