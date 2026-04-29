@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<TcSmProject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2012/07/TcSmProject" TcSmVersion="1.0" TcVersion="3.1.4026.21">
+<TcSmProject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2012/07/TcSmProject" TcSmVersion="1.0" TcVersion="3.1.4026.22">
 	<DataTypes>
 		<DataType>
 			<Name GUID="{27A4E77B-8A48-4CB9-9658-9B41F4A85D86}">ST_VirtualMotorMotorParams</Name>
@@ -392,7 +392,7 @@
 		</DataType>
 		<DataType>
 			<Name GUID="{B5BB3647-4067-4A21-8892-0F60A144E5B0}">ST_LoggerRecordInputs</Name>
-			<BitSize>640</BitSize>
+			<BitSize>704</BitSize>
 			<SubItem>
 				<Name>currentCmd</Name>
 				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
@@ -412,28 +412,34 @@
 				<BitOffs>128</BitOffs>
 			</SubItem>
 			<SubItem>
-				<Name>controlInput</Name>
+				<Name>distValue</Name>
 				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
 				<BitSize>64</BitSize>
 				<BitOffs>192</BitOffs>
 			</SubItem>
 			<SubItem>
-				<Name>error</Name>
+				<Name>controlInput</Name>
 				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
 				<BitSize>64</BitSize>
 				<BitOffs>256</BitOffs>
 			</SubItem>
 			<SubItem>
+				<Name>error</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>320</BitOffs>
+			</SubItem>
+			<SubItem>
 				<Name>motor</Name>
 				<Type GUID="{C88B2D87-C9BF-4A79-8397-1AA7A5B65131}">ST_LoggerMotorSignals</Type>
 				<BitSize>192</BitSize>
-				<BitOffs>320</BitOffs>
+				<BitOffs>384</BitOffs>
 			</SubItem>
 			<SubItem>
 				<Name>load</Name>
 				<Type GUID="{F77CCAAA-7889-4B95-9096-6E794FC34B65}">ST_LoggerLoadSignals</Type>
 				<BitSize>128</BitSize>
-				<BitOffs>512</BitOffs>
+				<BitOffs>576</BitOffs>
 			</SubItem>
 		</DataType>
 		<DataType>
@@ -1251,10 +1257,10 @@
 								<AreaNo AreaType="InputDst">0</AreaNo>
 								<Name>Inputs</Name>
 								<ContextId>1</ContextId>
-								<ByteSize>84</ByteSize>
+								<ByteSize>92</ByteSize>
 								<Symbol>
 									<Name>record</Name>
-									<BitSize>640</BitSize>
+									<BitSize>704</BitSize>
 									<BaseType GUID="{B5BB3647-4067-4A21-8892-0F60A144E5B0}">ST_LoggerRecordInputs</BaseType>
 									<BitOffs>0</BitOffs>
 								</Symbol>
@@ -1262,7 +1268,7 @@
 									<Name>control</Name>
 									<BitSize>32</BitSize>
 									<BaseType GUID="{2CA6D7A5-F578-481C-ACE6-CA114A3E5E88}">ST_LoggerControlInputs</BaseType>
-									<BitOffs>640</BitOffs>
+									<BitOffs>704</BitOffs>
 								</Symbol>
 							</DataArea>
 							<DataArea>
@@ -1589,6 +1595,7 @@
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.playbackDone" VarB="Inputs^playbackDone"/>
 			</OwnerB>
 			<OwnerB Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
+				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.distValue" VarB="Inputs^record^distValue"/>
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.ffValue" VarB="Inputs^record^ffValue"/>
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.playbackDone" VarB="Inputs^control^playbackDone"/>
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.refValue" VarB="Inputs^record^refValue"/>

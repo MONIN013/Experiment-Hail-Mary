@@ -6,6 +6,7 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
       module = MockAdsTransport();
       seed_seq(seq);
       seed_ctrl(ctrl);
+      seed_logger_status(module, [false; true], [uint32(7); uint32(10)]);
       conn = experiment.ConnectionManager.from_transports(seq, ctrl, module);
       cfg = experiment.ExperimentConfig.from_varargin( ...
         "ref_profile", [0.1; 0.2; 0.3], ...
@@ -18,6 +19,11 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
       testCase.verifyEqual(out.raw.ref_value, zeros(0, 1));
       testCase.verifyFalse(isfield(out, "eval"));
       testCase.verifyTrue(out.logger.file_released);
+      testCase.verifyTrue(out.logger.status_available);
+      testCase.verifyFalse(out.logger.ready_before);
+      testCase.verifyTrue(out.logger.ready_after);
+      testCase.verifyEqual(out.logger.records_before, uint32(7));
+      testCase.verifyEqual(out.logger.records_after, uint32(10));
       testCase.verifyTrue(any(contains(seq.operations, "write_array:GVL_SEQ.refTable")));
       testCase.verifyTrue(any(contains(module.operations, "write_scalar:ControllerCore_Obj1 (Module1).PIDParams.pidB0")));
       testCase.verifyFalse(any(contains(module.operations, "PlantParameter.")));
@@ -39,6 +45,9 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
       out = experiment.ExperimentRunner.run(conn, cfg);
       testCase.verifyFalse(out.host.done);
       testCase.verifyEqual(out.metrics.sample_count, 0);
+      testCase.verifyFalse(out.logger.status_available);
+      testCase.verifyFalse(out.logger.ready_before);
+      testCase.verifyEqual(out.logger.records_before, uint32(0));
     end
 
     function abortConditionStopsRunWithoutError(testCase)
@@ -113,6 +122,7 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
 
       testCase.verifyError(@() experiment.ExperimentRunner.run(conn, cfg), ...
         "experiment:runner:doneTimeout");
+      testCase.verifyEqual(ctrl.scalarMap("GVL_MODE.modeFlags"), uint16(0));
     end
 
     function errorsWhenControllerWritesNeedModuleTransport(testCase)
@@ -178,4 +188,9 @@ function seed_ctrl_without_state(t)
   t.scalarMap("GVL_MODE.experimentActive") = false;
   t.scalarMap("GVL_MODE.loggerFileReleased") = true;
   t.scalarMap("GVL_MODE.loggerErrorCode") = uint32(0);
+end
+
+function seed_logger_status(t, ready_values, record_values)
+t.set_scalar_read_sequence("ExperimentLogger_Obj1 (Module1).Outputs.status.loggerReady", ready_values);
+t.set_scalar_read_sequence("ExperimentLogger_Obj1 (Module1).Outputs.status.recordsWritten", record_values);
 end

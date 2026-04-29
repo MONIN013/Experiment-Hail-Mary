@@ -53,6 +53,7 @@ typedef struct _ST_LoggerRecordInputs
 	double currentCmd;
 	double refValue;
 	double ffValue;
+	double distValue;
 	double controlInput;
 	double error;
 	ST_LoggerMotorSignals motor;

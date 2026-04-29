@@ -69,6 +69,17 @@ classdef TestTsprojMapping < matlab.unittest.TestCase
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
         '<Link VarA="Outputs^loadControlWordOut" VarB="Inputs^load^controlWord"/>'));
     end
+
+    function loggerRecordsSequencerDistValueInBothProjects(testCase)
+      vm_source = testCase.read_vm_tsproj();
+      real_source = testCase.read_real_motor_tsproj();
+      expected_link = '<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.distValue" VarB="Inputs^record^distValue"/>';
+
+      testCase.verifyThat(vm_source, matlab.unittest.constraints.ContainsSubstring(expected_link));
+      testCase.verifyThat(real_source, matlab.unittest.constraints.ContainsSubstring(expected_link));
+      testCase.verifyThat(vm_source, matlab.unittest.constraints.ContainsSubstring('<Name>distValue</Name>'));
+      testCase.verifyThat(real_source, matlab.unittest.constraints.ContainsSubstring('<Name>distValue</Name>'));
+    end
   end
 
   methods (Static, Access = private)

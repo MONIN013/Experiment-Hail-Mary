@@ -801,7 +801,7 @@ bool CModule1::AppendCurrentInputsAsRecord()
 
 	LogRecord& rec = m_logBuffers[idx][m_bufferCounts[idx]];
 	rec.seq = m_seq;
-	rec.reservedPad0 = 0;
+	rec.reservedPad0 = 2;
 	rec.tNs = static_cast<ULONGLONG>(m_seq) * m_timestampStepNsRuntime;
 	rec.motorPosition = m_Inputs.record.motor.position;
 	rec.motorVelocity = m_Inputs.record.motor.velocity;
@@ -812,6 +812,7 @@ bool CModule1::AppendCurrentInputsAsRecord()
 	rec.error = m_Inputs.record.error;
 	rec.refValue = m_Inputs.record.refValue;
 	rec.ffValue = m_Inputs.record.ffValue;
+	rec.distValue = m_Inputs.record.distValue;
 	rec.controlInput = m_Inputs.record.controlInput;
 
 	++m_bufferCounts[idx];

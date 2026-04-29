@@ -32,6 +32,28 @@ classdef TestPreloadEval < matlab.unittest.TestCase
       testCase.verifyEqual(string(metrics.input_waveform.mismatch_class), "count_mismatch");
       testCase.verifyFalse(metrics.sampling.all_sample_counts_match);
     end
+
+    function repeatCountExpandsExpectedWaveforms(testCase)
+      [raw, cmd, cfg] = make_case();
+      cmd.repeat_count = 2;
+      raw.seq = uint32((1:6)');
+      raw.ref_value = repmat(raw.ref_value, 2, 1);
+      raw.ff_value = repmat(raw.ff_value, 2, 1);
+      raw.dist_value = repmat(raw.dist_value, 2, 1);
+      raw.control_input = repmat(raw.control_input, 2, 1);
+      raw.target_current = repmat(raw.target_current, 2, 1);
+      raw.position_act = repmat(raw.position_act, 2, 1);
+
+      metrics = experiment.preload_eval(raw, cmd, cfg);
+
+      testCase.verifyEqual(metrics.sampling.command_count, uint32(6));
+      testCase.verifyEqual(metrics.sampling.segment_command_count, uint32(3));
+      testCase.verifyEqual(metrics.sampling.repeat_count, uint32(2));
+      testCase.verifyTrue(metrics.acceptance.input_waveform_exact_match);
+      testCase.verifyTrue(metrics.acceptance.ff_waveform_exact_match);
+      testCase.verifyTrue(metrics.acceptance.dist_waveform_exact_match);
+      testCase.verifyTrue(metrics.acceptance.total_sample_count_exact_match);
+    end
   end
 end
 
@@ -58,5 +80,6 @@ tau = u + dist;
   cmd.ref_profile = ref;
   cmd.ff_profile = ff;
   cmd.dist_profile = dist;
-cmd.use_profile = true;
+  cmd.repeat_count = 1;
+  cmd.use_profile = true;
 end

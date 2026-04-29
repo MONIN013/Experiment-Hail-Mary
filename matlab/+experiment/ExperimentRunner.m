@@ -31,6 +31,7 @@ classdef ExperimentRunner
         ctrl_transport, plc_symbols, "experiment:runner:invalidConfig");
       heartbeat_state = experiment.ModeManagerControl.init_heartbeat( ...
         ctrl_transport, ctrl, cfg.host_heartbeat_enable, cfg.host_heartbeat_period_s);
+      clear_mode_guard = onCleanup(@() experiment.ExperimentRunner.safe_clear_mode_flags(ctrl_transport, ctrl));
 
       if cfg.write_controller_params
         if isempty(module_transport)
@@ -63,6 +64,7 @@ classdef ExperimentRunner
           idle_diag.idx, logical(idle_diag.experiment_active));
       end
       logger_before = experiment.ModeManagerControl.read_logger_status(ctrl_transport, ctrl);
+      logger_module_before = experiment.ExperimentRunner.read_logger_module_status(module_transport);
 
       experiment.write_ref_table(seq_transport, cfg.ref_profile(:), double(cfg.table_max_n));
       experiment.write_ff_table(seq_transport, cfg.ff_profile(:), table_n);
@@ -125,6 +127,7 @@ classdef ExperimentRunner
         error("experiment:runner:loggerReleaseTimeout", ...
           "Logger file was not released after experiment stop (%s).", string(logger_diag.detail));
       end
+      logger_module_after = experiment.ExperimentRunner.read_logger_module_status(module_transport);
 
       raw = experiment.ExperimentRunner.read_log_payload(cfg.read_logs, logger_path);
       cmd = struct( ...
@@ -149,13 +152,15 @@ classdef ExperimentRunner
         "logger_release_timeout_s", double(cfg.logger_release_timeout_s), ...
         "control_mode_flags_symbol", char(string(ctrl.modeFlagsSymbol)), ...
         "control_experiment_state_symbol", char(string(ctrl.experimentStateSymbol)));
+      logger_status_available = logical(logger_module_before.status_available && logger_module_after.status_available);
       logger = struct( ...
-        "ready_before", false, ...
-        "ready_after", false, ...
+        "status_available", logger_status_available, ...
+        "ready_before", logical(logger_module_before.ready), ...
+        "ready_after", logical(logger_module_after.ready), ...
         "error_before", uint32(logger_before.error_code), ...
         "error_after", uint32(logger_after.error_code), ...
-        "records_before", uint32(0), ...
-        "records_after", uint32(0), ...
+        "records_before", uint32(logger_module_before.records), ...
+        "records_after", uint32(logger_module_after.records), ...
         "file_released", logical(logger_after.file_released), ...
         "file_probe_detail", string(logger_diag.detail), ...
         "file_path", char(logger_path));
@@ -231,6 +236,31 @@ classdef ExperimentRunner
       twincat_ads.SymbolBrowser.validate_symbols(ctrl_transport, ctrl_required);
     end
 
+    function safe_clear_mode_flags(control_transport, ctrl)
+      try
+        experiment.ModeManagerControl.write_mode_flags(control_transport, ctrl, uint32(0));
+      catch
+      end
+    end
+
+    function status = read_logger_module_status(module_transport)
+      status = struct("status_available", false, "ready", false, "records", uint32(0));
+      if isempty(module_transport) || ~isa(module_transport, "twincat_ads.IAdsTransport")
+        return;
+      end
+
+      t = twincat_ads.AdsTransport.net_types();
+      try
+        status.ready = logical(module_transport.read_scalar( ...
+          "ExperimentLogger_Obj1 (Module1).Outputs.status.loggerReady", t.bool));
+        status.records = uint32(module_transport.read_scalar( ...
+          "ExperimentLogger_Obj1 (Module1).Outputs.status.recordsWritten", t.u32));
+        status.status_available = true;
+      catch
+        status = struct("status_available", false, "ready", false, "records", uint32(0));
+      end
+    end
+
     function raw = read_log_payload(read_logs, logger_path)
       raw = struct( ...
         "seq", zeros(0, 1), ...
@@ -248,11 +278,10 @@ classdef ExperimentRunner
           "Logger file was released but not found at %s.", string(logger_path));
       end
       out = experiment.read_logger_bin(logger_path);
-      sample_n = double(out.record_count);
-      raw.seq = double((1:sample_n)');
+      raw.seq = double(out.raw.seq(:));
       raw.ref_value = double(out.raw.ref_value(:));
       raw.ff_value = double(out.raw.ff_value(:));
-      raw.dist_value = double(out.raw.ff_value(:) * 0);
+      raw.dist_value = double(out.raw.dist_value(:));
       raw.control_input = double(out.raw.control_input(:));
       raw.target_current = double(out.raw.current_cmd(:));
       raw.position_act = double(out.raw.load_position(:));
@@ -288,6 +317,7 @@ classdef ExperimentRunner
 
       diag = experiment.ExperimentRunner.try_read_symbol( ...
         @() uint32(ctrl_transport.read_scalar(ctrl.experimentStateSymbol, t.u32)), uint32(0));
+      experiment.ExperimentRunner.safe_clear_mode_flags(ctrl_transport, ctrl);
       error("experiment:runner:readyTimeout", ...
         sprintf("Timed out waiting %.3f s for STATE_READY after servo enable. state=%u", ...
         timeout_s, uint32(diag)));
@@ -338,6 +368,7 @@ classdef ExperimentRunner
 
       timed_out = true;
       stop_reason = "timeout";
+      experiment.ExperimentRunner.safe_clear_mode_flags(ctrl_transport, ctrl);
       diag = experiment.ExperimentRunner.read_timeout_diag( ...
         ctrl_transport, seq_transport, plc_symbols, ctrl);
       error("experiment:runner:doneTimeout", ...

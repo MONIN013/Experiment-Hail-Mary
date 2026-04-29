@@ -34,7 +34,7 @@
     </DataType>
     <DataType>
       <Name GUID="{b5bb3647-4067-4a21-8892-0f60a144e5b0}">ST_LoggerRecordInputs</Name>
-      <BitSize>640</BitSize>
+      <BitSize>704</BitSize>
       <SubItem>
         <Name>currentCmd</Name>
         <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
@@ -45,6 +45,10 @@
       </SubItem>
       <SubItem>
         <Name>ffValue</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>distValue</Name>
         <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
       </SubItem>
       <SubItem>

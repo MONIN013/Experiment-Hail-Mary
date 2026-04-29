@@ -1,7 +1,11 @@
 function metrics = preload_eval(raw, cmd, cfg)
-ref_cmd = getfield_or(cmd, "ref_profile", zeros(0, 1));
-ff_cmd = getfield_or(cmd, "ff_profile", zeros(0, 1));
-dist_cmd = getfield_or(cmd, "dist_profile", zeros(0, 1));
+ref_segment = getfield_or(cmd, "ref_profile", zeros(0, 1));
+ff_segment = getfield_or(cmd, "ff_profile", zeros(0, 1));
+dist_segment = getfield_or(cmd, "dist_profile", zeros(0, 1));
+repeat_count = max(1, floor(scalar_field_or(cmd, "repeat_count", 1)));
+ref_cmd = repeat_waveform(ref_segment, repeat_count);
+ff_cmd = repeat_waveform(ff_segment, repeat_count);
+dist_cmd = repeat_waveform(dist_segment, repeat_count);
 
 log_seq = col(raw, "seq");
 log_ref = col(raw, "ref_value");
@@ -36,6 +40,8 @@ metrics.position_diag = build_position_diag(log_pos, cfg);
 
 metrics.sampling = struct( ...
   "command_count", uint32(n_cmd), ...
+  "segment_command_count", uint32(numel(ref_segment)), ...
+  "repeat_count", uint32(repeat_count), ...
   "ref_log_count", uint32(numel(log_ref)), ...
   "ff_log_count", uint32(numel(log_ff)), ...
   "dist_log_count", uint32(numel(log_dist)), ...
@@ -213,6 +219,28 @@ else
   v = default_value;
 end
 v = double(v(:));
+end
+
+function v = scalar_field_or(s, field, default_value)
+v = default_value;
+if isfield(s, field)
+  v = s.(field);
+end
+v = double(v);
+if isempty(v)
+  v = default_value;
+else
+  v = v(1);
+end
+end
+
+function out = repeat_waveform(segment, repeat_count)
+segment = double(segment(:));
+if isempty(segment)
+  out = zeros(0, 1);
+else
+  out = repmat(segment, double(repeat_count), 1);
+end
 end
 
 function tf = udint_seq_step_is_one(seq)

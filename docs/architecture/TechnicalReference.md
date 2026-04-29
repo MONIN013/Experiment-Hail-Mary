@@ -158,7 +158,7 @@
 | 入力 | 説明 |
 |---|---|
 | `Inputs.record.currentCmd` | DriverAdapter clamp 後 command [A] |
-| `Inputs.record.refValue`, `Inputs.record.ffValue` | Sequencer 出力 |
+| `Inputs.record.refValue`, `Inputs.record.ffValue`, `Inputs.record.distValue` | Sequencer 出力 |
 | `Inputs.record.controlInput`, `Inputs.record.error` | ControllerCore 出力 |
 | `Inputs.record.motor.position`, `Inputs.record.motor.velocity` | DriverAdapter motor 側信号 |
 | `Inputs.record.motor.currentAct` | DriverAdapter motor 電流 |
@@ -180,9 +180,9 @@
 
 ### 5.3 バイナリ形式
 
-1 レコード = 96 bytes
+1 レコード = 104 bytes
 
-`seq`, `reservedPad0`, `tNs`, `motorPosition`, `motorVelocity`, `motorCurrentAct`, `loadPosition`, `loadVelocity`, `currentCmd`, `error`, `refValue`, `ffValue`, `controlInput`
+`seq`, `reservedPad0` (= schema version 2), `tNs`, `motorPosition`, `motorVelocity`, `motorCurrentAct`, `loadPosition`, `loadVelocity`, `currentCmd`, `error`, `refValue`, `ffValue`, `distValue`, `controlInput`
 
 ---
 

@@ -4,11 +4,12 @@ function out = read_logger_bin(file_path)
 %   out = experiment.read_logger_bin(file_path)
 %
 %   入力:
-%     file_path - LogRecord(96 bytes) が連結された .bin ファイル
+%     file_path - LogRecord(104 bytes) が連結された .bin ファイル
 %
 %   戻り値 out (struct):
 %     .file_path     - 読み込んだファイルパス
 %     .record_count  - レコード数
+%     .schema_version - ロガーレコード schema version
 %     .summary       - 要約情報
 %     .table         - 各レコードを table 化したもの
 %     .raw           - 各列をベクトルで保持した struct
@@ -24,7 +25,7 @@ function out = read_logger_bin(file_path)
   end
 
   info = dir(char(file_path));
-  record_size = 96;
+  record_size = 104;
   if mod(info.bytes, record_size) ~= 0
     error("experiment:read_logger_bin:invalidSize", ...
       "Logger bin size must be a multiple of %d bytes, got %d bytes.", ...
@@ -41,10 +42,16 @@ function out = read_logger_bin(file_path)
   raw_bytes = fread(fid, [record_size, inf], "*uint8");
   record_count = size(raw_bytes, 2);
   raw = decode_records(raw_bytes);
+  schema_version = uint32(2);
+  if record_count > 0 && any(raw.reserved_pad0 ~= schema_version)
+    error("experiment:read_logger_bin:invalidSchema", ...
+      "Logger bin schema version must be %u.", schema_version);
+  end
 
   out = struct();
   out.file_path = char(file_path);
   out.record_count = record_count;
+  out.schema_version = schema_version;
   out.summary = make_summary(raw, record_count, info.bytes);
   out.table = table( ...
     raw.seq, ...
@@ -59,12 +66,13 @@ function out = read_logger_bin(file_path)
     raw.error, ...
     raw.ref_value, ...
     raw.ff_value, ...
+    raw.dist_value, ...
     raw.control_input, ...
     'VariableNames', { ...
       'seq', 't_ns', 't_s', ...
       'motor_position', 'motor_velocity', 'motor_current_act', ...
       'load_position', 'load_velocity', 'current_cmd', ...
-      'error', 'ref_value', 'ff_value', 'control_input'});
+      'error', 'ref_value', 'ff_value', 'dist_value', 'control_input'});
   out.raw = raw;
 end
 
@@ -82,7 +90,8 @@ function raw = decode_records(raw_bytes)
   raw.error = decode_double(raw_bytes, 65, 72);
   raw.ref_value = decode_double(raw_bytes, 73, 80);
   raw.ff_value = decode_double(raw_bytes, 81, 88);
-  raw.control_input = decode_double(raw_bytes, 89, 96);
+  raw.dist_value = decode_double(raw_bytes, 89, 96);
+  raw.control_input = decode_double(raw_bytes, 97, 104);
   raw.t_s = double(raw.t_ns) * 1e-9;
 end
 

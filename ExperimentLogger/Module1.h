@@ -105,10 +105,11 @@ protected:
 		double error;
 		double refValue;
 		double ffValue;
+		double distValue;
 		double controlInput;
 	};
 #pragma pack(pop)
-	static_assert(sizeof(LogRecord) == 96, "LogRecord must be 96 bytes");
+	static_assert(sizeof(LogRecord) == 104, "LogRecord must be 104 bytes");
 
 	static const ULONG kBufferRecords = 8000;
 	static const ULONGLONG kDefaultTimestampStepNs = 125000ULL;

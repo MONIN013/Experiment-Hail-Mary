@@ -1,6 +1,4 @@
 ﻿  TcPch.cpp
-C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\Include\TcMath\mathfuncs_composite_extra.h(1,1): warning C4819: The file contains a character that cannot be represented in the current code page (932). Save the file in Unicode format to prevent data loss
   TcNumeric.cpp
   TcUnits.cpp
-C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\Include\TcMath\mathfuncs_composite_extra.h(1,1): warning C4819: The file contains a character that cannot be represented in the current code page (932). Save the file in Unicode format to prevent data loss (compiling source file TcNumeric.cpp)
   CommonLib.vcxproj -> C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\CommonLib\Build\TwinCAT RT (x64)\Release\CommonLib.lib
