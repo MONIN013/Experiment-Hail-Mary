@@ -79,6 +79,66 @@ classdef TestMatlabEnvironment < matlab.unittest.TestCase
       testCase.verifyTrue(any(strcmp(path_parts, fullfile(matlab_root, "experiment"))));
       testCase.verifyFalse(any(strcmp(path_parts, fullfile(matlab_root, "+experiment"))));
     end
+
+    function setupWritesLocalConfigNonInteractively(testCase)
+      matlab_root = create_fake_matlab_root();
+      pref_dir = create_temp_folder();
+      local_guard = preserve_local_config();
+      cleanup = onCleanup(@() cleanup_dirs({matlab_root, pref_dir})); 
+
+      out = config.MatlabEnvironment.setup(matlab_root, ...
+        "pref_dir", pref_dir, ...
+        "apply_now", false, ...
+        "Interactive", false, ...
+        "ValidateAds", false, ...
+        "Reconfigure", true);
+
+      testCase.verifyEqual(out.local_config_status, "written");
+      testCase.verifyTrue(isfile(char(out.local_config_file)));
+      source = string(fileread(char(out.local_config_file)));
+      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("classdef LocalSystemConfig"));
+      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("AMS_NET_ID"));
+      clear local_guard;
+    end
+
+    function setupDoesNotRediscoverWhenLocalConfigExists(testCase)
+      matlab_root = create_fake_matlab_root();
+      pref_dir = create_temp_folder();
+      local_guard = preserve_local_config();
+      cleanup = onCleanup(@() cleanup_dirs({matlab_root, pref_dir})); 
+
+      local_file = config.SystemConfig.local_config_file();
+      write_text(local_file, join([
+        "classdef LocalSystemConfig"
+        "  properties (Constant)"
+        "    AMS_NET_ID = ""1.2.3.4.5.6"""
+        "    SEQ_PORT = 853"
+        "    CONTROL_PORT = 852"
+        "    MODULE_PORT = 351"
+        "    TASK_RATE_HZ = 8000"
+        "    CTRL_PREFIX = ""ControllerCore_Obj1 (Module1)."""
+        "    LOGGER_HOST_FILE_PATH = ""\\sunnyday\ExperimentData\experiment_logger.bin"""
+        "  end"
+        "  methods (Static)"
+        "    function s = to_struct()"
+        "      s = struct(""AMS_NET_ID"", config.LocalSystemConfig.AMS_NET_ID);"
+        "    end"
+        "  end"
+        "end"
+        ""], newline));
+      clear('config.LocalSystemConfig');
+      rehash;
+
+      out = config.MatlabEnvironment.setup(matlab_root, ...
+        "pref_dir", pref_dir, ...
+        "apply_now", false, ...
+        "Interactive", false, ...
+        "ValidateAds", false);
+
+      testCase.verifyEqual(out.local_config_status, "existing");
+      testCase.verifyEqual(string(out.system_config.AMS_NET_ID), "1.2.3.4.5.6");
+      clear local_guard;
+    end
   end
 end
 
@@ -105,4 +165,34 @@ end
 
 function matlab_root = project_matlab_root()
 matlab_root = fileparts(fileparts(fileparts(mfilename("fullpath"))));
+end
+
+function guard = preserve_local_config()
+local_file = config.SystemConfig.local_config_file();
+existed = isfile(local_file);
+if existed
+  original = string(fileread(local_file));
+else
+  original = "";
+end
+guard = onCleanup(@() restore_local_config(local_file, existed, original));
+end
+
+function restore_local_config(local_file, existed, original)
+if existed
+  write_text(local_file, original);
+elseif isfile(local_file)
+  delete(local_file);
+end
+clear('config.LocalSystemConfig');
+rehash;
+end
+
+function write_text(file_path, content)
+fid = fopen(file_path, "w");
+if fid < 0
+  error("test:writeFailed", "Could not write %s", file_path);
+end
+cleaner = onCleanup(@() fclose(fid));
+fwrite(fid, char(string(content)), "char");
 end

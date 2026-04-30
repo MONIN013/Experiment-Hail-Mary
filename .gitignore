@@ -43,3 +43,7 @@ LineIDs.dbg.bak
 *.suo
 
 .tmp
+
+# MATLAB local/editor artifacts
+*.asv
+matlab/+config/LocalSystemConfig.m

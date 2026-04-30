@@ -4,10 +4,10 @@
 %  N_REPEAT 回だけ連続再生する。
 
 %% Environment defaults from SystemConfig
-sys = config.SystemConfig;
+sys = config.SystemConfig.current();
 cfg = experiment.ExperimentConfig.defaults();
 logger_file_glob = "*.bin";
-logger_dir = string(fileparts(char(sys.LOGGER_DEFAULT_FILE_PATH)));
+logger_dir = string(fileparts(char(sys.LOGGER_HOST_FILE_PATH)));
 
 %% Demo runtime config via ExperimentConfig
 target_position_rad = 0.25;

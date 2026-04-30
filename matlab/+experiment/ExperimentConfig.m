@@ -38,7 +38,7 @@ classdef ExperimentConfig
 
   methods (Static)
     function out = defaults()
-      sys = config.SystemConfig;
+      sys = config.SystemConfig.current();
       out = experiment.ExperimentConfig();
       out.ams_net_id = char(sys.AMS_NET_ID);
       out.seq_port = double(sys.SEQ_PORT);
@@ -155,7 +155,7 @@ classdef ExperimentConfig
 
   methods
     function out = normalize(obj)
-      sys = config.SystemConfig;
+      sys = config.SystemConfig.current();
       out = obj;
       out.ams_net_id = char(string(out.ams_net_id));
       out.ads_assembly = char(string(out.ads_assembly));
@@ -278,8 +278,9 @@ end
 end
 
 function reject_prefix_overrides(s)
+sys = config.SystemConfig.current();
 checks = { ...
-  "controller_param_symbol_prefix", char(config.SystemConfig.CTRL_PREFIX)};
+  "controller_param_symbol_prefix", char(sys.CTRL_PREFIX)};
 for k = 1:size(checks, 1)
   key = checks{k, 1};
   default_value = string(checks{k, 2});

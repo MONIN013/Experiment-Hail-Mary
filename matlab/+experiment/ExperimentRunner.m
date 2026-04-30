@@ -13,7 +13,8 @@ classdef ExperimentRunner
       end
 
       plc_symbols = experiment.RuntimeSymbols.from_defaults();
-      controller_symbols = experiment.RuntimeSymbols.from_controller_prefix(config.SystemConfig.CTRL_PREFIX);
+      sys = config.SystemConfig.current();
+      controller_symbols = experiment.RuntimeSymbols.from_controller_prefix(sys.CTRL_PREFIX);
 
       if cfg.write_controller_params && isempty(module_transport)
         error("experiment:runner:invalidConfig", ...
@@ -38,12 +39,12 @@ classdef ExperimentRunner
           error("experiment:runner:invalidConfig", "module transport is required when write_controller_params=true.");
         end
         experiment.write_controller_params( ...
-          module_transport, config.SystemConfig.CTRL_PREFIX, ...
+          module_transport, sys.CTRL_PREFIX, ...
           cfg.controller.to_flat_struct());
       end
 
       table_n = numel(cfg.ref_profile);
-      logger_path = string(config.SystemConfig.LOGGER_DEFAULT_FILE_PATH);
+      logger_path = string(sys.LOGGER_HOST_FILE_PATH);
       t_run = tic;
       experiment.ModeManagerControl.write_mode_flags(ctrl_transport, ctrl, uint32(0));
       seq_transport.write_scalar(plc_symbols.tableLen, uint32(0), plc_symbols.types.u32);

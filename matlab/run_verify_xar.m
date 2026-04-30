@@ -10,7 +10,7 @@
 %
 %  参照: docs/MatlabSpec.md §7.3 / §8
 
-sys = config.SystemConfig;
+sys = config.SystemConfig.current();
 
 ports = [sys.CONTROL_PORT, sys.SEQ_PORT, sys.MODULE_PORT];
 results = {};

@@ -38,8 +38,8 @@ MATLAB 層は **実験統括・パラメータ設定・ログ取得・解析** �
 
 | クラス / 関数 | 役割 |
 |---|---|
-| `config.SystemConfig` | 環境固定値 |
-| `config.MatlabEnvironment` | startup / path cache の管理 |
+| `config.SystemConfig.current()` | ローカル設定を反映した環境固定値 |
+| `config.MatlabEnvironment` | startup / path cache / local config の管理 |
 | `experiment.ConnectionManager` | `AdsSession` を使った transport 構築 |
 | `experiment.ExperimentRunner` | 実験実行フロー本体 |
 | `experiment.ExperimentConfig` | 実験実行の主 runtime config |
@@ -64,7 +64,7 @@ MATLAB 層は **実験統括・パラメータ設定・ログ取得・解析** �
 
 | 所有者 | 責務 |
 |---|---|
-| `config.SystemConfig` | 環境固定値 |
+| `config.SystemConfig.current()` | 環境固定値 |
 | `config.MatlabEnvironment` | startup / path cache 管理 |
 | `experiment.ExperimentConfig` | 実行時設定 |
 | `experiment.ControllerConfig` | ControllerCore パラメータ |
@@ -80,6 +80,8 @@ MATLAB 層は **実験統括・パラメータ設定・ログ取得・解析** �
 
 * `prefdir/ExperimentHailMaryPathCache.mat` に `matlab_root` と exact `path_entries` を保存する
 * `prefdir/startup.m` の managed block を更新し、次回以降の MATLAB 起動で cache を読む
+* `matlab/+config/LocalSystemConfig.m` に PC ごとの ADS / logger 設定を生成する
+* 既存 local config がある場合は再探索しない。再探索は `config.MatlabEnvironment.setup("Reconfigure", true)` のみで行う
 * cache が欠落または stale の場合は探索せず、setup の再実行を警告する
 * 起動時に追加する path は `matlab/` と `matlab/experiment/` の 2 本だけとする
 
@@ -98,7 +100,9 @@ MATLAB 層は **実験統括・パラメータ設定・ログ取得・解析** �
 | `MODE_FLAGS_SYMBOL` | `"GVL_MODE.modeFlags"` | start / stop 用 symbol |
 | `LOGGER_FILE_RELEASED_SYMBOL` | `"GVL_MODE.loggerFileReleased"` | logger close 完了 |
 | `LOGGER_ERROR_CODE_SYMBOL` | `"GVL_MODE.loggerErrorCode"` | logger エラー |
-| `LOGGER_DEFAULT_FILE_PATH` | `"\\\\sunnyday\\ExperimentData\\experiment_logger.bin"` | logger bin 既定値 |
+| `LOGGER_TARGET_FILE_PATH` | `"C:\\ExperimentData\\experiment_logger.bin"` | TwinCAT 側 logger 保存先 |
+| `LOGGER_HOST_FILE_PATH` | `"\\\\sunnyday\\ExperimentData\\experiment_logger.bin"` | MATLAB 側 logger 読み取り先 |
+| `LOGGER_DEFAULT_FILE_PATH` | `"\\\\sunnyday\\ExperimentData\\experiment_logger.bin"` | 互換 alias |
 | `TABLE_MAX_N` | `100000` | テーブル長上限 |
 
 active contract は `351/852/853` のみを使う。`851` は discovery 用にローカルで明示指定する場合だけ扱う。
@@ -165,6 +169,10 @@ active contract は `351/852/853` のみを使う。`851` は discovery 用に�
 ## 9. ルートスクリプト
 
 各ルートスクリプトは `restoredefaultpath` / `genpath` を持たず、startup で復元された PATH を前提にする。
+
+学生実験用の `matlab/experiment/exp0n_*.m` は Live Editor 用 `.m` を正本にする。
+学生が調整する `Controller` / `Chirp` / 軌道条件はファイル上部に集約し、ローカル関数は置かない。
+共通処理は `experiment.waveform` / `experiment.controller` / `experiment.analysis` / `experiment.plot` / `experiment.io` / `experiment.exp0n` に置く。
 
 | スクリプト | 位置づけ |
 |---|---|

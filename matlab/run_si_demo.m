@@ -7,10 +7,10 @@
 %    - SIL の current branch では motor_velocity が未配線のため対象外
 %    - f1 は Nyquist 未満にクランプして使用する
 
-sys = config.SystemConfig;
+sys = config.SystemConfig.current();
 cfg = experiment.ExperimentConfig.defaults();
 logger_file_glob = "*.bin";
-logger_dir = string(fileparts(char(sys.LOGGER_DEFAULT_FILE_PATH)));
+logger_dir = string(fileparts(char(sys.LOGGER_HOST_FILE_PATH)));
 
 %% SI parameters (mirrors old temp.md flow)
 Ts = 1 / cfg.task_rate_hz;

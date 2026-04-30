@@ -9,11 +9,20 @@ classdef TestSystemConfig < matlab.unittest.TestCase
       testCase.verifyEqual(sys.TASK_RATE_HZ, 8000);
       testCase.verifyEqual(sys.TABLE_MAX_N, 100000);
       testCase.verifyEqual(sys.LOGGER_RELEASE_TIMEOUT_S, 5.0);
+      testCase.verifyEqual(sys.LOGGER_TARGET_FILE_PATH, "C:\ExperimentData\experiment_logger.bin");
+      testCase.verifyEqual(sys.LOGGER_HOST_FILE_PATH, "\\sunnyday\ExperimentData\experiment_logger.bin");
     end
 
     function taskDtNsReturnsOneEighthMsInNanoseconds(testCase)
-      dt = config.SystemConfig.task_dt_ns();
+      dt = config.SystemConfig.task_dt_ns("use_local", false);
       testCase.verifyEqual(dt, uint64(125000));
+    end
+
+    function currentFallsBackToRepositoryDefaults(testCase)
+      sys = config.SystemConfig.current("use_local", false);
+      testCase.verifyEqual(sys.AMS_NET_ID, "192.168.10.3.1.1");
+      testCase.verifyEqual(sys.TASK_RATE_HZ, 8000);
+      testCase.verifyEqual(sys.LOGGER_DEFAULT_FILE_PATH, sys.LOGGER_HOST_FILE_PATH);
     end
 
     function toStructReturnsAllConstants(testCase)
@@ -28,6 +37,8 @@ classdef TestSystemConfig < matlab.unittest.TestCase
       testCase.verifyTrue(isfield(s, 'MODE_FLAGS_SYMBOL'));
       testCase.verifyTrue(isfield(s, 'LOGGER_FILE_RELEASED_SYMBOL'));
       testCase.verifyTrue(isfield(s, 'LOGGER_ERROR_CODE_SYMBOL'));
+      testCase.verifyTrue(isfield(s, 'LOGGER_TARGET_FILE_PATH'));
+      testCase.verifyTrue(isfield(s, 'LOGGER_HOST_FILE_PATH'));
       testCase.verifyTrue(isfield(s, 'TABLE_MAX_N'));
       testCase.verifyEqual(s.SEQ_PORT, 853);
       testCase.verifyFalse(isfield(s, 'DRIVER_PORT'));

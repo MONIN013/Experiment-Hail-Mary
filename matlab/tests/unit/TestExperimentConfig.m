@@ -2,7 +2,7 @@ classdef TestExperimentConfig < matlab.unittest.TestCase
   methods (Test)
     function defaultsUseSystemConfig(testCase)
       cfg = experiment.ExperimentConfig.defaults();
-      sys = config.SystemConfig;
+      sys = config.SystemConfig.current();
       testCase.verifyEqual(string(cfg.ams_net_id), sys.AMS_NET_ID);
       testCase.verifyEqual(cfg.seq_port, double(sys.SEQ_PORT));
       testCase.verifyEqual(cfg.control_port, double(sys.CONTROL_PORT));
