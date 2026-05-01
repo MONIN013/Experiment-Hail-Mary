@@ -24,11 +24,10 @@ repeat_count = 1;
 hold_margin_s = 1.0;
 %%
 %[text] ## 環境読み込み
-sys = config.SystemConfig.current();
 cfg = experiment.ExperimentConfig.defaults();
 logger_file_glob = "*.bin";
-logger_dir = string(fileparts(char(sys.LOGGER_HOST_FILE_PATH)));
-Ts = 1 / cfg.task_rate_hz;
+logger_dir = string(fileparts(char(cfg.env.logger_host_file_path)));
+Ts = 1 / cfg.env.task_rate_hz;
 %%
 %[text] ## 制御器設計
 K_cont = pid(Kp, Ki, Kd, Tf);
@@ -95,7 +94,7 @@ status_text.logger_line = sprintf("loggerDir=%s\n", logger_dir);
 conn = experiment.ConnectionManager.create(cfg);
 cleanup = onCleanup(@() conn.session.close());
 status_text.connection_line = sprintf("Connected: SEQ=%d, CTRL=%d, MODULE=%d\n", ...
-  cfg.seq_port, cfg.control_port, cfg.module_port);
+  cfg.env.seq_port, cfg.env.control_port, cfg.env.module_port);
 
 run_out = experiment.ExperimentRunner.run(conn, cfg);
 latest_bin = experiment.io.read_latest_logger_bin(logger_dir, logger_file_glob);
