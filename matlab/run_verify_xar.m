@@ -10,14 +10,14 @@
 %
 %  参照: docs/MatlabSpec.md §7.3 / §8
 
-sys = config.SystemConfig.current();
+env = config.EnvironmentConfig.current();
 
-ports = [sys.CONTROL_PORT, sys.SEQ_PORT, sys.MODULE_PORT];
+ports = [env.control_port, env.seq_port, env.module_port];
 results = {};
 n_pass = 0;
 n_fail = 0;
 
-fprintf("=== XAR Verification: %s ===\n", char(sys.AMS_NET_ID));
+fprintf("=== XAR Verification: %s ===\n", char(env.ams_net_id));
 fprintf("Ports: %s\n\n", strjoin(string(ports), ", "));
 
 %% 1. ADS 接続テスト
@@ -27,7 +27,7 @@ for k = 1:numel(ports)
   name = sprintf("ADS connect port %d", port);
   try
     tr = twincat_ads.AdsTransport();
-    tr.connect(char(sys.AMS_NET_ID), port);
+    tr.connect(char(env.ams_net_id), port);
     transports{k} = tr;
     results = add_result(results, name, true, "");
     n_pass = n_pass + 1;
@@ -43,7 +43,7 @@ cleanup = onCleanup(@() disconnect_all(transports));
 name = "Symbol discovery (all ports)";
 try
   [t_ports, t_symbols] = twincat_ads.SymbolBrowser.discover_ports_and_symbols( ...
-    char(sys.AMS_NET_ID), ports, ...
+    char(env.ams_net_id), ports, ...
     "connect_timeout_ms", 2000, ...
     "top_level_only", false, ...
     "force_reload", true);
@@ -57,10 +57,10 @@ catch e
 end
 
 %% 3. PLC 必須シンボルの存在
-seq = find_transport(transports, ports, sys.SEQ_PORT);
+plc_symbols = experiment.RuntimeSymbols.from_defaults();
+seq = find_transport(transports, ports, env.seq_port);
 if ~isempty(seq)
-  plc_symbols = experiment.RuntimeSymbols.from_defaults();
-  name = "PLC required symbols (port " + string(sys.SEQ_PORT) + ")";
+  name = "PLC required symbols (port " + string(env.seq_port) + ")";
   try
     twincat_ads.SymbolBrowser.validate_symbols(seq, plc_symbols.plcRequiredProbes);
     results = add_result(results, char(name), true, sprintf("%d probes OK", size(plc_symbols.plcRequiredProbes, 1)));
@@ -74,11 +74,27 @@ else
   n_fail = n_fail + 1;
 end
 
+ctrl = find_transport(transports, ports, env.control_port);
+if ~isempty(ctrl)
+  name = "ModeManager symbols (port " + string(env.control_port) + ")";
+  try
+    twincat_ads.SymbolBrowser.validate_symbols(ctrl, plc_symbols.modeRequiredProbes);
+    results = add_result(results, char(name), true, sprintf("%d probes OK", size(plc_symbols.modeRequiredProbes, 1)));
+    n_pass = n_pass + 1;
+  catch e
+    results = add_result(results, char(name), false, e.message);
+    n_fail = n_fail + 1;
+  end
+else
+  results = add_result(results, "ModeManager symbols", false, "CONTROL transport unavailable");
+  n_fail = n_fail + 1;
+end
+
 %% 4. Controller パラメータシンボル
-mod = find_transport(transports, ports, sys.MODULE_PORT);
+mod = find_transport(transports, ports, env.module_port);
 if ~isempty(mod)
-  ctrl_symbols = experiment.RuntimeSymbols.from_controller_prefix(char(sys.CTRL_PREFIX));
-  name = "Controller param symbols (port " + string(sys.MODULE_PORT) + ")";
+  ctrl_symbols = experiment.RuntimeSymbols.from_controller_prefix(char(env.controller_prefix));
+  name = "Controller param symbols (port " + string(env.module_port) + ")";
   try
     twincat_ads.SymbolBrowser.validate_symbols(mod, ctrl_symbols.controllerRequiredProbes);
     results = add_result(results, char(name), true, sprintf("%d probes OK", size(ctrl_symbols.controllerRequiredProbes, 1)));
@@ -95,8 +111,8 @@ end
 %% 5. 基本スカラー読み取り
 t = twincat_ads.AdsTransport.net_types();
 scalar_checks = {
-  sys.SEQ_PORT,     "GVL_SEQ.tableLen",          t.u32,    "tableLen"
-  sys.CONTROL_PORT, "GVL_MODE.experimentState",   t.u32,    "experimentState"
+  env.seq_port,     "GVL_SEQ.tableLen",          t.u32,    "tableLen"
+  env.control_port, "GVL_MODE.experimentState",   t.u32,    "experimentState"
 };
 for k = 1:size(scalar_checks, 1)
   port = scalar_checks{k, 1};
@@ -122,7 +138,7 @@ end
 
 %% 6. Controller パラメータ読み出し
 if ~isempty(mod)
-  ctrl_sym = experiment.RuntimeSymbols.from_controller_prefix(char(sys.CTRL_PREFIX));
+  ctrl_sym = experiment.RuntimeSymbols.from_controller_prefix(char(env.controller_prefix));
   param_keys = {"pidB0", "leadB0", "notchB0", "resoB0", "enablePid"};
   for k = 1:numel(param_keys)
     key = param_keys{k};
