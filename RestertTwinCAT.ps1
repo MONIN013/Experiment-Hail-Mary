@@ -7,7 +7,7 @@ param(
     [switch]$RestartTwinCAT = $true
 )
 
-
+# Execute this script after building the solution in Visual Studio 2019 to sync the active configuration and optionally restart the TwinCAT runtime.
 # powershell -NoProfile -ExecutionPolicy Bypass -File .\RestertTwinCAT.ps1
 
 
