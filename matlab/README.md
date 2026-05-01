@@ -19,7 +19,7 @@ run('matlab/setup_matlab_environment.m')
 ```
 
 起動時に追加される path は `matlab/` と `matlab/experiment/` の 2 本だけで、`genpath` は使わない。
-`matlab/+config/LocalSystemConfig.m` は setup が生成する PC ごとの設定で、Git 管理しない。
+`matlab/+config/LocalEnvironmentConfig.m` は setup が生成する PC ごとの設定で、Git 管理しない。
 再探索が必要な場合だけ以下を実行する。
 
 ```matlab
@@ -32,10 +32,10 @@ config.MatlabEnvironment.setup("Reconfigure", true)
 
 | API | 役割 |
 |---|---|
-| `config.SystemConfig.current()` | ローカル設定を反映した環境固定値 |
+| `config.EnvironmentConfig.current()` | ローカル設定を反映した環境固定値 |
 | `experiment.ConnectionManager` | `AdsSession` ベースの接続構築 |
 | `experiment.ExperimentRunner` | 実験実行と logger 回収 |
-| `experiment.ExperimentConfig` | 実験実行の主 runtime config |
+| `experiment.ExperimentConfig` | 実験実行の主 runtime config (`cfg.env` に環境 snapshot を内包) |
 | `experiment.ControllerConfig` | ControllerCore パラメータ |
 | `config.MatlabEnvironment` | startup / path cache / local config 管理 |
 | `virtualMotor.PlantConfig` | VirtualMotorCore パラメータ |
@@ -130,6 +130,6 @@ run('matlab/tests/run_tests.m')
 * `tests/unit/TestExperimentRunner.m`
 * `tests/unit/TestPreloadEval.m`
 * `tests/unit/TestRunPositionCommandDemoConfig.m`
-* `tests/unit/TestSystemConfig.m`
+* `tests/unit/TestEnvironmentConfig.m`
 * `tests/contract/TestAdsSession.m`
 * `tests/contract/TestTransportContract.m`

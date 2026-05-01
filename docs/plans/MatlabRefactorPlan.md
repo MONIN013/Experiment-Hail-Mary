@@ -125,7 +125,7 @@ experiment.ExperimentConfig
   static methods:
     from_varargin(...) → フラットname-value引数から構築（後方互換）
     from_struct(s) → struct から構築
-    defaults() → SystemConfig からデフォルト値充填
+    defaults() → EnvironmentConfig からデフォルト値充填
 ```
 
 - **注意**: `RunConfig` と `PositionCommandConfig` は deprecated にし、`ExperimentConfig` への移行ブリッジを提供
@@ -191,10 +191,10 @@ experiment.ExperimentConfig
 
 ```
 static create(opts) → struct(session, seq, ctrl, module)
-  - AdsSession を作成し、SystemConfig のポート定義で接続
-  - seq    = session.transport(SEQ_PORT)
-  - ctrl   = session.transport(CONTROL_PORT)
-  - module = session.transport(MODULE_PORT)
+  - AdsSession を作成し、EnvironmentConfig のポート定義で接続
+  - seq    = session.transport(env.seq_port)
+  - ctrl   = session.transport(env.control_port)
+  - module = session.transport(env.module_port)
   - cleanup = onCleanup で session.close()
 
 static create_plc_only(opts) → struct(session, seq, ctrl)
@@ -238,7 +238,7 @@ methods (Static):
 cfg = experiment.ExperimentConfig.defaults();
 cfg.plant = experiment.PlantConfig(m=0.02, d=0.2, rated_current=1.2, tau_limit=2.4, vel_limit=2*pi*60);
 cfg.controller = experiment.ControllerConfig.p_only(1.0);
-cfg.ref_profile = experiment.waveform.step(0.25, 1.0, cfg.task_rate_hz, "pre_step_s", 1.0);
+cfg.ref_profile = experiment.waveform.step(0.25, 1.0, cfg.env.task_rate_hz, "pre_step_s", 1.0);
 cfg.repeat_count = 1;
 
 conn = experiment.ConnectionManager.create();
@@ -258,8 +258,8 @@ FF (フィードフォワード) を使用するデモ:
 cfg = experiment.ExperimentConfig.defaults();
 cfg.plant = experiment.PlantConfig(m=0.02, d=0.2, rated_current=1.2);
 cfg.controller = experiment.ControllerConfig.p_only(1.0);
-cfg.ref_profile = experiment.waveform.sine(0.1, 2.0, 5.0, cfg.task_rate_hz);
-cfg.ff_profile = compute_ff_from_ref(cfg.ref_profile, cfg.plant, cfg.task_rate_hz);
+cfg.ref_profile = experiment.waveform.sine(0.1, 2.0, 5.0, cfg.env.task_rate_hz);
+cfg.ff_profile = compute_ff_from_ref(cfg.ref_profile, cfg.plant, cfg.env.task_rate_hz);
 % ↑ 加速度補償: ff = m * d²ref/dt² (離散微分)
 
 conn = experiment.ConnectionManager.create();
@@ -276,8 +276,8 @@ experiment.plot.waveform_comparison(out);
 cfg = experiment.ExperimentConfig.defaults();
 cfg.plant = experiment.PlantConfig(m=0.02, d=0.2, rated_current=1.2);
 cfg.controller = experiment.ControllerConfig.p_only(1.0);
-cfg.ref_profile = experiment.waveform.constant(0.0, 5.0, cfg.task_rate_hz);
-cfg.dist_profile = experiment.waveform.step(0.5, 3.0, cfg.task_rate_hz, "pre_step_s", 1.0);
+cfg.ref_profile = experiment.waveform.constant(0.0, 5.0, cfg.env.task_rate_hz);
+cfg.dist_profile = experiment.waveform.step(0.5, 3.0, cfg.env.task_rate_hz, "pre_step_s", 1.0);
 % ↑ 静止状態にステップ外乱を注入
 
 conn = experiment.ConnectionManager.create();
@@ -328,7 +328,7 @@ experiment.plot.current_signals(out);
 ### 変更対象 (既存)
 - `matlab/+twincat_ads/IAdsTransport.m` — batch API追加 (Step 1.3)
 - `matlab/+twincat_ads/AdsTransport.m` — 型拡充 + batch実装 (Step 1.1, 1.3)
-- `matlab/+experiment/SystemConfig.m` — 軽微更新 (Step 2.2)
+- `matlab/+config/EnvironmentConfig.m` — 環境固定値 (Step 2.2)
 - `matlab/+experiment/preload_eval.m` — pre/post_roll 除去 (Step 5.2)
 - `matlab/+experiment/RunConfig.m` — deprecated化 (Step 5.3)
 - `matlab/+experiment/PositionCommandConfig.m` — deprecated化 (Step 5.3)

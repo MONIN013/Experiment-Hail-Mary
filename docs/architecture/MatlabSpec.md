@@ -38,11 +38,11 @@ MATLAB 層は **実験統括・パラメータ設定・ログ取得・解析** �
 
 | クラス / 関数 | 役割 |
 |---|---|
-| `config.SystemConfig.current()` | ローカル設定を反映した環境固定値 |
+| `config.EnvironmentConfig.current()` | ローカル設定を反映した環境固定値 |
 | `config.MatlabEnvironment` | startup / path cache / local config の管理 |
 | `experiment.ConnectionManager` | `AdsSession` を使った transport 構築 |
 | `experiment.ExperimentRunner` | 実験実行フロー本体 |
-| `experiment.ExperimentConfig` | 実験実行の主 runtime config |
+| `experiment.ExperimentConfig` | 実験実行の主 runtime config (`cfg.env` に環境 snapshot を内包) |
 | `experiment.ControllerConfig` | ControllerCore 用の 4 段 biquad 設定 |
 | `virtualMotor.PlantConfig` | VirtualMotorCore 用の物理パラメータ |
 | `virtualMotor.writeParams` | VirtualMotorCore parameter write |
@@ -64,13 +64,13 @@ MATLAB 層は **実験統括・パラメータ設定・ログ取得・解析** �
 
 | 所有者 | 責務 |
 |---|---|
-| `config.SystemConfig.current()` | 環境固定値 |
+| `config.EnvironmentConfig.current()` | 環境固定値 |
 | `config.MatlabEnvironment` | startup / path cache 管理 |
-| `experiment.ExperimentConfig` | 実行時設定 |
+| `experiment.ExperimentConfig` | 実行時設定。`defaults()` が `cfg.env` に環境 snapshot を持つ |
 | `experiment.ControllerConfig` | ControllerCore パラメータ |
 | `virtualMotor.PlantConfig` | VM パラメータ |
 
-`experiment.ExperimentConfig` は canonical field のみを受理する。`ams_port` / `control_ams_port` / `module_ams_port` や legacy config object は受理しない。
+`experiment.ExperimentConfig` は canonical runtime field と `env` のみを保持する。互換入力として `ams_net_id` / `seq_port` などの flat 環境値は受けるが、normalize 後は `cfg.env` に折り込む。`ams_port` / `control_ams_port` / `module_ams_port` や legacy config object は受理しない。
 
 ---
 
@@ -80,30 +80,29 @@ MATLAB 層は **実験統括・パラメータ設定・ログ取得・解析** �
 
 * `prefdir/ExperimentHailMaryPathCache.mat` に `matlab_root` と exact `path_entries` を保存する
 * `prefdir/startup.m` の managed block を更新し、次回以降の MATLAB 起動で cache を読む
-* `matlab/+config/LocalSystemConfig.m` に PC ごとの ADS / logger 設定を生成する
+* `matlab/+config/LocalEnvironmentConfig.m` に PC ごとの ADS / logger 設定を生成する
 * 既存 local config がある場合は再探索しない。再探索は `config.MatlabEnvironment.setup("Reconfigure", true)` のみで行う
 * cache が欠落または stale の場合は探索せず、setup の再実行を警告する
 * 起動時に追加する path は `matlab/` と `matlab/experiment/` の 2 本だけとする
 
 ---
 
-## 6. `SystemConfig` の主要定数
+## 6. `EnvironmentConfig` の主要値
 
 | プロパティ | 値 | 説明 |
 |---|---|---|
-| `AMS_NET_ID` | `"192.168.10.3.1.1"` | XAR の AMS Net ID |
-| `SEQ_PORT` | `853` | ExperimentSequencer |
-| `CONTROL_PORT` | `852` | ModeManager |
-| `MODULE_PORT` | `351` | C++ TcCOM 群 |
-| `TASK_RATE_HZ` | `8000` | `VirtualMotorTask` 周波数 |
-| `CTRL_PREFIX` | `"ControllerCore_Obj1 (Module1)."` | Controller parameter prefix |
-| `MODE_FLAGS_SYMBOL` | `"GVL_MODE.modeFlags"` | start / stop 用 symbol |
-| `LOGGER_FILE_RELEASED_SYMBOL` | `"GVL_MODE.loggerFileReleased"` | logger close 完了 |
-| `LOGGER_ERROR_CODE_SYMBOL` | `"GVL_MODE.loggerErrorCode"` | logger エラー |
-| `LOGGER_TARGET_FILE_PATH` | `"C:\\ExperimentData\\experiment_logger.bin"` | TwinCAT 側 logger 保存先 |
-| `LOGGER_HOST_FILE_PATH` | `"\\\\sunnyday\\ExperimentData\\experiment_logger.bin"` | MATLAB 側 logger 読み取り先 |
-| `LOGGER_DEFAULT_FILE_PATH` | `"\\\\sunnyday\\ExperimentData\\experiment_logger.bin"` | 互換 alias |
-| `TABLE_MAX_N` | `100000` | テーブル長上限 |
+| `ams_net_id` | `"192.168.10.3.1.1"` | XAR の AMS Net ID |
+| `seq_port` | `853` | ExperimentSequencer |
+| `control_port` | `852` | ModeManager |
+| `module_port` | `351` | C++ TcCOM 群 |
+| `task_rate_hz` | `8000` | `VirtualMotorTask` 周波数 |
+| `controller_prefix` | `"ControllerCore_Obj1 (Module1)."` | Controller parameter prefix |
+| `logger_target_file_path` | `"C:\\ExperimentData\\experiment_logger.bin"` | TwinCAT 側 logger 保存先 |
+| `logger_host_file_path` | `"\\\\sunnyday\\ExperimentData\\experiment_logger.bin"` | MATLAB 側 logger 読み取り先 |
+| `table_max_n` | `100000` | テーブル長上限 |
+| `logger_release_timeout_s` | `5.0` | logger close 待ち既定値 |
+
+`GVL_MODE.*` などの fixed symbol contract は `experiment.RuntimeSymbols` / `experiment.ModeManagerControl` が正本であり、environment config には置かない。
 
 active contract は `351/852/853` のみを使う。`851` は discovery 用にローカルで明示指定する場合だけ扱う。
 
@@ -127,6 +126,7 @@ active contract は `351/852/853` のみを使う。`851` は discovery 用に�
 
 * `create(cfg)` は `seq`, `ctrl`, `module` をまとめて返す
 * `create_plc_only(cfg)` は `seq`, `ctrl` だけを返す
+* 接続先 AMS / port は `cfg.env` から取り、戻り値 `conn.env` に同じ snapshot を保持する
 * `from_transports(...)` は既存 transport を runner 契約へ束ねる
 
 ### 7.3 VM parameter write
@@ -203,7 +203,7 @@ run('matlab/tests/run_tests.m')
 | `tests/unit/TestExperimentRunner.m` | 実行フロー本体 |
 | `tests/unit/TestPreloadEval.m` | snake_case raw の replay 評価 |
 | `tests/unit/TestRunPositionCommandDemoConfig.m` | demo の現行設定 |
-| `tests/unit/TestSystemConfig.m` | 環境固定値 |
+| `tests/unit/TestEnvironmentConfig.m` | 環境固定値 |
 | `tests/unit/TestRuntimeSymbols.m` | experiment symbol contract |
 | `tests/unit/TestVirtualMotorSymbols.m` | VM symbol contract |
 | `tests/contract/TestAdsSession.m` | AdsSession 契約 |
