@@ -5,6 +5,7 @@ classdef TestConnectionManager < matlab.unittest.TestCase
         "ref_profile", [1; 2], ...
         "transport_factory", @factory);
       testCase.verifyTrue(isa(conn.seq, "twincat_ads.IAdsTransport"));
+      testCase.verifyTrue(isa(conn.env, "config.EnvironmentConfig"));
       testCase.verifyTrue(conn.seq.connected);
       testCase.verifyTrue(conn.ctrl.connected);
       testCase.verifyTrue(conn.module.connected);

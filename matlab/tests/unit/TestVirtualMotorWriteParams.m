@@ -2,7 +2,8 @@ classdef TestVirtualMotorWriteParams < matlab.unittest.TestCase
   methods (Test)
     function writesAllPlantParametersWithDefaultTaskDt(testCase)
       module = MockAdsTransport();
-      conn = struct("module", module);
+      env = config.EnvironmentConfig.from_struct(struct("task_rate_hz", 1000));
+      conn = struct("module", module, "env", env);
       symbols = virtualMotor.Symbols.from_defaults();
       seed_vm_symbols(module, symbols);
       cfg = virtualMotor.PlantConfig.from_struct(struct( ...
@@ -21,7 +22,7 @@ classdef TestVirtualMotorWriteParams < matlab.unittest.TestCase
       testCase.verifyTrue(any(contains(module.operations, "write_scalar:VirtualMotorCore_Obj1 (Module1).PlantParameter.motor.inertia")));
       testCase.verifyEqual(module.scalarMap(char(symbols.vmParams.motor.inertia)), 1);
       testCase.verifyEqual(module.scalarMap(char(symbols.vmParams.load.velLimit)), 12);
-      testCase.verifyEqual(module.scalarMap(char(symbols.vmParams.taskDtNs)), config.SystemConfig.task_dt_ns());
+      testCase.verifyEqual(module.scalarMap(char(symbols.vmParams.taskDtNs)), uint64(1000000));
     end
   end
 end

@@ -1,14 +1,29 @@
 classdef TestExperimentConfig < matlab.unittest.TestCase
   methods (Test)
-    function defaultsUseSystemConfig(testCase)
+    function defaultsUseEnvironmentConfig(testCase)
       cfg = experiment.ExperimentConfig.defaults();
-      sys = config.SystemConfig.current();
-      testCase.verifyEqual(string(cfg.ams_net_id), sys.AMS_NET_ID);
-      testCase.verifyEqual(cfg.seq_port, double(sys.SEQ_PORT));
-      testCase.verifyEqual(cfg.control_port, double(sys.CONTROL_PORT));
-      testCase.verifyEqual(cfg.module_port, double(sys.MODULE_PORT));
-      testCase.verifyEqual(cfg.logger_release_timeout_s, double(sys.LOGGER_RELEASE_TIMEOUT_S));
+      env = config.EnvironmentConfig.current();
+      testCase.verifyTrue(isa(cfg.env, "config.EnvironmentConfig"));
+      testCase.verifyFalse(isprop(cfg, "ams_net_id"));
+      testCase.verifyFalse(isprop(cfg, "seq_port"));
+      testCase.verifyFalse(isprop(cfg, "task_rate_hz"));
+      testCase.verifyEqual(string(cfg.env.ams_net_id), env.ams_net_id);
+      testCase.verifyEqual(cfg.env.seq_port, double(env.seq_port));
+      testCase.verifyEqual(cfg.env.control_port, double(env.control_port));
+      testCase.verifyEqual(cfg.env.module_port, double(env.module_port));
+      testCase.verifyEqual(cfg.logger_release_timeout_s, double(env.logger_release_timeout_s));
       testCase.verifyFalse(isprop(cfg, "plant"));
+    end
+
+    function flatEnvironmentOverridesFoldIntoEnv(testCase)
+      cfg = experiment.ExperimentConfig.from_varargin( ...
+        "ref_profile", [1; 2], ...
+        "ams_net_id", "9.8.7.6.5.4", ...
+        "task_rate_hz", 4000, ...
+        "controller_param_symbol_prefix", "ControllerX.");
+      testCase.verifyEqual(cfg.env.ams_net_id, "9.8.7.6.5.4");
+      testCase.verifyEqual(cfg.env.task_rate_hz, 4000);
+      testCase.verifyEqual(cfg.env.controller_prefix, "ControllerX.");
     end
 
     function rejectsLegacyAliasesAndRemovedBridgeFiles(testCase)

@@ -9,6 +9,10 @@ classdef TestRuntimeSymbols < matlab.unittest.TestCase
       testCase.verifyFalse(any(probe_names == "GVL_DRV.controlInput"));
       testCase.verifyFalse(any(probe_names == "GVL_DRV.positionRel"));
       testCase.verifyFalse(any(contains(probe_names, "VirtualMotorCore_Obj1")));
+      testCase.verifyFalse(any(startsWith(probe_names, "GVL_MODE.")));
+
+      mode_probe_names = string(s.modeRequiredProbes(:, 1));
+      testCase.verifyTrue(any(mode_probe_names == "GVL_MODE.experimentActive"));
     end
   end
 end

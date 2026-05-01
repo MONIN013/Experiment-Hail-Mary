@@ -12,7 +12,6 @@ classdef TestSymbolBrowserContract < matlab.unittest.TestCase
       transport = MockAdsTransport();
       s = experiment.RuntimeSymbols.from_defaults();
       transport.scalarMap(char(s.reset)) = false;
-      transport.scalarMap(char(s.experimentActive)) = false;
       transport.scalarMap(char(s.tableLen)) = uint32(0);
       transport.scalarMap(char(s.idx)) = uint32(0);
       transport.scalarMap(char(s.repeatCount)) = uint32(1);
@@ -22,6 +21,19 @@ classdef TestSymbolBrowserContract < matlab.unittest.TestCase
       transport.scalarMap(char(s.distValue)) = 0.0;
       testCase.verifyWarningFree( ...
         @()twincat_ads.SymbolBrowser.validate_symbols(transport, s.plcRequiredProbes));
+    end
+
+    function validateModeSymbolsPassesWhenPresent(testCase)
+      transport = MockAdsTransport();
+      s = experiment.RuntimeSymbols.from_defaults();
+      transport.scalarMap(char(s.modeResetReq)) = false;
+      transport.scalarMap(char(s.modeResetAckCounter)) = uint32(0);
+      transport.scalarMap(char(s.hostHeartbeatCounter)) = uint32(0);
+      transport.scalarMap(char(s.experimentActive)) = false;
+      transport.scalarMap(char(s.loggerFileReleased)) = true;
+      transport.scalarMap(char(s.loggerErrorCode)) = uint32(0);
+      testCase.verifyWarningFree( ...
+        @()twincat_ads.SymbolBrowser.validate_symbols(transport, s.modeRequiredProbes));
     end
 
     function collectSymbolsErrorsOnMissingIdentity(testCase)
