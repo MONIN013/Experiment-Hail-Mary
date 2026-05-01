@@ -2,7 +2,8 @@
 %
 %  共有フォルダ上の最新 .bin を既定で読み、概要表示と簡易プロットを行う。
 
-share_dir = "\\sunnyday\ExperimentData";
+env = config.EnvironmentConfig.current();
+share_dir = string(fileparts(char(env.logger_host_file_path)));
 file_glob = "*.bin";
 target_file = "";
 

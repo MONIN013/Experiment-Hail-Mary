@@ -2,8 +2,9 @@
 %
 %  参照: docs/MatlabSpec.md §7.2
 
-ams_net_id = "192.168.10.3.1.1";
-ports = [851 852 853 351];
+env = config.EnvironmentConfig.current();
+ams_net_id = env.ams_net_id;
+ports = unique([851 env.control_port env.seq_port env.module_port], "stable");
 connect_timeout_ms = 1000;
 
 fprintf("[%s] Starting ADS discovery\n", string(datetime("now")));

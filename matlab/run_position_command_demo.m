@@ -3,11 +3,10 @@
 %  P 制御を ControllerCore にロードし、同一ステップ位置指令を
 %  N_REPEAT 回だけ連続再生する。
 
-%% Environment defaults from SystemConfig
-sys = config.SystemConfig.current();
+%% Environment defaults from ExperimentConfig
 cfg = experiment.ExperimentConfig.defaults();
 logger_file_glob = "*.bin";
-logger_dir = string(fileparts(char(sys.LOGGER_HOST_FILE_PATH)));
+logger_dir = string(fileparts(char(cfg.env.logger_host_file_path)));
 
 %% Demo runtime config via ExperimentConfig
 target_position_rad = 0.25;
@@ -19,13 +18,13 @@ Kp = 1.5;
 vm_cfg = virtualMotor.PlantConfig();
 
 %% Derived waveforms for this demo
-step_sample_n = round(step_duration_s * cfg.task_rate_hz);
-pre_step_n = max(1, round(pre_step_s * cfg.task_rate_hz));
+step_sample_n = round(step_duration_s * cfg.env.task_rate_hz);
+pre_step_n = max(1, round(pre_step_s * cfg.env.task_rate_hz));
 if step_sample_n <= 0
   error("experiment:demo:invalid", "step_duration_s must produce at least one sample.");
 end
 sample_n = pre_step_n + step_sample_n;
-per_trial_s = sample_n / cfg.task_rate_hz;
+per_trial_s = sample_n / cfg.env.task_rate_hz;
 cfg.ref_profile = [zeros(pre_step_n, 1); target_position_rad * ones(step_sample_n, 1)];
 cfg.ff_profile = zeros(sample_n, 1);
 cfg.dist_profile = zeros(sample_n, 1);
@@ -38,12 +37,12 @@ cfg.controller = experiment.ControllerConfig.p_only(Kp);
 
 fprintf("=== Position Command Demo (P control, Kp=%g, repeats=%d) ===\n", Kp, N_REPEAT);
 fprintf("Target=%.4f rad, stepDuration=%.3f s, preStep=%.3f s, perTrial=%.3f s, N=%d\n", ...
-  target_position_rad, step_sample_n / cfg.task_rate_hz, pre_step_n / cfg.task_rate_hz, per_trial_s, sample_n);
+  target_position_rad, step_sample_n / cfg.env.task_rate_hz, pre_step_n / cfg.env.task_rate_hz, per_trial_s, sample_n);
 
 %% ADS 接続
 conn = experiment.ConnectionManager.create(cfg);
 cleanup = onCleanup(@() conn.session.close()); 
-fprintf("Connected: SEQ=%d, CTRL=%d, MODULE=%d\n", cfg.seq_port, cfg.control_port, cfg.module_port);
+fprintf("Connected: SEQ=%d, CTRL=%d, MODULE=%d\n", cfg.env.seq_port, cfg.env.control_port, cfg.env.module_port);
 fprintf("Controller: Kp=%.1f (pid_b0), enable_pid=%d\n", Kp, logical(cfg.controller.pid.enable));
 virtualMotor.writeParams(conn, vm_cfg);
 
@@ -96,7 +95,7 @@ n_log = numel(selected.signals.position_act);
 if n_log > 0
   t_log = selected.signals.time_s;
   if isempty(t_log)
-    t_log = (0:n_log-1)' / cfg.task_rate_hz;
+    t_log = (0:n_log-1)' / cfg.env.task_rate_hz;
   end
 
   figure("Name", "P Control Position Demo", "Color", "w");

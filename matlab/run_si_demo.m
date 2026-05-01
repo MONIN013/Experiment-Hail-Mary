@@ -7,13 +7,12 @@
 %    - SIL の current branch では motor_velocity が未配線のため対象外
 %    - f1 は Nyquist 未満にクランプして使用する
 
-sys = config.SystemConfig.current();
 cfg = experiment.ExperimentConfig.defaults();
 logger_file_glob = "*.bin";
-logger_dir = string(fileparts(char(sys.LOGGER_HOST_FILE_PATH)));
+logger_dir = string(fileparts(char(cfg.env.logger_host_file_path)));
 
 %% SI parameters (mirrors old temp.md flow)
-Ts = 1 / cfg.task_rate_hz;
+Ts = 1 / cfg.env.task_rate_hz;
 Tend = 10;
 Tcycle = 10;
 repeat_count = 10;
@@ -83,7 +82,7 @@ fprintf("Samples=%d, cycles=%.2f, loggerDir=%s\n", sample_n, chirp_cfg.cycle_cou
 %% ADS connect
 conn = experiment.ConnectionManager.create(cfg);
 cleanup = onCleanup(@() conn.session.close()); 
-fprintf("Connected: SEQ=%d, CTRL=%d, MODULE=%d\n", cfg.seq_port, cfg.control_port, cfg.module_port);
+fprintf("Connected: SEQ=%d, CTRL=%d, MODULE=%d\n", cfg.env.seq_port, cfg.env.control_port, cfg.env.module_port);
 
 %% Run experiment and read logger
 virtualMotor.writeParams(conn, vm_cfg);
