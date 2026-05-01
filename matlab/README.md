@@ -102,18 +102,24 @@ out = experiment.ExperimentRunner.run(conn, cfg);
 
 ---
 
-## ルートスクリプト
+## 手動ツール
 
 学生実験の入口は `matlab/experiment/exp0n_*.m` の Live Editor 用 `.m` ファイルである。
 学生が調整する値は各ファイル上部の「学生が調整するパラメータ」に集約し、ローカル関数は置かない。
+demo / 検証 / 調査用の手動実行スクリプトは `matlab/tools/` に置き、MATLAB path には追加しない。
+実行時は明示パスで呼び出す。
+
+```matlab
+run('matlab/tools/run_position_command_demo.m')
+```
 
 | スクリプト | 用途 |
 |---|---|
-| `run_position_command_demo.m` | 現行デモ |
-| `run_verify_xar.m` | active contract の検証 |
-| `run_ads_discovery_demo.m` | discovery 補助 |
-| `run_check_logger_bin.m` | logger bin の直接検査 |
-| `run_si_demo.m` | SI デモ |
+| `matlab/tools/run_position_command_demo.m` | 現行デモ |
+| `matlab/tools/run_verify_xar.m` | active contract の検証 |
+| `matlab/tools/run_ads_discovery_demo.m` | discovery 補助 |
+| `matlab/tools/run_check_logger_bin.m` | logger bin の直接検査 |
+| `matlab/tools/run_si_demo.m` | SI デモ |
 
 ---
 

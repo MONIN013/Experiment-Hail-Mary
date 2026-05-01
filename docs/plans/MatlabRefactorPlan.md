@@ -249,7 +249,7 @@ fprintf("Done=%d, RMSE=%.6f\n", out.host.done, out.metrics.input_waveform.rmse);
 ```
 
 - 現在の ~220行 → ~15行
-- **対象**: 新規 `matlab/run_step_response.m`、旧 `run_position_command_demo.m` をdeprecated
+- **対象**: 新規 `matlab/tools/run_step_response.m`、旧 `matlab/tools/run_position_command_demo.m` をdeprecated
 
 ### Step 4.2 — run_ff_demo.m (*Phase 2, 3 依存, Step 4.1 と並行可*)
 FF (フィードフォワード) を使用するデモ:
@@ -267,7 +267,7 @@ out = experiment.ExperimentRunner.run(conn, cfg);
 experiment.plot.waveform_comparison(out);
 ```
 
-- **対象**: 新規 `matlab/run_ff_demo.m`
+- **対象**: 新規 `matlab/tools/run_ff_demo.m`
 
 ### Step 4.3 — run_dist_rejection_demo.m (*Phase 2, 3 依存, Step 4.1 と並行可*)
 外乱抑圧性能テストのデモ:
@@ -285,7 +285,7 @@ out = experiment.ExperimentRunner.run(conn, cfg);
 experiment.plot.current_signals(out);
 ```
 
-- **対象**: 新規 `matlab/run_dist_rejection_demo.m`
+- **対象**: 新規 `matlab/tools/run_dist_rejection_demo.m`
 
 ### Step 4.4 — 既存スクリプトの移行 (*Phase 3 依存*)
 - `run_verify_xar.m` → `ConnectionManager.create()` を使用するよう更新
@@ -334,9 +334,9 @@ experiment.plot.current_signals(out);
 - `matlab/+experiment/PositionCommandConfig.m` — deprecated化 (Step 5.3)
 - `matlab/+experiment/VirtualMotorService.m` — 委譲ラッパー化 (Step 5.3)
 - `matlab/+experiment/send_position_command.m` — 委譲ラッパー化 (Step 5.3)
-- `matlab/run_position_command_demo.m` — deprecated化 (Step 4.1)
-- `matlab/run_verify_xar.m` — ConnectionManager使用に更新 (Step 4.4)
-- `matlab/run_ads_discovery_demo.m` — AdsSession使用に更新 (Step 4.4)
+- `matlab/tools/run_position_command_demo.m` — deprecated化 (Step 4.1)
+- `matlab/tools/run_verify_xar.m` — ConnectionManager使用に更新 (Step 4.4)
+- `matlab/tools/run_ads_discovery_demo.m` — AdsSession使用に更新 (Step 4.4)
 - `matlab/tests/unit/TestPreloadEval.m` — フィクスチャ修正 (Step 5.2)
 
 ### 新規作成
@@ -367,9 +367,9 @@ experiment.plot.current_signals(out);
 - `matlab/+experiment/+plot/time_series.m` (Step 3.3)
 - `matlab/+experiment/+plot/current_signals.m` (Step 3.3)
 - `matlab/+experiment/+plot/waveform_comparison.m` (Step 3.3)
-- `matlab/run_step_response.m` (Step 4.1)
-- `matlab/run_ff_demo.m` (Step 4.2)
-- `matlab/run_dist_rejection_demo.m` (Step 4.3)
+- `matlab/tools/run_step_response.m` (Step 4.1)
+- `matlab/tools/run_ff_demo.m` (Step 4.2)
+- `matlab/tools/run_dist_rejection_demo.m` (Step 4.3)
 - テスト: 8本 (Step 5.1)
 
 ---

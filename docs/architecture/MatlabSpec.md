@@ -166,9 +166,14 @@ active contract は `351/852/853` のみを使う。`851` は discovery 用に�
 
 ---
 
-## 9. ルートスクリプト
+## 9. 手動ツール
 
-各ルートスクリプトは `restoredefaultpath` / `genpath` を持たず、startup で復元された PATH を前提にする。
+各手動ツールは `restoredefaultpath` / `genpath` を持たず、startup で復元された PATH を前提にする。
+`matlab/tools/` は MATLAB path に追加せず、明示パスで実行する。
+
+```matlab
+run('matlab/tools/run_position_command_demo.m')
+```
 
 学生実験用の `matlab/experiment/exp0n_*.m` は Live Editor 用 `.m` を正本にする。
 学生が調整する `Controller` / `Chirp` / 軌道条件はファイル上部に集約し、ローカル関数は置かない。
@@ -176,12 +181,12 @@ active contract は `351/852/853` のみを使う。`851` は discovery 用に�
 
 | スクリプト | 位置づけ |
 |---|---|
-| `run_position_command_demo.m` | `virtualMotor.writeParams` を明示的に使う VM step response demo |
-| `run_si_demo.m` | `virtualMotor.writeParams` を明示的に使う VM デモ |
-| `run_verify_xar.m` | active contract (`852/853/351`) の接続・symbol・読み出し確認 |
-| `run_verify_virtual_motor.m` | VirtualMotorCore parameter symbol の確認 |
-| `run_ads_discovery_demo.m` | discovery 補助。必要なら `851` をローカル指定で probe する |
-| `run_check_logger_bin.m` | logger bin の直接検査 |
+| `matlab/tools/run_position_command_demo.m` | `virtualMotor.writeParams` を明示的に使う VM step response demo |
+| `matlab/tools/run_si_demo.m` | `virtualMotor.writeParams` を明示的に使う VM デモ |
+| `matlab/tools/run_verify_xar.m` | active contract (`852/853/351`) の接続・symbol・読み出し確認 |
+| `matlab/tools/run_verify_virtual_motor.m` | VirtualMotorCore parameter symbol の確認 |
+| `matlab/tools/run_ads_discovery_demo.m` | discovery 補助。必要なら `851` をローカル指定で probe する |
+| `matlab/tools/run_check_logger_bin.m` | logger bin の直接検査 |
 
 ---
 
