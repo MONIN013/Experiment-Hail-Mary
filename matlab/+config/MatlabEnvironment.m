@@ -23,47 +23,59 @@ classdef MatlabEnvironment
         "pref_dir", opts.pref_dir, ...
         "apply_now", opts.apply_now);
 
-      local_file = config.SystemConfig.local_config_file();
+      local_file = config.EnvironmentConfig.local_config_file();
       local_exists = isfile(local_file);
       if local_exists && ~logical(opts.Reconfigure)
-        out.local_config_file = string(local_file);
-        out.local_config_status = "existing";
-        out.system_config = config.SystemConfig.current();
-        fprintf("Local system config already exists: %s\n", local_file);
-        fprintf("Use config.MatlabEnvironment.setup(""Reconfigure"", true) to rediscover.\n");
-        return;
+        if logical(opts.Interactive) && ...
+            config.MatlabEnvironment.confirm_local_environment_reconfigure(local_file)
+          opts.Reconfigure = true;
+        else
+          out.local_config_file = string(local_file);
+          out.local_config_status = "existing";
+          out.environment_config = config.EnvironmentConfig.current();
+          fprintf("Local environment config already exists: %s\n", local_file);
+          fprintf("Use config.MatlabEnvironment.setup(""Reconfigure"", true) to rediscover.\n");
+          return;
+        end
       end
 
-      discovered = config.MatlabEnvironment.discover_system_config(matlab_root);
-      candidate = config.SystemConfig.merge_structs(config.SystemConfig.to_struct(), discovered);
-      candidate = config.SystemConfig.normalize_struct(candidate);
+      discovered = config.MatlabEnvironment.discover_environment_config(matlab_root);
+      defaults = config.EnvironmentConfig.defaults();
+      candidate = config.EnvironmentConfig.from_struct( ...
+        config.EnvironmentConfig.merge_structs(defaults.to_struct(), discovered));
+
+      if logical(opts.Interactive)
+        config.MatlabEnvironment.print_environment_config_candidate( ...
+          candidate, config.MatlabEnvironment.empty_ads_validation());
+        candidate = config.MatlabEnvironment.prompt_environment_config(candidate);
+      end
 
       validation = config.MatlabEnvironment.empty_ads_validation();
       if logical(opts.ValidateAds)
         validation = config.MatlabEnvironment.validate_ads_read_only(candidate);
       end
 
-      config.MatlabEnvironment.print_system_config_candidate(candidate, validation);
+      config.MatlabEnvironment.print_environment_config_candidate(candidate, validation);
       if logical(opts.Interactive)
-        accepted = config.MatlabEnvironment.confirm_local_config_write();
+        accepted = config.MatlabEnvironment.confirm_local_environment_write();
       else
         accepted = true;
       end
 
       out.local_config_file = string(local_file);
-      out.discovered_config = candidate;
+      out.discovered_config = candidate.to_struct();
       out.ads_validation = validation;
       if accepted
-        config.MatlabEnvironment.write_local_system_config(local_file, candidate);
-        clear('config.LocalSystemConfig');
+        config.MatlabEnvironment.write_local_environment_config(local_file, candidate);
+        clear('config.LocalEnvironmentConfig');
         rehash;
         out.local_config_status = "written";
-        out.system_config = config.SystemConfig.current();
-        fprintf("Local system config written: %s\n", local_file);
+        out.environment_config = config.EnvironmentConfig.current();
+        fprintf("Local environment config written: %s\n", local_file);
       else
         out.local_config_status = "skipped";
-        out.system_config = config.SystemConfig.current("use_local", false);
-        fprintf("Local system config was not written.\n");
+        out.environment_config = config.EnvironmentConfig.current("use_local", false);
+        fprintf("Local environment config was not written.\n");
       end
     end
 
@@ -288,7 +300,7 @@ classdef MatlabEnvironment
       message = "ExperimentHailMary MATLAB path cache is missing or stale. Re-run run('matlab/setup_matlab_environment.m').";
     end
 
-    function discovered = discover_system_config(matlab_root)
+    function discovered = discover_environment_config(matlab_root)
       matlab_root = config.MatlabEnvironment.validate_matlab_root(matlab_root);
       repo_root = fileparts(matlab_root);
       preferred = fullfile(repo_root, "ExperimentHailMary.RealMotor.tsproj");
@@ -307,38 +319,37 @@ classdef MatlabEnvironment
       end
 
       source = string(fileread(project_file));
-      discovered.SOURCE_PROJECT_FILE = string(project_file);
       value = config.MatlabEnvironment.first_regex(source, ...
         '<Project[^>]*TargetNetId="([^"]+)"');
       if strlength(value) > 0
-        discovered.AMS_NET_ID = value;
+        discovered.ams_net_id = value;
       end
       value = config.MatlabEnvironment.first_number_regex(source, ...
         'Name="StateMachineControl"[^>]*AmsPort="(\d+)"');
       if ~isnan(value)
-        discovered.CONTROL_PORT = value;
+        discovered.control_port = value;
       end
       value = config.MatlabEnvironment.first_number_regex(source, ...
         'Name="ExperimentSequencer"[^>]*AmsPort="(\d+)"');
       if ~isnan(value)
-        discovered.SEQ_PORT = value;
+        discovered.seq_port = value;
       end
       value = config.MatlabEnvironment.first_number_regex(source, ...
         '<Task[^>]*AmsPort="(\d+)"[^>]*>\s*<Name>VirtualMotorTask</Name>');
       if ~isnan(value)
-        discovered.MODULE_PORT = value;
+        discovered.module_port = value;
       end
 
       task_cycle_ns = config.MatlabEnvironment.first_number_regex(source, ...
         '<Name>VirtualMotorTask</Name>[\s\S]{0,300}?<CycleTime>(\d+)</CycleTime>');
       if ~isnan(task_cycle_ns) && task_cycle_ns > 0
-        discovered.TASK_RATE_HZ = round(1e9 / double(task_cycle_ns));
+        discovered.task_rate_hz = round(1e9 / double(task_cycle_ns));
       end
 
       controller_name = config.MatlabEnvironment.first_regex(source, ...
         '<Name>(ControllerCore_Obj\d+ \(Module1\))</Name>');
       if strlength(controller_name) > 0
-        discovered.CTRL_PREFIX = controller_name + ".";
+        discovered.controller_prefix = controller_name + ".";
       end
 
       target_path = config.MatlabEnvironment.first_regex(source, ...
@@ -348,7 +359,7 @@ classdef MatlabEnvironment
           '<Name>filePath</Name>[\s\S]{0,200}?<!\[CDATA\[(.*?)\]\]>');
       end
       if strlength(target_path) > 0
-        discovered.LOGGER_TARGET_FILE_PATH = target_path;
+        discovered.logger_target_file_path = target_path;
       end
     end
 
@@ -361,13 +372,14 @@ classdef MatlabEnvironment
         "detail", "not requested");
     end
 
-    function validation = validate_ads_read_only(sys)
+    function validation = validate_ads_read_only(env)
       validation = config.MatlabEnvironment.empty_ads_validation();
       validation.requested = true;
       validation.detail = "";
-      ports = [sys.CONTROL_PORT, sys.SEQ_PORT, sys.MODULE_PORT];
+      env = config.EnvironmentConfig.from_struct(env);
+      ports = [env.control_port, env.seq_port, env.module_port];
       try
-        t_ports = twincat_ads.SymbolBrowser.list_ports(char(sys.AMS_NET_ID), ports, ...
+        t_ports = twincat_ads.SymbolBrowser.list_ports(char(env.ams_net_id), ports, ...
           "connect_timeout_ms", 1000);
         validation.ports_ok = all(t_ports.Status == "ok");
         validation.port_table = t_ports;
@@ -385,13 +397,15 @@ classdef MatlabEnvironment
       try
         for k = 1:numel(ports)
           transports{k} = twincat_ads.AdsTransport();
-          transports{k}.connect(char(sys.AMS_NET_ID), ports(k));
+          transports{k}.connect(char(env.ams_net_id), ports(k));
         end
-        seq = transports{ports == sys.SEQ_PORT};
-        module = transports{ports == sys.MODULE_PORT};
+        ctrl = transports{find(ports == env.control_port, 1)};
+        seq = transports{find(ports == env.seq_port, 1)};
+        module = transports{find(ports == env.module_port, 1)};
         plc_symbols = experiment.RuntimeSymbols.from_defaults();
-        ctrl_symbols = experiment.RuntimeSymbols.from_controller_prefix(char(sys.CTRL_PREFIX));
+        ctrl_symbols = experiment.RuntimeSymbols.from_controller_prefix(char(env.controller_prefix));
         twincat_ads.SymbolBrowser.validate_symbols(seq, plc_symbols.plcRequiredProbes);
+        twincat_ads.SymbolBrowser.validate_symbols(ctrl, plc_symbols.modeRequiredProbes);
         twincat_ads.SymbolBrowser.validate_symbols(module, ctrl_symbols.controllerRequiredProbes);
         validation.symbols_ok = true;
         validation.ok = true;
@@ -414,53 +428,111 @@ classdef MatlabEnvironment
       end
     end
 
-    function print_system_config_candidate(sys, validation)
-      fprintf("\n=== ExperimentHailMary system config candidate ===\n");
-      fprintf("AMS_NET_ID              = %s\n", char(sys.AMS_NET_ID));
-      fprintf("SEQ_PORT                = %d\n", sys.SEQ_PORT);
-      fprintf("CONTROL_PORT            = %d\n", sys.CONTROL_PORT);
-      fprintf("MODULE_PORT             = %d\n", sys.MODULE_PORT);
-      fprintf("TASK_RATE_HZ            = %.0f\n", sys.TASK_RATE_HZ);
-      fprintf("CTRL_PREFIX             = %s\n", char(sys.CTRL_PREFIX));
-      fprintf("LOGGER_TARGET_FILE_PATH = %s\n", char(sys.LOGGER_TARGET_FILE_PATH));
-      fprintf("LOGGER_HOST_FILE_PATH   = %s\n", char(sys.LOGGER_HOST_FILE_PATH));
+    function print_environment_config_candidate(env, validation)
+      env = config.EnvironmentConfig.from_struct(env);
+      fprintf("\n=== ExperimentHailMary environment config candidate ===\n");
+      fprintf("ams_net_id              = %s\n", char(env.ams_net_id));
+      fprintf("seq_port                = %d\n", env.seq_port);
+      fprintf("control_port            = %d\n", env.control_port);
+      fprintf("module_port             = %d\n", env.module_port);
+      fprintf("task_rate_hz            = %.0f\n", env.task_rate_hz);
+      fprintf("controller_prefix       = %s\n", char(env.controller_prefix));
+      fprintf("logger_target_file_path = %s\n", char(env.logger_target_file_path));
+      fprintf("logger_host_file_path   = %s\n", char(env.logger_host_file_path));
       if validation.requested
         fprintf("ADS validation          = %s\n", char(string(validation.detail)));
       end
       fprintf("\n");
     end
 
-    function accepted = confirm_local_config_write()
-      answer = input("Write this local system config? [Y/n]: ", "s");
+    function out = prompt_environment_config(env)
+      env = config.EnvironmentConfig.from_struct(env);
+      values = env.to_struct();
+      fields = config.EnvironmentConfig.field_names();
+
+      fprintf("Edit local environment config. Press Enter to keep the current value.\n");
+      for k = 1:numel(fields)
+        key = char(fields(k));
+        while true
+          current = values.(key);
+          prompt = sprintf("%s [%s]: ", key, ...
+            char(config.MatlabEnvironment.prompt_value(current)));
+          answer = strtrim(string(input(prompt, "s")));
+          if strlength(answer) == 0
+            break;
+          end
+
+          candidate = values;
+          try
+            candidate.(key) = config.MatlabEnvironment.parse_environment_prompt_value( ...
+              key, answer, current);
+            candidate_env = config.EnvironmentConfig.from_struct(candidate);
+            values = candidate_env.to_struct();
+            break;
+          catch e
+            fprintf("Invalid %s: %s\n", key, e.message);
+          end
+        end
+      end
+
+      out = config.EnvironmentConfig.from_struct(values);
+    end
+
+    function value = parse_environment_prompt_value(key, text, current_value)
+      if isnumeric(current_value)
+        value = str2double(text);
+        if ~(isnumeric(value) && isscalar(value) && isfinite(value))
+          error("config:MatlabEnvironment:invalidPromptValue", ...
+            "%s must be numeric.", key);
+        end
+      else
+        value = string(text);
+      end
+    end
+
+    function out = prompt_value(value)
+      if isnumeric(value)
+        out = string(sprintf("%.15g", double(value)));
+      else
+        out = string(value);
+      end
+    end
+
+    function accepted = confirm_local_environment_write()
+      answer = input("Write this local environment config? [Y/n]: ", "s");
       answer = lower(strtrim(string(answer)));
       accepted = answer == "" || answer == "y" || answer == "yes";
     end
 
-    function write_local_system_config(local_file, sys)
+    function accepted = confirm_local_environment_reconfigure(local_file)
+      fprintf("Local environment config already exists: %s\n", local_file);
+      answer = input("Reconfigure local environment config now? [y/N]: ", "s");
+      answer = lower(strtrim(string(answer)));
+      accepted = answer == "y" || answer == "yes";
+    end
+
+    function write_local_environment_config(local_file, env)
+      env = config.EnvironmentConfig.from_struct(env);
       lines = {
-        "classdef LocalSystemConfig"
-        "% LocalSystemConfig  Machine-local generated system configuration."
+        "classdef LocalEnvironmentConfig"
+        "% LocalEnvironmentConfig  Machine-local generated environment configuration."
         "% Generated by config.MatlabEnvironment.setup. Do not commit this file."
         "  properties (Constant)"
-        "    AMS_NET_ID = " + config.MatlabEnvironment.string_literal(sys.AMS_NET_ID)
-        "    SEQ_PORT = " + string(round(sys.SEQ_PORT))
-        "    CONTROL_PORT = " + string(round(sys.CONTROL_PORT))
-        "    MODULE_PORT = " + string(round(sys.MODULE_PORT))
-        "    TASK_RATE_HZ = " + string(round(sys.TASK_RATE_HZ))
-        "    CTRL_PREFIX = " + config.MatlabEnvironment.string_literal(sys.CTRL_PREFIX)
-        "    MODE_FLAGS_SYMBOL = " + config.MatlabEnvironment.string_literal(sys.MODE_FLAGS_SYMBOL)
-        "    LOGGER_FILE_RELEASED_SYMBOL = " + config.MatlabEnvironment.string_literal(sys.LOGGER_FILE_RELEASED_SYMBOL)
-        "    LOGGER_ERROR_CODE_SYMBOL = " + config.MatlabEnvironment.string_literal(sys.LOGGER_ERROR_CODE_SYMBOL)
-        "    LOGGER_TARGET_FILE_PATH = " + config.MatlabEnvironment.string_literal(sys.LOGGER_TARGET_FILE_PATH)
-        "    LOGGER_HOST_FILE_PATH = " + config.MatlabEnvironment.string_literal(sys.LOGGER_HOST_FILE_PATH)
-        "    LOGGER_DEFAULT_FILE_PATH = " + config.MatlabEnvironment.string_literal(sys.LOGGER_HOST_FILE_PATH)
-        "    TABLE_MAX_N = " + string(round(sys.TABLE_MAX_N))
-        "    LOGGER_RELEASE_TIMEOUT_S = " + string(double(sys.LOGGER_RELEASE_TIMEOUT_S))
+        "    ams_net_id = " + config.MatlabEnvironment.string_literal(env.ams_net_id)
+        "    seq_port = " + string(round(env.seq_port))
+        "    control_port = " + string(round(env.control_port))
+        "    module_port = " + string(round(env.module_port))
+        "    task_rate_hz = " + string(round(env.task_rate_hz))
+        "    controller_prefix = " + config.MatlabEnvironment.string_literal(env.controller_prefix)
+        "    logger_target_file_path = " + config.MatlabEnvironment.string_literal(env.logger_target_file_path)
+        "    logger_host_file_path = " + config.MatlabEnvironment.string_literal(env.logger_host_file_path)
+        "    table_max_n = " + string(round(env.table_max_n))
+        "    logger_release_timeout_s = " + string(double(env.logger_release_timeout_s))
         "  end"
         ""
         "  methods (Static)"
         "    function s = to_struct()"
-        "      mc = ?config.LocalSystemConfig;"
+        "      mc = ?config.LocalEnvironmentConfig;"
         "      props = mc.PropertyList;"
         "      s = struct();"
         "      for k = 1:numel(props)"

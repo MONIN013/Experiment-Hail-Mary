@@ -47,3 +47,4 @@ LineIDs.dbg.bak
 # MATLAB local/editor artifacts
 *.asv
 matlab/+config/LocalSystemConfig.m
+matlab/+config/LocalEnvironmentConfig.m
