@@ -3,7 +3,7 @@ function write_dist_table(transport, dist_profile, expected_len)
 %
 %   experiment.write_dist_table(transport, dist_profile, expected_len)
 %
-%   transport    — 接続済み twincat_ads.IAdsTransport (Port = SystemConfig.SEQ_PORT)
+%   transport    — 接続済み twincat_ads.IAdsTransport (env.seq_port)
 %   dist_profile — double 列ベクトル [N×1]
 %
 %   書込み先:

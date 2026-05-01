@@ -3,7 +3,7 @@ function write_ref_table(transport, ref_profile, table_max_n)
 %
 %   experiment.write_ref_table(transport, ref_profile, table_max_n)
 %
-%   transport    — 接続済み twincat_ads.IAdsTransport (Port = SystemConfig.SEQ_PORT)
+%   transport    — 接続済み twincat_ads.IAdsTransport (env.seq_port)
 %   ref_profile  — double 列ベクトル [N×1]
 %
 %   書込み先:

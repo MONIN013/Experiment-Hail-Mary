@@ -52,11 +52,18 @@ end
 end
 
 function task_rate_hz = resolve_task_rate_hz(cfg)
-if isstruct(cfg) && isfield(cfg, "task_rate_hz")
+if isa(cfg, "experiment.ExperimentConfig")
+  task_rate_hz = double(cfg.env.task_rate_hz);
+elseif isa(cfg, "config.EnvironmentConfig")
+  task_rate_hz = double(cfg.task_rate_hz);
+elseif isstruct(cfg) && isfield(cfg, "env")
+  env = config.EnvironmentConfig.from_struct(cfg.env);
+  task_rate_hz = double(env.task_rate_hz);
+elseif isstruct(cfg) && isfield(cfg, "task_rate_hz")
   task_rate_hz = double(cfg.task_rate_hz);
 else
-  sys = config.SystemConfig.current();
-  task_rate_hz = double(sys.TASK_RATE_HZ);
+  env = config.EnvironmentConfig.current();
+  task_rate_hz = double(env.task_rate_hz);
 end
 end
 

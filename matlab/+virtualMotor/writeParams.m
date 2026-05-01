@@ -5,8 +5,9 @@ if ~isstruct(conn)
     "Connection must be a struct returned by ConnectionManager.");
 end
 
+env = resolve_environment(conn);
 parser = inputParser;
-parser.addParameter("taskDtNs", config.SystemConfig.task_dt_ns(), @(x) isnumeric(x) && isscalar(x) && x > 0);
+parser.addParameter("taskDtNs", env.task_dt_ns(), @(x) isnumeric(x) && isscalar(x) && x > 0);
 parser.addParameter("validateSymbols", true, @(x) islogical(x) || isnumeric(x));
 parser.parse(varargin{:});
 opts = parser.Results;
@@ -49,4 +50,12 @@ if ~isfield(conn, "module") || isempty(conn.module) || ~isa(conn.module, "twinca
     "Connection is missing a module transport.");
 end
 module_transport = conn.module;
+end
+
+function env = resolve_environment(conn)
+if isstruct(conn) && isfield(conn, "env") && ~isempty(conn.env)
+  env = config.EnvironmentConfig.from_struct(conn.env);
+else
+  env = config.EnvironmentConfig.current();
+end
 end

@@ -3,7 +3,7 @@ function write_controller_params(transport, controller_param_symbol_prefix, para
 %
 %   experiment.write_controller_params(transport, controller_param_symbol_prefix, params)
 %
-%   transport — 接続済み twincat_ads.IAdsTransport (Port = SystemConfig.MODULE_PORT)
+%   transport — 接続済み twincat_ads.IAdsTransport (env.module_port)
 %   controller_param_symbol_prefix — ControllerCore prefix
 %   params    — struct with fields:
 %               pid_b0..pid_a2, lead_b0..lead_a2, notch_b0..notch_a2, reso_b0..reso_a2,
