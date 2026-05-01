@@ -1,7 +1,7 @@
 classdef TestRunPositionCommandDemoConfig < matlab.unittest.TestCase
   methods (Test)
     function demoUsesExperimentConfigAndEnvironmentLoggerPath(testCase)
-      script_path = fullfile(fileparts(fileparts(fileparts(mfilename("fullpath")))), "run_position_command_demo.m");
+      script_path = fullfile(fileparts(fileparts(fileparts(mfilename("fullpath")))), "tools", "run_position_command_demo.m");
       source = string(fileread(script_path));
 
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
@@ -22,7 +22,7 @@ classdef TestRunPositionCommandDemoConfig < matlab.unittest.TestCase
     end
 
     function demoAssignsPlantControllerAndRuntimeFieldsOnCfg(testCase)
-      script_path = fullfile(fileparts(fileparts(fileparts(mfilename("fullpath")))), "run_position_command_demo.m");
+      script_path = fullfile(fileparts(fileparts(fileparts(mfilename("fullpath")))), "tools", "run_position_command_demo.m");
       source = string(fileread(script_path));
 
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...

@@ -2,6 +2,11 @@
 %
 %  共有フォルダ上の最新 .bin を既定で読み、概要表示と簡易プロットを行う。
 
+tool_file = mfilename("fullpath");
+matlab_root = fileparts(fileparts(tool_file));
+addpath(matlab_root, fullfile(matlab_root, "experiment"));
+clear tool_file matlab_root;
+
 env = config.EnvironmentConfig.current();
 share_dir = string(fileparts(char(env.logger_host_file_path)));
 file_glob = "*.bin";

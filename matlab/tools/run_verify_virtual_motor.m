@@ -2,6 +2,11 @@
 %
 %  VirtualMotorCore の parameter symbols が active contract と一致するかを確認する。
 
+tool_file = mfilename("fullpath");
+matlab_root = fileparts(fileparts(tool_file));
+addpath(matlab_root, fullfile(matlab_root, "experiment"));
+clear tool_file matlab_root;
+
 cfg = experiment.ExperimentConfig.defaults();
 conn = experiment.ConnectionManager.create(cfg);
 cleanup = onCleanup(@() conn.session.close()); 

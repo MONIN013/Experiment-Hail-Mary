@@ -3,6 +3,11 @@
 %  P 制御を ControllerCore にロードし、同一ステップ位置指令を
 %  N_REPEAT 回だけ連続再生する。
 
+tool_file = mfilename("fullpath");
+matlab_root = fileparts(fileparts(tool_file));
+addpath(matlab_root, fullfile(matlab_root, "experiment"));
+clear tool_file matlab_root;
+
 %% Environment defaults from ExperimentConfig
 cfg = experiment.ExperimentConfig.defaults();
 logger_file_glob = "*.bin";

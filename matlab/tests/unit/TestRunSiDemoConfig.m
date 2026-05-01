@@ -1,7 +1,7 @@
 classdef TestRunSiDemoConfig < matlab.unittest.TestCase
   methods (Test)
     function demoUsesExperimentRunnerAndAnalysisHelpers(testCase)
-      script_path = fullfile(fileparts(fileparts(fileparts(mfilename("fullpath")))), "run_si_demo.m");
+      script_path = fullfile(fileparts(fileparts(fileparts(mfilename("fullpath")))), "tools", "run_si_demo.m");
       source = string(fileread(script_path));
 
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
@@ -21,7 +21,7 @@ classdef TestRunSiDemoConfig < matlab.unittest.TestCase
     end
 
     function demoPinsSiSpecificProfiles(testCase)
-      script_path = fullfile(fileparts(fileparts(fileparts(mfilename("fullpath")))), "run_si_demo.m");
+      script_path = fullfile(fileparts(fileparts(fileparts(mfilename("fullpath")))), "tools", "run_si_demo.m");
       source = string(fileread(script_path));
 
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...

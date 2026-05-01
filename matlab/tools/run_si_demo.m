@@ -7,6 +7,11 @@
 %    - SIL の current branch では motor_velocity が未配線のため対象外
 %    - f1 は Nyquist 未満にクランプして使用する
 
+tool_file = mfilename("fullpath");
+matlab_root = fileparts(fileparts(tool_file));
+addpath(matlab_root, fullfile(matlab_root, "experiment"));
+clear tool_file matlab_root;
+
 cfg = experiment.ExperimentConfig.defaults();
 logger_file_glob = "*.bin";
 logger_dir = string(fileparts(char(cfg.env.logger_host_file_path)));

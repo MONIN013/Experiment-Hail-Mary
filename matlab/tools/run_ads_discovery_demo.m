@@ -2,6 +2,11 @@
 %
 %  参照: docs/MatlabSpec.md §7.2
 
+tool_file = mfilename("fullpath");
+matlab_root = fileparts(fileparts(tool_file));
+addpath(matlab_root, fullfile(matlab_root, "experiment"));
+clear tool_file matlab_root;
+
 env = config.EnvironmentConfig.current();
 ams_net_id = env.ams_net_id;
 ports = unique([851 env.control_port env.seq_port env.module_port], "stable");
