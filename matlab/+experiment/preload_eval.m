@@ -162,8 +162,9 @@ pd = struct("available", ~isempty(log_pos), "sample_count", uint32(numel(log_pos
 if isempty(log_pos)
   return;
 end
-if has_cfg_field(cfg, "task_rate_hz")
-  pd.velocity_est = [0.0; diff(log_pos) * double(cfg.task_rate_hz)];
+task_rate_hz = cfg_task_rate_hz(cfg);
+if ~isnan(task_rate_hz)
+  pd.velocity_est = [0.0; diff(log_pos) * double(task_rate_hz)];
 else
   pd.velocity_est = zeros(numel(log_pos), 1);
 end
@@ -202,6 +203,20 @@ end
 
 function tf = has_cfg_field(cfg, name)
 tf = (isstruct(cfg) && isfield(cfg, name)) || (isobject(cfg) && isprop(cfg, name));
+end
+
+function task_rate_hz = cfg_task_rate_hz(cfg)
+task_rate_hz = NaN;
+if isa(cfg, "experiment.ExperimentConfig")
+  task_rate_hz = cfg.env.task_rate_hz;
+elseif isa(cfg, "config.EnvironmentConfig")
+  task_rate_hz = cfg.task_rate_hz;
+elseif isstruct(cfg) && isfield(cfg, "env")
+  env = config.EnvironmentConfig.from_struct(cfg.env);
+  task_rate_hz = env.task_rate_hz;
+elseif has_cfg_field(cfg, "task_rate_hz")
+  task_rate_hz = cfg_field_or(cfg, "task_rate_hz", NaN);
+end
 end
 
 function x = col(s, field)

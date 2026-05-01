@@ -25,6 +25,7 @@ classdef RuntimeSymbols
     controllerParams
     types
     plcRequiredProbes
+    modeRequiredProbes
     controllerRequiredProbes
     requiredProbes
   end
@@ -35,7 +36,6 @@ classdef RuntimeSymbols
       t = out.types;
       out.plcRequiredProbes = {
         out.reset, t.bool;
-        out.experimentActive, t.bool;
         out.tableLen, t.u32;
         out.idx, t.u32;
         out.repeatCount, t.u32;
@@ -43,6 +43,14 @@ classdef RuntimeSymbols
         out.refValue, t.double;
         out.ffValue, t.double;
         out.distValue, t.double
+      };
+      out.modeRequiredProbes = {
+        out.modeResetReq, t.bool;
+        out.modeResetAckCounter, t.u32;
+        out.hostHeartbeatCounter, t.u32;
+        out.experimentActive, t.bool;
+        out.loggerFileReleased, t.bool;
+        out.loggerErrorCode, t.u32
       };
       out.requiredProbes = out.plcRequiredProbes;
     end
@@ -115,6 +123,7 @@ classdef RuntimeSymbols
       out.controllerParams = struct();
       out.types = t;
       out.plcRequiredProbes = cell(0, 2);
+      out.modeRequiredProbes = cell(0, 2);
       out.controllerRequiredProbes = cell(0, 2);
       out.requiredProbes = cell(0, 2);
     end

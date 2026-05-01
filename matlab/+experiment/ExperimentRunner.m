@@ -13,8 +13,8 @@ classdef ExperimentRunner
       end
 
       plc_symbols = experiment.RuntimeSymbols.from_defaults();
-      sys = config.SystemConfig.current();
-      controller_symbols = experiment.RuntimeSymbols.from_controller_prefix(sys.CTRL_PREFIX);
+      env = cfg.env;
+      controller_symbols = experiment.RuntimeSymbols.from_controller_prefix(env.controller_prefix);
 
       if cfg.write_controller_params && isempty(module_transport)
         error("experiment:runner:invalidConfig", ...
@@ -39,12 +39,12 @@ classdef ExperimentRunner
           error("experiment:runner:invalidConfig", "module transport is required when write_controller_params=true.");
         end
         experiment.write_controller_params( ...
-          module_transport, sys.CTRL_PREFIX, ...
+          module_transport, env.controller_prefix, ...
           cfg.controller.to_flat_struct());
       end
 
       table_n = numel(cfg.ref_profile);
-      logger_path = string(sys.LOGGER_HOST_FILE_PATH);
+      logger_path = string(env.logger_host_file_path);
       t_run = tic;
       experiment.ModeManagerControl.write_mode_flags(ctrl_transport, ctrl, uint32(0));
       seq_transport.write_scalar(plc_symbols.tableLen, uint32(0), plc_symbols.types.u32);
@@ -67,7 +67,7 @@ classdef ExperimentRunner
       logger_before = experiment.ModeManagerControl.read_logger_status(ctrl_transport, ctrl);
       logger_module_before = experiment.ExperimentRunner.read_logger_module_status(module_transport);
 
-      experiment.write_ref_table(seq_transport, cfg.ref_profile(:), double(cfg.table_max_n));
+      experiment.write_ref_table(seq_transport, cfg.ref_profile(:), double(env.table_max_n));
       experiment.write_ff_table(seq_transport, cfg.ff_profile(:), table_n);
       experiment.write_dist_table(seq_transport, cfg.dist_profile(:), table_n);
       seq_transport.write_scalar(plc_symbols.repeatCount, uint32(cfg.repeat_count), plc_symbols.types.u32);
@@ -137,7 +137,7 @@ classdef ExperimentRunner
         "dist_profile", cfg.dist_profile(:), ...
         "table_len", table_n, ...
         "repeat_count", double(cfg.repeat_count), ...
-        "task_rate_hz", cfg.task_rate_hz);
+        "task_rate_hz", env.task_rate_hz);
       host = struct( ...
         "elapsed_s", elapsed_s, ...
         "wait_for_done", logical(cfg.wait_for_done), ...
@@ -146,7 +146,7 @@ classdef ExperimentRunner
         "abort_requested", logical(abort_requested), ...
         "stop_reason", char(string(stop_reason)), ...
         "abort_diag", abort_diag, ...
-        "control_ams_port", double(cfg.control_port), ...
+        "control_ams_port", double(env.control_port), ...
         "host_heartbeat_enable", logical(cfg.host_heartbeat_enable), ...
         "host_heartbeat_period_s", double(cfg.host_heartbeat_period_s), ...
         "abort_check_period_s", double(cfg.abort_check_period_s), ...
@@ -213,28 +213,8 @@ classdef ExperimentRunner
     end
 
     function validate_runtime_symbols(seq_transport, ctrl_transport, plc_symbols)
-      t = plc_symbols.types;
-      seq_required = {
-        plc_symbols.reset, t.bool;
-        plc_symbols.tableLen, t.u32;
-        plc_symbols.idx, t.u32;
-        plc_symbols.repeatCount, t.u32;
-        plc_symbols.trialIndex, t.u32;
-        plc_symbols.refValue, t.double;
-        plc_symbols.ffValue, t.double;
-        plc_symbols.distValue, t.double
-      };
-      ctrl_required = {
-        plc_symbols.modeResetReq, t.bool;
-        plc_symbols.modeResetAckCounter, t.u32;
-        plc_symbols.hostHeartbeatCounter, t.u32;
-        plc_symbols.experimentActive, t.bool;
-        plc_symbols.loggerFileReleased, t.bool;
-        plc_symbols.loggerErrorCode, t.u32
-      };
-
-      twincat_ads.SymbolBrowser.validate_symbols(seq_transport, seq_required);
-      twincat_ads.SymbolBrowser.validate_symbols(ctrl_transport, ctrl_required);
+      twincat_ads.SymbolBrowser.validate_symbols(seq_transport, plc_symbols.plcRequiredProbes);
+      twincat_ads.SymbolBrowser.validate_symbols(ctrl_transport, plc_symbols.modeRequiredProbes);
     end
 
     function safe_clear_mode_flags(control_transport, ctrl)
