@@ -47,6 +47,18 @@ classdef TestStudentExperimentHelpers < matlab.unittest.TestCase
       testCase.verifyTrue(all(isfinite(imag(frf))));
     end
 
+    function runAndCollectExistsAndRejectsNonExperimentConfig(testCase)
+      helper_path = which("experiment.exp0n.run_and_collect");
+      testCase.verifyNotEmpty(helper_path);
+
+      try
+        experiment.exp0n.run_and_collect(struct());
+        testCase.verifyTrue(false, "run_and_collect accepted a non-ExperimentConfig input.");
+      catch err
+        testCase.verifyNotEmpty(err.identifier);
+      end
+    end
+
     function plotHelpersCreateFigures(testCase)
       start_figs = findall(0, "Type", "figure");
       cleaner = onCleanup(@() close(setdiff(findall(0, "Type", "figure"), start_figs)));
