@@ -1,7 +1,0 @@
-﻿  Extracting version information from 'C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\ControllerCore\ControllerCore.rc' importing additional information from 'C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\ControllerCore\ControllerCore.tmc and 'C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\\TwinCATVersion.xml'
-  TcPch.cpp
-  Module1.cpp
-  ControllerCoreClassFactory.cpp
-  ControllerCoreDriver.cpp
-  ControllerCore.vcxproj -> C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\ControllerCore\_products\TwinCAT RT (x64)\Release\ControllerCore.tmx
-  Signing output with TwinCAT certificate 'TcTestCert'

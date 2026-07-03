@@ -1,7 +1,0 @@
-﻿  Extracting version information from 'C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\DriverAdapter\DriverAdapter.rc' importing additional information from 'C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\DriverAdapter\DriverAdapter.tmc and 'C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\\TwinCATVersion.xml'
-  TcPch.cpp
-  Module1.cpp
-  DriverAdapterClassFactory.cpp
-  DriverAdapterDriver.cpp
-  DriverAdapter.vcxproj -> C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\DriverAdapter\_products\TwinCAT RT (x64)\Release\DriverAdapter.tmx
-  Signing output with TwinCAT certificate 'TcTestCert'

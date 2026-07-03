@@ -1,8 +1,0 @@
-"LibVendor=TE140x Module Vendor" 
-"LibName=Test" 
-"LibVersion=0.0.0.10" 
-"Date=2026-02-24" 
-"Time=130457" 
-"PublishArchiveFile=" 
-"PublishIntDir=C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\matlab\simulink\Test_tcgrt\_products\TcPublish\TE140x Module Vendor\Test\0.0.0.10" 
-"PublishDstDir=C:\ProgramData\Beckhoff\TwinCAT\3.1\Repository\TE140x Module Vendor\Test\0.0.0.10" 

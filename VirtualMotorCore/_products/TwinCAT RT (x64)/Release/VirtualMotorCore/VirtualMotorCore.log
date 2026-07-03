@@ -1,7 +1,0 @@
-﻿  Extracting version information from 'C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\VirtualMotorCore\VirtualMotorCore.rc' importing additional information from 'C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\VirtualMotorCore\VirtualMotorCore.tmc and 'C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\SDK\\TwinCATVersion.xml'
-  TcPch.cpp
-  Module1.cpp
-  VirtualMotorCoreClassFactory.cpp
-  VirtualMotorCoreDriver.cpp
-  VirtualMotorCore.vcxproj -> C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\VirtualMotorCore\_products\TwinCAT RT (x64)\Release\VirtualMotorCore.tmx
-  Signing output with TwinCAT certificate 'TcTestCert'

@@ -44,6 +44,20 @@ LineIDs.dbg.bak
 
 .tmp
 
+# TwinCAT C++ build outputs
+# Build レス運用のため配備バイナリは x64 Release の .tmx だけを追跡し、
+# 中間物 (.obj/.pch/.pdb/.tlog/.res/CppClean.log など) は追跡しない
+**/_products/**
+!**/_products/TwinCAT RT (x64)/
+!**/_products/TwinCAT RT (x64)/Release/
+!**/_products/TwinCAT RT (x64)/Release/*.tmx
+CommonLib/Build/
+
+# Simulink codegen / caches (TE1400 scratch は追跡しない)
+matlab/simulink/Test_tcgrt/
+matlab/simulink/slprj/
+*.slxc
+
 # MATLAB local/editor artifacts
 *.asv
 matlab/+config/LocalSystemConfig.m
