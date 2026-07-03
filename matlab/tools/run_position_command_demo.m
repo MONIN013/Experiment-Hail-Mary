@@ -54,7 +54,7 @@ virtualMotor.writeParams(conn, vm_cfg);
 %% 実験実行
 out = experiment.ExperimentRunner.run(conn, cfg);
 logger_bin = [];
-latest_bin = experiment.read_latest_logger_bin(logger_dir, logger_file_glob);
+latest_bin = experiment.io.read_latest_logger_bin(logger_dir, logger_file_glob);
 if latest_bin.ok
   logger_bin = latest_bin.logger_bin;
 end

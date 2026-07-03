@@ -11,7 +11,7 @@ classdef TestRunPositionCommandDemoLoggerSelection < matlab.unittest.TestCase
       pause(0.02);
       write_sample_file(latest_path, 2);
 
-      out = experiment.read_latest_logger_bin(temp_dir, "*.bin");
+      out = experiment.io.read_latest_logger_bin(temp_dir, "*.bin");
 
       testCase.verifyTrue(out.ok);
       testCase.verifyEqual(string(out.file_path), string(latest_path));
@@ -24,7 +24,7 @@ classdef TestRunPositionCommandDemoLoggerSelection < matlab.unittest.TestCase
       mkdir(temp_dir);
       cleaner = onCleanup(@() cleanup_dir(temp_dir)); 
 
-      out = experiment.read_latest_logger_bin(temp_dir, "*.bin");
+      out = experiment.io.read_latest_logger_bin(temp_dir, "*.bin");
 
       testCase.verifyFalse(out.ok);
       testCase.verifyEmpty(out.logger_bin);
@@ -42,7 +42,7 @@ classdef TestRunPositionCommandDemoLoggerSelection < matlab.unittest.TestCase
       pause(0.02);
       touch_empty_file(latest_empty_path);
 
-      out = experiment.read_latest_logger_bin(temp_dir, "*.bin");
+      out = experiment.io.read_latest_logger_bin(temp_dir, "*.bin");
 
       testCase.verifyTrue(out.ok);
       testCase.verifyEqual(string(out.file_path), string(valid_path));
@@ -61,7 +61,7 @@ classdef TestRunPositionCommandDemoLoggerSelection < matlab.unittest.TestCase
       pause(0.02);
       touch_empty_file(latest_empty_path);
 
-      out = experiment.read_latest_logger_bin(temp_dir, "*.bin");
+      out = experiment.io.read_latest_logger_bin(temp_dir, "*.bin");
 
       testCase.verifyFalse(out.ok);
       testCase.verifyEmpty(out.logger_bin);
