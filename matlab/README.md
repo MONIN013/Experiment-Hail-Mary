@@ -106,6 +106,8 @@ out = experiment.ExperimentRunner.run(conn, cfg);
 
 学生実験の入口は `matlab/experiment/exp0n_*.m` の Live Editor 用 `.m` ファイルである。
 学生が調整する値は各ファイル上部の「学生が調整するパラメータ」に集約し、ローカル関数は置かない。
+実行と logger 回収は `experiment.exp0n.run_and_collect` に一本化し、Runner が解放確認した logger file を読む。
+`matlab/experiment/proto/` は旧 demo 由来の実行不能な参照資料であり、詳細は `matlab/experiment/proto/README.md` を参照する。
 demo / 検証 / 調査用の手動実行スクリプトは `matlab/tools/` に置き、MATLAB path には追加しない。
 実行時は明示パスで呼び出す。
 
@@ -117,6 +119,7 @@ run('matlab/tools/run_position_command_demo.m')
 |---|---|
 | `matlab/tools/run_position_command_demo.m` | 現行デモ |
 | `matlab/tools/run_verify_xar.m` | active contract の検証 |
+| `matlab/tools/run_verify_virtual_motor.m` | VirtualMotorCore parameter symbol の確認 |
 | `matlab/tools/run_ads_discovery_demo.m` | discovery 補助 |
 | `matlab/tools/run_check_logger_bin.m` | logger bin の直接検査 |
 | `matlab/tools/run_si_demo.m` | SI デモ |
@@ -129,13 +132,14 @@ run('matlab/tools/run_position_command_demo.m')
 run('matlab/tests/run_tests.m')
 ```
 
+`matlab/tests/` の現行構成は unit 28 本、contract 3 本である。全一覧は `matlab/tests/` を参照する。
+
 主要テスト:
 
-* `tests/unit/TestExperimentConfig.m`
-* `tests/unit/TestConnectionManager.m`
-* `tests/unit/TestExperimentRunner.m`
-* `tests/unit/TestPreloadEval.m`
-* `tests/unit/TestRunPositionCommandDemoConfig.m`
-* `tests/unit/TestEnvironmentConfig.m`
-* `tests/contract/TestAdsSession.m`
-* `tests/contract/TestTransportContract.m`
+* runtime config / 接続 / 実行: `TestExperimentConfig.m`, `TestConnectionManager.m`, `TestExperimentRunner.m`
+* 学生実験入口: `TestExp01SiConfig.m`, `TestExp02FeedbackExperimentConfig.m`, `TestStudentExperimentHelpers.m`
+* logger / 解析: `TestAnalyzeSiFrf.m`, `TestReadLoggerBin.m`, `TestPreloadEval.m`
+* controller / waveform: `TestControllerConfig.m`, `TestBiquadStage.m`, `TestBuildPeriodicChirp.m`
+* tools / bootstrap: `TestRunPositionCommandDemoConfig.m`, `TestRunSiDemoConfig.m`, `TestManualToolsBootstrap.m`
+* 環境 / symbol: `TestEnvironmentConfig.m`, `TestMatlabEnvironment.m`, `TestRuntimeSymbols.m`, `TestVirtualMotorSymbols.m`
+* contract: `TestAdsSession.m`, `TestSymbolBrowserContract.m`, `TestTransportContract.m`

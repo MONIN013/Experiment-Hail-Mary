@@ -177,7 +177,8 @@ run('matlab/tools/run_position_command_demo.m')
 
 学生実験用の `matlab/experiment/exp0n_*.m` は Live Editor 用 `.m` を正本にする。
 学生が調整する `Controller` / `Chirp` / 軌道条件はファイル上部に集約し、ローカル関数は置かない。
-共通処理は `experiment.waveform` / `experiment.controller` / `experiment.analysis` / `experiment.plot` / `experiment.io` / `experiment.exp0n` に置く。
+学生入口の logger 取得は `experiment.exp0n.run_and_collect` が返す `run.logger.file_path`、つまり Runner が解放確認したファイルを正とする。glob による最新選択 (`experiment.io.read_latest_logger_bin`) は `matlab/tools/` の demo・検証用に限る。
+共通処理は `experiment.waveform` / `experiment.controller` / `experiment.analysis` / `experiment.plot` / `experiment.io` / `experiment.exp01` / `experiment.exp02` / `experiment.exp0n` に置く。
 
 | スクリプト | 位置づけ |
 |---|---|
@@ -198,18 +199,16 @@ run('matlab/tools/run_position_command_demo.m')
 run('matlab/tests/run_tests.m')
 ```
 
-主なテスト:
+`matlab/tests/` の現行構成は unit 28 本、contract 3 本である。全一覧は `matlab/tests/` を参照する。
+
+主なテストグループ:
 
 | ファイル | 役割 |
 |---|---|
-| `tests/unit/TestExperimentConfig.m` | 現行正本 runtime config |
-| `tests/unit/TestMatlabEnvironment.m` | startup / path cache 管理 |
-| `tests/unit/TestConnectionManager.m` | transport 構築 |
-| `tests/unit/TestExperimentRunner.m` | 実行フロー本体 |
-| `tests/unit/TestPreloadEval.m` | snake_case raw の replay 評価 |
-| `tests/unit/TestRunPositionCommandDemoConfig.m` | demo の現行設定 |
-| `tests/unit/TestEnvironmentConfig.m` | 環境固定値 |
-| `tests/unit/TestRuntimeSymbols.m` | experiment symbol contract |
-| `tests/unit/TestVirtualMotorSymbols.m` | VM symbol contract |
-| `tests/contract/TestAdsSession.m` | AdsSession 契約 |
-| `tests/contract/TestTransportContract.m` | transport 契約 |
+| `tests/unit/TestExperimentConfig.m` / `TestConnectionManager.m` / `TestExperimentRunner.m` | 実験 runtime config、接続構築、実行フロー |
+| `tests/unit/TestExp01SiConfig.m` / `TestExp02FeedbackExperimentConfig.m` / `TestStudentExperimentHelpers.m` | 学生実験入口と共通 helper |
+| `tests/unit/TestAnalyzeSiFrf.m` / `TestReadLoggerBin.m` / `TestPreloadEval.m` | logger 読み取り、FRF、replay 評価 |
+| `tests/unit/TestControllerConfig.m` / `TestBiquadStage.m` / `TestBuildPeriodicChirp.m` | controller / waveform helper |
+| `tests/unit/TestRunPositionCommandDemoConfig.m` / `TestRunSiDemoConfig.m` / `TestManualToolsBootstrap.m` | 手動ツールの設定・bootstrap |
+| `tests/unit/TestEnvironmentConfig.m` / `TestMatlabEnvironment.m` / `TestRuntimeSymbols.m` / `TestVirtualMotorSymbols.m` | 環境、PATH、symbol contract |
+| `tests/contract/TestAdsSession.m` / `TestSymbolBrowserContract.m` / `TestTransportContract.m` | ADS session、symbol browser、transport 契約 |
