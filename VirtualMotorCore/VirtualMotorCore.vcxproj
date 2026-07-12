@@ -136,6 +136,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Module1.cpp" />
+    <ClCompile Include="VirtualMotorAlgorithm.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="TcPch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|TwinCAT RT (x86)'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|TwinCAT RT (x64)'">Create</PrecompiledHeader>
@@ -166,6 +169,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Module1.h" />
+    <ClInclude Include="VirtualMotorAlgorithm.h" />
     <ClInclude Include="TcPch.h" />
     <ClInclude Include="VirtualMotorCoreClassFactory.h" />
     <ClInclude Include="VirtualMotorCoreDriver.h" />

@@ -36,6 +36,9 @@
     <ClInclude Include="Module1.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="VirtualMotorAlgorithm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="TcPch.cpp">
@@ -51,6 +54,9 @@
       <Filter>TwinCAT OS Files</Filter>
     </ClCompile>
     <ClCompile Include="Module1.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="VirtualMotorAlgorithm.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
