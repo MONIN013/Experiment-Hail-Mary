@@ -136,6 +136,9 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="DriverAdapterAlgorithm.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="Module1.cpp" />
     <ClCompile Include="TcPch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|TwinCAT RT (x86)'">Create</PrecompiledHeader>
@@ -166,6 +169,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DriverAdapterAlgorithm.h" />
     <ClInclude Include="Module1.h" />
     <ClInclude Include="TcPch.h" />
     <ClInclude Include="DriverAdapterClassFactory.h" />
