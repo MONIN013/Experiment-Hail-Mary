@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="F_DeriveModeOutputs" Id="{5E0E3125-30AA-44E9-93FD-228E8B7B3B62}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION F_DeriveModeOutputs : ST_ModeOutputs
+VAR_INPUT
+    modeState : E_ModeState;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(* Safe default for unknown or newly added states. *)
+F_DeriveModeOutputs.experimentActiveOut := FALSE;
+F_DeriveModeOutputs.preArmOut := FALSE;
+F_DeriveModeOutputs.resetOut := FALSE;
+F_DeriveModeOutputs.enableCurrentOut := FALSE;
+
+CASE modeState OF
+    E_ModeState.RESETTING:
+        F_DeriveModeOutputs.resetOut := TRUE;
+
+    E_ModeState.SERVO_READY:
+        F_DeriveModeOutputs.preArmOut := TRUE;
+        F_DeriveModeOutputs.enableCurrentOut := TRUE;
+
+    E_ModeState.RUNNING:
+        F_DeriveModeOutputs.experimentActiveOut := TRUE;
+        F_DeriveModeOutputs.enableCurrentOut := TRUE;
+END_CASE]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

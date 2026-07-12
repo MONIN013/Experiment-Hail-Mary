@@ -15,37 +15,18 @@ VAR
 
     // FSM state
     modeState : E_ModeState := E_ModeState.IDLE;
+    modeOutputs : ST_ModeOutputs;
 
     // Decoded request flags (from GVL_MODE.modeFlags)
     servoEnableReq : BOOL := FALSE;
     experimentStartReq : BOOL := FALSE;
-    servoEnableReqPrev : BOOL := FALSE;
-    experimentStartReqPrev : BOOL := FALSE;
-    servoEnableEdge : BOOL := FALSE;
-    experimentStartEdge : BOOL := FALSE;
-    servoEnableLatched : BOOL := FALSE;
-    experimentStartLatched : BOOL := FALSE;
-
-    // Reset edge detection
-    resetReqPrev : BOOL := FALSE;
-    resetReqCurrent : BOOL := FALSE;
-    resetEdge : BOOL := FALSE;
-    resetHoldTicksRemaining : UDINT := 0;
-    RESET_PULSE_HOLD_TICKS : UDINT := 1;
+    fbModeManagerCore : FB_ModeManagerCore;
 
     // Drive state
     driveReady : BOOL := FALSE;
     motorDriveReady : BOOL := FALSE;
     loadDriveReady : BOOL := FALSE;
     enableEffective : BOOL := FALSE;
-
-    // Watchdog
-    heartbeatCounterPrev : UDINT := 0;
-    heartbeatSilenceTicks : UDINT := 0;
-    watchdogArmed : BOOL := FALSE;
-    watchdogTripLatched : BOOL := FALSE;
-    heartbeatChanged : BOOL := FALSE;
-    watchdogTimeout : BOOL := FALSE;
 
     fbMotorStateMachine : FB_StateMachineControl;
     fbLoadStateMachine : FB_StateMachineControl;
@@ -58,124 +39,38 @@ END_VAR
       <ST><![CDATA[(* ===== 1. Decode input flags ===== *)
 servoEnableReq := (GVL_MODE.modeFlags AND GVL_MODE.MODEF_SERVO_ENABLE) <> 0;
 experimentStartReq := (GVL_MODE.modeFlags AND GVL_MODE.MODEF_EXPERIMENT_START_REQ) <> 0;
-servoEnableEdge := servoEnableReq AND NOT servoEnableReqPrev;
-experimentStartEdge := experimentStartReq AND NOT experimentStartReqPrev;
-servoEnableReqPrev := servoEnableReq;
-experimentStartReqPrev := experimentStartReq;
 
-IF servoEnableEdge THEN
-    servoEnableLatched := TRUE;
-END_IF
-IF experimentStartEdge THEN
-    experimentStartLatched := TRUE;
-END_IF
+(* ===== 2. Request/watchdog/FSM core ===== *)
+fbModeManagerCore(
+    servoEnableRequest := servoEnableReq,
+    experimentStartRequest := experimentStartReq,
+    anyModeRequest := (GVL_MODE.modeFlags <> 0),
+    resetRequest := GVL_MODE.resetReq,
+    experimentActivePreviousScan := GVL_MODE.experimentActive,
+    hostHeartbeatCounter := GVL_MODE.hostHeartbeatCounter,
+    heartbeatTimeoutTicks := GVL_MODE.HEARTBEAT_TIMEOUT_TICKS,
+    driveReadyPreviousScan := driveReady,
+    loggerReady := loggerReadyIn,
+    seqPlaybackDone := seqPlaybackDone
+);
 
-(* ===== 2. Reset edge detection ===== *)
-resetReqCurrent := GVL_MODE.resetReq;
-resetEdge := resetReqCurrent AND NOT resetReqPrev;
-IF resetEdge THEN
+IF fbModeManagerCore.actions.consumeResetReq THEN
     GVL_MODE.resetReq := FALSE;
 END_IF
-resetReqPrev := resetReqCurrent;
-
-(* ===== 3. Watchdog ===== *)
-watchdogArmed := (GVL_MODE.modeFlags <> 0) OR GVL_MODE.experimentActive OR servoEnableLatched;
-heartbeatChanged := (GVL_MODE.hostHeartbeatCounter <> heartbeatCounterPrev);
-
-IF NOT watchdogArmed THEN
-    heartbeatCounterPrev := GVL_MODE.hostHeartbeatCounter;
-    heartbeatSilenceTicks := 0;
-    watchdogTripLatched := FALSE;
-ELSIF heartbeatChanged THEN
-    heartbeatCounterPrev := GVL_MODE.hostHeartbeatCounter;
-    heartbeatSilenceTicks := 0;
-    watchdogTripLatched := FALSE;
-ELSE
-    IF heartbeatSilenceTicks < GVL_MODE.HEARTBEAT_TIMEOUT_TICKS THEN
-        heartbeatSilenceTicks := heartbeatSilenceTicks + 1;
-    END_IF
+IF fbModeManagerCore.actions.clearModeFlags THEN
+    GVL_MODE.modeFlags := 0;
 END_IF
-watchdogTimeout := watchdogArmed AND (heartbeatSilenceTicks >= GVL_MODE.HEARTBEAT_TIMEOUT_TICKS);
-
-(* ===== 4. FSM transitions ===== *)
-
-IF watchdogTimeout THEN
-    modeState := E_ModeState.IDLE;
-    GVL_MODE.modeFlags := 0;
-    GVL_MODE.experimentActive := FALSE;
-    GVL_MODE.loggerFileReleased := FALSE;
-    GVL_MODE.loggerErrorCode := 0;
-    servoEnableLatched := FALSE;
-    experimentStartLatched := FALSE;
-    IF NOT watchdogTripLatched THEN
-        GVL_MODE.watchdogTripCounter := GVL_MODE.watchdogTripCounter + 1;
-        watchdogTripLatched := TRUE;
-    END_IF
-
-ELSIF resetEdge THEN
-    modeState := E_ModeState.RESETTING;
-    resetHoldTicksRemaining := RESET_PULSE_HOLD_TICKS;
-    GVL_MODE.experimentActive := FALSE;
-    GVL_MODE.modeFlags := 0;
-    GVL_MODE.loggerFileReleased := FALSE;
-    GVL_MODE.loggerErrorCode := 0;
-    servoEnableLatched := FALSE;
-    experimentStartLatched := FALSE;
+IF fbModeManagerCore.actions.incrementResetAckCounter THEN
     GVL_MODE.resetAckCounter := GVL_MODE.resetAckCounter + 1;
-
-ELSE
-    CASE modeState OF
-
-        E_ModeState.IDLE:
-            IF servoEnableLatched THEN
-                modeState := E_ModeState.SERVO_READY;
-            END_IF
-
-        E_ModeState.RESETTING:
-            IF resetHoldTicksRemaining > 0 THEN
-                resetHoldTicksRemaining := resetHoldTicksRemaining - 1;
-            ELSE
-                modeState := E_ModeState.IDLE;
-            END_IF
-
-        E_ModeState.SERVO_READY:
-            IF NOT servoEnableLatched THEN
-                modeState := E_ModeState.IDLE;
-                experimentStartLatched := FALSE;
-            ELSIF experimentStartLatched AND driveReady AND loggerReadyIn THEN
-                modeState := E_ModeState.RUNNING;
-                GVL_MODE.experimentActive := TRUE;
-                experimentStartLatched := FALSE;
-            END_IF
-
-        E_ModeState.RUNNING:
-            IF NOT servoEnableLatched OR NOT driveReady THEN
-                modeState := E_ModeState.IDLE;
-                GVL_MODE.experimentActive := FALSE;
-                experimentStartLatched := FALSE;
-                servoEnableLatched := FALSE;
-                GVL_MODE.modeFlags := 0;
-            ELSIF seqPlaybackDone THEN
-                modeState := E_ModeState.DONE;
-                GVL_MODE.experimentActive := FALSE;
-                servoEnableLatched := FALSE;
-                experimentStartLatched := FALSE;
-                GVL_MODE.modeFlags := 0;
-            END_IF
-
-        E_ModeState.DONE:
-            modeState := E_ModeState.IDLE;
-            servoEnableLatched := FALSE;
-            experimentStartLatched := FALSE;
-
-    END_CASE
+END_IF
+IF fbModeManagerCore.actions.incrementWatchdogTripCounter THEN
+    GVL_MODE.watchdogTripCounter := GVL_MODE.watchdogTripCounter + 1;
 END_IF
 
-(* ===== 5. State-dependent outputs ===== *)
-enableEffective := servoEnableLatched
-                    AND (modeState = E_ModeState.SERVO_READY
-                      OR modeState = E_ModeState.RUNNING);
+modeState := fbModeManagerCore.modeState;
+enableEffective := fbModeManagerCore.driveEnable;
 
+(* ===== 3. Drive state update ===== *)
 fbMotorStateMachine(
     statusWord := motorStatWord,
     enable := enableEffective
@@ -191,42 +86,12 @@ motorDriveReady := (fbMotorStateMachine.driveState = E_DriveState.OPERATION_ENAB
 loadDriveReady := (fbLoadStateMachine.driveState = E_DriveState.OPERATION_ENABLED);
 driveReady := motorDriveReady AND loadDriveReady;
 
-CASE modeState OF
-    E_ModeState.IDLE:
-        experimentActiveOut := FALSE;
-        preArmOut := FALSE;
-        resetOut := FALSE;
-        enableCurrentOut := FALSE;
-        GVL_MODE.experimentState := GVL_MODE.STATE_IDLE;
-
-    E_ModeState.RESETTING:
-        experimentActiveOut := FALSE;
-        preArmOut := FALSE;
-        resetOut := TRUE;
-        enableCurrentOut := FALSE;
-        GVL_MODE.experimentState := GVL_MODE.STATE_IDLE;
-
-    E_ModeState.SERVO_READY:
-        experimentActiveOut := FALSE;
-        preArmOut := TRUE;
-        resetOut := FALSE;
-        enableCurrentOut := TRUE;
-        GVL_MODE.experimentState := GVL_MODE.STATE_READY;
-
-    E_ModeState.RUNNING:
-        experimentActiveOut := TRUE;
-        preArmOut := FALSE;
-        resetOut := FALSE;
-        enableCurrentOut := TRUE;
-        GVL_MODE.experimentState := GVL_MODE.STATE_RUNNING;
-
-    E_ModeState.DONE:
-        experimentActiveOut := FALSE;
-        preArmOut := FALSE;
-        resetOut := FALSE;
-        enableCurrentOut := FALSE;
-        GVL_MODE.experimentState := GVL_MODE.STATE_DONE;
-END_CASE
+(* ===== 4. State-dependent outputs ===== *)
+modeOutputs := F_DeriveModeOutputs(modeState := modeState);
+experimentActiveOut := modeOutputs.experimentActiveOut;
+preArmOut := modeOutputs.preArmOut;
+resetOut := modeOutputs.resetOut;
+enableCurrentOut := modeOutputs.enableCurrentOut;
 
 GVL_MODE.experimentActive := experimentActiveOut;
 IF modeState = E_ModeState.SERVO_READY THEN

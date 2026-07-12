@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_ModeOutputs" Id="{0C45F671-C742-46B3-AF73-83D21687E3C8}">
+    <Declaration><![CDATA[TYPE ST_ModeOutputs :
+STRUCT
+    experimentActiveOut : BOOL;
+    preArmOut : BOOL;
+    resetOut : BOOL;
+    enableCurrentOut : BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

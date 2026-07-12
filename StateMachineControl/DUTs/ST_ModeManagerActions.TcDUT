@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_ModeManagerActions" Id="{1E5573CE-A3E2-45EA-8707-49B3B9A7061E}">
+    <Declaration><![CDATA[TYPE ST_ModeManagerActions :
+STRUCT
+    consumeResetReq : BOOL;
+    clearModeFlags : BOOL;
+    incrementResetAckCounter : BOOL;
+    incrementWatchdogTripCounter : BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

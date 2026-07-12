@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <DUT Name="E_ModeState" Id="{a1c3e7f0-2b4d-4e8a-9f6c-d5a0b3c1e7f2}">
+  <DUT Name="E_ModeState" Id="{8c0d4d84-5cf2-489d-acbf-25f5f975c44d}">
     <Declaration><![CDATA[{attribute 'qualified_only'}
 {attribute 'strict'}
 {attribute 'to_string'}

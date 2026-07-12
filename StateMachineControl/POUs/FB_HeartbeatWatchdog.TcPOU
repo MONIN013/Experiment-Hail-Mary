@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_HeartbeatWatchdog" Id="{341705fb-5883-4076-8696-0f6eac6f5e89}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_HeartbeatWatchdog
+VAR_INPUT
+    enable : BOOL;
+    heartbeatCounter : UDINT;
+    timeoutTicks : UDINT;
+END_VAR
+VAR_OUTPUT
+    timeout : BOOL := FALSE;
+    tripEdge : BOOL := FALSE;
+END_VAR
+VAR
+    counterPrev : UDINT := 0;
+    silenceTicks : UDINT := 0;
+    tripLatched : BOOL := FALSE;
+    heartbeatChanged : BOOL := FALSE;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[tripEdge := FALSE;
+heartbeatChanged := (heartbeatCounter <> counterPrev);
+
+IF NOT enable THEN
+    counterPrev := heartbeatCounter;
+    silenceTicks := 0;
+    tripLatched := FALSE;
+ELSIF heartbeatChanged THEN
+    counterPrev := heartbeatCounter;
+    silenceTicks := 0;
+    tripLatched := FALSE;
+ELSE
+    IF silenceTicks < timeoutTicks THEN
+        silenceTicks := silenceTicks + 1;
+    END_IF
+END_IF
+
+timeout := enable AND (silenceTicks >= timeoutTicks);
+IF timeout AND NOT tripLatched THEN
+    tripEdge := TRUE;
+    tripLatched := TRUE;
+END_IF]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

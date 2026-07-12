@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_ModeManagerCore" Id="{E9834629-D510-4454-A3B7-3BCDD8D9241F}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ModeManagerCore
+VAR_INPUT
+    servoEnableRequest : BOOL;
+    experimentStartRequest : BOOL;
+    anyModeRequest : BOOL;
+    resetRequest : BOOL;
+    experimentActivePreviousScan : BOOL;
+    hostHeartbeatCounter : UDINT;
+    heartbeatTimeoutTicks : UDINT;
+    driveReadyPreviousScan : BOOL;
+    loggerReady : BOOL;
+    seqPlaybackDone : BOOL;
+END_VAR
+VAR_OUTPUT
+    modeState : E_ModeState := E_ModeState.IDLE;
+    driveEnable : BOOL := FALSE;
+    watchdogArmed : BOOL := FALSE;
+    watchdogTimeout : BOOL := FALSE;
+    actions : ST_ModeManagerActions;
+END_VAR
+VAR
+    servoEnableRequestPrev : BOOL := FALSE;
+    experimentStartRequestPrev : BOOL := FALSE;
+    servoEnableEdge : BOOL := FALSE;
+    experimentStartEdge : BOOL := FALSE;
+    servoEnableLatched : BOOL := FALSE;
+    experimentStartLatched : BOOL := FALSE;
+    resetRequestPrev : BOOL := FALSE;
+    resetEdge : BOOL := FALSE;
+    resetHoldTicksRemaining : UDINT := 0;
+    fbHeartbeatWatchdog : FB_HeartbeatWatchdog;
+END_VAR
+VAR CONSTANT
+    RESET_PULSE_HOLD_TICKS : UDINT := 1;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[actions.consumeResetReq := FALSE;
+actions.clearModeFlags := FALSE;
+actions.incrementResetAckCounter := FALSE;
+actions.incrementWatchdogTripCounter := FALSE;
+
+servoEnableEdge := servoEnableRequest AND NOT servoEnableRequestPrev;
+experimentStartEdge := experimentStartRequest AND NOT experimentStartRequestPrev;
+servoEnableRequestPrev := servoEnableRequest;
+experimentStartRequestPrev := experimentStartRequest;
+
+IF servoEnableEdge THEN
+    servoEnableLatched := TRUE;
+END_IF
+IF experimentStartEdge THEN
+    experimentStartLatched := TRUE;
+END_IF
+(* A missing servo request is the explicit abort contract.  Clear both
+   latches so a start captured during RESETTING cannot run after rearm. *)
+IF NOT servoEnableRequest THEN
+    servoEnableLatched := FALSE;
+    experimentStartLatched := FALSE;
+END_IF
+
+resetEdge := resetRequest AND NOT resetRequestPrev;
+IF resetEdge THEN
+    actions.consumeResetReq := TRUE;
+END_IF
+resetRequestPrev := resetRequest;
+
+watchdogArmed := anyModeRequest OR experimentActivePreviousScan OR servoEnableLatched;
+fbHeartbeatWatchdog(
+    enable := watchdogArmed,
+    heartbeatCounter := hostHeartbeatCounter,
+    timeoutTicks := heartbeatTimeoutTicks
+);
+watchdogTimeout := fbHeartbeatWatchdog.timeout;
+
+IF watchdogTimeout THEN
+    modeState := E_ModeState.IDLE;
+    actions.clearModeFlags := TRUE;
+    servoEnableLatched := FALSE;
+    experimentStartLatched := FALSE;
+    IF fbHeartbeatWatchdog.tripEdge THEN
+        actions.incrementWatchdogTripCounter := TRUE;
+    END_IF
+
+ELSIF resetEdge THEN
+    modeState := E_ModeState.RESETTING;
+    resetHoldTicksRemaining := RESET_PULSE_HOLD_TICKS;
+    actions.clearModeFlags := TRUE;
+    actions.incrementResetAckCounter := TRUE;
+    servoEnableLatched := FALSE;
+    experimentStartLatched := FALSE;
+
+ELSE
+    CASE modeState OF
+        E_ModeState.IDLE:
+            IF servoEnableLatched THEN
+                modeState := E_ModeState.SERVO_READY;
+            END_IF
+
+        E_ModeState.RESETTING:
+            IF resetHoldTicksRemaining > 0 THEN
+                resetHoldTicksRemaining := resetHoldTicksRemaining - 1;
+            ELSE
+                modeState := E_ModeState.IDLE;
+            END_IF
+
+        E_ModeState.SERVO_READY:
+            IF NOT servoEnableLatched THEN
+                modeState := E_ModeState.IDLE;
+                experimentStartLatched := FALSE;
+            ELSIF experimentStartLatched AND driveReadyPreviousScan AND loggerReady THEN
+                modeState := E_ModeState.RUNNING;
+                experimentStartLatched := FALSE;
+            END_IF
+
+        E_ModeState.RUNNING:
+            IF NOT servoEnableLatched OR NOT driveReadyPreviousScan THEN
+                modeState := E_ModeState.IDLE;
+                experimentStartLatched := FALSE;
+                servoEnableLatched := FALSE;
+                actions.clearModeFlags := TRUE;
+            ELSIF seqPlaybackDone THEN
+                modeState := E_ModeState.DONE;
+                servoEnableLatched := FALSE;
+                experimentStartLatched := FALSE;
+                actions.clearModeFlags := TRUE;
+            END_IF
+
+        E_ModeState.DONE:
+            servoEnableLatched := FALSE;
+            experimentStartLatched := FALSE;
+    END_CASE
+END_IF
+
+driveEnable := servoEnableLatched
+    AND (modeState = E_ModeState.SERVO_READY OR modeState = E_ModeState.RUNNING);]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

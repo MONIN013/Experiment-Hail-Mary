@@ -7,10 +7,6 @@ VAR_GLOBAL CONSTANT
     MODEF_EXPERIMENT_START_REQ : UINT := 16#0002;  (* bit1 *)
     HEARTBEAT_TIMEOUT_TICKS : UDINT := 50;         (* 10 ms task * 50 = 500 ms *)
 
-    STATE_IDLE : UINT := 0;
-    STATE_READY : UINT := 1;
-    STATE_RUNNING : UINT := 2;
-    STATE_DONE : UINT := 3;
 END_VAR
 
 VAR_GLOBAL
@@ -21,7 +17,6 @@ VAR_GLOBAL
     hostHeartbeatCounter : UDINT := 0;
     watchdogTripCounter : UDINT := 0;
     experimentActive : BOOL := FALSE;
-    experimentState : UINT := STATE_IDLE;
     loggerFileReleased : BOOL := FALSE;
     loggerErrorCode : UDINT := 0;
     modeState : E_ModeState := E_ModeState.IDLE;
