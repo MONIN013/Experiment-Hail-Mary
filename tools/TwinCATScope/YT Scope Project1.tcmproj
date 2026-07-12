@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{9fa8052a-e90f-48a4-9ecd-e2d2bc41e03d}</ProjectGuid>
+    <AssemblyName>YT Scope Project1</AssemblyName>
+    <Name>YT Scope Project1</Name>
+    <RootNamespace>YT Scope Project1</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="YT Scope Project.tcscopex">
+      <SubType>Content</SubType>
+    </Content>
+  </ItemGroup>
+</Project>

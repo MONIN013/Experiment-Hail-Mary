@@ -62,3 +62,21 @@ matlab/simulink/slprj/
 *.asv
 matlab/+config/LocalSystemConfig.m
 matlab/+config/LocalEnvironmentConfig.m
+matlab/experiment/data/
+matlab/**/*.mat
+!matlab/resources/
+!matlab/resources/trajectory_8khz.mat
+
+# TwinCAT Scope local state and captures
+tools/TwinCATScope/VSSettings/
+tools/TwinCATScope/Workfolder/
+tools/TwinCATScope/AutoSave/
+tools/TwinCATScope/Recordings/
+tools/TwinCATScope/recordings/
+tools/TwinCATScope/Images/
+tools/TwinCATScope/images/
+tools/TwinCATScope/Exports/
+tools/TwinCATScope/exports/
+tools/TwinCATScope/Trigger Group Export/
+tools/TwinCATScope/Trigger Group (1) Export/
+tools/TwinCATScope/SubSaves/
