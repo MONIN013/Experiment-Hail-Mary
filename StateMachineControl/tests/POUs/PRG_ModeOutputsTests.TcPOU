@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="PRG_ModeOutputsTests" Id="{4E3B42F5-76DC-4D0B-9B7E-CED71BED987B}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM PRG_ModeOutputsTests
+VAR
+    outputs : ST_ModeOutputs;
+    testsExecuted : BOOL := FALSE;
+    testsPassed : BOOL := FALSE;
+    failureCount : UDINT := 0;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF NOT testsExecuted THEN
+    outputs := F_DeriveModeOutputs(modeState := E_ModeState.IDLE);
+    IF outputs.experimentActiveOut OR outputs.preArmOut OR outputs.resetOut
+        OR outputs.enableCurrentOut THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    outputs := F_DeriveModeOutputs(modeState := E_ModeState.RESETTING);
+    IF outputs.experimentActiveOut OR outputs.preArmOut OR NOT outputs.resetOut
+        OR outputs.enableCurrentOut THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    outputs := F_DeriveModeOutputs(modeState := E_ModeState.SERVO_READY);
+    IF outputs.experimentActiveOut OR NOT outputs.preArmOut OR outputs.resetOut
+        OR NOT outputs.enableCurrentOut THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    outputs := F_DeriveModeOutputs(modeState := E_ModeState.RUNNING);
+    IF NOT outputs.experimentActiveOut OR outputs.preArmOut OR outputs.resetOut
+        OR NOT outputs.enableCurrentOut THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    outputs := F_DeriveModeOutputs(modeState := E_ModeState.DONE);
+    IF outputs.experimentActiveOut OR outputs.preArmOut OR outputs.resetOut
+        OR outputs.enableCurrentOut THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    (* Consecutive calls must not retain fields from the previous state. *)
+    outputs := F_DeriveModeOutputs(modeState := E_ModeState.RUNNING);
+    outputs := F_DeriveModeOutputs(modeState := E_ModeState.IDLE);
+    IF outputs.experimentActiveOut OR outputs.preArmOut OR outputs.resetOut
+        OR outputs.enableCurrentOut THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    testsExecuted := TRUE;
+    testsPassed := (failureCount = 0);
+END_IF]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

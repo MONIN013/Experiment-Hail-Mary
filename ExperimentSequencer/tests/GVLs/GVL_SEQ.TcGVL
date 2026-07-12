@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <GVL Name="GVL_SEQ" Id="{81303470-4B99-4377-B639-55678022A9A6}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL CONSTANT
+    N_REF_MAX : UDINT := 8;
+    N_FF_MAX : UDINT := 8;
+    N_DIST_MAX : UDINT := 8;
+END_VAR
+
+VAR_GLOBAL
+    refValue : LREAL := 0.0;
+    ffValue : LREAL := 0.0;
+    distValue : LREAL := 0.0;
+    refTable : ARRAY[0..N_REF_MAX - 1] OF LREAL;
+    ffTable : ARRAY[0..N_FF_MAX - 1] OF LREAL;
+    distTable : ARRAY[0..N_DIST_MAX - 1] OF LREAL;
+    tableLen : UDINT := 0;
+    idx : UDINT := 0;
+    repeatCount : UDINT := 1;
+    trialIndex : UDINT := 0;
+    resetReq : BOOL := FALSE;
+    experimentActive : BOOL := FALSE;
+    playbackDone : BOOL := FALSE;
+    seqError : BOOL := FALSE;
+    seqState : E_SeqState := E_SeqState.IDLE;
+    tableLenClamped : UDINT := 0;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

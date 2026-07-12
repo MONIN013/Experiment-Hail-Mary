@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="PRG_ModeManagerCoreTests" Id="{673A350F-50AB-4451-B66F-DC7D6C05D3D0}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM PRG_ModeManagerCoreTests
+VAR
+    lifecycleCore : FB_ModeManagerCore;
+    doneCore : FB_ModeManagerCore;
+    priorityCore : FB_ModeManagerCore;
+    resetCore : FB_ModeManagerCore;
+    staleStartCore : FB_ModeManagerCore;
+    watchdogCore : FB_ModeManagerCore;
+    simultaneousCore : FB_ModeManagerCore;
+    testsExecuted : BOOL := FALSE;
+    testsPassed : BOOL := FALSE;
+    failureCount : UDINT := 0;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF NOT testsExecuted THEN
+    (* Cold IDLE and latched start waiting for both readiness inputs. *)
+    lifecycleCore(servoEnableRequest := FALSE, experimentStartRequest := FALSE, anyModeRequest := FALSE, resetRequest := FALSE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 0, heartbeatTimeoutTicks := 3, driveReadyPreviousScan := FALSE, loggerReady := FALSE, seqPlaybackDone := FALSE);
+    IF (lifecycleCore.modeState <> E_ModeState.IDLE) OR lifecycleCore.driveEnable
+        OR lifecycleCore.watchdogArmed OR lifecycleCore.watchdogTimeout THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    lifecycleCore(servoEnableRequest := TRUE, experimentStartRequest := FALSE, anyModeRequest := TRUE, resetRequest := FALSE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 1, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := FALSE, loggerReady := FALSE, seqPlaybackDone := FALSE);
+    IF (lifecycleCore.modeState <> E_ModeState.SERVO_READY) OR NOT lifecycleCore.driveEnable THEN
+        failureCount := failureCount + 1;
+    END_IF
+    lifecycleCore(servoEnableRequest := TRUE, experimentStartRequest := TRUE, anyModeRequest := TRUE, resetRequest := FALSE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 2, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := FALSE, loggerReady := FALSE, seqPlaybackDone := FALSE);
+    lifecycleCore(servoEnableRequest := TRUE, experimentStartRequest := FALSE, anyModeRequest := TRUE, resetRequest := FALSE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 3, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := TRUE, loggerReady := FALSE, seqPlaybackDone := FALSE);
+    IF lifecycleCore.modeState <> E_ModeState.SERVO_READY THEN
+        failureCount := failureCount + 1;
+    END_IF
+    lifecycleCore(servoEnableRequest := TRUE, experimentStartRequest := FALSE, anyModeRequest := TRUE, resetRequest := FALSE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 4, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := TRUE, loggerReady := TRUE, seqPlaybackDone := FALSE);
+    IF (lifecycleCore.modeState <> E_ModeState.RUNNING) OR NOT lifecycleCore.driveEnable THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    (* Explicit abort clears mode flags without a watchdog trip. *)
+    lifecycleCore(servoEnableRequest := FALSE, experimentStartRequest := FALSE, anyModeRequest := FALSE, resetRequest := FALSE, experimentActivePreviousScan := TRUE, hostHeartbeatCounter := 5, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := TRUE, loggerReady := TRUE, seqPlaybackDone := FALSE);
+    IF (lifecycleCore.modeState <> E_ModeState.IDLE) OR lifecycleCore.driveEnable
+        OR NOT lifecycleCore.actions.clearModeFlags
+        OR lifecycleCore.actions.incrementWatchdogTripCounter THEN
+        failureCount := failureCount + 1;
+    END_IF
+    lifecycleCore(servoEnableRequest := FALSE, experimentStartRequest := FALSE, anyModeRequest := FALSE, resetRequest := FALSE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 6, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := TRUE, loggerReady := TRUE, seqPlaybackDone := FALSE);
+    IF lifecycleCore.actions.clearModeFlags THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    (* Natural completion latches DONE until an explicit reset, so ADS polling cannot miss it. *)
+    doneCore(servoEnableRequest := TRUE, experimentStartRequest := FALSE, anyModeRequest := TRUE, resetRequest := FALSE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 1, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := FALSE, loggerReady := FALSE, seqPlaybackDone := FALSE);
+    doneCore(servoEnableRequest := TRUE, experimentStartRequest := TRUE, anyModeRequest := TRUE, resetRequest := FALSE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 2, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := TRUE, loggerReady := TRUE, seqPlaybackDone := FALSE);
+    doneCore(servoEnableRequest := TRUE, experimentStartRequest := FALSE, anyModeRequest := TRUE, resetRequest := FALSE, experimentActivePreviousScan := TRUE, hostHeartbeatCounter := 3, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := TRUE, loggerReady := TRUE, seqPlaybackDone := TRUE);
+    IF (doneCore.modeState <> E_ModeState.DONE) OR doneCore.driveEnable
+        OR NOT doneCore.actions.clearModeFlags THEN
+        failureCount := failureCount + 1;
+    END_IF
+    doneCore(servoEnableRequest := FALSE, experimentStartRequest := FALSE, anyModeRequest := FALSE, resetRequest := FALSE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 4, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := TRUE, loggerReady := TRUE, seqPlaybackDone := FALSE);
+    IF doneCore.modeState <> E_ModeState.DONE THEN
+        failureCount := failureCount + 1;
+    END_IF
+    doneCore(servoEnableRequest := FALSE, experimentStartRequest := FALSE, anyModeRequest := FALSE, resetRequest := TRUE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 5, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := TRUE, loggerReady := TRUE, seqPlaybackDone := FALSE);
+    IF doneCore.modeState <> E_ModeState.RESETTING THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    (* Drive loss wins over simultaneous sequence completion. *)
+    priorityCore(servoEnableRequest := TRUE, experimentStartRequest := FALSE, anyModeRequest := TRUE, resetRequest := FALSE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 1, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := FALSE, loggerReady := FALSE, seqPlaybackDone := FALSE);
+    priorityCore(servoEnableRequest := TRUE, experimentStartRequest := TRUE, anyModeRequest := TRUE, resetRequest := FALSE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 2, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := TRUE, loggerReady := TRUE, seqPlaybackDone := FALSE);
+    priorityCore(servoEnableRequest := TRUE, experimentStartRequest := FALSE, anyModeRequest := TRUE, resetRequest := FALSE, experimentActivePreviousScan := TRUE, hostHeartbeatCounter := 3, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := FALSE, loggerReady := TRUE, seqPlaybackDone := TRUE);
+    IF (priorityCore.modeState <> E_ModeState.IDLE) OR NOT priorityCore.actions.clearModeFlags THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    (* hold=1 means RESETTING on the edge call and one additional call. *)
+    resetCore(servoEnableRequest := TRUE, experimentStartRequest := TRUE, anyModeRequest := TRUE, resetRequest := TRUE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 1, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := TRUE, loggerReady := TRUE, seqPlaybackDone := FALSE);
+    IF (resetCore.modeState <> E_ModeState.RESETTING)
+        OR NOT resetCore.actions.consumeResetReq
+        OR NOT resetCore.actions.clearModeFlags
+        OR NOT resetCore.actions.incrementResetAckCounter
+        OR resetCore.actions.incrementWatchdogTripCounter THEN
+        failureCount := failureCount + 1;
+    END_IF
+    resetCore(servoEnableRequest := FALSE, experimentStartRequest := FALSE, anyModeRequest := FALSE, resetRequest := TRUE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 2, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := TRUE, loggerReady := TRUE, seqPlaybackDone := FALSE);
+    IF (resetCore.modeState <> E_ModeState.RESETTING)
+        OR resetCore.actions.consumeResetReq OR resetCore.actions.incrementResetAckCounter THEN
+        failureCount := failureCount + 1;
+    END_IF
+    resetCore(servoEnableRequest := FALSE, experimentStartRequest := FALSE, anyModeRequest := FALSE, resetRequest := TRUE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 3, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := TRUE, loggerReady := TRUE, seqPlaybackDone := FALSE);
+    IF (resetCore.modeState <> E_ModeState.IDLE)
+        OR resetCore.actions.consumeResetReq OR resetCore.actions.incrementResetAckCounter THEN
+        failureCount := failureCount + 1;
+    END_IF
+    resetCore(servoEnableRequest := FALSE, experimentStartRequest := FALSE, anyModeRequest := FALSE, resetRequest := FALSE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 4, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := TRUE, loggerReady := TRUE, seqPlaybackDone := FALSE);
+    resetCore(servoEnableRequest := FALSE, experimentStartRequest := FALSE, anyModeRequest := FALSE, resetRequest := TRUE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 5, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := TRUE, loggerReady := TRUE, seqPlaybackDone := FALSE);
+    IF NOT resetCore.actions.consumeResetReq OR NOT resetCore.actions.incrementResetAckCounter THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    (* A start edge observed during RESETTING must not survive an explicit abort. *)
+    staleStartCore(servoEnableRequest := FALSE, experimentStartRequest := FALSE, anyModeRequest := FALSE, resetRequest := TRUE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 1, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := FALSE, loggerReady := FALSE, seqPlaybackDone := FALSE);
+    staleStartCore(servoEnableRequest := TRUE, experimentStartRequest := TRUE, anyModeRequest := TRUE, resetRequest := FALSE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 2, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := TRUE, loggerReady := TRUE, seqPlaybackDone := FALSE);
+    staleStartCore(servoEnableRequest := FALSE, experimentStartRequest := FALSE, anyModeRequest := FALSE, resetRequest := FALSE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 3, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := TRUE, loggerReady := TRUE, seqPlaybackDone := FALSE);
+    IF staleStartCore.modeState <> E_ModeState.IDLE THEN
+        failureCount := failureCount + 1;
+    END_IF
+    staleStartCore(servoEnableRequest := TRUE, experimentStartRequest := FALSE, anyModeRequest := TRUE, resetRequest := FALSE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 4, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := TRUE, loggerReady := TRUE, seqPlaybackDone := FALSE);
+    staleStartCore(servoEnableRequest := TRUE, experimentStartRequest := FALSE, anyModeRequest := TRUE, resetRequest := FALSE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 5, heartbeatTimeoutTicks := 50, driveReadyPreviousScan := TRUE, loggerReady := TRUE, seqPlaybackDone := FALSE);
+    IF (staleStartCore.modeState <> E_ModeState.SERVO_READY) OR NOT staleStartCore.driveEnable THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    (* Timeout occurs on the configured armed call and trips only once. *)
+    watchdogCore(servoEnableRequest := FALSE, experimentStartRequest := FALSE, anyModeRequest := FALSE, resetRequest := FALSE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 10, heartbeatTimeoutTicks := 2, driveReadyPreviousScan := FALSE, loggerReady := FALSE, seqPlaybackDone := FALSE);
+    watchdogCore(servoEnableRequest := TRUE, experimentStartRequest := FALSE, anyModeRequest := TRUE, resetRequest := FALSE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 10, heartbeatTimeoutTicks := 2, driveReadyPreviousScan := FALSE, loggerReady := FALSE, seqPlaybackDone := FALSE);
+    IF watchdogCore.watchdogTimeout OR (watchdogCore.modeState <> E_ModeState.SERVO_READY) THEN
+        failureCount := failureCount + 1;
+    END_IF
+    watchdogCore(servoEnableRequest := TRUE, experimentStartRequest := FALSE, anyModeRequest := TRUE, resetRequest := FALSE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 10, heartbeatTimeoutTicks := 2, driveReadyPreviousScan := FALSE, loggerReady := FALSE, seqPlaybackDone := FALSE);
+    IF NOT watchdogCore.watchdogTimeout OR NOT watchdogCore.actions.incrementWatchdogTripCounter
+        OR NOT watchdogCore.actions.clearModeFlags OR (watchdogCore.modeState <> E_ModeState.IDLE) THEN
+        failureCount := failureCount + 1;
+    END_IF
+    watchdogCore(servoEnableRequest := TRUE, experimentStartRequest := FALSE, anyModeRequest := TRUE, resetRequest := FALSE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 10, heartbeatTimeoutTicks := 2, driveReadyPreviousScan := FALSE, loggerReady := FALSE, seqPlaybackDone := FALSE);
+    IF NOT watchdogCore.watchdogTimeout OR watchdogCore.actions.incrementWatchdogTripCounter THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    (* Watchdog wins over reset, but the reset request is still consumed. *)
+    simultaneousCore(servoEnableRequest := TRUE, experimentStartRequest := FALSE, anyModeRequest := TRUE, resetRequest := TRUE, experimentActivePreviousScan := FALSE, hostHeartbeatCounter := 0, heartbeatTimeoutTicks := 0, driveReadyPreviousScan := FALSE, loggerReady := FALSE, seqPlaybackDone := FALSE);
+    IF (simultaneousCore.modeState <> E_ModeState.IDLE)
+        OR NOT simultaneousCore.actions.consumeResetReq
+        OR NOT simultaneousCore.actions.clearModeFlags
+        OR simultaneousCore.actions.incrementResetAckCounter
+        OR NOT simultaneousCore.actions.incrementWatchdogTripCounter THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    testsExecuted := TRUE;
+    testsPassed := (failureCount = 0);
+END_IF]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

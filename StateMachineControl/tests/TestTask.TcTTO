@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Task Name="TestTask" Id="{781953EC-DFCA-4E94-878A-F3B7BBEE6F73}">
+    <CycleTime>10000</CycleTime>
+    <Priority>2</Priority>
+    <PouCall>
+      <Name>PRG_HeartbeatWatchdogTests</Name>
+    </PouCall>
+    <TaskFBGuid>{9F72EAA5-0403-4968-A36C-F4DE1AFACB6C}</TaskFBGuid>
+    <Fb_init>{2CE7E681-0F9B-47AE-93F1-BBC4B22CF040}</Fb_init>
+    <Fb_exit>{0BD07AC6-32F0-4B0B-9671-AF3150147637}</Fb_exit>
+    <CycleUpdate>{BE2627B6-A934-46E6-94E8-E5BA7C5A6CF1}</CycleUpdate>
+    <PostCycleUpdate>{38180DD9-E226-4203-B095-0C72E4356D0D}</PostCycleUpdate>
+  </Task>
+</TcPlcObject>

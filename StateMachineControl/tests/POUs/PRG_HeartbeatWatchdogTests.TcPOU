@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="PRG_HeartbeatWatchdogTests" Id="{C67B805B-AD14-4658-A14E-58B49BAF833A}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM PRG_HeartbeatWatchdogTests
+VAR
+    watchdog : FB_HeartbeatWatchdog;
+    testsExecuted : BOOL := FALSE;
+    testsPassed : BOOL := FALSE;
+    failureCount : UDINT := 0;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF NOT testsExecuted THEN
+    (* Disabled state synchronizes the counter and stays inactive. *)
+    watchdog(enable := FALSE, heartbeatCounter := 10, timeoutTicks := 3);
+    IF watchdog.timeout OR watchdog.tripEdge THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    (* Timeout occurs on the Nth enabled call, not before it. *)
+    watchdog(enable := TRUE, heartbeatCounter := 10, timeoutTicks := 3);
+    IF watchdog.timeout OR watchdog.tripEdge THEN
+        failureCount := failureCount + 1;
+    END_IF
+    watchdog(enable := TRUE, heartbeatCounter := 10, timeoutTicks := 3);
+    IF watchdog.timeout OR watchdog.tripEdge THEN
+        failureCount := failureCount + 1;
+    END_IF
+    watchdog(enable := TRUE, heartbeatCounter := 10, timeoutTicks := 3);
+    IF NOT watchdog.timeout OR NOT watchdog.tripEdge THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    (* A sustained timeout emits only one trip edge. *)
+    watchdog(enable := TRUE, heartbeatCounter := 10, timeoutTicks := 3);
+    IF NOT watchdog.timeout OR watchdog.tripEdge THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    (* A heartbeat change clears timeout and rearms edge detection. *)
+    watchdog(enable := TRUE, heartbeatCounter := 11, timeoutTicks := 3);
+    IF watchdog.timeout OR watchdog.tripEdge THEN
+        failureCount := failureCount + 1;
+    END_IF
+    watchdog(enable := TRUE, heartbeatCounter := 11, timeoutTicks := 3);
+    watchdog(enable := TRUE, heartbeatCounter := 11, timeoutTicks := 3);
+    watchdog(enable := TRUE, heartbeatCounter := 11, timeoutTicks := 3);
+    IF NOT watchdog.timeout OR NOT watchdog.tripEdge THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    (* Disable clears the latch; the same heartbeat can trip again after rearm. *)
+    watchdog(enable := FALSE, heartbeatCounter := 11, timeoutTicks := 3);
+    IF watchdog.timeout OR watchdog.tripEdge THEN
+        failureCount := failureCount + 1;
+    END_IF
+    watchdog(enable := TRUE, heartbeatCounter := 11, timeoutTicks := 3);
+    watchdog(enable := TRUE, heartbeatCounter := 11, timeoutTicks := 3);
+    watchdog(enable := TRUE, heartbeatCounter := 11, timeoutTicks := 3);
+    IF NOT watchdog.timeout OR NOT watchdog.tripEdge THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    (* A zero timeout trips immediately when enabled. *)
+    watchdog(enable := FALSE, heartbeatCounter := 20, timeoutTicks := 0);
+    watchdog(enable := TRUE, heartbeatCounter := 20, timeoutTicks := 0);
+    IF NOT watchdog.timeout OR NOT watchdog.tripEdge THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    testsExecuted := TRUE;
+    testsPassed := (failureCount = 0);
+END_IF]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Task Name="ModeManagerCoreTestTask" Id="{359DEDB9-3E42-43BF-AE4F-44263C7DA0E4}">
+    <CycleTime>10000</CycleTime>
+    <Priority>1</Priority>
+    <PouCall><Name>PRG_ModeManagerCoreTests</Name></PouCall>
+    <TaskFBGuid>{C0BAC3B5-C86A-47E2-8332-958C8BF45AF3}</TaskFBGuid>
+    <Fb_init>{07068105-AE5E-4DE0-8A6E-9095B144EA7B}</Fb_init>
+    <Fb_exit>{3F8C94A9-23A9-4057-980E-C64255817F00}</Fb_exit>
+    <CycleUpdate>{1346B0D5-E911-4710-B71E-F35EA9C40A7D}</CycleUpdate>
+    <PostCycleUpdate>{B8DF62EC-CB37-4F7D-83AF-741630E3B9DE}</PostCycleUpdate>
+  </Task>
+</TcPlcObject>

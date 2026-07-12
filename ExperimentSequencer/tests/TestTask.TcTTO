@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Task Name="TestTask" Id="{44C7FD04-5813-4CA0-B188-D250E2547303}">
+    <CycleTime>10000</CycleTime>
+    <Priority>2</Priority>
+    <PouCall>
+      <Name>PRG_ExperimentSequencer</Name>
+    </PouCall>
+    <PouCall>
+      <Name>PRG_ExperimentSequencerTests</Name>
+    </PouCall>
+    <TaskFBGuid>{48D9EF71-F3D4-4704-921B-ADE1C317DFD6}</TaskFBGuid>
+    <Fb_init>{A5C07354-DFD4-4C50-9C4A-F03CF62A7B8A}</Fb_init>
+    <Fb_exit>{D4E31E7F-C537-4DFC-97CE-9E6468EA7160}</Fb_exit>
+    <CycleUpdate>{7191BE89-D3BC-457D-B457-2D80788DBD81}</CycleUpdate>
+    <PostCycleUpdate>{137B5AC0-4095-4EA2-AE0C-303B33E9D873}</PostCycleUpdate>
+  </Task>
+</TcPlcObject>

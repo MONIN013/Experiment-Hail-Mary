@@ -1,0 +1,117 @@
+<?xml version="1.0"?>
+<TcSmProject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2012/07/TcSmProject" TcSmVersion="1.0" TcVersion="3.1.4026.22">
+	<Project ProjectGUID="{6D425B30-7C6C-4512-8737-F8130826F483}" TargetNetId="192.168.10.3.1.1" Target64Bit="true" ShowHideConfigurations="#x6">
+		<System>
+			<Tasks>
+				<Task Id="3" Priority="1" CycleTime="100000" AmsPort="350" AdtTasks="true">
+					<Name>DriveStateTestTask</Name>
+				</Task>
+				<Task Id="4" Priority="2" CycleTime="100000" AmsPort="351" AdtTasks="true">
+					<Name>TestTask</Name>
+				</Task>
+			</Tasks>
+		</System>
+		<Plc>
+			<Project GUID="{91AC7318-82A2-4DBC-9F1B-EB810AE94DD9}" Name="ExperimentSequencerTests" PrjFilePath="ExperimentSequencerTests.plcproj" TmcFilePath="ExperimentSequencerTests.tmc" ReloadTmc="true" AmsPort="860" FileArchiveSettings="#x000e" SymbolicMapping="true">
+				<Instance Id="#x08502240" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{FE8D3F95-3FA6-C08F-3CC5-2D84899C6B13}" TmcPath="ExperimentSequencerTests.tmc">
+					<Name>ExperimentSequencerTests Instance</Name>
+					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
+					<Contexts>
+						<Context>
+							<Id>0</Id>
+							<Name>TestTask</Name>
+							<ManualConfig>
+								<OTCID>#x02010040</OTCID>
+							</ManualConfig>
+							<Priority>2</Priority>
+							<CycleTime>10000000</CycleTime>
+						</Context>
+					</Contexts>
+					<TaskPouOids>
+						<TaskPouOid Prio="2" OTCID="#x08502241"/>
+					</TaskPouOids>
+				</Instance>
+			</Project>
+			<Project GUID="{C4C76EA1-33A5-4A75-8230-D9FF93FF38F3}" Name="HeartbeatWatchdogTests" PrjFilePath="HeartbeatWatchdogTests.plcproj" TmcFilePath="HeartbeatWatchdogTests.tmc" ReloadTmc="true" AmsPort="861" FileArchiveSettings="#x000e" SymbolicMapping="true">
+				<Instance Id="#x08502280" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{54B6FDD0-40C2-0E12-0FBE-C2B0D5EBBC5F}" TmcPath="HeartbeatWatchdogTests.tmc">
+					<Name>HeartbeatWatchdogTests Instance</Name>
+					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
+					<Contexts>
+						<Context>
+							<Id>0</Id>
+							<Name>TestTask</Name>
+							<ManualConfig>
+								<OTCID>#x02010040</OTCID>
+							</ManualConfig>
+							<Priority>2</Priority>
+							<CycleTime>10000000</CycleTime>
+						</Context>
+					</Contexts>
+					<TaskPouOids>
+						<TaskPouOid Prio="2" OTCID="#x08502281"/>
+					</TaskPouOids>
+				</Instance>
+			</Project>
+			<Project GUID="{47837938-3849-4FCA-9D57-9D5A9684C5A0}" Name="ModeOutputsTests" PrjFilePath="ModeOutputsTests.plcproj" TmcFilePath="ModeOutputsTests.tmc" ReloadTmc="true" AmsPort="862" FileArchiveSettings="#x000e" SymbolicMapping="true">
+				<Instance Id="#x085022c0" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{BD86AC34-4946-F9B0-3F97-F385043B85E0}" TmcPath="ModeOutputsTests.tmc">
+					<Name>ModeOutputsTests Instance</Name>
+					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
+					<Contexts>
+						<Context>
+							<Id>0</Id>
+							<Name>ModeOutputsTestTask</Name>
+							<ManualConfig>
+								<OTCID>#x02010030</OTCID>
+							</ManualConfig>
+							<Priority>1</Priority>
+							<CycleTime>10000000</CycleTime>
+						</Context>
+					</Contexts>
+					<TaskPouOids>
+						<TaskPouOid Prio="1" OTCID="#x085022c1"/>
+					</TaskPouOids>
+				</Instance>
+			</Project>
+			<Project GUID="{DD89F25F-0A7B-4138-9A68-A872FE1A0ADC}" Name="ModeManagerCoreTests" PrjFilePath="ModeManagerCoreTests.plcproj" TmcFilePath="ModeManagerCoreTests.tmc" ReloadTmc="true" AmsPort="863" FileArchiveSettings="#x000e" SymbolicMapping="true">
+				<Instance Id="#x08502300" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{C8F6658C-7057-1F44-B2E5-B594CD316E2C}" TmcPath="ModeManagerCoreTests.tmc">
+					<Name>ModeManagerCoreTests Instance</Name>
+					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
+					<Contexts>
+						<Context>
+							<Id>0</Id>
+							<Name>ModeManagerCoreTestTask</Name>
+							<ManualConfig>
+								<OTCID>#x02010030</OTCID>
+							</ManualConfig>
+							<Priority>1</Priority>
+							<CycleTime>10000000</CycleTime>
+						</Context>
+					</Contexts>
+					<TaskPouOids>
+						<TaskPouOid Prio="1" OTCID="#x08502301"/>
+					</TaskPouOids>
+				</Instance>
+			</Project>
+			<Project GUID="{7BCD8836-F321-4D4F-8AEE-FA7F0E8787AE}" Name="DriveStateTests" PrjFilePath="DriveStateTests.plcproj" TmcFilePath="DriveStateTests.tmc" ReloadTmc="true" AmsPort="864" FileArchiveSettings="#x000e" SymbolicMapping="true">
+				<Instance Id="#x08502340" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{7505D2FB-3DD2-BB68-6466-2B502D90764B}" TmcPath="DriveStateTests.tmc">
+					<Name>DriveStateTests Instance</Name>
+					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
+					<Contexts>
+						<Context>
+							<Id>0</Id>
+							<Name>DriveStateTestTask</Name>
+							<ManualConfig>
+								<OTCID>#x02010030</OTCID>
+							</ManualConfig>
+							<Priority>1</Priority>
+							<CycleTime>10000000</CycleTime>
+						</Context>
+					</Contexts>
+					<TaskPouOids>
+						<TaskPouOid Prio="1" OTCID="#x08502341"/>
+					</TaskPouOids>
+				</Instance>
+			</Project>
+		</Plc>
+	</Project>
+</TcSmProject>

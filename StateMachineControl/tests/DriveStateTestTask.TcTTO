@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Task Name="DriveStateTestTask" Id="{50241AFB-662B-4CB0-A7C1-E68318F7C91A}">
+    <CycleTime>10000</CycleTime><Priority>1</Priority>
+    <PouCall><Name>PRG_DriveStateTests</Name></PouCall>
+    <TaskFBGuid>{1905EE2C-A7C4-48C8-A78F-9FA587D4BF51}</TaskFBGuid>
+    <Fb_init>{C3B039F9-E9AE-4835-AC5B-3047C14BB0D8}</Fb_init>
+    <Fb_exit>{7AE9F6B4-C543-4C65-B3E0-9014A2A14D47}</Fb_exit>
+    <CycleUpdate>{2192229B-BB06-4988-BFC3-510DBB5E0597}</CycleUpdate>
+    <PostCycleUpdate>{5F403717-60EC-40FD-A303-BBA7BA5CD342}</PostCycleUpdate>
+  </Task>
+</TcPlcObject>

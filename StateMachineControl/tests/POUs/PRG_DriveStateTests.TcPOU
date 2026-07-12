@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="PRG_DriveStateTests" Id="{1D53DE3C-00A7-4567-A31B-F0B1CD55E5A9}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM PRG_DriveStateTests
+VAR
+    driveControl : FB_StateMachineControl;
+    testsExecuted : BOOL := FALSE;
+    testsPassed : BOOL := FALSE;
+    failureCount : UDINT := 0;
+END_VAR
+]]></Declaration>
+    <Implementation><ST><![CDATA[IF NOT testsExecuted THEN
+    (* Decoder must ignore manufacturer/status bits outside the CiA402 mask. *)
+    IF F_DecodeDriveState(16#0060) <> E_DriveState.SWITCH_ON_DISABLED
+        OR F_DecodeDriveState(16#00E0) <> E_DriveState.SWITCH_ON_DISABLED
+        OR F_DecodeDriveState(16#0021) <> E_DriveState.READY_TO_SWITCH_ON
+        OR F_DecodeDriveState(16#0023) <> E_DriveState.SWITCHED_ON
+        OR F_DecodeDriveState(16#0027) <> E_DriveState.OPERATION_ENABLED
+        OR F_DecodeDriveState(16#0008) <> E_DriveState.FAULT
+        OR F_DecodeDriveState(16#0000) <> E_DriveState.UNKNOWN THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    driveControl(statusWord := 16#0027, enable := FALSE);
+    IF driveControl.controlWord <> 16#0000 THEN failureCount := failureCount + 1; END_IF
+
+    driveControl(statusWord := 16#0060, enable := TRUE);
+    IF driveControl.controlWord <> 16#0006 THEN failureCount := failureCount + 1; END_IF
+    driveControl(statusWord := 16#0021, enable := TRUE);
+    IF driveControl.controlWord <> 16#0007 THEN failureCount := failureCount + 1; END_IF
+    driveControl(statusWord := 16#0023, enable := TRUE);
+    IF driveControl.controlWord <> 16#000F THEN failureCount := failureCount + 1; END_IF
+    driveControl(statusWord := 16#0027, enable := TRUE);
+    IF driveControl.controlWord <> 16#000F THEN failureCount := failureCount + 1; END_IF
+
+    (* Fault reset is exactly one call while the fault remains asserted. *)
+    driveControl(statusWord := 16#0008, enable := TRUE);
+    IF driveControl.controlWord <> 16#0080 THEN failureCount := failureCount + 1; END_IF
+    driveControl(statusWord := 16#0008, enable := TRUE);
+    IF driveControl.controlWord <> 16#0000 THEN failureCount := failureCount + 1; END_IF
+    driveControl(statusWord := 16#0060, enable := TRUE);
+    driveControl(statusWord := 16#0008, enable := TRUE);
+    IF driveControl.controlWord <> 16#0080 THEN failureCount := failureCount + 1; END_IF
+
+    (* UNKNOWN converges with the safe shutdown command. *)
+    driveControl(statusWord := 16#0000, enable := TRUE);
+    IF driveControl.driveState <> E_DriveState.UNKNOWN OR driveControl.controlWord <> 16#0006 THEN
+        failureCount := failureCount + 1;
+    END_IF
+
+    testsExecuted := TRUE;
+    testsPassed := (failureCount = 0);
+END_IF]]></ST></Implementation>
+  </POU>
+</TcPlcObject>

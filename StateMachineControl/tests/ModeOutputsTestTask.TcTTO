@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Task Name="ModeOutputsTestTask" Id="{50AAB7A0-ED4F-4486-A208-5DDC8BC28292}">
+    <CycleTime>10000</CycleTime>
+    <Priority>1</Priority>
+    <PouCall>
+      <Name>PRG_ModeOutputsTests</Name>
+    </PouCall>
+    <TaskFBGuid>{D70C08D5-10A5-411A-A19D-37EDCDBFE961}</TaskFBGuid>
+    <Fb_init>{5EF416DA-8C44-4617-9695-BA21F5F84B08}</Fb_init>
+    <Fb_exit>{36E00EAF-6069-4503-A8A1-FAF351C94305}</Fb_exit>
+    <CycleUpdate>{141F9381-4AF6-48FB-B420-9C3244C6ED7C}</CycleUpdate>
+    <PostCycleUpdate>{471A21DF-8C2C-41A3-B6FA-67B36628F46C}</PostCycleUpdate>
+  </Task>
+</TcPlcObject>
