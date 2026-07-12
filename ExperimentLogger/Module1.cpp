@@ -111,12 +111,7 @@ CModule1::CModule1()
 	, m_closeFlushRequested(false)
 	, m_fileReleased(false)
 	, m_reopenRequested(false)
-	, m_activeBufferIndex(0)
-	, m_bufferCounts{ 0, 0 }
-	, m_pendingWriteBufferIndex(0)
-	, m_pendingWriteRecords(0)
-	, m_seq(0)
-	, m_recordsWritten(0)
+	, m_recordBuffer()
 	, m_bytesWritten(0)
 	, m_errorCode(0)
 	, m_fileFsmState(EFileFsmState::IDLE)
@@ -363,12 +358,7 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 				break;
 			}
 			m_bytesWritten += static_cast<ULONGLONG>(m_lastWriteBytes);
-			if (m_pendingWriteBufferIndex < 2UL)
-			{
-				m_bufferCounts[m_pendingWriteBufferIndex] = 0;
-			}
-			m_pendingWriteBufferIndex = 0;
-			m_pendingWriteRecords = 0;
+			m_recordBuffer.CommitWrite();
 			m_pendingWriteBytes = 0;
 			m_lastWriteBytes = 0;
 			m_fileFsmState = EFileFsmState::ACTIVE;
@@ -514,13 +504,7 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 
 void CModule1::ResetRuntimeState()
 {
-	m_activeBufferIndex = 0;
-	m_bufferCounts[0] = 0;
-	m_bufferCounts[1] = 0;
-	m_pendingWriteBufferIndex = 0;
-	m_pendingWriteRecords = 0;
-	m_seq = 0;
-	m_recordsWritten = 0;
+	m_recordBuffer.Reset();
 	m_bytesWritten = 0;
 	m_errorCode = 0;
 	m_isLoggingActive = false;
@@ -684,12 +668,9 @@ void CModule1::AbortSession(bool keepError)
 		(void)m_spFileAccessAsync->FileClose(m_fileHandle);
 	}
 	m_fileHandle = 0;
-	m_pendingWriteBufferIndex = 0;
-	m_pendingWriteRecords = 0;
 	m_pendingWriteBytes = 0;
 	m_lastWriteBytes = 0;
-	m_bufferCounts[0] = 0;
-	m_bufferCounts[1] = 0;
+	m_recordBuffer.ClearBufferedRecords();
 }
 
 void CModule1::TeardownSession(bool transitionToPreOp, bool keepError, EFileFsmState finalState)
@@ -723,10 +704,7 @@ void CModule1::CloseLogFile(bool flushRemaining)
 		m_isLoggingActive = false;
 		if (shouldFlush)
 		{
-			m_bufferCounts[0] = 0;
-			m_bufferCounts[1] = 0;
-			m_pendingWriteBufferIndex = 0;
-			m_pendingWriteRecords = 0;
+			m_recordBuffer.ClearBufferedRecords();
 			m_pendingWriteBytes = 0;
 			m_lastWriteBytes = 0;
 		}
@@ -767,8 +745,7 @@ void CModule1::CloseLogFile(bool flushRemaining)
 
 bool CModule1::FlushBuffer()
 {
-	const ULONG idx = CurrentBufferIndex();
-	if (m_bufferCounts[idx] == 0)
+	if (m_recordBuffer.CurrentRecordCount() == 0U)
 	{
 		return true;
 	}
@@ -783,15 +760,13 @@ bool CModule1::FlushBuffer()
 
 bool CModule1::AppendCurrentInputsAsRecord()
 {
-	ULONG idx = CurrentBufferIndex();
-	if (m_bufferCounts[idx] >= kBufferRecords)
+	if (m_recordBuffer.CurrentBufferFull())
 	{
 		if (!FlushBuffer())
 		{
 			return false;
 		}
-		idx = CurrentBufferIndex();
-		if (m_bufferCounts[idx] >= kBufferRecords)
+		if (m_recordBuffer.CurrentBufferFull())
 		{
 			SetError(kErrBufferFlushPending);
 			m_sessionFailed = true;
@@ -799,27 +774,27 @@ bool CModule1::AppendCurrentInputsAsRecord()
 		}
 	}
 
-	LogRecord& rec = m_logBuffers[idx][m_bufferCounts[idx]];
-	rec.seq = m_seq;
-	rec.reservedPad0 = 2;
-	rec.tNs = static_cast<ULONGLONG>(m_seq) * m_timestampStepNsRuntime;
-	rec.motorPosition = m_Inputs.record.motor.position;
-	rec.motorVelocity = m_Inputs.record.motor.velocity;
-	rec.motorCurrentAct = m_Inputs.record.motor.currentAct;
-	rec.loadPosition = m_Inputs.record.load.position;
-	rec.loadVelocity = m_Inputs.record.load.velocity;
-	rec.currentCmd = m_Inputs.record.currentCmd;
-	rec.error = m_Inputs.record.error;
-	rec.refValue = m_Inputs.record.refValue;
-	rec.ffValue = m_Inputs.record.ffValue;
-	rec.distValue = m_Inputs.record.distValue;
-	rec.controlInput = m_Inputs.record.controlInput;
+	const experimentlogger::LogSample sample = {
+		m_Inputs.record.motor.position,
+		m_Inputs.record.motor.velocity,
+		m_Inputs.record.motor.currentAct,
+		m_Inputs.record.load.position,
+		m_Inputs.record.load.velocity,
+		m_Inputs.record.currentCmd,
+		m_Inputs.record.error,
+		m_Inputs.record.refValue,
+		m_Inputs.record.ffValue,
+		m_Inputs.record.distValue,
+		m_Inputs.record.controlInput
+	};
+	if (!m_recordBuffer.Append(sample, static_cast<std::uint64_t>(m_timestampStepNsRuntime)))
+	{
+		SetError(kErrBufferFlushPending);
+		m_sessionFailed = true;
+		return false;
+	}
 
-	++m_bufferCounts[idx];
-	++m_seq;
-	++m_recordsWritten;
-
-	if (m_bufferCounts[idx] >= kBufferRecords)
+	if (m_recordBuffer.CurrentBufferFull())
 	{
 		return FlushBuffer();
 	}
@@ -828,27 +803,17 @@ bool CModule1::AppendCurrentInputsAsRecord()
 
 bool CModule1::HasPendingWrite() const
 {
-	return m_pendingWriteRecords > 0;
+	return m_recordBuffer.HasPendingWrite();
 }
 
 bool CModule1::HasBufferedRecords() const
 {
-	return (m_bufferCounts[0] > 0) || (m_bufferCounts[1] > 0);
-}
-
-ULONG CModule1::CurrentBufferIndex() const
-{
-	return m_activeBufferIndex & 0x1UL;
-}
-
-ULONG CModule1::InactiveBufferIndex() const
-{
-	return CurrentBufferIndex() ^ 0x1UL;
+	return m_recordBuffer.HasBufferedRecords();
 }
 
 void CModule1::UpdateStatusOutputs()
 {
-	m_Outputs.status.recordsWritten = m_recordsWritten;
+	m_Outputs.status.recordsWritten = static_cast<ULONG>(m_recordBuffer.RecordsAppended());
 	m_Outputs.status.fileSizeKb = static_cast<ULONG>(m_bytesWritten / 1024ULL);
 	m_Outputs.status.errorCode = m_errorCode;
 	m_Outputs.status.loggerReady = IsLoggerReady();
@@ -1004,29 +969,24 @@ bool CModule1::StartAsyncWrite()
 		return false;
 	}
 
-	const ULONG writeIdx = CurrentBufferIndex();
-	const ULONG writeCount = m_bufferCounts[writeIdx];
-	if (writeCount == 0)
+	if (m_recordBuffer.CurrentRecordCount() == 0U)
 	{
 		return true;
 	}
 
-	const ULONG nextIdx = InactiveBufferIndex();
-	if (m_bufferCounts[nextIdx] != 0)
+	experimentlogger::LoggerRecordBuffer::WriteBatch batch = {};
+	if (!m_recordBuffer.BeginWrite(batch))
 	{
 		SetError(kErrBufferFlushPending);
 		m_sessionFailed = true;
 		return false;
 	}
 
-	m_pendingWriteBufferIndex = writeIdx;
-	m_pendingWriteRecords = writeCount;
-	m_pendingWriteBytes = static_cast<UINT>(writeCount * sizeof(LogRecord));
+	m_pendingWriteBytes = static_cast<UINT>(batch.recordCount * sizeof(experimentlogger::LogRecord));
 	m_lastWriteBytes = 0;
-	m_activeBufferIndex = nextIdx;
 	HRESULT hr = m_spFileAccessAsync->FileWrite(
 		m_fileHandle,
-		static_cast<PCVOID>(&m_logBuffers[writeIdx][0]),
+		static_cast<PCVOID>(batch.records),
 		m_pendingWriteBytes,
 		reinterpret_cast<PUINT>(&m_lastWriteBytes));
 
@@ -1034,9 +994,7 @@ bool CModule1::StartAsyncWrite()
 	{
 		SetError(hr);
 		m_sessionFailed = true;
-		m_activeBufferIndex = writeIdx;
-		m_pendingWriteBufferIndex = 0;
-		m_pendingWriteRecords = 0;
+		(void)m_recordBuffer.RollbackWrite();
 		m_pendingWriteBytes = 0;
 		m_lastWriteBytes = 0;
 		return false;
@@ -1051,18 +1009,14 @@ bool CModule1::StartAsyncWrite()
 	{
 		SetError(kErrAsyncWriteShort);
 		m_sessionFailed = true;
-		m_activeBufferIndex = writeIdx;
-		m_pendingWriteBufferIndex = 0;
-		m_pendingWriteRecords = 0;
+		(void)m_recordBuffer.RollbackWrite();
 		m_pendingWriteBytes = 0;
 		m_lastWriteBytes = 0;
 		return false;
 	}
 
 	m_bytesWritten += static_cast<ULONGLONG>(m_lastWriteBytes);
-	m_bufferCounts[writeIdx] = 0;
-	m_pendingWriteBufferIndex = 0;
-	m_pendingWriteRecords = 0;
+	m_recordBuffer.CommitWrite();
 	m_pendingWriteBytes = 0;
 	m_lastWriteBytes = 0;
 	m_fileFsmState = EFileFsmState::ACTIVE;

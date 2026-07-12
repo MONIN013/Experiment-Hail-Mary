@@ -18,6 +18,12 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="LoggerRecord.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="LoggerRecordBuffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="TcPch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -38,6 +44,9 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="LoggerRecordBuffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="TcPch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
