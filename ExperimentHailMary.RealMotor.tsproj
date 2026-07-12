@@ -870,67 +870,67 @@
 							</Value>
 							<Value>
 								<Name>PlantParameter.motor.inertia</Name>
-								<Value>0</Value>
+								<Value>7.1E-06</Value>
 							</Value>
 							<Value>
 								<Name>PlantParameter.motor.damping</Name>
-								<Value>0</Value>
+								<Value>7.1E-05</Value>
 							</Value>
 							<Value>
 								<Name>PlantParameter.motor.ratedTorque</Name>
-								<Value>0</Value>
+								<Value>0.32</Value>
 							</Value>
 							<Value>
 								<Name>PlantParameter.motor.tauLimit</Name>
-								<Value>0</Value>
+								<Value>1.11</Value>
 							</Value>
 							<Value>
 								<Name>PlantParameter.motor.velLimit</Name>
-								<Value>0</Value>
+								<Value>680.678408277788</Value>
 							</Value>
 							<Value>
 								<Name>PlantParameter.motor.maxPermille</Name>
-								<Value>0</Value>
+								<Value>1000</Value>
 							</Value>
 							<Value>
 								<Name>PlantParameter.motor.encoderResolution</Name>
-								<Value>0</Value>
+								<Value>8388608</Value>
 							</Value>
 							<Value>
 								<Name>PlantParameter.load.inertia</Name>
-								<Value>0</Value>
+								<Value>7.1E-06</Value>
 							</Value>
 							<Value>
 								<Name>PlantParameter.load.damping</Name>
-								<Value>0</Value>
+								<Value>3.55E-05</Value>
 							</Value>
 							<Value>
 								<Name>PlantParameter.load.ratedTorque</Name>
-								<Value>0</Value>
+								<Value>0.32</Value>
 							</Value>
 							<Value>
 								<Name>PlantParameter.load.tauLimit</Name>
-								<Value>0</Value>
+								<Value>1.11</Value>
 							</Value>
 							<Value>
 								<Name>PlantParameter.load.velLimit</Name>
-								<Value>0</Value>
+								<Value>680.678408277788</Value>
 							</Value>
 							<Value>
 								<Name>PlantParameter.load.encoderResolution</Name>
-								<Value>0</Value>
+								<Value>8388608</Value>
 							</Value>
 							<Value>
 								<Name>PlantParameter.coupling.stiffness</Name>
-								<Value>0</Value>
+								<Value>5.6059352998187553</Value>
 							</Value>
 							<Value>
 								<Name>PlantParameter.coupling.damping</Name>
-								<Value>0</Value>
+								<Value>0.0004194811568097506</Value>
 							</Value>
 							<Value>
 								<Name>PlantParameter.taskDtNs</Name>
-								<Value>0</Value>
+								<Value>125000</Value>
 							</Value>
 						</ParameterValues>
 						<InterfacePointerValues>
@@ -1504,11 +1504,11 @@
 							</Value>
 							<Value>
 								<Name>MotorParams.ratedCurrentA</Name>
-								<Value>1.2</Value>
+								<Value>1.6</Value>
 							</Value>
 							<Value>
 								<Name>MotorParams.maxCurrentA</Name>
-								<Value>1.5</Value>
+								<Value>1.6</Value>
 							</Value>
 							<Value>
 								<Name>MotorParams.positionSign</Name>
@@ -1532,11 +1532,11 @@
 							</Value>
 							<Value>
 								<Name>LoadParams.ratedCurrentA</Name>
-								<Value>0</Value>
+								<Value>1.6</Value>
 							</Value>
 							<Value>
 								<Name>LoadParams.maxCurrentA</Name>
-								<Value>0</Value>
+								<Value>1.6</Value>
 							</Value>
 							<Value>
 								<Name>LoadParams.positionSign</Name>

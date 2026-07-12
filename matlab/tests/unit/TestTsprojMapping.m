@@ -80,6 +80,46 @@ classdef TestTsprojMapping < matlab.unittest.TestCase
       testCase.verifyThat(vm_source, matlab.unittest.constraints.ContainsSubstring('<Name>distValue</Name>'));
       testCase.verifyThat(real_source, matlab.unittest.constraints.ContainsSubstring('<Name>distValue</Name>'));
     end
+
+    function modeManagerSequencerAndLoggerLinksRemainOwned(testCase)
+      expected_links = [
+        "<Link VarA=""VirtualMotorTask Outputs^GVL_SEQ.playbackDone"" VarB=""Inputs^control^playbackDone""/>", ...
+        "<Link VarA=""PlcTask Inputs^MAIN.loggerErrorCodeIn"" VarB=""Outputs^status^errorCode""/>", ...
+        "<Link VarA=""PlcTask Inputs^MAIN.loggerFileReleasedIn"" VarB=""Outputs^status^fileReleased""/>", ...
+        "<Link VarA=""PlcTask Inputs^MAIN.loggerReadyIn"" VarB=""Outputs^status^loggerReady""/>", ...
+        "<Link VarA=""PlcTask Outputs^MAIN.experimentActiveOut"" VarB=""Inputs^control^loggingReq""/>", ...
+        "<Link VarA=""PlcTask Outputs^MAIN.preArmOut"" VarB=""Inputs^control^preArmReq""/>", ...
+        "<Link VarA=""PlcTask Outputs^MAIN.resetOut"" VarB=""Inputs^control^resetReq""/>", ...
+        "<Link VarA=""VirtualMotorTask Inputs^GVL_SEQ.experimentActive"" VarB=""PlcTask Outputs^MAIN.experimentActiveOut""/>", ...
+        "<Link VarA=""VirtualMotorTask Inputs^GVL_SEQ.resetReq"" VarB=""PlcTask Outputs^MAIN.resetOut""/>", ...
+        "<Link VarA=""VirtualMotorTask Outputs^GVL_SEQ.playbackDone"" VarB=""PlcTask Inputs^MAIN.seqPlaybackDone""/>", ...
+        "<Link VarA=""PlcTask Outputs^MAIN.enableCurrentOut"" VarB=""Inputs^enableCurrentOutput""/>" ...
+      ];
+
+      for source = [testCase.read_vm_tsproj(), testCase.read_real_motor_tsproj()]
+        for expected_link = expected_links
+          testCase.verifyThat(source, ...
+            matlab.unittest.constraints.ContainsSubstring(expected_link));
+        end
+      end
+    end
+
+    function projectsPinPanasonicVirtualMotorAndDriverDefaults(testCase)
+      for source = [testCase.read_vm_tsproj(), testCase.read_real_motor_tsproj()]
+        testCase.verifyEqual(str2double(read_parameter_value(source, "PlantParameter.motor.inertia")), 7.1e-6, "RelTol", 1e-14);
+        testCase.verifyEqual(str2double(read_parameter_value(source, "PlantParameter.motor.ratedTorque")), 0.32, "RelTol", 1e-14);
+        testCase.verifyEqual(str2double(read_parameter_value(source, "PlantParameter.motor.tauLimit")), 1.11, "RelTol", 1e-14);
+        testCase.verifyEqual(str2double(read_parameter_value(source, "PlantParameter.motor.maxPermille")), 1000);
+        testCase.verifyEqual(str2double(read_parameter_value(source, "PlantParameter.load.inertia")), 7.1e-6, "RelTol", 1e-14);
+        testCase.verifyEqual(str2double(read_parameter_value(source, "PlantParameter.coupling.stiffness")), 5.6059352998187553, "RelTol", 1e-14);
+        testCase.verifyEqual(str2double(read_parameter_value(source, "PlantParameter.coupling.damping")), 0.0004194811568097506, "RelTol", 1e-14);
+        testCase.verifyEqual(str2double(read_parameter_value(source, "PlantParameter.taskDtNs")), 125000);
+        testCase.verifyEqual(str2double(read_parameter_value(source, "MotorParams.ratedCurrentA")), 1.6, "RelTol", 1e-14);
+        testCase.verifyEqual(str2double(read_parameter_value(source, "MotorParams.maxCurrentA")), 1.6, "RelTol", 1e-14);
+        testCase.verifyEqual(str2double(read_parameter_value(source, "LoadParams.ratedCurrentA")), 1.6, "RelTol", 1e-14);
+        testCase.verifyEqual(str2double(read_parameter_value(source, "LoadParams.maxCurrentA")), 1.6, "RelTol", 1e-14);
+      end
+    end
   end
 
   methods (Static, Access = private)
@@ -93,4 +133,15 @@ classdef TestTsprojMapping < matlab.unittest.TestCase
       source = string(fileread(fullfile(repo_root, "ExperimentHailMary.RealMotor.tsproj")));
     end
   end
+end
+
+function value = read_parameter_value(source, name)
+pattern = sprintf("<Name>%s</Name>\\s*<Value>([^<]+)</Value>", ...
+  regexptranslate('escape', char(name)));
+tokens = regexp(char(source), pattern, 'tokens', 'once');
+if isempty(tokens)
+  value = "";
+else
+  value = string(tokens{1});
+end
 end
