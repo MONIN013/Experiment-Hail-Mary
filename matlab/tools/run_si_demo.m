@@ -13,8 +13,6 @@ addpath(matlab_root, fullfile(matlab_root, "experiment"));
 clear tool_file matlab_root;
 
 cfg = experiment.ExperimentConfig.defaults();
-logger_file_glob = "*.bin";
-logger_dir = string(fileparts(char(cfg.env.logger_host_file_path)));
 
 %% SI parameters (mirrors old temp.md flow)
 Ts = 1 / cfg.env.task_rate_hz;
@@ -23,9 +21,10 @@ Tcycle = 10;
 repeat_count = 10;
 f0 = 0.1;
 f1 = 4000;
-A = 1;
+A = 0.25;
 transient_cycles = 2;
 initial_phase = 0;
+remove_chirp_mean = true;
 hold_margin_s = 1.0;
 Kp = 0;
 
@@ -45,6 +44,15 @@ chirp_cfg = experiment.waveform.periodic_chirp( ...
   "f1", f1_effective, ...
   "A", A, ...
   "initial_phase", initial_phase);
+% The free rigid-body mode integrates any chirp DC bias into position drift.
+chirp_dc_A = mean(chirp_cfg.signal);
+if remove_chirp_mean
+  chirp_cfg.signal = chirp_cfg.signal - chirp_dc_A;
+else
+  warning("experiment:run_si_demo:chirpMeanRetained", ...
+    "Chirp mean removal is disabled; the default 100 s VirtualMotor run " + ...
+    "can saturate the 32-bit position output.");
+end
 sample_n = chirp_cfg.sample_count;
 
 %% Runtime config
@@ -56,49 +64,36 @@ cfg.wait_for_done = true;
 cfg.hold_seconds = Tend + hold_margin_s;
 cfg.done_timeout_s = repeat_count * Tend + hold_margin_s + 5.0;
 cfg.logger_release_timeout_s = max(5.0, repeat_count * Tend / 10);
-vm_cfg = virtualMotor.PlantConfig.from_struct(struct( ...
-  "motor", struct( ...
-    "inertia", 0.02, ...
-    "damping", 0.2, ...
-    "ratedTorque", 1.2, ...
-    "tauLimit", 2.4, ...
-    "velLimit", 2*pi*60, ...
-    "maxPermille", 0.0, ...
-    "encoderResolution", uint32(8388608)), ...
-  "load", struct( ...
-    "inertia", 0.03, ...
-    "damping", 0.15, ...
-    "ratedTorque", 1.2, ...
-    "tauLimit", 2.4, ...
-    "velLimit", 2*pi*60, ...
-    "encoderResolution", uint32(8388608)), ...
-  "coupling", struct( ...
-    "stiffness", 50.0, ...
-    "damping", 0.5)));
+cfg.host_heartbeat_enable = false;
+cfg.external_host_heartbeat_enable = true;
+vm_cfg = experiment.exp01.nominal_overlay_plant();
 cfg.controller = experiment.ControllerConfig.p_only(Kp);
+cfg.write_virtual_motor_params = true;
+cfg.restart_virtual_motor_runtime = false;
+cfg.virtual_motor_plant = vm_cfg;
 
 fprintf("=== SI Demo (FF chirp, load_velocity FRF) ===\n");
 fprintf("Ts=%.6f s, Tend=%.3f s, Tcycle=%.3f s, repeats=%d, total=%.3f s, A=%.3f\n", ...
   Ts, Tend, Tcycle, repeat_count, repeat_count * Tend, A);
 fprintf("f0=%.3f Hz, f1(requested)=%.3f Hz, f1(effective)=%.3f Hz, transient_cycles=%d\n", ...
   f0, f1, f1_effective, transient_cycles);
-fprintf("Samples=%d, cycles=%.2f, loggerDir=%s\n", sample_n, chirp_cfg.cycle_count, logger_dir);
-
-%% ADS connect
-conn = experiment.ConnectionManager.create(cfg);
-cleanup = onCleanup(@() conn.session.close()); 
-fprintf("Connected: SEQ=%d, CTRL=%d, MODULE=%d\n", cfg.env.seq_port, cfg.env.control_port, cfg.env.module_port);
+if remove_chirp_mean
+  fprintf("Removed chirp DC bias=%.9f A\n", chirp_dc_A);
+else
+  fprintf("Retained chirp DC bias=%.9f A\n", chirp_dc_A);
+end
+fprintf("Samples=%d, cycles=%.2f, loggerFile=%s\n", ...
+  sample_n, chirp_cfg.cycle_count, string(cfg.env.logger_host_file_path));
 
 %% Run experiment and read logger
-virtualMotor.writeParams(conn, vm_cfg);
-run_out = experiment.ExperimentRunner.run(conn, cfg);
-latest_bin = experiment.io.read_latest_logger_bin(logger_dir, logger_file_glob);
-if ~latest_bin.ok
+collect_out = experiment.exp0n.run_and_collect(cfg);
+run_out = collect_out.run;
+logger_bin = collect_out.logger_bin;
+if isempty(logger_bin) || double(logger_bin.record_count) <= 0
   error("experiment:run_si_demo:loggerUnavailable", ...
-    "ExperimentLogger bin is unavailable (%s).", string(latest_bin.reason));
+    "ExperimentLogger bin is unavailable at %s.", string(run_out.logger.file_path));
 end
-
-logger_bin = latest_bin.logger_bin;
+experiment.exp0n.assert_run_contract(run_out);
 frf_out = experiment.analyze_si_frf(logger_bin, ...
   "Ts", Ts, ...
   "Tcycle", Tcycle, ...
@@ -107,7 +102,7 @@ frf_out = experiment.analyze_si_frf(logger_bin, ...
 fprintf("\n--- Result ---\n");
 fprintf("done=%d timed_out=%d\n", logical(run_out.host.done), logical(run_out.host.timed_out));
 fprintf("logger=%s records=%d file=%s\n", ...
-  string(latest_bin.reason), logger_bin.record_count, string(logger_bin.file_path));
+  "runner-confirmed", logger_bin.record_count, string(logger_bin.file_path));
 fprintf("FRF input=%s output=%s windowSamples=%d usablePeriods=%d\n", ...
   frf_out.input_signal_name, frf_out.output_signal_name, ...
   frf_out.window_samples, frf_out.trim_info.usable_period_count);
@@ -119,83 +114,24 @@ end
 
 %% Plot
 freq_hz = frf_out.freq_hz(:);
-omega_rad_s = 2 * pi * freq_hz;
-frf_measured = frf_out.frf(:);
-frf_nominal = compute_nominal_two_inertia_frf( ...
-  vm_cfg, omega_rad_s, ...
-  "Ts", Ts, ...
-  "sample_delay", 4);
-
-mag_measured_db = mag2db(abs(frf_measured));
-mag_nominal_db = mag2db(abs(frf_nominal));
-phase_measured_deg = experiment.wrap_phase_at_180(rad2deg(unwrap(angle(frf_measured))));
-phase_nominal_deg = experiment.wrap_phase_at_180(rad2deg(unwrap(angle(frf_nominal))));
-
-figure("Name", "SI Demo", "Color", "w");
-tiledlayout(3, 1, "Padding", "compact", "TileSpacing", "compact");
-
-nexttile;
-semilogx(freq_hz, mag_measured_db, "-", "LineWidth", 1.2, "DisplayName", "Measured"); hold on;
-semilogx(freq_hz, mag_nominal_db, "--", "LineWidth", 1.2, "DisplayName", "Nominal");
-hold off;
-grid on;
-xlabel("Frequency [Hz]");
-ylabel("Gain [dB]");
-legend("Location", "best");
-title("FRF Gain: ffValue -> loadVelocity");
-
-nexttile;
-semilogx(freq_hz, phase_measured_deg, "-", "LineWidth", 1.2, "DisplayName", "Measured"); hold on;
-semilogx(freq_hz, phase_nominal_deg, "--", "LineWidth", 1.2, "DisplayName", "Nominal");
-hold off;
-grid on;
-xlabel("Frequency [Hz]");
-ylabel("Phase [deg]");
-ylim([-180, 180]);
-yticks([-180, -135, -90, -45, 0, 45, 90, 135, 180]);
-legend("Location", "best");
-title("FRF Phase: ffValue -> loadVelocity");
-
-nexttile;
-semilogx(freq_hz, frf_out.coherence, "-", "LineWidth", 1.2);
-grid on;
-xlabel("Frequency [Hz]");
-ylabel("Coherence");
-ylim([0, 1.05]);
-title(sprintf("Coherence (transient cycles removed = %d)", transient_cycles));
+velocity_frf = frf_out.frf(:);
+positive_frequency = freq_hz > 0;
+position_freq_hz = freq_hz(positive_frequency);
+position_frf = velocity_frf(positive_frequency) ./ (1i * 2 * pi * position_freq_hz);
+fprintf("Displayed FRF=%s -> load_position via %s/(j*2*pi*f), positiveBins=%d\n", ...
+  frf_out.input_signal_name, frf_out.output_signal_name, numel(position_freq_hz));
+experiment.plot.si_frf( ...
+  position_freq_hz, position_frf, [], ...
+  frf_out.coherence(positive_frequency), transient_cycles);
 
 si_out = struct( ...
   "run", run_out, ...
   "logger_bin", logger_bin, ...
   "frf", frf_out, ...
-  "chirp", chirp_cfg); 
-
-function frf_nominal = compute_nominal_two_inertia_frf(plant_cfg, omega_rad_s, varargin)
-parser = inputParser;
-parser.addParameter("Ts", [], @(x) isempty(x) || (isnumeric(x) && isscalar(x) && isfinite(x) && x > 0));
-parser.addParameter("sample_delay", 0, @(x) isnumeric(x) && isscalar(x) && isfinite(x) && x >= 0);
-parser.parse(varargin{:});
-args = parser.Results;
-
-s = 1i * omega_rad_s(:);
-s(abs(s) == 0) = 1i * eps;
-plant = plant_cfg.to_struct();
-jm = plant.motor.inertia;
-jl = plant.load.inertia;
-bm = plant.motor.damping;
-bl = plant.load.damping;
-ks = plant.coupling.stiffness;
-ds = plant.coupling.damping;
-c = ds + ks ./ s;
-den = (jm .* s + bm + c) .* (jl .* s + bl + c) - c .* c;
-frf_nominal = c ./ den;
-
-sample_delay = double(args.sample_delay);
-if sample_delay > 0
-  if isempty(args.Ts)
-    error("experiment:run_si_demo:invalidConfig", ...
-      "Ts is required when sample_delay is nonzero.");
-  end
-  frf_nominal = frf_nominal .* exp(-s * args.Ts * sample_delay);
-end
-end
+  "position_frf", struct( ...
+    "input_signal_name", frf_out.input_signal_name, ...
+    "output_signal_name", "load_position", ...
+    "derived_from", frf_out.output_signal_name, ...
+    "freq_hz", position_freq_hz, ...
+    "frf", position_frf), ...
+  "chirp", chirp_cfg);

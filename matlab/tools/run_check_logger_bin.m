@@ -13,21 +13,17 @@ file_glob = "*.bin";
 target_file = "";
 
 if strlength(target_file) == 0
-  files = dir(fullfile(share_dir, file_glob));
-  files = files(~[files.isdir]);
-  if isempty(files)
+  latest = experiment.io.read_latest_logger_bin(share_dir, file_glob);
+  if ~latest.ok
     error("experiment:run_check_logger_bin:noFiles", ...
-      "No bin files matched %s under %s.", file_glob, share_dir);
+      "No usable bin files matched %s under %s (%s).", ...
+      file_glob, share_dir, latest.reason);
   end
-
-  [~, order] = sort([files.datenum], "descend");
-  files = files(order);
-  target_file = string(fullfile(files(1).folder, files(1).name));
+  out = latest.logger_bin;
 else
   target_file = string(target_file);
+  out = experiment.read_logger_bin(target_file);
 end
-
-out = experiment.read_logger_bin(target_file);
 
 fprintf("Logger file: %s\n", out.file_path);
 fprintf("Records: %d  Size: %.1f KB  Duration: %.6f s\n", ...
