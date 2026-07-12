@@ -30,6 +30,8 @@ classdef TestSymbolBrowserContract < matlab.unittest.TestCase
       transport.scalarMap(char(s.modeResetAckCounter)) = uint32(0);
       transport.scalarMap(char(s.hostHeartbeatCounter)) = uint32(0);
       transport.scalarMap(char(s.experimentActive)) = false;
+      transport.scalarMap(char(s.modeFlags)) = uint16(0);
+      transport.scalarMap(char(s.modeState)) = int16(0);
       transport.scalarMap(char(s.loggerFileReleased)) = true;
       transport.scalarMap(char(s.loggerErrorCode)) = uint32(0);
       testCase.verifyWarningFree( ...

@@ -6,8 +6,8 @@ classdef ModeManagerControl
       end
       t = plc_symbols.types;
       ctrl = struct( ...
-        "modeFlagsSymbol", "", ...
-        "experimentStateSymbol", "", ...
+        "modeFlagsSymbol", string(plc_symbols.modeFlags), ...
+        "modeStateSymbol", string(plc_symbols.modeState), ...
         "experimentActiveSymbol", "GVL_MODE.experimentActive", ...
         "loggerFileReleasedSymbol", "GVL_MODE.loggerFileReleased", ...
         "loggerErrorCodeSymbol", "GVL_MODE.loggerErrorCode", ...
@@ -16,28 +16,20 @@ classdef ModeManagerControl
         "resetAckCounterSymbol", string(plc_symbols.modeResetAckCounter), ...
         "MODEF_SERVO_ENABLE", uint32(hex2dec("0001")), ...
         "MODEF_EXPERIMENT_START_REQ", uint32(hex2dec("0002")), ...
-        "STATE_READY", uint32(1), ...
-        "STATE_DONE", uint32(3));
+        "MODESTATE_IDLE", int16(0), ...
+        "MODESTATE_RESETTING", int16(10), ...
+        "MODESTATE_SERVO_READY", int16(20), ...
+        "MODESTATE_RUNNING", int16(30), ...
+        "MODESTATE_DONE", int16(40));
 
-      mode_candidates = string(plc_symbols.modeFlags);
-      if isprop(plc_symbols, "modeFlagsCandidates") && ~isempty(plc_symbols.modeFlagsCandidates)
-        mode_candidates = string(plc_symbols.modeFlagsCandidates(:));
-      end
-      mode_candidates = unique(mode_candidates(strlength(mode_candidates) > 0), "stable");
-      for k = 1:numel(mode_candidates)
-        sym = char(mode_candidates(k));
-        try
-          mode_t = experiment.ModeManagerControl.modeflags_type(t);
-          current_value = control_transport.read_scalar(sym, mode_t);
-          control_transport.write_scalar(sym, ...
-            experiment.ModeManagerControl.cast_modeflags_value(mode_t, current_value), mode_t);
-          ctrl.modeFlagsSymbol = sym;
-          break;
-        catch
-        end
-      end
-      if strlength(string(ctrl.modeFlagsSymbol)) == 0
-        error(error_id, "No writable modeFlags ADS symbol found. Tried: %s", strjoin(mode_candidates, ", "));
+      try
+        mode_t = experiment.ModeManagerControl.modeflags_type(t);
+        current_value = control_transport.read_scalar(ctrl.modeFlagsSymbol, mode_t);
+        control_transport.write_scalar(ctrl.modeFlagsSymbol, ...
+          experiment.ModeManagerControl.cast_modeflags_value(mode_t, current_value), mode_t);
+      catch e
+        error(error_id, "Required writable ADS symbol '%s' is unavailable (%s: %s).", ...
+          char(ctrl.modeFlagsSymbol), string(e.identifier), string(e.message));
       end
       try
         control_transport.read_scalar(ctrl.resetAckCounterSymbol, t.u32);
@@ -55,21 +47,11 @@ classdef ModeManagerControl
           char(string(ctrl.hostHeartbeatCounterSymbol)));
       end
 
-      state_candidates = strings(0, 1);
-      if isprop(plc_symbols, "experimentStateCandidates") && ~isempty(plc_symbols.experimentStateCandidates)
-        state_candidates = string(plc_symbols.experimentStateCandidates(:));
-      elseif isprop(plc_symbols, "experimentState")
-        state_candidates = string(plc_symbols.experimentState);
-      end
-      state_candidates = unique(state_candidates(strlength(state_candidates) > 0), "stable");
-      for k = 1:numel(state_candidates)
-        sym = char(state_candidates(k));
-        try
-          control_transport.read_scalar(sym, t.u32);
-          ctrl.experimentStateSymbol = sym;
-          break;
-        catch
-        end
+      try
+        control_transport.read_scalar(ctrl.modeStateSymbol, t.i16);
+      catch e
+        error(error_id, "Required mode state ADS symbol '%s' is unavailable (%s: %s).", ...
+          char(ctrl.modeStateSymbol), string(e.identifier), string(e.message));
       end
       try
         control_transport.read_scalar(char(string(plc_symbols.loggerFileReleased)), t.bool);
@@ -125,14 +107,16 @@ classdef ModeManagerControl
       t = plc_symbols.types;
       t0 = tic;
       ready = false;
-      diag = struct("idx", NaN, "experiment_active", false);
+      diag = struct("idx", NaN, "mode_state", NaN, "experiment_active", false);
       while toc(t0) < timeout_s
         idx = double(plc_transport.read_scalar(plc_symbols.idx, t.u32));
+        mode_state = int16(control_transport.read_scalar(ctrl.modeStateSymbol, t.i16));
         exp_active = experiment.ModeManagerControl.try_read_experiment_active( ...
           control_transport, ctrl, t);
         diag.idx = idx;
+        diag.mode_state = double(mode_state);
         diag.experiment_active = logical(exp_active);
-        ready = (idx == 0) && (~exp_active);
+        ready = (idx == 0) && (mode_state == ctrl.MODESTATE_IDLE) && (~exp_active);
         if ready
           return;
         end
@@ -141,38 +125,28 @@ classdef ModeManagerControl
       end
     end
 
-    function [done, heartbeat_state] = wait_until_done( ...
-        control_transport, plc_transport, plc_symbols, ctrl, timeout_s, heartbeat_state)
-      [status, heartbeat_state] = experiment.ModeManagerControl.wait_until_inactive( ...
-        control_transport, plc_transport, plc_symbols, ctrl, timeout_s, heartbeat_state);
-      done = strcmp(status.stop_reason, "done");
-    end
-
     function [status, heartbeat_state, observer_state] = wait_until_inactive( ...
-        control_transport, plc_transport, plc_symbols, ctrl, timeout_s, heartbeat_state, observer_state)
-      if nargin < 6 || isempty(heartbeat_state)
+        control_transport, ctrl, timeout_s, heartbeat_state, observer_state)
+      if nargin < 4 || isempty(heartbeat_state)
         heartbeat_state = experiment.ModeManagerControl.heartbeat_disabled();
       end
-      if nargin < 7 || isempty(observer_state)
+      if nargin < 5 || isempty(observer_state)
         observer_state = experiment.ModeManagerControl.default_inactive_observer(ctrl);
       else
         observer_state = experiment.ModeManagerControl.normalize_inactive_observer(observer_state, ctrl);
       end
-      t = plc_symbols.types;
+      t = twincat_ads.AdsTransport.net_types();
       t0 = tic;
-      state_supported = logical(observer_state.state_supported);
       seen_active = logical(observer_state.seen_active);
       status = struct( ...
         "completed", false, ...
         "stop_reason", "timeout", ...
-        "experiment_state", NaN, ...
+        "mode_state", NaN, ...
         "experiment_active", false, ...
-        "state_supported", logical(state_supported), ...
         "seen_active", false);
       while toc(t0) < timeout_s
-        [status, state_supported, seen_active] = experiment.ModeManagerControl.poll_inactive( ...
-          control_transport, plc_transport, plc_symbols, ctrl, t, state_supported, seen_active);
-        observer_state.state_supported = logical(state_supported);
+        [status, seen_active] = experiment.ModeManagerControl.poll_inactive( ...
+          control_transport, ctrl, t, seen_active);
         observer_state.seen_active = logical(seen_active);
         if status.completed
           return;
@@ -214,8 +188,9 @@ classdef ModeManagerControl
 
       aborted = false;
       while toc(t0) < timeout_s
-        diag.stop_confirmed = ~logical(experiment.ModeManagerControl.try_read_experiment_active( ...
-          control_transport, ctrl, t));
+        mode_state = int16(control_transport.read_scalar(ctrl.modeStateSymbol, t.i16));
+        diag.stop_confirmed = (mode_state == ctrl.MODESTATE_IDLE) && ...
+          ~logical(experiment.ModeManagerControl.try_read_experiment_active(control_transport, ctrl, t));
         diag.file_released = logical(control_transport.read_scalar(ctrl.loggerFileReleasedSymbol, t.bool));
         diag.error_code = uint32(control_transport.read_scalar(ctrl.loggerErrorCodeSymbol, t.u32));
         if diag.error_code ~= 0
@@ -281,6 +256,7 @@ classdef ModeManagerControl
       end
       state = struct( ...
         "enabled", logical(enabled), ...
+        "monitor", [], ...
         "period_s", double(period_s), ...
         "next_tick_s", 0.0, ...
         "counter", uint32(0), ...
@@ -296,15 +272,29 @@ classdef ModeManagerControl
     function state = heartbeat_disabled()
       state = struct( ...
         "enabled", false, ...
+        "monitor", [], ...
         "period_s", 0.1, ...
         "next_tick_s", inf, ...
         "counter", uint32(0), ...
         "started_at", tic);
     end
 
+    function state = monitor_external_heartbeat(monitor)
+      if ~isa(monitor, "function_handle")
+        error("experiment:modecontrol:invalidConfig", ...
+          "External heartbeat monitor must be a function handle.");
+      end
+      state = experiment.ModeManagerControl.heartbeat_disabled();
+      state.monitor = monitor;
+      state.monitor();
+    end
+
     function state = tick_heartbeat(control_transport, ctrl, state, force)
       if nargin < 4
         force = false;
+      end
+      if isstruct(state) && isfield(state, "monitor") && isa(state.monitor, "function_handle")
+        state.monitor();
       end
       if ~isstruct(state) || ~isfield(state, "enabled") || ~logical(state.enabled)
         return;
@@ -319,39 +309,17 @@ classdef ModeManagerControl
       state.next_tick_s = elapsed_s + state.period_s;
     end
 
-    function [status, state_supported, seen_active] = poll_inactive( ...
-        control_transport, plc_transport, plc_symbols, ctrl, t, state_supported, seen_active)
-      exp_active = false;
-      state = NaN;
-      if state_supported
-        try
-          state = uint32(control_transport.read_scalar(ctrl.experimentStateSymbol, t.u32));
-          if state == ctrl.STATE_DONE
-            seen_active = true;
-            status = struct( ...
-              "completed", true, ...
-              "stop_reason", "done", ...
-              "experiment_state", double(state), ...
-              "experiment_active", false, ...
-              "state_supported", true, ...
-              "seen_active", logical(seen_active));
-            return;
-          end
-        catch
-          state_supported = false;
-          state = NaN;
-        end
-      end
-
+    function [status, seen_active] = poll_inactive( ...
+        control_transport, ctrl, t, seen_active)
+      state = int16(control_transport.read_scalar(ctrl.modeStateSymbol, t.i16));
       exp_active = experiment.ModeManagerControl.try_read_experiment_active( ...
         control_transport, ctrl, t);
-      seen_active = seen_active || logical(exp_active);
+      seen_active = seen_active || logical(exp_active) || (state == ctrl.MODESTATE_RUNNING);
       status = struct( ...
-        "completed", logical(seen_active && (~logical(exp_active))), ...
+        "completed", state == ctrl.MODESTATE_DONE, ...
         "stop_reason", "running", ...
-        "experiment_state", double(state), ...
+        "mode_state", double(state), ...
         "experiment_active", logical(exp_active), ...
-        "state_supported", logical(state_supported), ...
         "seen_active", logical(seen_active));
       if status.completed
         status.stop_reason = "done";
@@ -374,7 +342,6 @@ classdef ModeManagerControl
 
     function observer_state = default_inactive_observer(ctrl)
       observer_state = struct( ...
-        "state_supported", strlength(string(ctrl.experimentStateSymbol)) > 0, ...
         "seen_active", false);
     end
 
@@ -383,11 +350,6 @@ classdef ModeManagerControl
       if ~isstruct(observer_state)
         observer_state = defaults;
         return;
-      end
-      if ~isfield(observer_state, "state_supported") || isempty(observer_state.state_supported)
-        observer_state.state_supported = defaults.state_supported;
-      else
-        observer_state.state_supported = logical(observer_state.state_supported);
       end
       if ~isfield(observer_state, "seen_active") || isempty(observer_state.seen_active)
         observer_state.seen_active = defaults.seen_active;

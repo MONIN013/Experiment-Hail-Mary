@@ -20,5 +20,20 @@ classdef TestControllerConfig < matlab.unittest.TestCase
       testCase.verifyEqual(out.reso_a2, 20);
       testCase.verifyTrue(out.enable_lead);
     end
+
+    function rejectsUnknownFlatField(testCase)
+      testCase.verifyError(@() experiment.ControllerConfig.from_flat_struct( ...
+        struct("pid_b0", 1, "pid_typo", 2)), ...
+        "experiment:controller:invalid");
+    end
+
+    function rejectsInvalidGainAndStageValues(testCase)
+      testCase.verifyError(@() experiment.ControllerConfig.p_only(Inf), ...
+        "experiment:controller:invalid");
+      testCase.verifyError(@() experiment.ControllerConfig.from_flat_struct( ...
+        struct("pid_b0", NaN)), "experiment:biquad:invalid");
+      testCase.verifyError(@() experiment.ControllerConfig.from_flat_struct( ...
+        struct("enable_pid", 2)), "experiment:biquad:invalid");
+    end
   end
 end

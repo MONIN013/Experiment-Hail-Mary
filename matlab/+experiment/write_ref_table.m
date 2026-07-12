@@ -8,9 +8,9 @@ function write_ref_table(transport, ref_profile, table_max_n)
 %
 %   書込み先:
 %     GVL_SEQ.refTable  ← ref_profile
-%     GVL_SEQ.tableLen  ← numel(ref_profile)
 %
-%   table_max_n を超過した場合はエラーを投げる。
+%   table_max_n を超過した場合はエラーを投げる。tableLen は、ff/dist
+%   table も含む全書込みが完了した後に ExperimentRunner が公開する。
 
   arguments
     transport   twincat_ads.IAdsTransport
@@ -25,8 +25,5 @@ function write_ref_table(transport, ref_profile, table_max_n)
   end
 
   symbols = experiment.RuntimeSymbols.from_defaults();
-  t = symbols.types;
-
-  transport.write_array(symbols.refTable, ref_profile, t.double);
-  transport.write_scalar(symbols.tableLen, uint32(n), t.u32);
+  transport.write_array(symbols.refTable, ref_profile, symbols.types.double);
 end

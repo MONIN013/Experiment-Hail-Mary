@@ -1,9 +1,19 @@
 classdef ExperimentRunner
   methods (Static)
     function out = run(conn, cfg, varargin)
+      startup_total_t0 = tic;
       cfg = experiment.ExperimentConfig.from_varargin(cfg);
       experiment.ExperimentRunner.validate_connection(conn);
+      experiment.ExperimentRunner.validate_connection_snapshot(conn, cfg.env);
       opts = experiment.ExperimentRunner.parse_run_options(varargin{:});
+      if ~isempty(opts.abort_condition)
+        opts.cfg_snapshot = cfg.to_struct();
+      end
+
+      if cfg.host_heartbeat_enable && cfg.external_host_heartbeat_enable
+        error("experiment:runner:invalidConfig", ...
+          "Internal and external host heartbeat writers cannot be enabled together.");
+      end
 
       seq_transport = conn.seq;
       ctrl_transport = conn.ctrl;
@@ -15,12 +25,21 @@ classdef ExperimentRunner
       plc_symbols = experiment.RuntimeSymbols.from_defaults();
       env = cfg.env;
       controller_symbols = experiment.RuntimeSymbols.from_controller_prefix(env.controller_prefix);
+      startup_timing = struct( ...
+        "contract_s", 0.0, ...
+        "reset_idle_s", 0.0, ...
+        "parameter_write_s", 0.0, ...
+        "table_write_s", 0.0, ...
+        "heartbeat_start_s", 0.0, ...
+        "servo_ready_s", 0.0, ...
+        "total_s", 0.0);
 
-      if cfg.write_controller_params && isempty(module_transport)
+      if (cfg.write_controller_params || cfg.write_virtual_motor_params) && isempty(module_transport)
         error("experiment:runner:invalidConfig", ...
-          "module transport is required when controller parameter writes are enabled.");
+          "module transport is required when controller or virtual-motor parameter writes are enabled.");
       end
 
+      phase_t0 = tic;
       if cfg.validate_symbols
         experiment.ExperimentRunner.validate_runtime_symbols(seq_transport, ctrl_transport, plc_symbols);
         if cfg.write_controller_params
@@ -30,26 +49,20 @@ classdef ExperimentRunner
 
       ctrl = experiment.ModeManagerControl.resolve_symbols( ...
         ctrl_transport, plc_symbols, "experiment:runner:invalidConfig");
-      heartbeat_state = experiment.ModeManagerControl.init_heartbeat( ...
-        ctrl_transport, ctrl, cfg.host_heartbeat_enable, cfg.host_heartbeat_period_s);
-      clear_mode_guard = onCleanup(@() experiment.ExperimentRunner.safe_clear_mode_flags(ctrl_transport, ctrl));
-
-      if cfg.write_controller_params
-        if isempty(module_transport)
-          error("experiment:runner:invalidConfig", "module transport is required when write_controller_params=true.");
-        end
-        experiment.write_controller_params( ...
-          module_transport, env.controller_prefix, ...
-          cfg.controller.to_flat_struct());
-      end
+      startup_timing.contract_s = toc(phase_t0);
+      clear_mode_guard = onCleanup( ...
+        @() experiment.ExperimentRunner.safe_clear_mode_flags(ctrl_transport, ctrl));
+      heartbeat_state = experiment.ModeManagerControl.heartbeat_disabled();
+      external_heartbeat_cleanup = [];
 
       table_n = numel(cfg.ref_profile);
       logger_path = string(env.logger_host_file_path);
       t_run = tic;
+      phase_t0 = tic;
       experiment.ModeManagerControl.write_mode_flags(ctrl_transport, ctrl, uint32(0));
       seq_transport.write_scalar(plc_symbols.tableLen, uint32(0), plc_symbols.types.u32);
 
-      [reset_acked, reset_diag, heartbeat_state] = experiment.ModeManagerControl.request_reset_and_wait_ack( ...
+      [reset_acked, reset_diag, ~] = experiment.ModeManagerControl.request_reset_and_wait_ack( ...
         ctrl_transport, ctrl, cfg.reset_timeout_s, heartbeat_state);
       if ~reset_acked
         error("experiment:runner:resetAckTimeout", ...
@@ -57,27 +70,58 @@ classdef ExperimentRunner
           reset_diag.counter_before, reset_diag.counter_after);
       end
 
-      [idle_ready, idle_diag, heartbeat_state] = experiment.ModeManagerControl.wait_for_reset_idle( ...
+      [idle_ready, idle_diag, ~] = experiment.ModeManagerControl.wait_for_reset_idle( ...
         seq_transport, ctrl_transport, plc_symbols, ctrl, cfg.reset_timeout_s, heartbeat_state);
       if ~idle_ready
         error("experiment:runner:resetSyncTimeout", ...
           "Timed out waiting reset idle state (idx==0, experimentActive==FALSE). Observed idx=%g experimentActive=%d.", ...
           idle_diag.idx, logical(idle_diag.experiment_active));
       end
+      startup_timing.reset_idle_s = toc(phase_t0);
       logger_before = experiment.ModeManagerControl.read_logger_status(ctrl_transport, ctrl);
       logger_module_before = experiment.ExperimentRunner.read_logger_module_status(module_transport);
 
+      phase_t0 = tic;
+      if cfg.write_controller_params
+        experiment.write_controller_params( ...
+          module_transport, env.controller_prefix, ...
+          cfg.controller.to_flat_struct());
+      end
+
+      if cfg.write_virtual_motor_params
+        virtualMotor.writeParams(conn, cfg.virtual_motor_plant, ...
+          "taskDtNs", env.task_dt_ns(), ...
+          "validateSymbols", cfg.validate_symbols);
+      end
+      startup_timing.parameter_write_s = toc(phase_t0);
+
+      phase_t0 = tic;
       experiment.write_ref_table(seq_transport, cfg.ref_profile(:), double(env.table_max_n));
       experiment.write_ff_table(seq_transport, cfg.ff_profile(:), table_n);
       experiment.write_dist_table(seq_transport, cfg.dist_profile(:), table_n);
       seq_transport.write_scalar(plc_symbols.repeatCount, uint32(cfg.repeat_count), plc_symbols.types.u32);
       seq_transport.write_scalar(plc_symbols.tableLen, uint32(table_n), plc_symbols.types.u32);
+      startup_timing.table_write_s = toc(phase_t0);
 
+      phase_t0 = tic;
+      if cfg.external_host_heartbeat_enable
+        [external_heartbeat_cleanup, heartbeat_monitor] = experiment.start_external_heartbeat( ...
+          env, cfg.external_host_heartbeat_period_s, cfg.ads_assembly);
+        heartbeat_state = experiment.ModeManagerControl.monitor_external_heartbeat(heartbeat_monitor);
+      else
+        heartbeat_state = experiment.ModeManagerControl.init_heartbeat( ...
+          ctrl_transport, ctrl, cfg.host_heartbeat_enable, cfg.host_heartbeat_period_s);
+      end
+      startup_timing.heartbeat_start_s = toc(phase_t0);
+
+      phase_t0 = tic;
       experiment.ModeManagerControl.write_mode_flags(ctrl_transport, ctrl, uint32(ctrl.MODEF_SERVO_ENABLE));
       heartbeat_state = experiment.ExperimentRunner.wait_for_ready_state( ...
         ctrl_transport, ctrl, cfg.reset_timeout_s, heartbeat_state);
+      startup_timing.servo_ready_s = toc(phase_t0);
       experiment.ModeManagerControl.write_mode_flags(ctrl_transport, ctrl, ...
         uint32(bitor(ctrl.MODEF_SERVO_ENABLE, ctrl.MODEF_EXPERIMENT_START_REQ)));
+      startup_timing.total_s = toc(startup_total_t0);
 
       if cfg.wait_for_done
         [done, timed_out, stop_reason, abort_requested, abort_diag, heartbeat_state] = ...
@@ -90,11 +134,13 @@ classdef ExperimentRunner
         abort_requested = false;
         abort_diag = experiment.ExperimentRunner.empty_abort_diag();
         while toc(t_run) < cfg.hold_seconds
-          [abort_requested, abort_diag] = experiment.ExperimentRunner.check_abort_condition( ...
-            opts.abort_condition, struct( ...
-              "elapsed_s", toc(t_run), ...
-              "cfg", cfg.to_struct(), ...
-              "heartbeat_state", heartbeat_state));
+          if ~isempty(opts.abort_condition)
+            [abort_requested, abort_diag] = experiment.ExperimentRunner.check_abort_condition( ...
+              opts.abort_condition, struct( ...
+                "elapsed_s", toc(t_run), ...
+                "cfg", opts.cfg_snapshot, ...
+                "heartbeat_state", heartbeat_state));
+          end
           if abort_requested
             [aborted, abort_diag, heartbeat_state] = experiment.ModeManagerControl.abort_experiment( ...
               ctrl_transport, ctrl, heartbeat_state, struct( ...
@@ -115,7 +161,7 @@ classdef ExperimentRunner
       end
 
       experiment.ModeManagerControl.write_mode_flags(ctrl_transport, ctrl, uint32(0));
-      [file_released, logger_diag, heartbeat_state] = experiment.ModeManagerControl.wait_for_logger_release( ...
+      [file_released, logger_diag, ~] = experiment.ModeManagerControl.wait_for_logger_release( ...
         ctrl_transport, ctrl, cfg.logger_release_timeout_s, heartbeat_state);
       elapsed_s = toc(t_run);
       logger_after = experiment.ModeManagerControl.read_logger_status(ctrl_transport, ctrl);
@@ -130,7 +176,7 @@ classdef ExperimentRunner
       end
       logger_module_after = experiment.ExperimentRunner.read_logger_module_status(module_transport);
 
-      raw = experiment.ExperimentRunner.read_log_payload(cfg.read_logs, logger_path);
+      [raw, logger_bin] = experiment.ExperimentRunner.read_log_payload(cfg.read_logs, logger_path);
       cmd = struct( ...
         "ref_profile", cfg.ref_profile(:), ...
         "ff_profile", cfg.ff_profile(:), ...
@@ -146,13 +192,16 @@ classdef ExperimentRunner
         "abort_requested", logical(abort_requested), ...
         "stop_reason", char(string(stop_reason)), ...
         "abort_diag", abort_diag, ...
+        "startup_timing", startup_timing, ...
         "control_ams_port", double(env.control_port), ...
         "host_heartbeat_enable", logical(cfg.host_heartbeat_enable), ...
         "host_heartbeat_period_s", double(cfg.host_heartbeat_period_s), ...
+        "external_host_heartbeat_enable", logical(cfg.external_host_heartbeat_enable), ...
+        "external_host_heartbeat_period_s", double(cfg.external_host_heartbeat_period_s), ...
         "abort_check_period_s", double(cfg.abort_check_period_s), ...
         "logger_release_timeout_s", double(cfg.logger_release_timeout_s), ...
         "control_mode_flags_symbol", char(string(ctrl.modeFlagsSymbol)), ...
-        "control_experiment_state_symbol", char(string(ctrl.experimentStateSymbol)));
+        "control_mode_state_symbol", char(string(ctrl.modeStateSymbol)));
       logger_status_available = logical(logger_module_before.status_available && logger_module_after.status_available);
       logger = struct( ...
         "status_available", logger_status_available, ...
@@ -182,12 +231,17 @@ classdef ExperimentRunner
 
       out = struct( ...
         "raw", raw, ...
+        "logger_bin", logger_bin, ...
         "cmd", cmd, ...
         "host", host, ...
         "metrics", metrics, ...
         "config", config_out, ...
         "logger", logger, ...
         "save_path", char(string(cfg.save_path)));
+
+      if ~isempty(external_heartbeat_cleanup)
+        clear external_heartbeat_cleanup
+      end
     end
   end
 
@@ -197,6 +251,7 @@ classdef ExperimentRunner
       p.addParameter("abort_condition", [], @(x) isempty(x) || isa(x, "function_handle"));
       p.parse(varargin{:});
       opts = p.Results;
+      opts.cfg_snapshot = [];
     end
 
     function validate_connection(conn)
@@ -224,6 +279,35 @@ classdef ExperimentRunner
       end
     end
 
+    function validate_connection_snapshot(conn, expected_env)
+      if ~isfield(conn, "env") || isempty(conn.env)
+        return;
+      end
+
+      actual = config.EnvironmentConfig.from_struct(conn.env);
+      expected = config.EnvironmentConfig.from_struct(expected_env);
+      fields = [ ...
+        "ams_net_id"
+        "seq_port"
+        "control_port"
+        "module_port"
+        "controller_prefix"
+        "logger_target_file_path"
+        "logger_host_file_path"
+      ];
+      mismatches = strings(0, 1);
+      for k = 1:numel(fields)
+        name = char(fields(k));
+        if ~isequal(string(actual.(name)), string(expected.(name)))
+          mismatches(end + 1, 1) = fields(k); %#ok<AGROW>
+        end
+      end
+      if ~isempty(mismatches)
+        error("experiment:runner:connectionConfigMismatch", ...
+          "Connection environment differs from cfg.env: %s.", strjoin(mismatches, ", "));
+      end
+    end
+
     function status = read_logger_module_status(module_transport)
       status = struct("status_available", false, "ready", false, "records", uint32(0));
       if isempty(module_transport) || ~isa(module_transport, "twincat_ads.IAdsTransport")
@@ -242,7 +326,7 @@ classdef ExperimentRunner
       end
     end
 
-    function raw = read_log_payload(read_logs, logger_path)
+    function [raw, logger_bin] = read_log_payload(read_logs, logger_path)
       raw = struct( ...
         "seq", zeros(0, 1), ...
         "ref_value", zeros(0, 1), ...
@@ -251,6 +335,7 @@ classdef ExperimentRunner
         "control_input", zeros(0, 1), ...
         "target_current", zeros(0, 1), ...
         "position_act", zeros(0, 1));
+      logger_bin = [];
       if ~logical(read_logs)
         return;
       end
@@ -258,14 +343,14 @@ classdef ExperimentRunner
         error("experiment:runner:loggerFileMissing", ...
           "Logger file was released but not found at %s.", string(logger_path));
       end
-      out = experiment.read_logger_bin(logger_path);
-      raw.seq = double(out.raw.seq(:));
-      raw.ref_value = double(out.raw.ref_value(:));
-      raw.ff_value = double(out.raw.ff_value(:));
-      raw.dist_value = double(out.raw.dist_value(:));
-      raw.control_input = double(out.raw.control_input(:));
-      raw.target_current = double(out.raw.current_cmd(:));
-      raw.position_act = double(out.raw.load_position(:));
+      logger_bin = experiment.read_logger_bin(logger_path);
+      raw.seq = double(logger_bin.raw.seq(:));
+      raw.ref_value = double(logger_bin.raw.ref_value(:));
+      raw.ff_value = double(logger_bin.raw.ff_value(:));
+      raw.dist_value = double(logger_bin.raw.dist_value(:));
+      raw.control_input = double(logger_bin.raw.control_input(:));
+      raw.target_current = double(logger_bin.raw.current_cmd(:));
+      raw.position_act = double(logger_bin.raw.load_position(:));
     end
 
     function ensure_folder(path_value)
@@ -281,27 +366,24 @@ classdef ExperimentRunner
       if nargin < 4 || isempty(heartbeat_state)
         heartbeat_state = experiment.ModeManagerControl.heartbeat_disabled();
       end
-      if strlength(string(ctrl.experimentStateSymbol)) == 0
-        return;
-      end
       t = twincat_ads.AdsTransport.net_types();
       t0 = tic;
       while toc(t0) < timeout_s
-        state = uint32(ctrl_transport.read_scalar(ctrl.experimentStateSymbol, t.u32));
-        if state == ctrl.STATE_READY
-          return;
-        end
         heartbeat_state = experiment.ModeManagerControl.tick_heartbeat( ...
           ctrl_transport, ctrl, heartbeat_state, false);
+        state = int16(ctrl_transport.read_scalar(ctrl.modeStateSymbol, t.i16));
+        if state == ctrl.MODESTATE_SERVO_READY
+          return;
+        end
         pause(0.01);
       end
 
       diag = experiment.ExperimentRunner.try_read_symbol( ...
-        @() uint32(ctrl_transport.read_scalar(ctrl.experimentStateSymbol, t.u32)), uint32(0));
+        @() int16(ctrl_transport.read_scalar(ctrl.modeStateSymbol, t.i16)), int16(-1));
       experiment.ExperimentRunner.safe_clear_mode_flags(ctrl_transport, ctrl);
       error("experiment:runner:readyTimeout", ...
-        sprintf("Timed out waiting %.3f s for STATE_READY after servo enable. state=%u", ...
-        timeout_s, uint32(diag)));
+        "Timed out waiting %.3f s for SERVO_READY after servo enable. modeState=%d", ...
+        timeout_s, int16(diag));
     end
 
     function [done, timed_out, stop_reason, abort_requested, abort_diag, heartbeat_state] = wait_for_terminal_state( ...
@@ -309,29 +391,29 @@ classdef ExperimentRunner
       t0 = tic;
       done = false;
       timed_out = false;
-      stop_reason = "running";
       abort_requested = false;
       abort_diag = experiment.ExperimentRunner.empty_abort_diag();
       observer_state = struct( ...
-        "seen_active", false, ...
-        "state_supported", strlength(string(ctrl.experimentStateSymbol)) > 0);
+        "seen_active", false);
       while toc(t0) < cfg.done_timeout_s
         remaining_s = max(cfg.done_timeout_s - toc(t0), eps);
         [status, heartbeat_state, observer_state] = experiment.ModeManagerControl.wait_until_inactive( ...
-          ctrl_transport, seq_transport, plc_symbols, ctrl, ...
-          min(cfg.abort_check_period_s, remaining_s), heartbeat_state, observer_state);
+          ctrl_transport, ctrl, min(cfg.abort_check_period_s, remaining_s), ...
+          heartbeat_state, observer_state);
         if status.completed
           done = strcmp(status.stop_reason, "done");
           stop_reason = char(string(status.stop_reason));
           return;
         end
 
-        [abort_requested, abort_diag] = experiment.ExperimentRunner.check_abort_condition( ...
-          opts.abort_condition, struct( ...
-            "elapsed_s", toc(t0), ...
-            "status", status, ...
-            "cfg", cfg.to_struct(), ...
-            "heartbeat_state", heartbeat_state));
+        if ~isempty(opts.abort_condition)
+          [abort_requested, abort_diag] = experiment.ExperimentRunner.check_abort_condition( ...
+            opts.abort_condition, struct( ...
+              "elapsed_s", toc(t0), ...
+              "status", status, ...
+              "cfg", opts.cfg_snapshot, ...
+              "heartbeat_state", heartbeat_state));
+        end
         if abort_requested
           [aborted, abort_diag, heartbeat_state] = experiment.ModeManagerControl.abort_experiment( ...
             ctrl_transport, ctrl, heartbeat_state, struct( ...
@@ -347,25 +429,22 @@ classdef ExperimentRunner
         end
       end
 
-      timed_out = true;
-      stop_reason = "timeout";
       experiment.ExperimentRunner.safe_clear_mode_flags(ctrl_transport, ctrl);
       diag = experiment.ExperimentRunner.read_timeout_diag( ...
         ctrl_transport, seq_transport, plc_symbols, ctrl);
-      error("experiment:runner:doneTimeout", ...
-        sprintf([ ...
+      error("experiment:runner:doneTimeout", [ ...
         'Timed out waiting %.3f s for experiment completion or abort. ' ...
-        'state=%s experimentActive=%s idx=%s trialIndex=%s playbackDone=%s ' ...
+        'modeState=%s experimentActive=%s idx=%s trialIndex=%s playbackDone=%s ' ...
         'loggerFileReleased=%s loggerError=0x%08X watchdogTripCounter=%s'], ...
         cfg.done_timeout_s, ...
-        experiment.ExperimentRunner.diag_value_to_char(diag.experiment_state), ...
+        experiment.ExperimentRunner.diag_value_to_char(diag.mode_state), ...
         experiment.ExperimentRunner.diag_value_to_char(diag.experiment_active), ...
         experiment.ExperimentRunner.diag_value_to_char(diag.idx), ...
         experiment.ExperimentRunner.diag_value_to_char(diag.trial_index), ...
         experiment.ExperimentRunner.diag_value_to_char(diag.playback_done), ...
         experiment.ExperimentRunner.diag_value_to_char(diag.logger_file_released), ...
         uint32(diag.logger_error_code), ...
-        experiment.ExperimentRunner.diag_value_to_char(diag.watchdog_trip_counter)));
+        experiment.ExperimentRunner.diag_value_to_char(diag.watchdog_trip_counter));
     end
 
     function [abort_requested, abort_diag] = check_abort_condition(abort_condition, context)
@@ -394,7 +473,7 @@ classdef ExperimentRunner
     function diag = read_timeout_diag(ctrl_transport, seq_transport, plc_symbols, ctrl)
       t = plc_symbols.types;
       diag = struct( ...
-        "experiment_state", missing, ...
+        "mode_state", missing, ...
         "experiment_active", missing, ...
         "idx", missing, ...
         "trial_index", missing, ...
@@ -403,10 +482,8 @@ classdef ExperimentRunner
         "logger_error_code", uint32(0), ...
         "watchdog_trip_counter", missing);
 
-      if strlength(string(ctrl.experimentStateSymbol)) > 0
-        diag.experiment_state = experiment.ExperimentRunner.try_read_symbol( ...
-          @() double(ctrl_transport.read_scalar(ctrl.experimentStateSymbol, t.u32)));
-      end
+      diag.mode_state = experiment.ExperimentRunner.try_read_symbol( ...
+        @() double(ctrl_transport.read_scalar(ctrl.modeStateSymbol, t.i16)));
       diag.experiment_active = experiment.ExperimentRunner.try_read_symbol( ...
         @() logical(ctrl_transport.read_scalar(ctrl.experimentActiveSymbol, t.bool)));
       diag.logger_file_released = experiment.ExperimentRunner.try_read_symbol( ...

@@ -35,26 +35,30 @@ function out = read_latest_logger_bin(share_dir, file_glob)
   newest_path = string(fullfile(newest_file.folder, newest_file.name));
   out.file_path = newest_path;
 
-  diagnostics = strings(0, 1);
+  diagnostics = strings(numel(files), 1);
+  diagnostic_count = 0;
   for idx = 1:numel(files)
     candidate = files(idx);
     target_file = string(fullfile(candidate.folder, candidate.name));
 
     if double(candidate.bytes) == 0
-      diagnostics(end + 1, 1) = sprintf("%s: zero records", target_file); %#ok<AGROW>
+      diagnostic_count = diagnostic_count + 1;
+      diagnostics(diagnostic_count) = sprintf("%s: zero records", target_file);
       continue;
     end
 
     try
       logger_bin = experiment.read_logger_bin(target_file);
     catch e
-      diagnostics(end + 1, 1) = sprintf("%s: read failed (%s)", ... %#ok<AGROW>
+      diagnostic_count = diagnostic_count + 1;
+      diagnostics(diagnostic_count) = sprintf("%s: read failed (%s)", ...
         target_file, string(e.identifier));
       continue;
     end
 
     if ~isfield(logger_bin, "record_count") || double(logger_bin.record_count) <= 0
-      diagnostics(end + 1, 1) = sprintf("%s: zero records", target_file); %#ok<AGROW>
+      diagnostic_count = diagnostic_count + 1;
+      diagnostics(diagnostic_count) = sprintf("%s: zero records", target_file);
       continue;
     end
 
@@ -66,7 +70,8 @@ function out = read_latest_logger_bin(share_dir, file_glob)
   end
 
   summary = "no usable .bin found";
-  if ~isempty(diagnostics)
+  if diagnostic_count > 0
+    diagnostics = diagnostics(1:diagnostic_count);
     summary = sprintf("%s (newest=%s; tried=%s)", ...
       summary, newest_path, strjoin(diagnostics, "; "));
   end

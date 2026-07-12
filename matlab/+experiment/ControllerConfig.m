@@ -8,6 +8,7 @@ classdef ControllerConfig
 
   methods (Static)
     function out = p_only(Kp)
+      validate_gain(Kp);
       out = experiment.ControllerConfig();
       out.pid = experiment.BiquadStage.from_struct(struct( ...
         "b0", double(Kp), "enable", true));
@@ -17,9 +18,27 @@ classdef ControllerConfig
     end
 
     function out = from_flat_struct(s)
+      if isa(s, "experiment.ControllerConfig")
+        if ~isscalar(s)
+          error("experiment:controller:invalid", "ControllerConfig must be scalar.");
+        end
+        out = s.normalize();
+        out.validate();
+        return;
+      end
+      if ~isstruct(s) || ~isscalar(s)
+        error("experiment:controller:invalid", ...
+          "ControllerConfig.from_flat_struct accepts only a scalar struct or ControllerConfig.");
+      end
       out = experiment.ControllerConfig();
       if isempty(s)
         return;
+      end
+      actual = string(fieldnames(s));
+      unknown = setdiff(actual, flat_field_names());
+      if ~isempty(unknown)
+        error("experiment:controller:invalid", ...
+          "Unknown ControllerConfig field(s): %s.", strjoin(unknown, ", "));
       end
       out.pid = experiment.BiquadStage.from_struct(struct( ...
         "b0", get_field_or(s, "pid_b0", 0), ...
@@ -49,22 +68,55 @@ classdef ControllerConfig
         "a1", get_field_or(s, "reso_a1", 0), ...
         "a2", get_field_or(s, "reso_a2", 0), ...
         "enable", get_field_or(s, "enable_reso", false)));
+      out.validate();
     end
   end
 
   methods
+    function out = normalize(obj)
+      out = obj;
+      out.pid = experiment.BiquadStage.from_struct(out.pid);
+      out.lead = experiment.BiquadStage.from_struct(out.lead);
+      out.notch = experiment.BiquadStage.from_struct(out.notch);
+      out.reso = experiment.BiquadStage.from_struct(out.reso);
+    end
+
+    function validate(obj)
+      obj.pid.validate();
+      obj.lead.validate();
+      obj.notch.validate();
+      obj.reso.validate();
+    end
+
     function s = to_flat_struct(obj)
+      out = obj.normalize();
+      out.validate();
       s = struct();
-      s = copy_fields(s, obj.pid.to_flat("pid_"));
-      s = copy_fields(s, obj.lead.to_flat("lead_"));
-      s = copy_fields(s, obj.notch.to_flat("notch_"));
-      s = copy_fields(s, obj.reso.to_flat("reso_"));
-      s.enable_pid = logical(obj.pid.enable);
-      s.enable_lead = logical(obj.lead.enable);
-      s.enable_notch = logical(obj.notch.enable);
-      s.enable_reso = logical(obj.reso.enable);
+      s = copy_fields(s, out.pid.to_flat("pid_"));
+      s = copy_fields(s, out.lead.to_flat("lead_"));
+      s = copy_fields(s, out.notch.to_flat("notch_"));
+      s = copy_fields(s, out.reso.to_flat("reso_"));
+      s.enable_pid = logical(out.pid.enable);
+      s.enable_lead = logical(out.lead.enable);
+      s.enable_notch = logical(out.notch.enable);
+      s.enable_reso = logical(out.reso.enable);
     end
   end
+end
+
+function names = flat_field_names()
+names = ["pid_b0";"pid_b1";"pid_b2";"pid_a1";"pid_a2"; ...
+  "lead_b0";"lead_b1";"lead_b2";"lead_a1";"lead_a2"; ...
+  "notch_b0";"notch_b1";"notch_b2";"notch_a1";"notch_a2"; ...
+  "reso_b0";"reso_b1";"reso_b2";"reso_a1";"reso_a2"; ...
+  "enable_pid";"enable_lead";"enable_notch";"enable_reso"];
+end
+
+function validate_gain(value)
+if ~(isnumeric(value) && isreal(value) && isscalar(value) && isfinite(double(value)))
+  error("experiment:controller:invalid", ...
+    "Kp must be a finite real numeric scalar.");
+end
 end
 
 function value = get_field_or(s, name, default_value)

@@ -1,5 +1,13 @@
 classdef TestMatlabEnvironment < matlab.unittest.TestCase
   methods (Test)
+    function setupScriptDisablesPromptsOutsideDesktop(testCase)
+      matlab_root = fileparts(fileparts(fileparts(mfilename("fullpath"))));
+      source = string(fileread(fullfile(matlab_root, "setup_matlab_environment.m")));
+
+      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
+        '"Interactive", usejava("desktop")'));
+    end
+
     function installWritesCacheAndStartupFile(testCase)
       matlab_root = create_fake_matlab_root();
       pref_dir = create_temp_folder();
@@ -83,7 +91,6 @@ classdef TestMatlabEnvironment < matlab.unittest.TestCase
     function setupWritesLocalEnvironmentConfigNonInteractively(testCase)
       matlab_root = create_fake_matlab_root();
       pref_dir = create_temp_folder();
-      local_guard = preserve_local_environment_config();
       cleanup = onCleanup(@() cleanup_dirs({matlab_root, pref_dir})); 
 
       out = config.MatlabEnvironment.setup(matlab_root, ...
@@ -98,16 +105,16 @@ classdef TestMatlabEnvironment < matlab.unittest.TestCase
       source = string(fileread(char(out.local_config_file)));
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("classdef LocalEnvironmentConfig"));
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("ams_net_id"));
-      clear local_guard;
+      testCase.verifyEqual(char(out.local_config_file), ...
+        char(fullfile(matlab_root, "+config", "LocalEnvironmentConfig.m")));
     end
 
     function setupDoesNotRediscoverWhenLocalEnvironmentConfigExists(testCase)
       matlab_root = create_fake_matlab_root();
       pref_dir = create_temp_folder();
-      local_guard = preserve_local_environment_config();
       cleanup = onCleanup(@() cleanup_dirs({matlab_root, pref_dir})); 
 
-      local_file = config.EnvironmentConfig.local_config_file();
+      local_file = fullfile(matlab_root, "+config", "LocalEnvironmentConfig.m");
       write_text(local_file, join([
         "classdef LocalEnvironmentConfig"
         "  properties (Constant)"
@@ -126,9 +133,6 @@ classdef TestMatlabEnvironment < matlab.unittest.TestCase
         "  end"
         "end"
         ""], newline));
-      clear('config.LocalEnvironmentConfig');
-      rehash;
-
       out = config.MatlabEnvironment.setup(matlab_root, ...
         "pref_dir", pref_dir, ...
         "apply_now", false, ...
@@ -136,8 +140,14 @@ classdef TestMatlabEnvironment < matlab.unittest.TestCase
         "ValidateAds", false);
 
       testCase.verifyEqual(out.local_config_status, "existing");
-      testCase.verifyEqual(string(out.environment_config.ams_net_id), "1.2.3.4.5.6");
-      clear local_guard;
+      testCase.verifyEqual(char(out.local_config_file), char(local_file));
+      testCase.verifyThat(string(fileread(local_file)), ...
+        matlab.unittest.constraints.ContainsSubstring("1.2.3.4.5.6"));
+    end
+
+    function setupCodeDoesNotDependOnExperimentPackage(testCase)
+      source = string(fileread(which("config.MatlabEnvironment")));
+      testCase.verifyFalse(contains(source, "experiment.RuntimeSymbols"));
     end
   end
 end
@@ -165,27 +175,6 @@ end
 
 function matlab_root = project_matlab_root()
 matlab_root = fileparts(fileparts(fileparts(mfilename("fullpath"))));
-end
-
-function guard = preserve_local_environment_config()
-local_file = config.EnvironmentConfig.local_config_file();
-existed = isfile(local_file);
-if existed
-  original = string(fileread(local_file));
-else
-  original = "";
-end
-guard = onCleanup(@() restore_local_environment_config(local_file, existed, original));
-end
-
-function restore_local_environment_config(local_file, existed, original)
-if existed
-  write_text(local_file, original);
-elseif isfile(local_file)
-  delete(local_file);
-end
-clear('config.LocalEnvironmentConfig');
-rehash;
 end
 
 function write_text(file_path, content)

@@ -42,7 +42,7 @@ classdef ConnectionManager
 
   methods (Static, Access = private)
     function cfg = parse_config(varargin)
-      if numel(varargin) == 1 && isa(varargin{1}, "experiment.ExperimentConfig")
+      if isscalar(varargin) && isa(varargin{1}, "experiment.ExperimentConfig")
         cfg = varargin{1};
       else
         cfg = experiment.ExperimentConfig.from_varargin(varargin{:});

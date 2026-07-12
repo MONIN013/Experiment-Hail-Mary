@@ -5,17 +5,35 @@ function out = run_and_collect(cfg)
 %
 %   戻り値 out (struct):
 %     .run        - ExperimentRunner.run が返した実行結果
-%     .logger_bin - out.run.logger.file_path から読み出した logger bin
+%     .logger_bin - Runner が一度だけ読み出した logger bin
 
   arguments
     cfg experiment.ExperimentConfig
   end
 
+  startup_t0 = tic;
+  restart_s = 0.0;
+  if cfg.restart_virtual_motor_runtime
+    restart_t0 = tic;
+    virtualMotor.restart_runtime(cfg.env, ...
+      "ads_assembly", cfg.ads_assembly, ...
+      "timeout_s", max(30.0, cfg.reset_timeout_s));
+    restart_s = toc(restart_t0);
+  end
+
+  connect_t0 = tic;
   conn = experiment.ConnectionManager.create(cfg);
+  connect_s = toc(connect_t0);
   cleanup = onCleanup(@() conn.session.close());
 
+  pre_runner_s = toc(startup_t0);
   run_out = experiment.ExperimentRunner.run(conn, cfg);
-  logger_bin = experiment.read_logger_bin(run_out.logger.file_path);
-
-  out = struct("run", run_out, "logger_bin", logger_bin);
+  out = struct( ...
+    "run", run_out, ...
+    "logger_bin", run_out.logger_bin, ...
+    "startup_timing", struct( ...
+      "runtime_restart_s", restart_s, ...
+      "connect_s", connect_s, ...
+      "runner", run_out.host.startup_timing, ...
+      "total_to_start_s", pre_runner_s + run_out.host.startup_timing.total_s));
 end

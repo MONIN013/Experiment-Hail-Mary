@@ -119,46 +119,41 @@ classdef AdsTransport < twincat_ads.IAdsTransport
         return;
       end
 
-      handle = c.CreateVariableHandle(char(symbol));
-      cleanup_obj = onCleanup(@()obj.safe_delete_handle(c, handle)); 
-
       switch char(string(net_type))
         case "System.Double"
-          net_arr = NET.createArray("System.Double", n_double);
-          for k = 1:n_double
-            net_arr(k) = vals(k);
-          end
+          typed_values = double(vals);
         case "System.Single"
-          net_arr = NET.createArray("System.Single", n_double);
-          for k = 1:n_double
-            net_arr(k) = single(vals(k));
-          end
+          typed_values = single(vals);
         case "System.Int32"
-          net_arr = NET.createArray("System.Int32", n_double);
-          for k = 1:n_double
-            net_arr(k) = int32(vals(k));
-          end
+          typed_values = int32(vals);
         case "System.UInt32"
-          net_arr = NET.createArray("System.UInt32", n_double);
-          for k = 1:n_double
-            net_arr(k) = uint32(vals(k));
-          end
+          typed_values = uint32(vals);
         case "System.Int64"
-          net_arr = NET.createArray("System.Int64", n_double);
-          for k = 1:n_double
-            net_arr(k) = int64(vals(k));
-          end
+          typed_values = int64(vals);
         case "System.UInt64"
-          net_arr = NET.createArray("System.UInt64", n_double);
-          for k = 1:n_double
-            net_arr(k) = uint64(vals(k));
-          end
+          typed_values = uint64(vals);
         otherwise
           error("twincat_ads:type:unsupported", ...
             "Unsupported .NET element type for array write: %s", string(net_type));
       end
 
-      c.WriteAny(handle, net_arr);
+      raw_bytes = uint8(typecast(typed_values(:), "uint8"));
+      byte_length = numel(raw_bytes);
+      info = obj.read_symbol_info_cached(symbol);
+      if isfield(info, "byte_size") && isfinite(info.byte_size) && byte_length > info.byte_size
+        error("twincat_ads:transport:invalidIndex", ...
+          "Array write exceeds symbol byte size for '%s' (len=%g bytes, size=%g bytes).", ...
+          char(string(symbol)), byte_length, info.byte_size);
+      end
+      if byte_length > double(intmax("int32"))
+        error("twincat_ads:transport:invalidIndex", ...
+          "Array write is too large for AdsStream (%g bytes).", byte_length);
+      end
+
+      stream = TwinCAT.Ads.AdsStream(int32(byte_length));
+      stream.Write(raw_bytes(:), int32(0), int32(byte_length));
+      stream.Position = int64(0);
+      c.Write(uint32(info.index_group), uint32(info.index_offset), stream);
     end
   end
 
@@ -203,15 +198,7 @@ classdef AdsTransport < twincat_ads.IAdsTransport
       array_type = elem_type.MakeArrayType();
       dims = NET.createArray("System.Int32", 1);
       dims(1) = int32(n_double);
-      try
-        o = c.ReadAny(handle, array_type, dims);
-      catch e
-        if obj.should_fallback_array_read(e, net_type)
-          values = obj.read_array_slice_via_index_offset(symbol, net_type, 0, n_double);
-          return;
-        end
-        rethrow(e);
-      end
+      o = c.ReadAny(handle, array_type, dims);
 
       if isnumeric(o) || islogical(o)
         values = double(o(:));
@@ -228,17 +215,6 @@ classdef AdsTransport < twincat_ads.IAdsTransport
 
       error("twincat_ads:type:unsupported", ...
         "Unexpected ADS array read return type for symbol '%s'.", string(symbol));
-    end
-
-    function tf = should_fallback_array_read(~, err, net_type_name)
-      tf = false;
-      if char(string(net_type_name)) ~= "System.UInt64"
-        return;
-      end
-      if ~contains(string(err.identifier), "MATLAB:NET:CLRException:MethodInvoke")
-        return;
-      end
-      tf = contains(string(err.message), "Unable to marshal type 'System.UInt64[]'");
     end
 
     function values = read_array_slice_via_index_offset(obj, symbol, net_type, start_idx, n)
@@ -363,14 +339,19 @@ classdef AdsTransport < twincat_ads.IAdsTransport
     function candidates = assembly_candidates(obj)
       known_path = "C:\Program Files (x86)\Beckhoff\TwinCAT\Functions\TE14xx-ToolsForMatlabAndSimulink\TE140x\NET\TwinCAT.Ads.dll";
       explicit = strtrim(obj.ads_assembly);
-      base = strings(0, 1);
+      base = strings(3, 1);
+      count = 0;
       if strlength(explicit) > 0
-        base(end + 1, 1) = explicit; %#ok<AGROW>
+        count = count + 1;
+        base(count) = explicit;
       end
       if isfile(known_path)
-        base(end + 1, 1) = known_path; %#ok<AGROW>
+        count = count + 1;
+        base(count) = known_path;
       end
-      base(end + 1, 1) = "TwinCAT.Ads"; %#ok<AGROW>
+      count = count + 1;
+      base(count) = "TwinCAT.Ads";
+      base = base(1:count);
       [~, ia] = unique(base, "stable");
       candidates = base(ia);
     end

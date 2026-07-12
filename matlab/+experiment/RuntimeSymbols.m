@@ -5,7 +5,7 @@ classdef RuntimeSymbols
     modeResetAckCounter
     hostHeartbeatCounter
     experimentActive
-    experimentState
+    modeState
     loggerFileReleased
     loggerErrorCode
     tableLen
@@ -13,8 +13,6 @@ classdef RuntimeSymbols
     repeatCount
     trialIndex
     modeFlags
-    modeFlagsCandidates
-    experimentStateCandidates
     refTable
     ffTable
     distTable
@@ -49,6 +47,8 @@ classdef RuntimeSymbols
         out.modeResetAckCounter, t.u32;
         out.hostHeartbeatCounter, t.u32;
         out.experimentActive, t.bool;
+        out.modeFlags, t.u16;
+        out.modeState, t.i16;
         out.loggerFileReleased, t.bool;
         out.loggerErrorCode, t.u32
       };
@@ -103,7 +103,7 @@ classdef RuntimeSymbols
       out.modeResetAckCounter = "GVL_MODE.resetAckCounter";
       out.hostHeartbeatCounter = "GVL_MODE.hostHeartbeatCounter";
       out.experimentActive = "GVL_MODE.experimentActive";
-      out.experimentState = "GVL_MODE.experimentState";
+      out.modeState = "GVL_MODE.modeState";
       out.loggerFileReleased = "GVL_MODE.loggerFileReleased";
       out.loggerErrorCode = "GVL_MODE.loggerErrorCode";
       out.tableLen = "GVL_SEQ.tableLen";
@@ -111,8 +111,6 @@ classdef RuntimeSymbols
       out.repeatCount = "GVL_SEQ.repeatCount";
       out.trialIndex = "GVL_SEQ.trialIndex";
       out.modeFlags = "GVL_MODE.modeFlags";
-      out.modeFlagsCandidates = ["GVL_MODE.modeFlags"];
-      out.experimentStateCandidates = ["GVL_MODE.experimentState"];
       out.refTable = "GVL_SEQ.refTable";
       out.ffTable = "GVL_SEQ.ffTable";
       out.distTable = "GVL_SEQ.distTable";

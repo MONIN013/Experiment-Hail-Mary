@@ -6,7 +6,10 @@ classdef MockAdsTransport < twincat_ads.IAdsTransport
     scalarReadSequenceIndexMap
     arrayMap
     arraySliceErrorMap
+    scalarWriteErrorMap
     operations
+    sharedEventLog = []
+    transportName = "transport"
     forceStartTrue = false
     autoResetAck = true
   end
@@ -18,22 +21,23 @@ classdef MockAdsTransport < twincat_ads.IAdsTransport
       obj.scalarReadSequenceIndexMap = containers.Map("KeyType", "char", "ValueType", "any");
       obj.arrayMap = containers.Map("KeyType", "char", "ValueType", "any");
       obj.arraySliceErrorMap = containers.Map("KeyType", "char", "ValueType", "any");
+      obj.scalarWriteErrorMap = containers.Map("KeyType", "char", "ValueType", "any");
       obj.operations = strings(0, 1);
     end
 
     function connect(obj, ~, ~)
       obj.connected = true;
-      obj.operations(end + 1, 1) = "connect";
+      obj.record_operation("connect");
     end
 
     function disconnect(obj)
       obj.connected = false;
-      obj.operations(end + 1, 1) = "disconnect";
+      obj.record_operation("disconnect");
     end
 
     function value = read_scalar(obj, symbol, ~)
       key = char(string(symbol));
-      obj.operations(end + 1, 1) = "read_scalar:" + string(key);
+      obj.record_operation("read_scalar:" + string(key));
       if contains(key, "experiment_start") && obj.forceStartTrue
         value = true;
         return;
@@ -61,7 +65,11 @@ classdef MockAdsTransport < twincat_ads.IAdsTransport
 
     function write_scalar(obj, symbol, value, ~)
       key = char(string(symbol));
-      obj.operations(end + 1, 1) = "write_scalar:" + string(key);
+      obj.record_operation("write_scalar:" + string(key));
+      if isKey(obj.scalarWriteErrorMap, key)
+        e = obj.scalarWriteErrorMap(key);
+        error(e.identifier, "%s", e.message);
+      end
       obj.scalarMap(key) = value;
       if obj.autoResetAck && strcmp(key, "GVL_MODE.resetReq") && logical(value)
         ack_key = "GVL_MODE.resetAckCounter";
@@ -99,7 +107,7 @@ classdef MockAdsTransport < twincat_ads.IAdsTransport
 
     function values = read_array(obj, symbol, ~, n)
       key = char(string(symbol));
-      obj.operations(end + 1, 1) = "read_array:" + string(key);
+      obj.record_operation("read_array:" + string(key));
       values = obj.read_array_from_key(key, n);
     end
 
@@ -109,7 +117,7 @@ classdef MockAdsTransport < twincat_ads.IAdsTransport
       if start_idx < 0 || floor(start_idx) ~= start_idx
         error("twincat_ads:transport:invalidIndex", "start_idx must be nonnegative integer");
       end
-      obj.operations(end + 1, 1) = "read_array_slice:" + string(base_key);
+      obj.record_operation("read_array_slice:" + string(base_key));
       if isKey(obj.arraySliceErrorMap, base_key)
         e = obj.arraySliceErrorMap(base_key);
         error(e.identifier, "%s", e.message);
@@ -130,7 +138,7 @@ classdef MockAdsTransport < twincat_ads.IAdsTransport
 
     function write_array(obj, symbol, values, ~)
       key = char(string(symbol));
-      obj.operations(end + 1, 1) = "write_array:" + string(key);
+      obj.record_operation("write_array:" + string(key));
       obj.arrayMap(key) = values(:);
     end
 
@@ -165,9 +173,35 @@ classdef MockAdsTransport < twincat_ads.IAdsTransport
         "identifier", char(string(identifier)), ...
         "message", char(string(message)));
     end
+
+    function set_scalar_write_error(obj, symbol, identifier, message)
+      key = char(string(symbol));
+      if nargin < 4
+        message = "mock write_scalar failure";
+      end
+      if strlength(string(identifier)) == 0
+        if isKey(obj.scalarWriteErrorMap, key)
+          remove(obj.scalarWriteErrorMap, key);
+        end
+        return;
+      end
+      obj.scalarWriteErrorMap(key) = struct( ...
+        "identifier", char(string(identifier)), ...
+        "message", char(string(message)));
+    end
   end
 
   methods (Access = private)
+    function record_operation(obj, operation)
+      operation = string(operation);
+      obj.operations(end + 1, 1) = operation;
+      if isa(obj.sharedEventLog, "containers.Map") && isKey(obj.sharedEventLog, "events")
+        events = string(obj.sharedEventLog("events"));
+        events(end + 1, 1) = string(obj.transportName) + ":" + operation;
+        obj.sharedEventLog("events") = events;
+      end
+    end
+
     function values = read_array_from_key(obj, key, n)
       if ~isKey(obj.arrayMap, key)
         error("twincat_ads:symbol:notFound", "Missing array symbol: %s", key);

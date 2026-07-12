@@ -23,7 +23,12 @@ classdef MatlabEnvironment
         "pref_dir", opts.pref_dir, ...
         "apply_now", opts.apply_now);
 
-      local_file = config.EnvironmentConfig.local_config_file();
+      % Resolve the generated file from the root being configured so tests and
+      % secondary checkouts never overwrite the active checkout's local file.
+      local_file = fullfile(matlab_root, "+config", "LocalEnvironmentConfig.m");
+      active_local_file = config.EnvironmentConfig.local_config_file();
+      targets_active_environment = strcmpi( ...
+        char(string(local_file)), char(string(active_local_file)));
       local_exists = isfile(local_file);
       if local_exists && ~logical(opts.Reconfigure)
         if logical(opts.Interactive) && ...
@@ -32,7 +37,11 @@ classdef MatlabEnvironment
         else
           out.local_config_file = string(local_file);
           out.local_config_status = "existing";
-          out.environment_config = config.EnvironmentConfig.current();
+          if targets_active_environment
+            out.environment_config = config.EnvironmentConfig.current();
+          else
+            out.environment_config = config.EnvironmentConfig.current("use_local", false);
+          end
           fprintf("Local environment config already exists: %s\n", local_file);
           fprintf("Use config.MatlabEnvironment.setup(""Reconfigure"", true) to rediscover.\n");
           return;
@@ -67,10 +76,16 @@ classdef MatlabEnvironment
       out.ads_validation = validation;
       if accepted
         config.MatlabEnvironment.write_local_environment_config(local_file, candidate);
-        clear('config.LocalEnvironmentConfig');
-        rehash;
+        if targets_active_environment
+          clear('config.LocalEnvironmentConfig');
+          rehash;
+        end
         out.local_config_status = "written";
-        out.environment_config = config.EnvironmentConfig.current();
+        if targets_active_environment
+          out.environment_config = config.EnvironmentConfig.current();
+        else
+          out.environment_config = candidate;
+        end
         fprintf("Local environment config written: %s\n", local_file);
       else
         out.local_config_status = "skipped";
@@ -303,18 +318,10 @@ classdef MatlabEnvironment
     function discovered = discover_environment_config(matlab_root)
       matlab_root = config.MatlabEnvironment.validate_matlab_root(matlab_root);
       repo_root = fileparts(matlab_root);
-      preferred = fullfile(repo_root, "ExperimentHailMary.RealMotor.tsproj");
-      fallback = fullfile(repo_root, "ExperimentHailMary.tsproj");
-      if isfile(preferred)
-        project_file = preferred;
-      elseif isfile(fallback)
-        project_file = fallback;
-      else
-        project_file = "";
-      end
+      project_file = fullfile(repo_root, "ExperimentHailMary.tsproj");
 
       discovered = struct();
-      if strlength(string(project_file)) == 0
+      if ~isfile(project_file)
         return;
       end
 
@@ -368,7 +375,6 @@ classdef MatlabEnvironment
         "requested", false, ...
         "ok", false, ...
         "ports_ok", false, ...
-        "symbols_ok", false, ...
         "detail", "not requested");
     end
 
@@ -392,40 +398,8 @@ classdef MatlabEnvironment
         validation.detail = "one or more ADS ports are unavailable";
         return;
       end
-
-      transports = cell(1, numel(ports));
-      try
-        for k = 1:numel(ports)
-          transports{k} = twincat_ads.AdsTransport();
-          transports{k}.connect(char(env.ams_net_id), ports(k));
-        end
-        ctrl = transports{find(ports == env.control_port, 1)};
-        seq = transports{find(ports == env.seq_port, 1)};
-        module = transports{find(ports == env.module_port, 1)};
-        plc_symbols = experiment.RuntimeSymbols.from_defaults();
-        ctrl_symbols = experiment.RuntimeSymbols.from_controller_prefix(char(env.controller_prefix));
-        twincat_ads.SymbolBrowser.validate_symbols(seq, plc_symbols.plcRequiredProbes);
-        twincat_ads.SymbolBrowser.validate_symbols(ctrl, plc_symbols.modeRequiredProbes);
-        twincat_ads.SymbolBrowser.validate_symbols(module, ctrl_symbols.controllerRequiredProbes);
-        validation.symbols_ok = true;
-        validation.ok = true;
-        validation.detail = "ADS ports and required symbols are readable";
-      catch e
-        validation.detail = "symbol validation failed: " + string(e.message);
-      end
-      config.MatlabEnvironment.disconnect_transports(transports);
-    end
-
-    function disconnect_transports(transports)
-      for k = 1:numel(transports)
-        if isempty(transports{k})
-          continue;
-        end
-        try
-          transports{k}.disconnect();
-        catch
-        end
-      end
+      validation.ok = true;
+      validation.detail = "configured ADS ports are reachable";
     end
 
     function print_environment_config_candidate(env, validation)

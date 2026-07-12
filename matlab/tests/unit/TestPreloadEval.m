@@ -54,6 +54,24 @@ classdef TestPreloadEval < matlab.unittest.TestCase
       testCase.verifyTrue(metrics.acceptance.dist_waveform_exact_match);
       testCase.verifyTrue(metrics.acceptance.total_sample_count_exact_match);
     end
+
+    function oneSamplePipelineDelayPassesWithAlignmentDiagnostic(testCase)
+      [raw, cmd, cfg] = make_case();
+      cfg.waveform_diag_max_shift_samples = 1;
+      raw.ref_value = [0; raw.ref_value(1:end-1)];
+      torque_sum = raw.control_input + raw.dist_value;
+      raw.target_current = [0; torque_sum(1:end-1)];
+
+      metrics = experiment.preload_eval(raw, cmd, cfg);
+
+      testCase.verifyTrue(metrics.acceptance.input_waveform_exact_match);
+      testCase.verifyEqual(metrics.input_waveform.best_shift_samples, int32(1));
+      testCase.verifyFalse(metrics.input_waveform.zero_shift_exact_value_match);
+      testCase.verifyEqual(string(metrics.input_waveform.mismatch_class), "sample_shift");
+      testCase.verifyTrue(metrics.acceptance.torque_sum_exact_match);
+      testCase.verifyEqual(metrics.torque_sum.best_shift_samples, int32(1));
+      testCase.verifyFalse(metrics.torque_sum.zero_shift_exact_match);
+    end
   end
 end
 
@@ -64,7 +82,8 @@ dist = [0.01; 0.02; 0.03];
 u = [1.0; 2.0; 3.0];
 tau = u + dist;
 
-  cfg = struct("task_rate_hz", 1000, "waveform_diag_abs_tol", 1e-12, "waveform_diag_preview_n", 8, ...
+  cfg = struct("env", config.EnvironmentConfig.from_struct(struct("task_rate_hz", 1000)), ...
+    "waveform_diag_abs_tol", 1e-12, "waveform_diag_preview_n", 8, ...
     "m", 1, "d", 0.1, "rated_current", 0.1, "max_permille", 0.0, "tau_limit", 5, "vel_limit", 100);
 
   raw = struct();
