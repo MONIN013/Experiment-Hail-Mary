@@ -33,9 +33,9 @@ BEGIN
             VALUE "FileDescription", RC_FILE_DESCRIPTION
             VALUE "FileVersion", DriverAdapter_FileVersionRcStr
             VALUE "InternalName", DriverAdapter_InternalNameStr
-            VALUE "LegalCopyright", "TODO: Add legal copyright"
+            VALUE "LegalCopyright", "Copyright (C) 2026 KosekiLab"
             VALUE "OriginalFilename", DriverAdapter_InternalNameStr ".sys"
-            VALUE "ProductName", "TODO: Add product name"
+            VALUE "ProductName", "Experiment Hail Mary"
             VALUE "ProductVersion", DriverAdapter_ProductVersionRcStr
         END
     END
