@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_ExperimentSequencerCore" Id="{5C9E8E49-2822-47DD-8D1C-2F778B9F3D91}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ExperimentSequencerCore
+VAR_INPUT
+    resetRequest : BOOL;
+    experimentActive : BOOL;
+    tableLen : UDINT;
+    repeatCount : UDINT;
+    refSample : LREAL;
+    ffSample : LREAL;
+    distSample : LREAL;
+END_VAR
+VAR_OUTPUT
+    refValue : LREAL := 0.0;
+    ffValue : LREAL := 0.0;
+    distValue : LREAL := 0.0;
+    playbackDone : BOOL := FALSE;
+    seqError : BOOL := FALSE;
+    seqState : E_SeqState := E_SeqState.IDLE;
+    idx : UDINT := 0;
+    trialIndex : UDINT := 0;
+END_VAR
+VAR
+    experimentActivePrev : BOOL := FALSE;
+    resetRequestPrev : BOOL := FALSE;
+    resetEdge : BOOL := FALSE;
+    startEdge : BOOL := FALSE;
+    zeroOutputsThisScan : BOOL := FALSE;
+    resetProgressThisScan : BOOL := FALSE;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[zeroOutputsThisScan := FALSE;
+resetProgressThisScan := FALSE;
+resetEdge := resetRequest AND NOT resetRequestPrev;
+startEdge := experimentActive AND NOT experimentActivePrev;
+
+IF resetEdge THEN
+    resetProgressThisScan := TRUE;
+    zeroOutputsThisScan := TRUE;
+    seqState := E_SeqState.IDLE;
+
+ELSE
+    CASE seqState OF
+        E_SeqState.IDLE:
+            zeroOutputsThisScan := TRUE;
+
+            IF startEdge THEN
+                IF (tableLen = 0) OR (repeatCount = 0) THEN
+                    seqState := E_SeqState.FAULT;
+                ELSE
+                    resetProgressThisScan := TRUE;
+                    seqState := E_SeqState.PLAYING;
+                END_IF
+            END_IF
+
+        E_SeqState.PLAYING:
+            IF NOT experimentActive THEN
+                resetProgressThisScan := TRUE;
+                zeroOutputsThisScan := TRUE;
+                seqState := E_SeqState.IDLE;
+            ELSIF idx < tableLen THEN
+                refValue := refSample;
+                ffValue := ffSample;
+                distValue := distSample;
+                idx := idx + 1;
+
+                IF idx >= tableLen THEN
+                    IF trialIndex >= (repeatCount - 1) THEN
+                        playbackDone := TRUE;
+                        seqState := E_SeqState.COMPLETE;
+                    ELSE
+                        idx := 0;
+                        trialIndex := trialIndex + 1;
+                    END_IF
+                END_IF
+            END_IF
+
+        E_SeqState.COMPLETE:
+            IF NOT experimentActive THEN
+                resetProgressThisScan := TRUE;
+                zeroOutputsThisScan := TRUE;
+                seqState := E_SeqState.IDLE;
+            END_IF
+
+        E_SeqState.FAULT:
+            resetProgressThisScan := TRUE;
+            zeroOutputsThisScan := TRUE;
+    END_CASE
+END_IF
+
+IF resetProgressThisScan THEN
+    idx := 0;
+    trialIndex := 0;
+END_IF
+IF zeroOutputsThisScan THEN
+    refValue := 0.0;
+    ffValue := 0.0;
+    distValue := 0.0;
+    playbackDone := FALSE;
+END_IF
+
+seqError := (seqState = E_SeqState.FAULT);
+experimentActivePrev := experimentActive;
+resetRequestPrev := resetRequest;]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

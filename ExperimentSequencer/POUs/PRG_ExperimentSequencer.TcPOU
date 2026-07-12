@@ -6,25 +6,14 @@ VAR
     tableIdxDint : DINT := 0;
     tableLenLocal : UDINT := 0;
     tableLenMaxLocal : UDINT := 0;
-    refValueLocal : LREAL := 0.0;
-    ffValueLocal : LREAL := 0.0;
-    distValueLocal : LREAL := 0.0;
-    cmdActivePrev : BOOL := FALSE;
-    resetReqPrev : BOOL := FALSE;
-    resetEdge : BOOL := FALSE;
-    startEdge : BOOL := FALSE;
-    sampleEmittedThisScan : BOOL := FALSE;
-    loggedIdx : UDINT := 0;
-    absoluteIdxBase : UDINT := 0;
-    seqState : E_SeqState := E_SeqState.IDLE;
+    refSample : LREAL := 0.0;
+    ffSample : LREAL := 0.0;
+    distSample : LREAL := 0.0;
+    fbSequencerCore : FB_ExperimentSequencerCore;
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[sampleEmittedThisScan := FALSE;
-resetEdge := GVL_SEQ.resetReq AND NOT resetReqPrev;
-startEdge := GVL_SEQ.experimentActive AND NOT cmdActivePrev;
-
-tableLenMaxLocal := GVL_SEQ.N_REF_MAX;
+      <ST><![CDATA[tableLenMaxLocal := GVL_SEQ.N_REF_MAX;
 IF GVL_SEQ.N_FF_MAX < tableLenMaxLocal THEN
     tableLenMaxLocal := GVL_SEQ.N_FF_MAX;
 END_IF
@@ -38,97 +27,34 @@ IF tableLenLocal > tableLenMaxLocal THEN
 END_IF
 GVL_SEQ.tableLenClamped := tableLenLocal;
 
-IF resetEdge THEN
-    GVL_SEQ.idx := 0;
-    GVL_SEQ.trialIndex := 0;
-    GVL_SEQ.refValue := 0.0;
-    GVL_SEQ.ffValue := 0.0;
-    GVL_SEQ.distValue := 0.0;
-    GVL_SEQ.playbackDone := FALSE;
-    seqState := E_SeqState.IDLE;
-
-ELSE
-    CASE seqState OF
-        E_SeqState.IDLE:
-            GVL_SEQ.refValue := 0.0;
-            GVL_SEQ.ffValue := 0.0;
-            GVL_SEQ.distValue := 0.0;
-            GVL_SEQ.playbackDone := FALSE;
-
-            IF startEdge THEN
-                IF (tableLenLocal = 0) OR (GVL_SEQ.repeatCount = 0) THEN
-                    seqState := E_SeqState.FAULT;
-                ELSE
-                    GVL_SEQ.idx := 0;
-                    GVL_SEQ.trialIndex := 0;
-                    GVL_SEQ.playbackDone := FALSE;
-                    seqState := E_SeqState.PLAYING;
-                END_IF
-            END_IF
-
-        E_SeqState.PLAYING:
-            IF NOT GVL_SEQ.experimentActive THEN
-                GVL_SEQ.idx := 0;
-                GVL_SEQ.trialIndex := 0;
-                GVL_SEQ.refValue := 0.0;
-                GVL_SEQ.ffValue := 0.0;
-                GVL_SEQ.distValue := 0.0;
-                GVL_SEQ.playbackDone := FALSE;
-                seqState := E_SeqState.IDLE;
-            ELSIF GVL_SEQ.idx < tableLenLocal THEN
-                tableIdxDint := UDINT_TO_DINT(GVL_SEQ.idx);
-
-                refValueLocal := GVL_SEQ.refTable[tableIdxDint];
-                ffValueLocal := GVL_SEQ.ffTable[tableIdxDint];
-                distValueLocal := GVL_SEQ.distTable[tableIdxDint];
-                absoluteIdxBase := GVL_SEQ.trialIndex * tableLenLocal;
-                loggedIdx := absoluteIdxBase + GVL_SEQ.idx;
-
-                GVL_SEQ.refValue := refValueLocal;
-                GVL_SEQ.ffValue := ffValueLocal;
-                GVL_SEQ.distValue := distValueLocal;
-
-                GVL_SEQ.idx := GVL_SEQ.idx + 1;
-                sampleEmittedThisScan := TRUE;
-
-                IF GVL_SEQ.idx >= tableLenLocal THEN
-                    IF GVL_SEQ.trialIndex >= (GVL_SEQ.repeatCount - 1) THEN
-                        GVL_SEQ.playbackDone := TRUE;
-                        seqState := E_SeqState.COMPLETE;
-                    ELSE
-                        GVL_SEQ.idx := 0;
-                        GVL_SEQ.trialIndex := GVL_SEQ.trialIndex + 1;
-                    END_IF
-                END_IF
-            END_IF
-
-        E_SeqState.COMPLETE:
-            IF NOT GVL_SEQ.experimentActive THEN
-                GVL_SEQ.idx := 0;
-                GVL_SEQ.trialIndex := 0;
-                GVL_SEQ.playbackDone := FALSE;
-                GVL_SEQ.refValue := 0.0;
-                GVL_SEQ.ffValue := 0.0;
-                GVL_SEQ.distValue := 0.0;
-                seqState := E_SeqState.IDLE;
-            END_IF
-
-        E_SeqState.FAULT:
-            GVL_SEQ.idx := 0;
-            GVL_SEQ.trialIndex := 0;
-            GVL_SEQ.refValue := 0.0;
-            GVL_SEQ.ffValue := 0.0;
-            GVL_SEQ.distValue := 0.0;
-            GVL_SEQ.playbackDone := FALSE;
-    END_CASE
+refSample := 0.0;
+ffSample := 0.0;
+distSample := 0.0;
+IF fbSequencerCore.idx < tableLenLocal THEN
+    tableIdxDint := UDINT_TO_DINT(fbSequencerCore.idx);
+    refSample := GVL_SEQ.refTable[tableIdxDint];
+    ffSample := GVL_SEQ.ffTable[tableIdxDint];
+    distSample := GVL_SEQ.distTable[tableIdxDint];
 END_IF
 
-GVL_SEQ.seqState := seqState;
-GVL_SEQ.seqError := (seqState = E_SeqState.FAULT);
+fbSequencerCore(
+    resetRequest := GVL_SEQ.resetReq,
+    experimentActive := GVL_SEQ.experimentActive,
+    tableLen := tableLenLocal,
+    repeatCount := GVL_SEQ.repeatCount,
+    refSample := refSample,
+    ffSample := ffSample,
+    distSample := distSample
+);
 
-cmdActivePrev := GVL_SEQ.experimentActive;
-resetReqPrev := GVL_SEQ.resetReq;
-]]></ST>
+GVL_SEQ.refValue := fbSequencerCore.refValue;
+GVL_SEQ.ffValue := fbSequencerCore.ffValue;
+GVL_SEQ.distValue := fbSequencerCore.distValue;
+GVL_SEQ.playbackDone := fbSequencerCore.playbackDone;
+GVL_SEQ.seqError := fbSequencerCore.seqError;
+GVL_SEQ.seqState := fbSequencerCore.seqState;
+GVL_SEQ.idx := fbSequencerCore.idx;
+GVL_SEQ.trialIndex := fbSequencerCore.trialIndex;]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

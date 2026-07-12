@@ -25,6 +25,9 @@
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
     </Compile>
+    <Compile Include="POUs\FB_ExperimentSequencerCore.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="POUs\PRG_ExperimentSequencer.TcPOU">
       <SubType>Code</SubType>
     </Compile>
