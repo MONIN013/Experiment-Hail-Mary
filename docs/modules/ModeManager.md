@@ -3,16 +3,18 @@
 > **位置づけ:** CiA 402 状態制御と実験シーケンス監視を担う FSM モジュール仕様  
 > **対象読者:** PLC 実装者、状態遷移ロジックの保守担当者  
 > **更新条件:** 状態遷移、入力要求、監視条件、安全側動作が変わったとき  
-> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) / [ExperimentProcedure](../operations/ExperimentProcedure.md) / [OpenIssues](../status/OpenIssues.md)
+> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) / [ExperimentProcedure](../operations/ExperimentProcedure.md)
 
 ## 概要
 
 ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理・安全監視を担当する有限状態機械 (FSM) である。
 すべての出力は **現在の FSM 状態のみ** に依存し、過渡的なフラグの組み合わせによる暗黙の状態を排除する。
 
+`FB_ModeManagerCore` がrequest edge/latch、reset hold、`FB_HeartbeatWatchdog`、mode FSMを所有する。`MAIN` はGVL/AT境界、action pulseの適用、Motor/Load drive FB、状態別出力射影、logger status mirrorを担当する。core呼出しはdrive FBより前に置き、FSMが従来どおり前scanの`driveReady`を評価する。
+
 ### 設計原則
 
-1. **状態依存出力**: 出力 (`experimentActive`, `preArmOut`, `resetOut`, `enableCurrentOut`, `experimentState`) は FSM 状態のみで決定する
+1. **状態依存出力**: 出力 (`experimentActive`, `preArmOut`, `resetOut`, `enableCurrentOut`) は FSM 状態のみで決定する
 2. **入力 Latch→Clear**: MATLAB が ADS 経由で set した要求フラグ (`resetReq`) は、PLC が立ち上がりエッジを検出し状態遷移を完了した後に **PLC 側で 0 クリア** する
 3. **排他的状態遷移**: `RESETTING` 状態中は実験開始への遷移を一切許可しない
 4. **Watchdog 保護**: Heartbeat タイムアウト時は `IDLE` に強制遷移し全出力を安全側に倒す
@@ -86,6 +88,8 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 | *any* | `IDLE` | Watchdog timeout (強制) |
 
 > `RUNNING -> DONE` 遷移時の副作用: `servoEnableLatched := FALSE`, `modeFlags := 0`。
+> explicit abort の `modeFlags := 0` でも `servoEnableReq=FALSE` の同一 scan で `servoEnableLatched` を解除するため、heartbeat が継続中でも `RUNNING -> IDLE` が成立する。
+> `servoEnableReq=FALSE` では `experimentStartLatched` も同時に解除し、`RESETTING` 中に観測したstart edgeが後日のservo rearmへ持ち越されないようにする。
 
 ---
 
@@ -112,7 +116,7 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 | `resetOut` | `BOOL` | ExperimentSequencer / ExperimentLogger (I/O Mapping) | リセットパルス |
 | `enableCurrentOut` | `BOOL` | DriverAdapter (I/O Mapping) | 電流イネーブルゲート |
 | `GVL_MODE.experimentActive` | `BOOL` | MATLAB (ADS Read) | 実験アクティブ (ADS 読出し用) |
-| `GVL_MODE.experimentState` | `UINT` | MATLAB (ADS Read) | FSM 状態 (IDLE=0, READY=1, RUNNING=2, DONE=3) |
+| `GVL_MODE.modeState` | `E_ModeState` (`INT16`) | MATLAB (ADS Read) | FSM 状態 (0/10/20/30/40) |
 | `GVL_MODE.loggerFileReleased` | `BOOL` | MATLAB (ADS Read) | 直近セッションの logger close 正常完了 |
 | `GVL_MODE.loggerErrorCode` | `UDINT` | MATLAB (ADS Read) | logger エラーコード |
 | `GVL_MODE.resetAckCounter` | `UDINT` | MATLAB (ADS Read) | リセット ACK カウンタ |
@@ -121,15 +125,17 @@ ModeManager は CiA 402 ドライブ状態制御・実験シーケンス管理�
 
 ## 状態別出力表
 
-| FSM State | `experimentActive` | `preArmOut` | `resetOut` | `enableCurrentOut` | `experimentState` |
-|---|---|---|---|---|---|
-| `IDLE` | FALSE | FALSE | FALSE | FALSE | `STATE_IDLE` (0) |
-| `RESETTING` | FALSE | FALSE | TRUE (*pulse*) | FALSE | `STATE_IDLE` (0) |
-| `SERVO_READY` | FALSE | TRUE | FALSE | TRUE | `STATE_READY` (1) |
-| `RUNNING` | TRUE | FALSE | FALSE | TRUE | `STATE_RUNNING` (2) |
-| `DONE` | FALSE | FALSE | FALSE | FALSE | `STATE_DONE` (3) |
+状態から `experimentActiveOut` / `preArmOut` / `resetOut` / `enableCurrentOut` への射影は、純粋関数 `F_DeriveModeOutputs` を正本とする。`MAIN` はFSM遷移後にこの関数を1回評価し、状態遷移と外部出力を同一scanで反映する。
 
-> `resetOut` は `RESETTING` 状態中のみ `TRUE` となり、`RESET_PULSE_HOLD_TICKS` (1 tick ≈ 10 ms @ 10 ms task) 後に自動的に `FALSE`/`IDLE` に遷移する。
+| FSM State | 値 | `experimentActive` | `preArmOut` | `resetOut` | `enableCurrentOut` |
+|---|---:|---|---|---|---|
+| `IDLE` | 0 | FALSE | FALSE | FALSE | FALSE |
+| `RESETTING` | 10 | FALSE | FALSE | TRUE (*pulse*) | FALSE |
+| `SERVO_READY` | 20 | FALSE | TRUE | FALSE | TRUE |
+| `RUNNING` | 30 | TRUE | FALSE | FALSE | TRUE |
+| `DONE` | 40 | FALSE | FALSE | FALSE | FALSE |
+
+> `resetOut` は `RESETTING` 状態中のみ `TRUE` となる。現行 `RESET_PULSE_HOLD_TICKS=1` はreset edge scanに加えて1 hold scanを維持するため、10 ms taskでは計2 scans（20 ms）後に`FALSE`/`IDLE`へ戻る。
 
 ---
 
@@ -161,6 +167,7 @@ MATLAB                              PLC (ModeManager)
 - **Arm 条件**: `modeFlags <> 0` OR `experimentActive` OR `servoEnableLatched`
 - **タイムアウト**: `HEARTBEAT_TIMEOUT_TICKS` (50 ticks = 500 ms @ 10 ms task)
 - **効果**: `IDLE` に強制遷移 + `modeFlags := 0` + `experimentActive := FALSE` + `watchdogTripCounter++`
+- **内部実装**: 前回 counter・silence ticks・trip edge は `FB_HeartbeatWatchdog` が所有し、`MAIN` は Arm 条件と安全停止を管理
 - **解除**: ホスト側が `hostHeartbeatCounter` をインクリメントすると silence ticks リセット
 - **明示 abort との差分**: MATLAB が通常停止で `modeFlags := 0` を書いた場合は watchdog ではないため `watchdogTripCounter` は増えない
 
@@ -171,11 +178,10 @@ MATLAB                              PLC (ModeManager)
 | シンボル | 型 | R/W | 備考 |
 |---|---|---|---|
 | `GVL_MODE.modeFlags` | `UINT` | W | ビットフラグ一括制御 |
-| `GVL_MODE.modeState` | `E_ModeState` | R | デバッグ可視化用 FSM 内部状態 |
+| `GVL_MODE.modeState` | `E_ModeState` (`INT16`) | R | 唯一の公開 FSM 状態 |
 | `GVL_MODE.resetReq` | `BOOL` | W | PLC が edge 検出後に clear |
 | `GVL_MODE.hostHeartbeatCounter` | `UDINT` | W | ホスト HB |
 | `GVL_MODE.experimentActive` | `BOOL` | R | FSM 出力 |
-| `GVL_MODE.experimentState` | `UINT` | R | IDLE/READY/RUNNING/DONE |
 | `GVL_MODE.loggerFileReleased` | `BOOL` | R | logger close 完了 |
 | `GVL_MODE.loggerErrorCode` | `UDINT` | R | logger エラー |
 | `GVL_MODE.resetAckCounter` | `UDINT` | R | Reset ACK カウンタ |
@@ -201,7 +207,7 @@ MATLAB                              PLC (ModeManager)
 
 ## 実装メモ
 
-- FSM 本体は `MAIN` プログラム内で `CASE modeState OF` で実装
+- FSM 本体は `FB_ModeManagerCore` に実装し、`MAIN` は I/O 投影と action 適用を行う
 - CiA 402 ドライブ制御は `FB_StateMachineControl` に委譲 (変更なし)
-- `E_ModeState` 列挙型を `StateMachineControl/DUTs/` に追加
-- `GVL_MODE` に `modeState : E_ModeState` を追加 (デバッグ可視化用)
+- `E_ModeState` と `GVL_MODE.modeState` が PLC/MATLAB 共通の状態契約である
+- `DONE` は ADS polling で確実に観測できるよう reset まで保持する

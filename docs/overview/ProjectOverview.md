@@ -3,7 +3,7 @@
 > **位置づけ:** プロジェクト全体の目的、設計原則、現在地を示す入口文書  
 > **対象読者:** 実装者、実験設計者、初回参入者  
 > **更新条件:** 全体方針、フェーズ定義、正本ドキュメントの導線が変わったとき  
-> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) / [TechnicalReference](../architecture/TechnicalReference.md) / [ExperimentProcedure](../operations/ExperimentProcedure.md) / [OpenIssues](../status/OpenIssues.md)
+> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) / [TechnicalReference](../architecture/TechnicalReference.md) / [ExperimentProcedure](../operations/ExperimentProcedure.md)
 
 ---
 
@@ -22,7 +22,7 @@
 * MATLAB 側の主実行面は `experiment.ExperimentConfig + experiment.ConnectionManager + experiment.ExperimentRunner` に一本化されている。
 * `config` 名前空間は `EnvironmentConfig` と `MatlabEnvironment` を正本にし、実験入口は `ExperimentConfig.defaults()` が `cfg.env` に環境 snapshot を内包する。
 * MATLAB の PATH は `run('matlab/setup_matlab_environment.m')` を一度実行して `prefdir/startup.m` へ登録する運用にしている。
-* `DriverAdapterPLC/` などの旧実装はリポジトリ内に残るが、現行の `.tsproj` における active deployment ではない。
+* DriverAdapter の正本は C++ TcCOM `DriverAdapter/` のみである。
 
 > 旧来の `1 ms SIL` 前提や Phase 途中の記述は履歴情報であり、現行構成の正本ではない。詳細は [SystemArchitecture](../architecture/SystemArchitecture.md) を参照。
 

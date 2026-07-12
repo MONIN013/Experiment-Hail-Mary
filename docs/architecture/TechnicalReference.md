@@ -3,7 +3,7 @@
 > **位置づけ:** モジュール内部動作、GVL / ADS シンボル、tsproj mapping の実装寄り参照  
 > **対象読者:** TwinCAT / MATLAB 実装者、デバッグ担当者  
 > **更新条件:** 内部ロジック、シンボル、I/O 名、配線が変わったとき  
-> **関連文書:** [SystemArchitecture](./SystemArchitecture.md) / [ExperimentProcedure](../operations/ExperimentProcedure.md) / [OpenIssues](../status/OpenIssues.md)
+> **関連文書:** [SystemArchitecture](./SystemArchitecture.md) / [ExperimentProcedure](../operations/ExperimentProcedure.md)
 
 本ドキュメントは checked-in ソースと `ExperimentHailMary.tsproj` / `ExperimentHailMary.RealMotor.tsproj` を前提に、**現在の実装が実際に何を公開しているか**をまとめた技術参照である。運用手順は [ExperimentProcedure](../operations/ExperimentProcedure.md) を参照。
 
@@ -33,6 +33,8 @@
 | `seqState` | `E_SeqState` | ADS Read | `IDLE / PLAYING / COMPLETE / FAULT` |
 
 ### 1.2 `PRG_ExperimentSequencer` の実際の挙動
+
+`FB_ExperimentSequencerCore` が edge/FSM/index/repeat/output保持を所有し、`PRG_ExperimentSequencer` は `GVL_SEQ` table境界と現在sample読出しを担当する。開始要求の立上りscanは `IDLE -> PLAYING` だけを行い、table index 0 は次scanに出力する。
 
 * `resetReq` は **立ち上がりエッジ**で扱う。
 * `startEdge := experimentActive AND NOT cmdActivePrev`
@@ -66,7 +68,9 @@
 2. `error = refValue - positionAct`
 3. `PID -> Lead -> Notch -> Reso`
 4. `controlInput = y + ffValue`
-5. 非有限値は `controlInput = 0.0`
+5. 非有限な入力・係数・状態更新・最終出力は `controlInput = 0.0` に倒す
+6. biquad の係数または状態更新が非有限になった段は、その段の内部状態を 0 に戻して次周期から回復可能にする
+7. `error` の入力または減算結果が非有限の場合は `error = 0.0`
 
 ### 2.3 ADS シンボル
 
@@ -82,7 +86,7 @@
 
 ### 3.1 active 実装
 
-`DriverAdapter_Obj1 (Module1)` は **C++ TcCOM** として `.tsproj` に組み込まれている。`DriverAdapterPLC/` の GVL / POU は現行 deployment の正本ではない。
+`DriverAdapter_Obj1 (Module1)` は **C++ TcCOM** として `.tsproj` に組み込まれており、DriverAdapter の唯一の実装正本である。
 
 ### 3.2 `Module1Inputs`
 
@@ -109,6 +113,8 @@
 | `motorStatusWordOut`, `loadStatusWordOut` | `USHORT` | relay |
 
 ### 3.4 CycleUpdate
+
+`DriverAdapterAlgorithm` が以下のscan処理とreset-edge位置offsetを所有し、TcCOM `Module1` はgenerated ADS型とのfield変換だけを行う。
 
 1. `motorRaw` / `loadRaw` を `rad`, `rad/s`, `A` に変換
 2. `resetReq` 立ち上がりで Motor/Load の位置オフセットを再キャプチャ
@@ -172,7 +178,7 @@
 
 | 出力 | 説明 |
 |---|---|
-| `Outputs.status.recordsWritten` | 書込み済みレコード数 |
+| `Outputs.status.recordsWritten` | RAM buffer に正常受理したレコード数 |
 | `Outputs.status.fileSizeKb` | ファイルサイズ |
 | `Outputs.status.errorCode` | エラーコード |
 | `Outputs.status.fileReleased` | close 完了 |
@@ -249,3 +255,15 @@
 | `851` | discovery 用の明示 probe | active orchestration の正本ではない |
 
 > `851` を見る場合は discovery 用スクリプトのローカル指定でのみ扱う。現行の active 契約と verify の正本は `351/852/853` である。
+
+### 7.1 PLC unit-test system
+
+Repository root の `TwinCATTests.sln` / `TwinCATTests.tsproj` は production VM と同じ target NetId を使う専用 test configuration である。XAE で build/activate し、次の ADS port から各 `PRG_*Tests.testsExecuted`、`testsPassed`、`failureCount` を読む。検証後は必ず `ExperimentHailMary.tsproj` を再 activate/restart する。
+
+| Port | Test project |
+|---:|---|
+| `860` | `ExperimentSequencerTests` |
+| `861` | `HeartbeatWatchdogTests` |
+| `862` | `ModeOutputsTests` |
+| `863` | `ModeManagerCoreTests` |
+| `864` | `DriveStateTests` |

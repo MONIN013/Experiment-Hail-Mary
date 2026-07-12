@@ -3,7 +3,7 @@
 > **位置づけ:** 実験オペレーター向けの操作手順と確認項目  
 > **対象読者:** 実験実行者、検証担当者  
 > **更新条件:** 実験手順、前提条件、運用フロー、停止条件が変わったとき  
-> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) / [TechnicalReference](../architecture/TechnicalReference.md) / [OpenIssues](../status/OpenIssues.md)
+> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) / [TechnicalReference](../architecture/TechnicalReference.md)
 
 本ドキュメントは実験オペレーター向けの **手順書** である。  
 モジュール内部ロジック・GVL 変数定義・ADS シンボルの詳細は [TechnicalReference](../architecture/TechnicalReference.md) を参照。
@@ -46,16 +46,17 @@
 | `GVL_MODE.hostHeartbeatCounter` | `UDINT` | ADS → PLC | ホスト生存監視カウンタ（100 ms 周期更新） |
 | `GVL_MODE.watchdogTripCounter` | `UDINT` | PLC → ADS (読取) | heartbeat timeout 発生回数 |
 | `GVL_MODE.experimentActive` | `BOOL` | PLC → ADS (読取) | ModeManager が管理する実験実行中フラグ |
-| `GVL_MODE.experimentState` | `UINT` | PLC → ADS (読取) | 現在の実験状態 |
+| `GVL_MODE.modeState` | `E_ModeState` (`INT16`) | PLC → ADS (読取) | 現在の実験状態 |
 
-### 2.3 `experimentState` 状態値
+### 2.3 `modeState` 状態値
 
 | 値 | 定数名 | 意味 | 遷移条件 |
 |---|---|---|---|
-| `0` | `STATE_IDLE` | 待機中 | サーボ無効 or ドライブ未 Ready |
-| `1` | `STATE_READY` | 実験待機 | サーボ有効 & ドライブ `OPERATION_ENABLED` & 実験未開始 |
-| `2` | `STATE_RUNNING` | 実験実行中 | `experimentActive = TRUE` |
-| `3` | `STATE_DONE` | 実験完了 | 再生完了ラッチ済み |
+| `0` | `IDLE` | 待機中 | サーボ無効 or reset 完了 |
+| `10` | `RESETTING` | リセット中 | 20 ms reset pulse |
+| `20` | `SERVO_READY` | 実験待機 | サーボ有効 & ドライブ `OPERATION_ENABLED` & logger ready |
+| `30` | `RUNNING` | 実験実行中 | `experimentActive = TRUE` |
+| `40` | `DONE` | 実験完了 | reset まで保持 |
 
 ---
 
@@ -75,16 +76,16 @@
 
  ④  サーボ有効化      modeFlags := MODEF_SERVO_ENABLE (16#0001)
                        → ModeManager が CiA 402 状態遷移を開始
-                       → OPERATION_ENABLED 到達で experimentState = STATE_READY
+                       → OPERATION_ENABLED 到達で modeState = SERVO_READY (20)
 
  ⑤  実験開始          modeFlags := MODEF_SERVO_ENABLE OR MODEF_EXPERIMENT_START_REQ (16#0003)
                        → ModeManager が experimentActive = TRUE を設定
                        → ExperimentSequencer のテーブル再生が開始
-                       → experimentState = STATE_RUNNING
+                       → modeState = RUNNING (30)
 
- ⑥  実験完了待ち      experimentState を ADS から読み取り、STATE_DONE (3) を待つ
+ ⑥  実験完了待ち      modeState を ADS から読み取り、DONE (40) を待つ
                        → ExperimentSequencer が playbackDone = TRUE を発行
-                       → ModeManager が experimentActive = FALSE にし STATE_DONE へ遷移
+                       → ModeManager が experimentActive = FALSE にし DONE へ遷移
 
  ⑦  停止              modeFlags := 0
                        → サーボ無効化 → ドライブ状態が SWITCH_ON_DISABLED に戻る
@@ -97,8 +98,9 @@
 ```
 resetReq       := GVL_MODE.resetReq
 resetEdge      := resetReq AND NOT resetReqPrev   ← 立ち上がりエッジ検出
-resetOut       := resetEdge                        ← ワンショットパルス出力 (AT %Q*)
-                                                      → ExperimentSequencer.resetReq にリンク
+modeState      := RESETTING                        ← reset edge scanで遷移
+resetOut       := (modeState = RESETTING)          ← edge scan + 1 hold scanの計20 ms (AT %Q*)
+                                                       → ExperimentSequencer.resetReq にリンク
                                                       → ControllerCore.Inputs.resetReq にリンク
                                                       → ExperimentLogger.Inputs.control.resetReq にリンク
                                                       → DriverAdapter.resetReq にリンク (D12)
@@ -111,7 +113,7 @@ END_IF
 
 #### リセット処理の既知制約
 
-各モジュールのリセット対応状況を以下にまとめる。詳細は [OpenIssues](../status/OpenIssues.md) を参照。
+各モジュールのリセット対応状況を以下にまとめる。
 
 | モジュール | resetReq 入力 | 検出方式 | リセット内容 | 既知制約 |
 |---|---|---|---|---|
@@ -125,6 +127,8 @@ END_IF
 > **注意:** `ExperimentRunner` は `wait_for_reset_idle` タイムアウト時に warning 続行せず **error で停止** する。
 > `hostHeartbeatCounter` の更新が 500 ms 以上停止すると ModeManager watchdog が `modeFlags := 0` を実行する。
 > MATLAB 実行中の任意停止は watchdog を待たず、`modeFlags := 0` を明示送信する explicit abort を正規経路とする。
+> internal heartbeat と external helper は同時に有効化しない。学生入口は internal を無効化し、`cfg.ads_assembly` を使う external helper の起動・生存・停止を Runner が監視する。
+> `use_virtual_motor=true` の学生入口 / VM tool は System Service を再起動せず、settle、position saturation 拒否、DriverAdapter の相対位置 reset を使う。`restart_virtual_motor_runtime=true` と予測照合は Test/E2E 専用であり、RealMotor では使用しない。
 
 #### サーボ有効化 → CiA 402 状態遷移
 
@@ -174,7 +178,7 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 
 #### 停止経路の使い分け
 
-- **自然完了:** `seqPlaybackDone` により `STATE_DONE` を経由して停止
+- **自然完了:** `seqPlaybackDone` により `DONE` へ遷移し、次の reset まで保持
 - **明示 abort:** MATLAB が `GVL_MODE.modeFlags := 0` を書き、`IDLE` と logger close を待つ
 - **異常停止:** MATLAB 側 heartbeat が止まったとき watchdog が `modeFlags := 0` を自動実行
 
@@ -187,26 +191,29 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 │           ADS 操作                TwinCAT モジュール内部動作           │
 ├───────────────────────────────────────────────────────────────────────┤
 │                                                                       │
-│  ① resetReq = TRUE                ModeManager: resetEdge → resetOut   │
+│  ① modeFlags=0, tableLen=0         稼働停止とテーブル非公開を先に保証   │
+│                                                                       │
+│  ② resetReq = TRUE                ModeManager: resetEdge → resetOut   │
 │    (RESET REQUEST)                ExperimentSequencer: idx=0, ログクリア│
 │                                   ControllerCore: biquad 状態クリア    │
 │                                   DriverAdapter: positionOffsetRad     │
 │                                     := positionRad (相対位置リセット) │
 │                                                                       │
-│  ② refTable[], ffTable[],         GVL_SEQ にテーブルデータ格納        │
-│     distTable[], tableLen                                             │
-│     を ADS 書込                                                       │
-│                                                                       │
 │  ③ TcCOM パラメータ ADS 書込     ControllerCore: biquad 係数更新      │
 │                                   VirtualMotorCore: PlantParameter.motor/load/coupling 更新 │
 │                                                                       │
-│  ④ modeFlags = 0x0001            ModeManager: サーボ有効化            │
-│    (SERVO_ENABLE)                 CiA 402 → OPERATION_ENABLED         │
-│                                   experimentState = STATE_READY (1)   │
+│  ④ refTable[], ffTable[],         GVL_SEQ に全テーブルデータ格納      │
+│     distTable[], repeatCount       完了後に tableLen を一度だけ公開    │
 │                                                                       │
-│  ⑤ modeFlags = 0x0003            ModeManager: experimentActive=TRUE  │
+│  ⑤ heartbeat 開始                internal/external の一方だけ開始     │
+│                                                                       │
+│  ⑥ modeFlags = 0x0001            ModeManager: サーボ有効化            │
+│    (SERVO_ENABLE)                 CiA 402 → OPERATION_ENABLED         │
+│                                   modeState = SERVO_READY (20)        │
+│                                                                       │
+│  ⑦ modeFlags = 0x0003            ModeManager: experimentActive=TRUE  │
 │    (SERVO + EXPERIMENT_START)     ExperimentSequencer: 再生開始        │
-│                                   experimentState = STATE_RUNNING (2) │
+│                                   modeState = RUNNING (30)             │
 │                                                                       │
 │     毎スキャン (125 us / 8 kHz):                                       │
 │       ExperimentSequencer → ref/ff/dist → ControllerCore              │
@@ -216,12 +223,12 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 │       DriverAdapter: raw→rad変換 + 相対位置化 → load.positionRel      │
 │       DriverAdapter.load.positionRel → ControllerCore (FB)            │
 │                                                                       │
-│  ⑥ (自動)                        idx >= tableLen                      │
+│  ⑧ (自動)                        idx >= tableLen                      │
 │                                   → playbackDone = TRUE               │
 │                                   → experimentActive = FALSE          │
-│                                   → experimentState = STATE_DONE (3)  │
+│                                   → modeState = DONE (40)              │
 │                                                                       │
-│  ※ ⑥の playbackDone → experimentActive は                            │
+│  ※ ⑧の playbackDone → experimentActive は                            │
 │     クロスタスク(1ms→10ms→1ms)のため最大~11ms遅延。                   │
 │     DriverAdapter は playbackDone を同一タスク内で直接受け、          │
 │     targetTorque を即時 0 にクランプする。                            │
@@ -229,9 +236,10 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 │     直接受け、レコード追記を即時停止する。                             │
 │     そのため 8kHz運用時の余剰ゼロ記録は H6 fast-path で抑止される。     │
 │                                                                       │
-│  ⑦ modeFlags = 0x0000            ModeManager: サーボ無効化            │
+│  ⑨ modeFlags = 0x0000            ModeManager: サーボ無効化            │
 │                                   → SWITCH_ON_DISABLED                │
-│                                   experimentState = STATE_IDLE (0)    │
+│                                   modeState = IDLE (0)                 │
+│     logger release 後              同じ logger bin を一度だけ読出し    │
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -244,7 +252,7 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 | **フラグ操作** | 852 | `GVL_MODE.modeFlags` | `UINT` | W |
 | **リセット要求** | 852 | `GVL_MODE.resetReq` | `BOOL` | W |
 | **リセットACK** | 852 | `GVL_MODE.resetAckCounter` | `UDINT` | R |
-| **状態監視** | 852 | `GVL_MODE.experimentState` | `UINT` | R |
+| **状態監視** | 852 | `GVL_MODE.modeState` | `INT16` | R |
 | **テーブル書込** | 853 | `GVL_SEQ.refTable` / `ffTable` / `distTable` | `LREAL[]` | W |
 | **テーブル長** | 853 | `GVL_SEQ.tableLen` | `UDINT` | W |
 | **フィルタ係数** | 351 | `ControllerCore_Obj1 (Module1).*Params.*` | `LREAL` | W |
@@ -290,4 +298,63 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 ```
 
 > LogRecord フォーマット詳細は [TechnicalReference](../architecture/TechnicalReference.md) §6.4 を参照。
+
+---
+
+## 7. MATLAB 学生実験の実行手順
+
+### 7.1 実行前確認
+
+MATLAB の Current Folder はリポジトリ直下にする。初回または環境再設定時だけ setup を実行する。full preflight は TwinCAT activation、runtime/config変更後、または実験日の開始時に一度実行し、同一状態の trial ごとには繰り返さない。
+
+```matlab
+cd('<repository-root>')
+run('matlab/setup_matlab_environment.m')
+run('matlab/tools/run_exp01_exp04_preflight.m')
+```
+
+`run_exp01_exp04_preflight.m` は MATLAB path、必須 toolbox 関数、ADS 接続、active contract symbol、`plant.mat`、tracked 8 kHz 軌道を確認し、ADS symbol の書き込みや実験開始は行わない。各入口上部の `use_virtual_motor=true` では VM symbol も検査・設定し、RealMotor 用の `false` では VM symbol の検査・parameter write を行わない。
+
+### 7.2 標準実行順
+
+```matlab
+run('matlab/experiment/exp01_SysId.m')
+run('matlab/experiment/exp02_FeedBack.m')
+run('matlab/experiment/exp03_FeedForward.m')
+run('matlab/experiment/exp04_ILC.m')
+```
+
+| 入口 | 実体 | 主な出力 | 既定の確認内容 |
+|---|---|---|---|
+| `exp01_SysId.m` | 同左 | `data/chirp_result.mat`, `data/plant.mat` | logarithmic chirp SI と manual `Jn/Dn/Ndelay` fit |
+| `exp02_FeedBack.m` | 同左 | `data/feedback_result.mat` | `designpid`、Nyquist、`Smax=2` 感度確認、tracking |
+| `exp03_FeedForward.m` | 同左 | `data/feedforward_result.mat` | identified `Jn/Dn` 既定の FF と tracking |
+| `exp04_ILC.m` | 同左 | `data/exp04_runs/<timestamp>/ilc_result.mat`, `trialXX.mat` | `srinv` / `filtfilt_clean` による ILC trial 遷移 |
+
+`exp02.m` / `exp03.m` / `exp04.m` の互換入口は現行構成では存在しない。exp02〜exp04 は `matlab/experiment/data/plant.mat` を前提にするため、必ず exp01 の SI と manual fit を先に実行する。
+
+### 7.3 exp01: chirp SI と plant.mat
+
+exp01 は open-loop logarithmic chirp を FF 入力として注入する。既定値は `Tend=100`、`Tcycle=10`、`f0=0.5 Hz`、`f1=4000 Hz`、`A=0.25 A`、`trans=2`、`Ndelay=4 samples` である。0.25 A は現行6500 rpm VirtualMotor速度契約を超えない一様chirp上限として固定する。
+
+過渡 2 周期を除去し、後退差分速度、`tfestimate`、`mscohere`、`c2d(1/s,Ts,"tustin")` による位置 FRD を確認する。初期値は VirtualMotor preset の電流入力換算から `Jn=7.1e-5`、`Dn=5.325e-4`、`Ndelay=4` とし、学生は bode overlay が測定 FRF に合うように手動調整する。
+
+`plant.mat` の変数集合は `Pd` / `Pd_motor` / `Pd_load` / `Pd_vel_load` / `Pd_vel_motor` / `Pdn` / `Jn` / `Dn` / `Ndelay` / `Ts` / `vm_plant` / `vm_mode` である。`Pd` は load 側 position FRD、`Pdn` は `c2d(1/(Jn*s+Dn)/s,Ts,"zoh")/z^Ndelay` である。VM実験では exp02〜04 が `vm_plant` / `vm_mode` を現行presetと照合し、別plantの古いSI結果を拒否する。
+
+### 7.4 exp02〜exp04: 標準軌道と制御設計
+
+`matlab/resources/trajectory_8khz.mat` は標準軌道の tracked resource で、SHA-256 は `11C4E587D2E413707C09CA0875779269E1F6F7ECFD1CEC1C50030C18A62B5CB0` である。`load_trajectory` が `ref1_struct` の field・件数・有限性・8 kHz 時間刻みを検証し、deg 系の 720 deg / 1 s 往復軌道を rad 系に変換する。`experiment.waveform.point_to_point_trajectory` は任意軌道生成ツールとして残るが、この標準手順の既定軌道ではない。
+
+exp02 は `designpid(Dn/Jn,0,1/Jn,omega)` を `omega=15 rad/s` で設計し、`c2d(...,"tustin")` で離散化する。実験前に nominal / FRD の Nyquist と `Smax=2` の感度上限を数値確認し、`feedback_result.mat` に `t,r,y,e,u,Kd` を保存する。
+
+exp03 は exp02 と同じ FB 設計に、`f=Kfa*a+Kfv*v+Kfc*sign(v)` の FF を加える。`Kfa=[]` / `Kfv=[]` / `Kfc=[]` の既定では、`plant.mat` の `Jn` / `Dn` を使って `Kfa=Jn`、`Kfv=Dn`、`Kfc=0` とし、`Ndelay` 分の先読み補償を行う。保存変数は `t,r,y,e,u,f,Kd` である。
+
+exp04 は Temp 参照実装と同じ `Linv=feedback(Pdn,Kd)`、`J=feedback(Pd,Kd)` と2次 low-pass Qを使い、`|Q|^2|1-alpha*J/Linv| < 1` を実験前に数値確認する。学習更新は `f_{j+1}=filtfilt_clean(Qnum,Qden,f_j+alpha*srinv(Linv,e_j,Npad),Npad)` で、200 sample transient splice を行う。既定は `Ntrial=10`、`alpha=0.6`、`q_cutoff_hz=120`、`maxInput=1.6 A` である。120 Hz Q は200 Hz VMねじり共振を学習帯域外に置きつつ、10 Hz Qで末尾splice値へ混入した長い終端過渡を避ける。次 trial の FF が1.6 Aを超える場合だけ送信前エラーとする。実測 error norm 増加は警告・診断として記録し、設定した10 trialを続ける。trial は run 固有フォルダへ保存し、既存結果を事前削除しない。保存変数は `t,history,Kd,stability,learning_filters` で、`history.trialSummary` に各 trial の error norm、最大実入力、error増加、収束ピークを保持する。
+VirtualMotor 予測と `precompute_virtual_motor_plan` は Test 専用とする。実験中の ILC は実測 error から次 FF を計算し、入力上限だけを次送信前の停止条件にする。
+
+### 7.5 VirtualMotor での目安
+
+VirtualMotor は Panasonic MHMF011L1A2 相当の小慣性 preset を既定にする。Motor / Load inertia は `7.1e-6 kg m^2`、rated torque は `0.32 N m`、DriverAdapter の rated current は `1.6 A`、encoder resolution は 23 bit (`8388608`) である。coupling はねじり自然周波数 `200 Hz`、減衰比 `0.05`（減衰付き約 `199.749 Hz`）に設定する。preset 更新後は exp01〜exp04 を同じ順序で再実行して `plant.mat` の fit、720 deg 軌道、FF 上限、Q帯域、heartbeat / logger 状態を確認する。
+
+VM tools の既定は position demo が `Kp=0.02`、SI demo が cycle mean を除去した `A=0.25 A` chirp である。SI demo は測定 FRF と coherence を出力し、nominal予測との照合は Test に限定する。長時間runのheartbeatは学生入口と同じ外部helperを使う。
 

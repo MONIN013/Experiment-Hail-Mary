@@ -3,7 +3,7 @@
 > **位置づけ:** SIL 用の仮想モーター物理シミュレーション仕様  
 > **対象読者:** C++ TcCOM 実装者、SIL 検証担当者  
 > **更新条件:** 物理モデル、I/O 契約、Drive エミュレーション前提が変わったとき  
-> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) §3 / [DriverAdapter](./DriverAdapter.md) / [OpenIssues](../status/OpenIssues.md)
+> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) §3 / [DriverAdapter](./DriverAdapter.md)
 
 ---
 
@@ -11,6 +11,8 @@
 
 VirtualMotorCore は SIL (Software-in-the-Loop) 検証用の仮想モーター物理シミュレータである。
 現行実装は **Motor/Load を 1:1 ねじり結合した 2 慣性モデル** として動作し、Motor/Load それぞれに CiA 402 状態機械を持つ。
+
+`VirtualMotorAlgorithm` が CiA 402 状態、2慣性plant、fault判定、raw量子化を固定メモリの純粋C++として所有する。TcCOM `Module1` はADS公開型と純粋型の変換、および8 kHz cyclic呼出しだけを担当する。scan順序は `drive state -> command fault -> plant integration -> output quantization` で固定し、host testで保護する。
 
 **設計方針 (D11/D13):**  
 VirtualMotorCore の外部 I/O を CiA 402 EtherCAT PDO 準拠の **整数型** に変更する。
@@ -25,6 +27,19 @@ I/O 境界で整数変換を行う。
 ## 2. パラメータ (`ST_VirtualPlantParams`)
 
 TcCOM object parameter `PlantParameter` として ADS シンボル公開され、Build 不要で MATLAB から注入可能。
+既定プリセットは `MADLT11BF + MHMF011L1A2` 相当とし、Motor/Load を同一ロータ相当の小慣性 2 慣性系として扱う。
+`ratedTorque <= 0` の場合は `0.32 N·m` を安全な変換既定値として使う。
+
+| 項目 | 既定値 |
+|---|---|
+| Motor/Load inertia | `7.1e-6 kg·m²` |
+| Motor/Load ratedTorque | `0.32 N·m` |
+| Motor/Load tauLimit | `1.11 N·m` |
+| Motor/Load velLimit | `2*pi*6500/60 rad/s` |
+| Motor/Load encoderResolution | `8,388,608 pulses/rev` |
+| Motor maxPermille | `1000 ‰` |
+| coupling stiffness / damping | `5.6059352998187553 N·m/rad` / `0.0004194811568097506 N·m·s/rad` |
+| torsional natural frequency / damping ratio | `200 Hz` / `0.05` (`virtualMotor.torsional_mode`) |
 
 ### 2.1 `PlantParameter.motor`
 
@@ -56,6 +71,8 @@ TcCOM object parameter `PlantParameter` として ADS シンボル公開され�
 | `coupling.stiffness` | `double` | N·m/rad | ねじり剛性 |
 | `coupling.damping` | `double` | N·m·s/rad | ねじり減衰 |
 | `taskDtNs` | `ULINT` | ns | タスク周期 |
+
+既定 coupling は Motor/Load の慣性・粘性を含む連続4状態モデルの複素固有値が、自然周波数 `200 Hz`、減衰比 `0.05` になるように決める。減衰付き共振周波数は約 `199.749 Hz` である。
 
 ---
 
@@ -97,7 +114,7 @@ TcCOM object parameter `PlantParameter` として ADS シンボル公開され�
 
 `maxPermille > 0` かつ $|\text{targetTorque}| > \text{maxPermille}$ の場合、`internalFault = true` → CiA 402 FAULT 状態に遷移する。
 これは入力指令の物理的値ではなく、‰ rated 値でのチェックであり、DriverAdapter の故障・暴走対策として機能する。
-`maxPermille = 0.0` (デフォルト) の場合、このチェックは無効化される。
+`maxPermille = 0.0` の場合、このチェックは無効化される。現行既定は `1000.0` で、定格トルク相当までに制限する。
 
 **トルク変換:**
 
@@ -127,7 +144,7 @@ Motor 側は適用トルク $\tau_m$、Load 側は伝達シャフトトルク $\
 | パラメータ | 値 | 分解能 |
 |---|---|---|
 | エンコーダ (2²³ pulses/rev) | 8,388,608 | $\approx 7.5 \times 10^{-7}$ rad/pulse |
-| トルク (‰ rated, ratedTorque=0.318 Nm) | 1000 分割 | $\approx 3.18 \times 10^{-4}$ Nm/digit |
+| トルク (‰ rated, ratedTorque=0.32 Nm) | 1000 分割 | $3.2 \times 10^{-4}$ Nm/digit |
 
 エンコーダ分解能は制御帯域に対して十分な精度を持つ (Panasonic A6B 相当)。  
 トルク分解能は ‰ 単位のため実用上問題ない。

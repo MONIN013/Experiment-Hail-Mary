@@ -3,7 +3,7 @@
 > **位置づけ:** PLC / C++ / MATLAB / ADS / ドキュメントの命名規約  
 > **対象読者:** 全実装者、レビュー担当者  
 > **更新条件:** 命名規約、例外規則、適用範囲が変わったとき  
-> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) §4 (シンボル一覧) ｜ [TechnicalReference](../architecture/TechnicalReference.md) §8 (ADS シンボル) ｜ [OpenIssues](../status/OpenIssues.md)
+> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) §4 (シンボル一覧) ｜ [TechnicalReference](../architecture/TechnicalReference.md) §8 (ADS シンボル)
 
 ---
 
@@ -112,7 +112,7 @@
 | 入力パラメータ (`VAR_INPUT`) | camelCase | `statusWord`, `enable`, `controlWord` |
 | 出力パラメータ (`VAR_OUTPUT`) | camelCase | `driveState`, `isReady` |
 | FB インスタンス | `fb` + PascalCase | `fbStateMachine`, `fbDecoder` |
-| 定数 (`VAR CONSTANT`) | ALL_CAPS + アンダースコア | `CW_FAULT_RESET`, `STATE_IDLE`, `N_REF_MAX` |
+| 定数 (`VAR CONSTANT`) | ALL_CAPS + アンダースコア | `CW_FAULT_RESET`, `MODEF_SERVO_ENABLE`, `N_REF_MAX` |
 | 列挙値 | ALL_CAPS + アンダースコア | `SWITCH_ON_DISABLED`, `OPERATION_ENABLED` |
 
 ### 2.3 ハンガリアン記法について
@@ -207,7 +207,7 @@ C++ ↔ PLC ↔ MATLAB 間でマッピングされるシンボル名は以下で
 | **高** | C++ リセット関数名統一 | 全モジュール `ResetRuntimeState()` に統一 | ✅ 完了 |
 | **高** | PLC ハンガリアン記法の除去 | 次回編集時に camelCase に置換 | ✅ 完了 — 全 POU/GVL で camelCase 化済み (2026-02-26 確認) |
 | **中** | PLC GVL 変数名 snake→camel | Phase 単位でまとめて変更 (TMC マッピング変更を伴う) | ✅ 完了 |
-| **中** | C++ 構造体フィールド統一 | TMC 再定義と合わせて Phase 単位で実施 | 🔄 一部残存 — [OpenIssues](../status/OpenIssues.md) L2, L3 参照 |
+| **中** | C++ 構造体フィールド統一 | TMC 再定義と合わせて Phase 単位で実施 | 現行 TMC 契約へ統一済み |
 | **低** | MATLAB 全体の camelCase 化 | 次のメジャーリファクタ時にまとめて実施 | 未着手 |
 | **低** | MATLAB パッケージ名変更 | import 影響が大きいため最後に実施 | 未着手 |
 

@@ -3,7 +3,7 @@
 > **位置づけ:** 実験データのファイルロギングを担うモジュール仕様  
 > **対象読者:** C++ TcCOM 実装者、ロギング基盤の保守担当者  
 > **更新条件:** 入出力項目、ロギング条件、ファイル形式契約が変わったとき  
-> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) / [TechnicalReference](../architecture/TechnicalReference.md) / [OpenIssues](../status/OpenIssues.md)
+> **関連文書:** [SystemArchitecture](../architecture/SystemArchitecture.md) / [TechnicalReference](../architecture/TechnicalReference.md)
 
 ## 概要
 ExperimentLogger は実験データをバイナリ形式で保存する C++ TcCOM ロガーである。`Inputs.control.preArmReq` により `SERVO_READY` 中に file open を先行完了し、`Inputs.control.loggingReq` はレコード追記とセッション close のみを担う。`Inputs.control.playbackDone` は同一タスク内の fast path として働き、再生完了スキャンで新規レコード追記を即時停止する。`Inputs.record.*` には記録対象信号のみを集約する。MATLAB 側の評価経路はこの `.bin` ファイル読み出しのみを正規経路とする。
@@ -29,7 +29,7 @@ ExperimentLogger は実験データをバイナリ形式で保存する C++ TcCO
 ## 出力
 | 項目 | 型 | 備考 |
 |---|---|---|
-| `status.recordsWritten` | `UDINT` | written records |
+| `status.recordsWritten` | `UDINT` | RAM buffer に正常受理したレコード数 |
 | `status.fileSizeKb` | `UDINT` | file size in KB |
 | `status.errorCode` | `UDINT` | 0 = OK, otherwise internal `0xE000000x` code or underlying HRESULT |
 | `status.loggerReady` | `BOOL` | `ACTIVE` かつ有効 file handle 保持、close/error pending なしのとき `TRUE`。ModeManager が `SERVO_READY → RUNNING` 遷移前の確認に使用 |
@@ -45,7 +45,7 @@ ExperimentLogger は実験データをバイナリ形式で保存する C++ TcCO
 ## 実行時動作
 1. `control.preArmReq` 立上りでセッション実行状態を初期化し、非同期 file open を開始する。open 完了後に pre-armed な `ACTIVE` 状態へ入る。
 2. `control.loggingReq` 立上りでは file FSM がすでに `ACTIVE` であることを要求し、満たさなければエラーとしてセッション失敗扱いにする。
-3. `control.loggingReq = TRUE` かつ `control.playbackDone = FALSE` かつセッション未失敗の間は、1 スキャンにつき 1 件の `LogRecord` を `Inputs.record.*` から追記する。`WRITE_WAIT` 中も別バッファへ蓄積を継続する。
+3. `control.loggingReq` 立上りスキャンは記録を arm するだけで追記しない。次スキャンから、`loggingReq = TRUE` かつ `playbackDone = FALSE` かつセッション未失敗の間、1 スキャンにつき 1 件を追記する。これにより logger record 0 と sequencer table index 0 が一致する。`WRITE_WAIT` 中も別バッファへ蓄積を継続する。
 4. `control.playbackDone = TRUE` になったスキャンでは、新規レコード追記を即時停止する。
 5. `control.loggingReq` 立下りで残バッファを flush し、file close を開始する。
 6. `control.loggingReq = FALSE` のまま `control.preArmReq` が立下る場合、実行に入らなかった pre-open 済み file を close する。
@@ -54,6 +54,8 @@ ExperimentLogger は実験データをバイナリ形式で保存する C++ TcCO
 9. `OPEN_WAIT` 完了時は返却 file handle の妥当性を検証してから logger ready と判定する。handle 無効の open 完了は致命的失敗として扱う。
 10. `control.loggingReq` 立下り時は `Write -> Write -> ... -> Close` の順でバッファを drain し、`WRITE_WAIT` 中に捕捉したレコードを落とさない。
 11. `status.fileReleased` は reset と新規 pre-arm でクリアされ、close 経路がエラーなく `IDLE` へ戻ったときだけ `TRUE` になる。
+
+`LoggerRecord.h` を 104-byte binary schema の C++ 正本とし、`LoggerRecordBuffer` が sequence・timestamp・2面bufferのactive/pending切替を所有する。`recordsWritten` は `LoggerRecordBuffer::RecordsAppended()` を公開した受理件数であり、file commit 件数ではない。field offset・schema version・8000件境界・write commit/rollbackはTwinCAT非依存のhost testで固定する。
 
 ## マッピング (SIL)
 - `record.motor.position <- DriverAdapter.motor.positionRel`

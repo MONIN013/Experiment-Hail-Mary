@@ -11,9 +11,11 @@
 
 DriverAdapter は **ドライバ差異吸収層** である。現行の active 実装は TwinCAT の **C++ TcCOM** (`DriverAdapter_Obj1 (Module1)`) であり、Drive 境界の raw 信号を工学単位へ変換し、上流制御へ統一 I/F を提供する。
 
+`DriverAdapterAlgorithm` がraw変換、reset edgeとMotor/Load位置offset、current clamp/gate/量子化、ControlWord/StatusWord relayを固定メモリの純粋C++として所有する。TcCOM `Module1` はgenerated ADS型とのfield-by-field変換と8 kHz cyclic呼出しを担当する。
+
 本モジュールは **Motor + Load の 2 チャネル専用** とし、外部契約は current ベース `[A]` を維持する。Drive 境界では `targetTorque` / `torqueActualValue` を **`‰ rated`** 整数値で扱う。
 
-> リポジトリ内の `DriverAdapterPLC/` は旧 PLC 実装であり、現行 TwinCAT project (`ExperimentHailMary.tsproj` / `ExperimentHailMary.RealMotor.tsproj`) の active deployment ではない。比較・参照用の legacy として残している。
+> DriverAdapter の正本は C++ TcCOM `DriverAdapter/` であり、両 TwinCAT project は同じモジュール契約を使用する。
 
 ---
 
@@ -58,6 +60,7 @@ DriverAdapter は **ドライバ差異吸収層** である。現行の active �
 | `enableRelativePosition` | `BOOL` | - | 相対位置化の有効化 |
 
 > `ratedCurrentA <= 0` または `encoderResolution <= 0` の場合、そのチャネルの該当変換は 0 出力へ倒す。
+> 現行既定は `MADLT11BF + MHMF011L1A2` 相当で、Motor/Load とも `encoderResolution=8388608`、`ratedCurrentA=1.6`、`maxCurrentA=1.6` とする。
 
 ---
 

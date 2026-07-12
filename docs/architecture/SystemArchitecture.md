@@ -3,7 +3,7 @@
 > **位置づけ:** [ProjectOverview](../overview/ProjectOverview.md) の設計思想を具体化した現行実装の正本仕様  
 > **対象読者:** TwinCAT / MATLAB 実装者、構成変更を行う設計者  
 > **更新条件:** モジュール境界、I/O 契約、制御フロー、タスク/ポート構成が変わったとき  
-> **関連文書:** [ProjectOverview](../overview/ProjectOverview.md) / [TechnicalReference](./TechnicalReference.md) / [ExperimentProcedure](../operations/ExperimentProcedure.md) / [NamingConvention](../operations/NamingConvention.md) / [OpenIssues](../status/OpenIssues.md) / [CurrentSystem](../legacy/CurrentSystem.md) / [NewProjectBlock.pu](./diagrams/NewProjectBlock.pu)
+> **関連文書:** [ProjectOverview](../overview/ProjectOverview.md) / [TechnicalReference](./TechnicalReference.md) / [ExperimentProcedure](../operations/ExperimentProcedure.md) / [NamingConvention](../operations/NamingConvention.md) / [NewProjectBlock.pu](./diagrams/NewProjectBlock.pu)
 
 ---
 
@@ -14,7 +14,7 @@
 * `ExperimentSequencer`, `ControllerCore`, `DriverAdapter`, `VirtualMotorCore`, `ExperimentLogger` は同一 RT タスク上で動作する。
 * `ModeManager` は `StateMachineControl` 内の PLC FSM として `PlcTask1 (10 ms)` で動作し、reset handshake / watchdog / logger handshake を管理する。
 * `DriverAdapter` の active 実装は **C++ TcCOM** (`DriverAdapter_Obj1 (Module1)`) である。
-* `DriverAdapterPLC/` はリポジトリに残る旧実装であり、現行 `.tsproj` の active deployment ではない。
+* DriverAdapter の実装正本は C++ TcCOM `DriverAdapter/` のみである。
 
 ---
 
@@ -161,7 +161,7 @@ ExperimentLogger ◄─ Inputs.control.playbackDone
 | `hostHeartbeatCounter` | `UDINT` | ホスト heartbeat |
 | `watchdogTripCounter` | `UDINT` | watchdog 発生回数 |
 | `experimentActive` | `BOOL` | 状態監視 |
-| `experimentState` | `UINT` | `IDLE / READY / RUNNING / DONE` |
+| `modeState` | `E_ModeState` (`INT16`) | `IDLE / RESETTING / SERVO_READY / RUNNING / DONE` (0/10/20/30/40) |
 | `loggerFileReleased` | `BOOL` | logger close 完了 |
 | `loggerErrorCode` | `UDINT` | logger エラー |
 
@@ -227,7 +227,7 @@ ExperimentLogger ◄─ Inputs.control.playbackDone
 | カテゴリ | 書込み/読取り先 | 備考 |
 |---|---|---|
 | テーブル | `GVL_SEQ.*` (853) | `refTable`, `ffTable`, `distTable`, `tableLen`, `repeatCount` |
-| 状態制御 | `GVL_MODE.*` (852) | `modeFlags`, `resetReq`, `resetAckCounter`, `experimentState` |
+| 状態制御 | `GVL_MODE.*` (852) | `modeFlags`, `resetReq`, `resetAckCounter`, `modeState` |
 | Controller params | `ControllerCore_Obj1 (Module1).*` (351) | symbol write |
 | VM params | `VirtualMotorCore_Obj1 (Module1).PlantParameter.*` (351) | symbol write |
 | logger 監視 | `GVL_MODE.loggerFileReleased/loggerErrorCode` (852) | MATLAB は logger TcCOM を直接待機しない |
@@ -246,11 +246,11 @@ ExperimentLogger ◄─ Inputs.control.playbackDone
 | D3 | DriverAdapter が相対位置化、外乱加算、current clamp、CW/SW relay を担当する |
 | D4 | ModeManager only で状態制御し、reset は handshake、停止は explicit abort を正規とする |
 | D5 | ExperimentLogger を唯一の正規ログ経路とする |
-| D6 | `DriverAdapterPLC/` は legacy として残すが、現行の正本構成には含めない |
+| D6 | DriverAdapter は C++ TcCOM の単一実装とする |
 
 ---
 
-## 6. Legacy Note
+## 6. 実装正本
 
-* `DriverAdapterPLC/` は旧 PLC 実装であり、現行 `.tsproj` の active deployment とは別物である。
-* `1 ms SIL` / `TmpLogger` / `Port 851 active DriverAdapter` を前提にした説明は履歴情報としてのみ扱う。
+* 現行構成は 8 kHz TcCOM、ExperimentLogger、ADS 852/853 の PLC 契約を正本とする。
+* DriverAdapter は C++ TcCOM の単一実装であり、PLC 版の互換実装は持たない。

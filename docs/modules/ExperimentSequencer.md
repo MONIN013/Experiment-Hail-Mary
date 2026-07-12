@@ -12,6 +12,8 @@
 ExperimentSequencer はテーブル再生専用の PLC モジュールである。  
 `refTable` / `ffTable` / `distTable` を 1 サンプルずつ再生し、`refValue` / `ffValue` / `distValue` を出力する。
 
+`FB_ExperimentSequencerCore` が start/reset edge、`E_SeqState`、`idx` / `trialIndex`、repeat境界、最終sample保持を所有する。`PRG_ExperimentSequencer` は `GVL_SEQ` 境界として table長を物理上限へclampし、coreが要求する現在indexの3 sampleを読み、core出力を既存GVLへ反映する。
+
 本モジュールは以下を担当する:
 
 1. テーブル長クランプ (`tableLenClamped`)
