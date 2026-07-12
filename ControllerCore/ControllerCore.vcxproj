@@ -132,6 +132,9 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|TwinCAT RT (x64)'">
   </ItemDefinitionGroup>
   <ItemGroup>
+	<ClCompile Include="ControllerAlgorithm.cpp">
+	  <PrecompiledHeader>NotUsing</PrecompiledHeader>
+	</ClCompile>
     <ClCompile Include="Module1.cpp" />
     <ClCompile Include="TcPch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|TwinCAT RT (x86)'">Create</PrecompiledHeader>
@@ -162,6 +165,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+	<ClInclude Include="ControllerAlgorithm.h" />
     <ClInclude Include="Module1.h" />
     <ClInclude Include="TcPch.h" />
     <ClInclude Include="ControllerCoreClassFactory.h" />

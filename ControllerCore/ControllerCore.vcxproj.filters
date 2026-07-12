@@ -18,6 +18,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+	<ClInclude Include="ControllerAlgorithm.h">
+	  <Filter>Header Files</Filter>
+	</ClInclude>
     <ClInclude Include="TcPch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -38,6 +41,9 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+	<ClCompile Include="ControllerAlgorithm.cpp">
+	  <Filter>Source Files</Filter>
+	</ClCompile>
     <ClCompile Include="TcPch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
