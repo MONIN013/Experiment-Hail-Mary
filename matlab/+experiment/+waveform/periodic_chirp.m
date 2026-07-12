@@ -1,5 +1,5 @@
 function out = periodic_chirp(varargin)
-% periodic_chirp  周期リセット型の対数 chirp を生成する。
+% periodic_chirp  周期リセット型の logarithmic chirp を生成する。
 %
 %   out = experiment.waveform.periodic_chirp("Ts", Ts, "Tend", Tend, ...)
 %

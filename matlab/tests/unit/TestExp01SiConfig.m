@@ -1,79 +1,45 @@
 classdef TestExp01SiConfig < matlab.unittest.TestCase
   methods (Test)
-    function scriptUsesStudentFacingLiveScriptShape(testCase)
-      source = read_exp01_source();
-
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("%[text] ## Demo1: System Identification using chirp signal"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("%[text] ### STEP 1: LOAD CONFIGURATION"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("%[text] ### STEP2 DESIGN EXCITATION SIGNAL"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("%[text] ### STEP3: GENERATE CHIRP SIGNAL"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("%[text] ### STEP4: RUN EXPERIMENT"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("%[text] ### STEP5: ANALYZE FRF"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("%[text] ### STEP6: PLOT AND SAVE RESULTS"));
-
+    function studentSurfaceAndSectionsRemainStable(testCase)
+      source = read_source("exp01_SysId.m");
+      required = [ ...
+        "%[text] ### STEP 1: CHIRP EXCITATION"
+        "%[text] ### STEP 2: TIME TREATMENT"
+        "%[text] ### STEP 3: NON-PARAMETRIC ESTIMATION"
+        "Tend = 100;"
+        "Tcycle = 10;"
+        "use_virtual_motor = true;"];
+      for value = required'
+        testCase.verifyTrue(contains(source, value));
+      end
       testCase.verifyFalse(contains(source, newline + "function "));
-      testCase.verifyFalse(startsWith(source, "function "));
     end
 
-    function scriptUsesCurrentConfigAndHelperPackages(testCase)
-      source = read_exp01_source();
-
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        "cfg = experiment.ExperimentConfig.defaults();"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        "chirp_cfg = experiment.waveform.periodic_chirp("));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        "collect_out = experiment.exp0n.run_and_collect(cfg);"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        "logger_bin = collect_out.logger_bin;"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        "vm_cfg = experiment.exp01.nominal_overlay_plant();"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        "frf_nominal = experiment.analysis.nominal_two_inertia_frf("));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        "experiment.plot.si_frf("));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        "save(""exp01_SI_results.mat"", ""si_out"", ""-v7.3"");"));
+    function scriptUsesSharedRuntimeAndChirpContracts(testCase)
+      source = read_source("exp01_SysId.m");
+      testCase.verifyTrue(contains(source, "experiment.waveform.periodic_chirp("));
+      testCase.verifyTrue(contains(source, "f0 = 0.5;"));
+      testCase.verifyTrue(contains(source, "A = 0.25;"));
+      testCase.verifyTrue(contains(source, "Ndelay = 4;"));
+      testCase.verifyFalse(contains(source, "sweep_type"));
+      testCase.verifyTrue(contains(source, "experiment.exp0n.run_and_collect(cfg)"));
+      testCase.verifyTrue(contains(source, "experiment.exp0n.assert_run_contract(run_out)"));
+      testCase.verifyTrue(contains(source, "cfg.write_virtual_motor_params = use_virtual_motor"));
+      testCase.verifyTrue(contains(source, "cfg.restart_virtual_motor_runtime = false"));
+      testCase.verifyFalse(contains(source, "virtualMotor.predict_logger("));
+      testCase.verifyFalse(contains(source, "virtualMotor.compare_prediction("));
+      testCase.verifyFalse(contains(source, "virtualMotor.assert_prediction("));
+      testCase.verifyTrue(contains(source, "vm_mode = virtualMotor.torsional_mode("));
     end
 
-    function scriptIncludesProtoDemo1Flow(testCase)
-      source = read_exp01_source();
-
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        "Demo1: System Identification using chirp signal"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        "STEP 1: LOAD CONFIGURATION"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        "STEP2 DESIGN EXCITATION SIGNAL"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        "STEP3: GENERATE CHIRP SIGNAL"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        "STEP4: RUN EXPERIMENT"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring( ...
-        "STEP5: ANALYZE FRF"));
-    end
-
-    function scriptKeepsStudentParametersAtTop(testCase)
-      source = read_exp01_source();
-
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("Tcycle_s = 10;"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("repeat_count = 10;"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("f0_hz = 0.5;"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("f1_hz = 4000;"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("chirp_amplitude = 0.1;"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("transient_cycles = 3;"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("initial_phase_rad = 0;"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("hold_margin_s = 1.0;"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("Kp = 0;"));
-      testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("nominal_sample_delay = 4;"));
+    function scriptPreservesPlantHandoffVariables(testCase)
+      source = read_source("exp01_SysId.m");
+      testCase.verifyTrue(contains(source, "'vm_plant', 'vm_mode'"));
     end
   end
 end
 
-function source = read_exp01_source()
-script_path = fullfile( ...
-  fileparts(fileparts(fileparts(mfilename("fullpath")))), ...
-  "experiment", ...
-  "exp01_SysId.m");
-source = string(fileread(script_path));
+function source = read_source(file_name)
+root = fileparts(fileparts(fileparts(mfilename("fullpath"))));
+source = string(fileread(fullfile(root, "experiment", file_name)));
 end

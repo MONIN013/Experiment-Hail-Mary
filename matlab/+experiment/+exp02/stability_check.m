@@ -1,86 +1,110 @@
-function out = stability_check(Kd_z, plant_mat_path, Smax, Ts, nominal_sample_delay)
-%STABILITY_CHECK exp02 の安定性・感度確認を行う。
-% data/plant.mat がある場合は、測定 FRF と nominal plant で Nyquist と
-% sensitivity を確認する。plant.mat がない場合は警告し、未確認として返す。
+function out = stability_check(Pd, Pdn, Kd, Smax, varargin)
+% stability_check  measured/nominal loop の Nyquist と感度上限を一元確認する。
 
-out = struct( ...
-  "ok", false, ...
-  "plant_mat_path", string(plant_mat_path), ...
-  "reason", "plant_mat_missing");
-
-if isfile(char(plant_mat_path))
-  plant_data = load(char(plant_mat_path));
-  if isfield(plant_data, "frf_out")
-    freq_hz = plant_data.frf_out.freq_hz(:);
-    omega_rad_s = 2 * pi * freq_hz;
-    omega_rad_s(omega_rad_s == 0) = eps;
-    frf_velocity = plant_data.frf_out.frf(:);
-  elseif isfield(plant_data, "plant_out")
-    freq_hz = plant_data.plant_out.freq_hz(:);
-    omega_rad_s = 2 * pi * freq_hz;
-    omega_rad_s(omega_rad_s == 0) = eps;
-    frf_velocity = plant_data.plant_out.frf_velocity(:);
-  else
-    freq_hz = zeros(0, 1);
-    omega_rad_s = zeros(0, 1);
-    frf_velocity = zeros(0, 1);
-    out.reason = "plant_mat_missing_frf";
-    warning("experiment:exp02_feedback:plantMatMissingFrf", ...
-      "plant_mat_path exists but does not contain frf_out or plant_out.");
+  p = inputParser;
+  p.addParameter("Plot", true, @(x) islogical(x) && isscalar(x));
+  p.addParameter("error_id", "experiment:exp02:sensitivityLimitExceeded", ...
+    @(x) ischar(x) || (isstring(x) && isscalar(x)));
+  p.parse(varargin{:});
+  if ~(isnumeric(Smax) && isreal(Smax) && isscalar(Smax) && isfinite(Smax) && Smax > 0)
+    error("experiment:exp02:invalidStabilityConfig", "Smax must be a finite positive scalar.");
   end
 
-  if ~isempty(freq_hz)
-    controller_response = squeeze(freqresp(Kd_z, omega_rad_s));
-    controller_response = controller_response(:);
-    plant_position = frf_velocity ./ (1i * omega_rad_s);
-    loop_measured = plant_position .* controller_response;
+  measured_loop = Pd * Kd;
+  nominal_loop = Pdn * Kd;
+  sensitivity = feedback(1, measured_loop);
+  sensitivity_response = response_data(sensitivity);
+  sensitivity_mag = squeeze(abs(sensitivity_response));
+  finite_mag = sensitivity_mag(isfinite(sensitivity_mag));
+  if isempty(finite_mag)
+    error("experiment:exp02:invalidStabilityResult", ...
+      "Measured sensitivity contains no finite response values.");
+  end
+  max_sensitivity = max(finite_mag);
+  limit_exceeded = max_sensitivity > Smax;
+  if limit_exceeded
+    warning(char(string(p.Results.error_id)), ...
+      "Measured sensitivity peak %.6g exceeds Smax=%.6g.", max_sensitivity, Smax);
+  end
 
-    vm_cfg = experiment.exp01.nominal_overlay_plant();
-    frf_nominal_velocity = experiment.analysis.nominal_two_inertia_frf( ...
-      vm_cfg, omega_rad_s, ...
-      "Ts", Ts, ...
-      "sample_delay", nominal_sample_delay);
-    plant_nominal_position = frf_nominal_velocity(:) ./ (1i * omega_rad_s);
-    loop_nominal = plant_nominal_position .* controller_response;
+  if logical(p.Results.Plot)
+    plot_stability(nominal_loop, measured_loop, sensitivity, Pd, Smax);
+  end
+  out = struct( ...
+    "ok", ~limit_exceeded, ...
+    "limit_exceeded", limit_exceeded, ...
+    "measured_loop", measured_loop, ...
+    "nominal_loop", nominal_loop, ...
+    "sensitivity", sensitivity, ...
+    "max_sensitivity", double(max_sensitivity), ...
+    "Smax", double(Smax));
+end
 
-    theta = linspace(0, 2*pi, 360);
-    figure("Name", "Nyquist Stability Check", "Color", "w");
-    plot(real(loop_nominal), imag(loop_nominal), "--", "LineWidth", 1.0, "DisplayName", "nominal"); hold on;
-    plot(real(loop_measured), imag(loop_measured), "-", "LineWidth", 1.2, "DisplayName", "measured");
-    plot(-1 + cos(theta) / Smax, sin(theta) / Smax, ":", "LineWidth", 1.0, "DisplayName", "Smax circle");
-    plot(-1, 0, "kx", "LineWidth", 1.2, "DisplayName", "-1");
-    axis equal;
-    grid on;
-    xlabel("Real");
-    ylabel("Imaginary");
-    title("Nyquist Check: P(z)K(z)");
-    legend("Location", "best");
+function response = response_data(system)
+if isa(system, "frd")
+  response = system.ResponseData;
+else
+  response = freqresp(system, default_frequency(system));
+end
+end
 
-    sensitivity_measured = 1 ./ (1 + loop_measured);
-    sensitivity_nominal = 1 ./ (1 + loop_nominal);
-    figure("Name", "Sensitivity Check", "Color", "w");
-    semilogx(freq_hz, 20*log10(abs(sensitivity_nominal)), "--", "LineWidth", 1.0, "DisplayName", "nominal"); hold on;
-    semilogx(freq_hz, 20*log10(abs(sensitivity_measured)), "-", "LineWidth", 1.2, "DisplayName", "measured");
-    yline(20*log10(Smax), ":", "Smax", "LineWidth", 1.0);
-    grid on;
-    xlabel("Frequency [Hz]");
-    ylabel("|S| [dB]");
-    title("Sensitivity Check");
-    legend("Location", "best");
+function frequency = default_frequency(system)
+if isprop(system, "Ts") && system.Ts > 0
+  upper = pi / system.Ts;
+else
+  upper = 2 * pi * 4000;
+end
+frequency = logspace(log10(2*pi), log10(upper), 2000);
+end
 
-    out = struct( ...
-      "ok", true, ...
-      "plant_mat_path", string(plant_mat_path), ...
-      "reason", "ok", ...
-      "freq_hz", freq_hz, ...
-      "loop_measured", loop_measured, ...
-      "loop_nominal", loop_nominal, ...
-      "sensitivity_measured", sensitivity_measured, ...
-      "sensitivity_nominal", sensitivity_nominal, ...
-      "Smax", Smax);
+function plot_stability(nominal_loop, measured_loop, sensitivity, Pd, Smax)
+nop = nyquistoptions("cstprefs");
+nop.ShowFullContour = "off";
+nop.XLim = [-1.5 1];
+nop.YLim = [-1.5 1];
+nop.Grid = "off";
+figure;
+nyquist(nominal_loop, measured_loop, nop); hold on;
+theta = 0:0.01:2*pi;
+plot(cos(theta)/Smax - 1, sin(theta)/Smax, "k--"); hold off;
+drawnow;
+axes_handles = findall(gcf, "Type", "Axes");
+for k = 1:numel(axes_handles)
+  pbaspect(axes_handles(k), [1 1 1]);
+end
+legend("nominal", "frd");
+title("Nyquist plot");
+
+bop = bodeoptions("cstprefs");
+bop.FreqUnits = "Hz";
+bop.PhaseWrapping = "on";
+bop.XLimMode = "manual";
+bop.XLim = {[1, nyquist_hz(Pd)]};
+bop.Grid = "off";
+figure;
+bodemag(sensitivity, bop); hold on;
+frequency_hz = frequency_in_hz(Pd);
+limit = frd(Smax * ones(numel(frequency_hz), 1), frequency_hz, "FrequencyUnit", "Hz");
+bodemag(limit, bop, "k--"); hold off;
+legend("frd", "Smax");
+title("Sensitivity function");
+end
+
+function value = nyquist_hz(system)
+if isprop(system, "Ts") && system.Ts > 0
+  value = 1 / (2 * system.Ts);
+else
+  value = 4000;
+end
+end
+
+function frequency_hz = frequency_in_hz(system)
+if isa(system, "frd")
+  frequency_hz = system.Frequency(:);
+  if isprop(system, "FrequencyUnit") && ~strcmpi(string(system.FrequencyUnit), "Hz")
+    frequency_hz = frequency_hz / (2*pi);
   end
 else
-  warning("experiment:exp02_feedback:plantMatMissing", ...
-    "plant_mat_path is not found. Run exp01_SysId first to create data/plant.mat. Continuing without Nyquist/sensitivity check.");
+  frequency_hz = logspace(0, log10(nyquist_hz(system)), 500)';
 end
 end

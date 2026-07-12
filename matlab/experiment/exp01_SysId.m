@@ -1,109 +1,197 @@
 %[text] ## Demo1: System Identification using chirp signal
 %%
-%[text] ### STEP 1: LOAD CONFIGURATION
+%[text] ### STEP 1: CHIRP EXCITATION
 %[text] load settings for the experiment
 clear; close all;
+
+Tend = 100; % experiment length [s]
+Tcycle = 10; % cycle time of chirp signal [s]
+p = 0; % initial phase of chirp [rad]
+f0 = 0.5; % min freq of chirp [Hz]
+f1 = 4000; % max freq of chirp [Hz]
+A = 0.25; % VM-safe feedforward chirp amplitude [A]
+trans = 2; % number of transient periods
+Jn = 7.1e-5; % student-tunable nominal inertia [A/(rad/s^2)], (Jmotor+Jload)/(ratedTorque/ratedCurrent)
+Dn = 5.325e-4; % student-tunable nominal damping [A/(rad/s)], (Dmotor+Dload)/(ratedTorque/ratedCurrent)
+Ndelay = 4; % student-tunable delay step of plant [samples]
+use_virtual_motor = true; % false on the RealMotor project; skips all VM parameter writes
+
+save_results = true;
+require_logger_records = true;
+hold_margin_s = 1.0;
+script_dir = string(fileparts(mfilename("fullpath")));
+result_dir = fullfile(script_dir, "data");
+chirp_result_path = fullfile(result_dir, "chirp_result.mat");
+plant_mat_path = fullfile(result_dir, "plant.mat");
+runner_result_path = fullfile(result_dir, "exp01_runner.mat");
+
 cfg = experiment.ExperimentConfig.defaults();
 Ts = 1 / cfg.env.task_rate_hz;
 %%
-%[text] ### STEP2 DESIGN EXCITATION SIGNAL
+%[text] design excitation signal
+chirp = experiment.waveform.periodic_chirp( ...
+  "Ts", Ts, "Tend", Tend, "Tcycle", Tcycle, ...
+  "f0", f0, "f1", f1, "A", A, "initial_phase", p);
+N = chirp.sample_count;
+t = chirp.t;
+u = chirp.signal;
 
-Tcycle_s = 10;
-repeat_count = 10;
-f0_hz = 0.5;
-f1_hz = 4000;
-chirp_amplitude = 0.1;
-transient_cycles = 3;
-initial_phase_rad = 0;
-hold_margin_s = 1.0;
-Kp = 0;
-nominal_sample_delay = 4;
-
+figure("Name", "Chirp Excitation", "Color", "w");
+plot(t, u, "-", "LineWidth", 1.0);
+grid on;
+xlabel("Time [s]");
+ylabel("Feedforward current [A]");
+title("Open-loop chirp excitation");
 %%
-%[text] ### STEP3: GENERATE CHIRP SIGNAL
-%[text] Nyquist guard
-nyquist_guard_hz = 0.5 / Ts;
-f1_effective_hz = min(f1_hz, nyquist_guard_hz);
-if f1_effective_hz < f1_hz
-  warning("experiment:exp01_SI:f1Clamped", ...
-    "Requested f1=%.3f Hz exceeds Nyquist guard; using %.3f Hz instead.", ...
-    f1_hz, f1_effective_hz);
+%[text] build simulink model "twomass\_exp\_2019a.slx" after executing this section
+%[text] (build only needed 1 time.  rebuild required if you change the following parameters or the feedback controller Kd.)
+if save_results && ~isfolder(char(result_dir))
+  mkdir(char(result_dir));
 end
 
-%[text] Generate chirp signal
-chirp_cfg = experiment.waveform.periodic_chirp( ...
-  "Ts", Ts, ...
-  "Tend", Tcycle_s, ...
-  "Tcycle", Tcycle_s, ...
-  "f0", f0_hz, ...
-  "f1", f1_effective_hz, ...
-  "A", chirp_amplitude, ...
-  "initial_phase", initial_phase_rad);
-sample_n = chirp_cfg.sample_count;
+fb_flag = 0;
+% The GVL_SEQ playback table holds at most 100000 samples, so the periodic
+% chirp is written as one Tcycle-long cycle and replayed repeat_count times.
+% The chirp is Tcycle-periodic by construction, so replaying one cycle
+% produces the requested full-length excitation exactly.
+N_cycle = round(Tcycle/Ts);
+n_repeat = round(Tend/Tcycle);
+set_ref = zeros(N_cycle, 1);
+set_ff = u(1:N_cycle);
 
-%[text] visualize chirp signal
-figure("Name", "Chirp Signal", "Color", "w");
-plot(chirp_cfg.signal);
-grid on;
-title("Chirp Signal");
-xlabel("Sample");
-ylabel("Amplitude");
-%%
-%[text] ### STEP4: RUN EXPERIMENT
-%[text] prepare experiment configuration and run the experiment.
-%[text] The reference profile is set to the designed chirp signal, and the disturbance is set to zero.
-%[text] The controller is set to P-only with a small gain to keep the system stable during the experiment.
-%[text] The experiment will be repeated for a specified number of cycles, and the data will be logged for analysis.
-cfg.ref_profile = zeros(sample_n, 1);
-cfg.ff_profile = chirp_cfg.signal(:);
-cfg.dist_profile = zeros(sample_n, 1);
-cfg.repeat_count = repeat_count;
+cfg.ref_profile = set_ref;
+cfg.ff_profile = set_ff;
+cfg.dist_profile = zeros(N_cycle, 1);
+cfg.repeat_count = n_repeat;
 cfg.wait_for_done = true;
-cfg.hold_seconds = Tcycle_s + hold_margin_s;
-cfg.done_timeout_s = repeat_count * Tcycle_s + hold_margin_s + 5.0;
-cfg.logger_release_timeout_s = max(5.0, repeat_count * Tcycle_s / 10);
-cfg.controller = experiment.ControllerConfig.p_only(Kp);
-
-%[text] run experiment
+cfg.hold_seconds = Tend + hold_margin_s;
+cfg.done_timeout_s = Tend + hold_margin_s + 5.0;
+cfg.logger_release_timeout_s = max(5.0, Tend / 10);
+cfg.controller = experiment.ControllerConfig.p_only(0);
+cfg.host_heartbeat_enable = false;
+cfg.external_host_heartbeat_enable = true;
+cfg.write_virtual_motor_params = use_virtual_motor;
+cfg.restart_virtual_motor_runtime = false; % lifecycle restart is reserved for test-only prediction oracles
+vm_plant = []; %#ok<NASGU> assigned when the operator switches to RealMotor
+vm_mode = []; %#ok<NASGU> assigned when the operator switches to RealMotor
+if use_virtual_motor
+  cfg.virtual_motor_plant = experiment.exp01.nominal_overlay_plant();
+  vm_plant = cfg.virtual_motor_plant.to_struct();
+  vm_mode = virtualMotor.torsional_mode(cfg.virtual_motor_plant);
+  if abs(vm_mode.natural_frequency_hz - 200) > 0.5
+    error("experiment:exp01_SysId:invalidVirtualMotorMode", ...
+      "VirtualMotor torsional natural frequency must be approximately 200 Hz.");
+  end
+  fprintf("VirtualMotor torsional mode: fn=%.6f Hz, fd=%.6f Hz, zeta=%.6f\n", ...
+    vm_mode.natural_frequency_hz, vm_mode.damped_frequency_hz, vm_mode.damping_ratio);
+end
+if save_results
+  cfg.save_path = char(runner_result_path);
+end
+%%
+%[text] execute experiment via simulink
+%[text] \*make sure to close all simulink files before executing this section
 collect_out = experiment.exp0n.run_and_collect(cfg);
 run_out = collect_out.run;
 logger_bin = collect_out.logger_bin;
-%%
-%[text] ### STEP5: ANALYZE FRF
-frf_out = experiment.analyze_si_frf(logger_bin, ...
-  "Ts", Ts, ...
-  "Tcycle", Tcycle_s, ...
-  "transient_cycles", transient_cycles);
+raw = logger_bin.raw;
 
+experiment.exp0n.assert_run_contract(run_out);
+
+if ~isfield(raw, "control_input") || ~isfield(raw, "load_position") || ~isfield(raw, "motor_position")
+  error("experiment:exp01_SysId:missingLoggerSignal", ...
+    "logger_bin.raw must contain control_input, load_position, and motor_position.");
+end
+if require_logger_records && double(logger_bin.record_count) < N
+  error("experiment:exp01_SysId:notEnoughLoggerRecords", ...
+    "Expected at least %d logger records for Tend=%.3f s, got %d.", ...
+    N, Tend, double(logger_bin.record_count));
+end
+
+input = double(raw.control_input(:)); % input current [A]
+loadpos = double(raw.load_position(:)); % load-side position [rad]
+motorpos = double(raw.motor_position(:)); % motor-side position [rad]
+input = input(1:N);
+loadpos = loadpos(1:N);
+motorpos = motorpos(1:N);
+
+status_text = struct();
 status_text.result_header = sprintf("\n--- Result ---\n");
-status_text.run_line = sprintf("done=%d timed_out=%d\n", logical(run_out.host.done), logical(run_out.host.timed_out));
-status_text.result_logger_line = sprintf("records=%d file=%s\n", ...
-  logger_bin.record_count, string(logger_bin.file_path));
-status_text.frf_line = sprintf("FRF input=%s output=%s windowSamples=%d usablePeriods=%d\n", ...
-  frf_out.input_signal_name, frf_out.output_signal_name, ...
-  frf_out.window_samples, frf_out.trim_info.usable_period_count)
+status_text.run_line = sprintf("done=%d timed_out=%d stopReason=%s fb_flag=%d\n", ...
+  logical(run_out.host.done), logical(run_out.host.timed_out), char(string(run_out.host.stop_reason)), fb_flag);
+status_text.result_logger_line = sprintf("logger=%s records=%d file=%s\n", ...
+  char(string(logger_bin.file_path)), logger_bin.record_count, char(string(logger_bin.file_path)));
+fprintf("%s%s%s", status_text.result_header, status_text.run_line, status_text.result_logger_line);
 
-if any(frf_out.coherence < 0.2)
-  warning("experiment:exp01_SI:lowCoherence", ...
-    "Coherence drops below 0.2 in part of the analyzed band.");
+%%
+%[text] save experiment data
+if save_results
+  save(chirp_result_path, 'input', 'loadpos', 'motorpos', 'Ts', 'Tend', 'Tcycle');
 end
 %%
-%[text] ### STEP6: PLOT AND SAVE RESULTS
+%[text] ### STEP 2: TIME TREATMENT
+%[text] download data
+if save_results
+  load(chirp_result_path, 'input', 'loadpos', 'motorpos', 'Ts', 'Tend', 'Tcycle');
+end
 
-freq_hz = frf_out.freq_hz(:);
-omega_rad_s = 2 * pi * freq_hz;
-vm_cfg = experiment.exp01.nominal_overlay_plant();
-frf_nominal = experiment.analysis.nominal_two_inertia_frf( ...
-  vm_cfg, omega_rad_s, ...
-  "Ts", Ts, ...
-  "sample_delay", nominal_sample_delay);
+%[text] remove transient periods
+Nstart = trans*Tcycle/Ts+1;
+N = Tend/Ts; % total sample points of data
+nrofs = Tcycle/Ts;
+input = input(Nstart:N); % control input of plant [A]
+loadvel = diff([loadpos(Nstart:end); loadpos(end)])/Ts; % load-side velocity [rad/s]
+motorvel = diff([motorpos(Nstart:end); motorpos(end)])/Ts; % motor-side velocity [rad/s]
+%%
+%[text] ### STEP 3: NON-PARAMETRIC ESTIMATION
+%[text] fft data and vizualize in freq domain position data
+[txy, f] = tfestimate(input, loadvel, rectwin(Tcycle/Ts), 0, Tcycle/Ts, 1/Ts);
+Pd_vel_load = frd(txy, f, "FrequencyUnit", "Hz");
+Pd_vel_load.Ts = Ts;
+[txy, f] = tfestimate(input, motorvel, rectwin(Tcycle/Ts), 0, Tcycle/Ts, 1/Ts);
+Pd_vel_motor = frd(txy, f, "FrequencyUnit", "Hz");
+Pd_vel_motor.Ts = Ts;
+%%
+%[text] check coherence (good if close to 0dB)
+figure("Name", "Load-side coherence", "Color", "w");
+mscohere(input, loadvel, rectwin(Tcycle/Ts), 0, Tcycle/Ts, 1/Ts);
+ax = gca; ax.XScale = 'log';
+title("load-side coherence");
 
-experiment.plot.si_frf(freq_hz, frf_out.frf(:), frf_nominal, frf_out.coherence(:), transient_cycles);
+figure("Name", "Motor-side coherence", "Color", "w");
+mscohere(input, motorvel, rectwin(Tcycle/Ts), 0, Tcycle/Ts, 1/Ts);
+ax = gca; ax.XScale = 'log';
+title("motor-side coherence");
+%%
+%[text] ### Manual data fitting of system $P${"editStyle":"visual"}
+%[text] True system: $P=\\frac{1}{{\\textrm{Js}}^2 +\\textrm{Ds}}${"editStyle":"visual"}
+%[text] Nominal system: $P\_n =\\frac{1}{{J\_n s}^2 +D\_n s}${"editStyle":"visual"}
+%[text] design $J\_n${"editStyle":"visual"} and $D\_n${"editStyle":"visual"} so $P\_n${"editStyle":"visual"} becomes close to $P${"editStyle":"visual"}.
+s = tf('s');
+z = tf('z', Ts);
 
-si_out = struct( ...
-  "run", run_out, ...
-  "logger_bin", logger_bin, ...
-  "frf", frf_out, ...
-  "chirp", chirp_cfg);
+Pd_load = Pd_vel_load*c2d(1/s, Ts, 'tustin');
+Pd_motor = Pd_vel_motor*c2d(1/s, Ts, 'tustin');
+Pdn = c2d(1/(Jn*s+Dn)/s, Ts, 'zoh')/z^Ndelay;
 
-save("exp01_SI_results.mat", "si_out", "-v7.3");
+bop_ = bodeoptions("cstprefs");
+bop_.FreqUnits = 'Hz';
+bop_.PhaseWrapping = 'on';
+bop_.XLimMode = 'manual';
+bop_.XLim = {[1, 1/2/Ts]};
+bop_.Grid = 'off';
+bop_.YLim = {[-80, 80]; [-180, 180]};
+figure("Name", "Manual plant fitting", "Color", "w");
+bode(Pd_load, Pd_motor, Pdn, bop_);
+legend(["$P_{\mathrm{load}}$", "$P_{\mathrm{motor}}$", "$P_{n}$"], "Interpreter", "latex");
+%%
+%[text] save fitting data
+%[text] load-side position will be the main objective of control for demo2 to demo4
+Pd = Pd_load;
+if save_results
+  save(plant_mat_path, 'Pd', 'Pd_motor', 'Pd_load', 'Pd_vel_load', 'Pd_vel_motor', ...
+    'Pdn', 'Jn', 'Dn', 'Ndelay', 'Ts', 'vm_plant', 'vm_mode');
+end
+
+fprintf("Saved chirp result: %s\n", char(chirp_result_path));
+fprintf("Saved plant data for exp02-exp04: %s\n", char(plant_mat_path));
