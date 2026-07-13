@@ -7,12 +7,12 @@ classdef TestVirtualMotorPrediction < matlab.unittest.TestCase
       cfg.ff_profile = [0; 0.2 * ones(n - 1, 1)];
       cfg.dist_profile = zeros(n, 1);
       cfg.controller = experiment.ControllerConfig.p_only(0);
-      cfg.write_virtual_motor_params = true;
-      cfg.virtual_motor_plant = virtualMotor.PlantConfig();
+      plant = virtualMotor.PlantConfig();
 
-      out = virtualMotor.predict_logger(cfg);
+      out = virtualMotor.predict_logger(cfg, plant);
 
       testCase.verifyEqual(out.sample_count, n);
+      testCase.verifyEqual(out.raw.t_s, double(out.raw.t_ns) * 1e-9);
       testCase.verifyEqual(out.raw.ff_value(2:end), cfg.ff_profile(1:end-1));
       testCase.verifyEqual(out.raw.control_input(3:end), cfg.ff_profile(1:end-2));
       testCase.verifyEqual(out.raw.current_cmd(4:end), cfg.ff_profile(1:end-3));
@@ -30,9 +30,8 @@ classdef TestVirtualMotorPrediction < matlab.unittest.TestCase
       cfg.ff_profile = 0.01 * ones(n, 1);
       cfg.dist_profile = zeros(n, 1);
       cfg.controller = experiment.ControllerConfig.p_only(0);
-      cfg.write_virtual_motor_params = true;
-      cfg.virtual_motor_plant = virtualMotor.PlantConfig();
-      prediction = virtualMotor.predict_logger(cfg);
+      plant = virtualMotor.PlantConfig();
+      prediction = virtualMotor.predict_logger(cfg, plant);
 
       logger = struct("raw", prediction.raw, "record_count", n);
       metrics = virtualMotor.compare_prediction(logger, prediction);
@@ -72,33 +71,22 @@ classdef TestVirtualMotorPrediction < matlab.unittest.TestCase
       cfg.dist_profile = zeros(chirp.sample_count, 1);
       cfg.repeat_count = 10;
       cfg.controller = experiment.ControllerConfig.p_only(0);
-      cfg.write_virtual_motor_params = true;
-      cfg.virtual_motor_plant = virtualMotor.PlantConfig();
+      plant = virtualMotor.PlantConfig();
 
-      prediction = virtualMotor.predict_logger(cfg);
+      prediction = virtualMotor.predict_logger(cfg, plant);
 
       testCase.verifyTrue(prediction.fault.motor || prediction.fault.load || ...
         prediction.position_saturated);
     end
 
     function checkedInExp01StimulusRemainsSafeInTestOracle(testCase)
-      cfg = experiment.ExperimentConfig.defaults();
-      Ts = 1 / cfg.env.task_rate_hz;
-      chirp = experiment.waveform.periodic_chirp( ...
-        "Ts", Ts, "Tend", 100, "Tcycle", 10, ...
-        "f0", 0.5, "f1", 4000, "A", 0.25, ...
-        "initial_phase", 0);
-      cycle_n = round(10 / Ts);
-      cfg.ref_profile = zeros(cycle_n, 1);
-      cfg.ff_profile = chirp.signal(1:cycle_n);
-      cfg.dist_profile = zeros(cycle_n, 1);
-      cfg.repeat_count = 10;
-      cfg.controller = experiment.ControllerConfig.p_only(0);
-      cfg.write_virtual_motor_params = true;
-      cfg.virtual_motor_plant = experiment.exp01.nominal_overlay_plant();
+      scenario = experiment.scenario.exp01("save_results", false);
+      cfg = scenario.cfg;
+      plant = virtualMotor.PlantConfig();
 
-      prediction = virtualMotor.predict_logger(cfg);
+      prediction = virtualMotor.predict_logger(cfg, plant);
 
+      testCase.verifyEqual(prediction.sample_count, scenario.expected_sample_count);
       testCase.verifyFalse(prediction.fault.motor);
       testCase.verifyFalse(prediction.fault.load);
       testCase.verifyFalse(prediction.position_saturated);
@@ -114,16 +102,15 @@ classdef TestVirtualMotorPrediction < matlab.unittest.TestCase
       cfg.ff_profile = 0.1 * sin(2*pi*frequency_hz*time_s);
       cfg.dist_profile = zeros(n, 1);
       cfg.controller = experiment.ControllerConfig.p_only(0);
-      cfg.write_virtual_motor_params = true;
-      cfg.virtual_motor_plant = virtualMotor.PlantConfig();
+      plant = virtualMotor.PlantConfig();
 
-      prediction = virtualMotor.predict_logger(cfg);
+      prediction = virtualMotor.predict_logger(cfg, plant);
       keep = time_s >= 0.25;
       basis = exp(-1i*2*pi*frequency_hz*time_s(keep));
       measured = sum(prediction.raw.load_velocity(keep) .* basis) / ...
         sum(prediction.raw.ff_value(keep) .* basis);
       expected = virtualMotor.discrete_velocity_frf( ...
-        cfg.virtual_motor_plant, 2*pi*frequency_hz, ...
+        plant, 2*pi*frequency_hz, ...
         "Ts", Ts, "sample_delay", 4, "axis", "load");
 
       testCase.verifyEqual(abs(measured), abs(expected), "RelTol", 2e-3);
@@ -154,6 +141,18 @@ classdef TestVirtualMotorPrediction < matlab.unittest.TestCase
       module.scalarMap(char(prefix + "motor.positionActualValue")) = int32(intmax("int32"));
       module.scalarMap(char(prefix + "motor.velocityActualValue")) = int32(0);
       module.scalarMap(char(prefix + "load.positionActualValue")) = int32(intmax("int32"));
+      module.scalarMap(char(prefix + "load.velocityActualValue")) = int32(0);
+
+      testCase.verifyError(@() virtualMotor.wait_for_settle(module, 0.01), ...
+        "virtualMotor:settle:positionSaturated");
+    end
+
+    function settleGateRejectsNegativeSaturatedPosition(testCase)
+      module = MockAdsTransport();
+      prefix = "VirtualMotorCore_Obj1 (Module1).Outputs.";
+      module.scalarMap(char(prefix + "motor.positionActualValue")) = int32(intmin("int32"));
+      module.scalarMap(char(prefix + "motor.velocityActualValue")) = int32(0);
+      module.scalarMap(char(prefix + "load.positionActualValue")) = int32(intmin("int32"));
       module.scalarMap(char(prefix + "load.velocityActualValue")) = int32(0);
 
       testCase.verifyError(@() virtualMotor.wait_for_settle(module, 0.01), ...

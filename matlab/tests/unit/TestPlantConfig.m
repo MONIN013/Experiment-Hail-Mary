@@ -46,24 +46,10 @@ classdef TestPlantConfig < matlab.unittest.TestCase
       testCase.verifyFalse(isfield(out.load, "maxPermille"));
     end
 
-    function plantProvenanceRejectsStaleVirtualMotorData(testCase)
-      expected = virtualMotor.PlantConfig();
-      plant_data = struct( ...
-        "vm_plant", expected.to_struct(), ...
-        "vm_mode", virtualMotor.torsional_mode(expected));
-      testCase.verifyWarningFree(@() ...
-        experiment.exp01.assert_plant_provenance(plant_data, expected));
-
-      stale = plant_data;
-      stale.vm_plant.coupling.stiffness = stale.vm_plant.coupling.stiffness / 2;
-      testCase.verifyError(@() ...
-        experiment.exp01.assert_plant_provenance(stale, expected), ...
-        "experiment:exp01:plantProvenanceMismatch");
-    end
-
-    function rejectsLegacyFlatFields(testCase)
+    function rejectsUnknownTopLevelFields(testCase)
       testCase.verifyError(@() virtualMotor.PlantConfig.from_struct(struct( ...
-        "m", 1, "d", 2)), "virtualMotor:plant:invalid");
+        "motor", struct(), "load", struct(), "coupling", struct(), ...
+        "typo", 1)), "virtualMotor:plant:invalid");
     end
 
     function rejectsLoadMaxPermille(testCase)

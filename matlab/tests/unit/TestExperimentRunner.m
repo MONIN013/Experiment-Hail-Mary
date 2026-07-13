@@ -4,6 +4,7 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
       seq = MockAdsTransport();
       ctrl = MockAdsTransport();
       module = MockAdsTransport();
+      seed_controller(module, "CustomController.");
       seed_seq(seq);
       seed_ctrl(ctrl);
       seed_logger_status(module, [false; true], [uint32(7); uint32(10)]);
@@ -29,10 +30,11 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
       testCase.verifyEqual(out.logger.records_before, uint32(7));
       testCase.verifyEqual(out.logger.records_after, uint32(10));
       testCase.verifyTrue(any(contains(seq.operations, "write_array:GVL_SEQ.refTable")));
-      testCase.verifyTrue(any(contains(module.operations, "write_scalar:CustomController.PIDParams.pidB0")));
+      testCase.verifyTrue(any(contains(module.operations, "write_array:CustomController.SosCoefficients")));
       testCase.verifyFalse(any(contains(module.operations, "PlantParameter.")));
       testCase.verifyTrue(isfield(out.host, "startup_timing"));
       testCase.verifyTrue(isfield(out.host.startup_timing, "table_write_s"));
+      testCase.verifyFalse(isfield(out.host.startup_timing, "vm_settle_s"));
       testCase.verifyGreaterThanOrEqual(out.host.startup_timing.total_s, 0);
     end
 
@@ -40,6 +42,7 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
       seq = MockAdsTransport();
       ctrl = MockAdsTransport();
       module = MockAdsTransport();
+      seed_controller(module);
       seed_seq(seq);
       seed_ctrl(ctrl);
       events = containers.Map("KeyType", "char", "ValueType", "any");
@@ -62,13 +65,13 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
       table_len_writes = find(log == "seq:write_scalar:GVL_SEQ.tableLen");
       mode_writes = find(log == "ctrl:write_scalar:GVL_MODE.modeFlags");
       heartbeat_writes = find(log == "ctrl:write_scalar:GVL_MODE.hostHeartbeatCounter");
-      controller_write = find(contains(log, "module:write_scalar:ControllerCore_Obj1 (Module1).PIDParams.pidB0"), 1);
+      controller_write = find(contains(log, "module:write_array:ControllerCore_Obj1 (Module1).SosCoefficients"), 1);
       ref_write = find(log == "seq:write_array:GVL_SEQ.refTable", 1);
       ff_write = find(log == "seq:write_array:GVL_SEQ.ffTable", 1);
       dist_write = find(log == "seq:write_array:GVL_SEQ.distTable", 1);
 
-      testCase.verifyNumElements(table_len_writes, 2, ...
-        "tableLen must be cleared once and published once.");
+      testCase.verifyNumElements(table_len_writes, 3, ...
+        "tableLen must be hidden before setup, published once, and hidden after collection.");
       testCase.verifyGreaterThanOrEqual(numel(reset_writes), 2);
       testCase.verifyGreaterThanOrEqual(numel(mode_writes), 3);
       testCase.verifyGreaterThanOrEqual(numel(heartbeat_writes), 2);
@@ -80,16 +83,21 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
       testCase.verifyLessThan(dist_write, table_len_writes(2));
       testCase.verifyLessThan(table_len_writes(2), heartbeat_writes(2));
       testCase.verifyLessThan(heartbeat_writes(2), mode_writes(3));
+      testCase.verifyGreaterThan(table_len_writes(3), mode_writes(3));
+      testCase.verifyEqual(seq.scalarMap("GVL_SEQ.tableLen"), uint32(0));
+      testCase.verifyEqual(ctrl.scalarMap("GVL_MODE.modeFlags"), uint16(0));
+      testCase.verifyEqual(ctrl.scalarMap("GVL_MODE.modeState"), int16(0));
     end
 
     function parameterWriteFailureLeavesRunStoppedAndTableHidden(testCase)
       seq = MockAdsTransport();
       ctrl = MockAdsTransport();
       module = MockAdsTransport();
+      seed_controller(module);
       seed_seq(seq);
       seed_ctrl(ctrl);
       module.set_scalar_write_error( ...
-        "ControllerCore_Obj1 (Module1).PIDParams.pidB0", ...
+        "ControllerCore_Obj1 (Module1).SosSectionCount", ...
         "test:controllerWriteFailed", "injected failure");
       conn = experiment.ConnectionManager.from_transports(seq, ctrl, module);
       cfg = experiment.ExperimentConfig.from_varargin( ...
@@ -107,6 +115,7 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
       seq = MockAdsTransport();
       ctrl = MockAdsTransport();
       module = MockAdsTransport();
+      seed_controller(module);
       expected_env = config.EnvironmentConfig.current();
       expected_env.controller_prefix = "ExpectedController.";
       cfg = experiment.ExperimentConfig.from_varargin( ...
@@ -127,11 +136,13 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
 
     function runReturnsTheLoggerPayloadUsedForRaw(testCase)
       file_path = [tempname, '.bin'];
-      cleaner = onCleanup(@() delete_if_exists(file_path)); %#ok<NASGU>
+      save_path = [tempname, '.mat'];
+      cleaner = onCleanup(@() delete_if_exists([string(file_path), string(save_path)]));
       write_logger_record(file_path);
       seq = MockAdsTransport();
       ctrl = MockAdsTransport();
       module = MockAdsTransport();
+      seed_controller(module);
       seed_seq(seq);
       seed_ctrl(ctrl);
       conn = experiment.ConnectionManager.from_transports(seq, ctrl, module);
@@ -143,6 +154,7 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
         "wait_for_done", false, ...
         "hold_seconds", 0.0, ...
         "read_logs", true, ...
+        "save_path", save_path, ...
         "validate_symbols", false);
 
       out = experiment.ExperimentRunner.run(conn, cfg);
@@ -151,31 +163,10 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
       testCase.verifyEqual(out.raw.seq, double(out.logger_bin.raw.seq));
       testCase.verifyEqual(out.raw.ref_value, out.logger_bin.raw.ref_value);
       testCase.verifyEqual(out.raw.position_act, out.logger_bin.raw.load_position);
-    end
-
-    function runWritesVirtualMotorParamsWhenRequested(testCase)
-      seq = MockAdsTransport();
-      ctrl = MockAdsTransport();
-      module = MockAdsTransport();
-      seed_seq(seq);
-      seed_ctrl(ctrl);
-      seed_logger_status(module, [false; true], [uint32(7); uint32(10)]);
-      seed_virtual_motor(module);
-      conn = experiment.ConnectionManager.from_transports(seq, ctrl, module);
-      cfg = experiment.ExperimentConfig.from_varargin( ...
-        "ref_profile", [0.1; 0.2], ...
-        "wait_for_done", false, ...
-        "hold_seconds", 0.0, ...
-        "read_logs", false, ...
-        "validate_symbols", false, ...
-        "write_virtual_motor_params", true, ...
-        "virtual_motor_plant", experiment.exp01.nominal_overlay_plant());
-
-      out = experiment.ExperimentRunner.run(conn, cfg);
-
-      testCase.verifyFalse(out.host.done);
-      testCase.verifyTrue(any(contains(module.operations, "write_scalar:VirtualMotorCore_Obj1 (Module1).PlantParameter.motor.inertia")));
-      testCase.verifyTrue(out.config.write_virtual_motor_params);
+      persisted = load(save_path, "logger_bin", "logger");
+      testCase.verifyEqual(persisted.logger_bin.record_count, 1);
+      testCase.verifyEqual(persisted.logger_bin.raw, out.logger_bin.raw);
+      testCase.verifyEqual(string(persisted.logger.file_path), string(file_path));
     end
 
     function runsWithoutModuleWhenControllerWritesDisabled(testCase)
@@ -203,6 +194,7 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
       seq = MockAdsTransport();
       ctrl = MockAdsTransport();
       module = MockAdsTransport();
+      seed_controller(module);
       seed_seq(seq);
       seed_ctrl(ctrl);
       ctrl.set_scalar_read_sequence("GVL_MODE.modeState", ...
@@ -231,6 +223,7 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
       seq = MockAdsTransport();
       ctrl = MockAdsTransport();
       module = MockAdsTransport();
+      seed_controller(module);
       seed_seq(seq);
       seed_ctrl(ctrl);
       ctrl.set_scalar_read_sequence("GVL_MODE.modeState", ...
@@ -257,6 +250,7 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
       seq = MockAdsTransport();
       ctrl = MockAdsTransport();
       module = MockAdsTransport();
+      seed_controller(module);
       seed_seq(seq);
       seed_ctrl(ctrl);
       ctrl.set_scalar_read_sequence("GVL_MODE.modeState", ...
@@ -297,6 +291,7 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
       seq = MockAdsTransport();
       ctrl = MockAdsTransport();
       module = MockAdsTransport();
+      seed_controller(module);
       seed_seq(seq);
       seed_ctrl_without_state(ctrl);
       conn = experiment.ConnectionManager.from_transports(seq, ctrl, module);
@@ -344,22 +339,14 @@ t.set_scalar_read_sequence("ExperimentLogger_Obj1 (Module1).Outputs.status.logge
 t.set_scalar_read_sequence("ExperimentLogger_Obj1 (Module1).Outputs.status.recordsWritten", record_values);
 end
 
-function seed_virtual_motor(t)
-symbols = virtualMotor.Symbols.from_defaults();
-probes = symbols.requiredProbes;
-types = twincat_ads.AdsTransport.net_types();
-for k = 1:size(probes, 1)
-  sym = char(string(probes{k, 1}));
-  nt = char(string(probes{k, 2}));
-  switch nt
-    case char(string(types.u32))
-      t.scalarMap(sym) = uint32(1);
-    case char(string(types.u64))
-      t.scalarMap(sym) = uint64(1);
-    otherwise
-      t.scalarMap(sym) = 1.0;
-  end
+function seed_controller(t, prefix)
+if nargin < 2
+  prefix = "ControllerCore_Obj1 (Module1).";
 end
+t.scalarMap(char(prefix + "SosApplyRevision")) = uint32(0);
+t.scalarMap(char(prefix + "Outputs.appliedRevision")) = uint32(0);
+t.scalarMap(char(prefix + "Outputs.processedRevision")) = uint32(0);
+t.scalarMap(char(prefix + "Outputs.parameterErrorCode")) = uint32(0);
 end
 
 function attach_event_log(transport, event_log, name)
@@ -370,7 +357,7 @@ end
 function write_logger_record(file_path)
 [fid, msg] = fopen(file_path, "wb", "ieee-le");
 assert(fid >= 0, msg);
-cleaner = onCleanup(@() fclose(fid)); %#ok<NASGU>
+cleaner = onCleanup(@() fclose(fid));
 fwrite(fid, uint32(1), "uint32");
 fwrite(fid, uint32(2), "uint32");
 fwrite(fid, uint64(1000), "uint64");
@@ -378,7 +365,9 @@ fwrite(fid, 0.1:0.1:1.1, "double");
 end
 
 function delete_if_exists(file_path)
-if isfile(file_path)
-  delete(file_path);
+for path = string(file_path)
+  if isfile(path)
+    delete(path);
+  end
 end
 end

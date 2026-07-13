@@ -340,7 +340,7 @@ classdef ModeManagerControl
       v = uint16(double(value));
     end
 
-    function observer_state = default_inactive_observer(ctrl)
+    function observer_state = default_inactive_observer(~)
       observer_state = struct( ...
         "seen_active", false);
     end

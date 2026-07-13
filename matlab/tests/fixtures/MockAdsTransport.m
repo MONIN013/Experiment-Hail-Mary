@@ -12,6 +12,7 @@ classdef MockAdsTransport < twincat_ads.IAdsTransport
     transportName = "transport"
     forceStartTrue = false
     autoResetAck = true
+    autoControllerApplyAck = true
   end
 
   methods
@@ -77,6 +78,22 @@ classdef MockAdsTransport < twincat_ads.IAdsTransport
           obj.scalarMap(ack_key) = uint32(double(obj.scalarMap(ack_key)) + 1);
         end
         obj.scalarMap(key) = false;
+        mode_key = "GVL_MODE.modeState";
+        if isKey(obj.scalarReadSequenceIndexMap, mode_key) && ...
+            double(obj.scalarReadSequenceIndexMap(mode_key)) > 2
+          remove(obj.scalarReadSequenceMap, mode_key);
+          remove(obj.scalarReadSequenceIndexMap, mode_key);
+          obj.scalarMap(mode_key) = int16(0);
+          obj.scalarMap("GVL_MODE.experimentActive") = false;
+        end
+      end
+      if obj.autoControllerApplyAck && endsWith(string(key), "SosApplyRevision")
+        applied_key = strrep(key, "SosApplyRevision", "Outputs.appliedRevision");
+        processed_key = strrep(key, "SosApplyRevision", "Outputs.processedRevision");
+        error_key = strrep(key, "SosApplyRevision", "Outputs.parameterErrorCode");
+        obj.scalarMap(applied_key) = uint32(value);
+        obj.scalarMap(processed_key) = uint32(value);
+        obj.scalarMap(error_key) = uint32(0);
       end
     end
 

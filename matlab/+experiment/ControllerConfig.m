@@ -1,73 +1,56 @@
 classdef ControllerConfig
+  properties (Constant)
+    MAX_SOS_SECTIONS = 10
+    SOS_COLUMN_COUNT = 6
+    ADS_COEFFICIENTS_PER_SECTION = 5
+  end
+
   properties
-    pid experiment.BiquadStage = experiment.BiquadStage()
-    lead experiment.BiquadStage = experiment.BiquadStage()
-    notch experiment.BiquadStage = experiment.BiquadStage()
-    reso experiment.BiquadStage = experiment.BiquadStage()
+    % Rows use the MATLAB SOS convention [b0 b1 b2 a0 a1 a2].
+    % An empty bank is identity feedback; a zero controller is one row with
+    % a zero numerator.
+    sos = zeros(0, 6)
+    % NaN is allowed only for memoryless controllers (identity, zero, gain).
+    sample_time_s = NaN
   end
 
   methods (Static)
     function out = p_only(Kp)
       validate_gain(Kp);
-      out = experiment.ControllerConfig();
-      out.pid = experiment.BiquadStage.from_struct(struct( ...
-        "b0", double(Kp), "enable", true));
-      out.lead = experiment.BiquadStage.passthrough();
-      out.notch = experiment.BiquadStage.passthrough();
-      out.reso = experiment.BiquadStage.passthrough();
+      out = experiment.ControllerConfig.from_struct(struct( ...
+        "sos", [double(Kp), 0, 0, 1, 0, 0], ...
+        "sample_time_s", NaN));
     end
 
-    function out = from_flat_struct(s)
-      if isa(s, "experiment.ControllerConfig")
-        if ~isscalar(s)
+    function out = from_struct(value)
+      if isa(value, "experiment.ControllerConfig")
+        if ~isscalar(value)
           error("experiment:controller:invalid", "ControllerConfig must be scalar.");
         end
-        out = s.normalize();
+        out = value.normalize();
         out.validate();
         return;
       end
-      if ~isstruct(s) || ~isscalar(s)
+      if ~isstruct(value) || ~isscalar(value)
         error("experiment:controller:invalid", ...
-          "ControllerConfig.from_flat_struct accepts only a scalar struct or ControllerConfig.");
+          "ControllerConfig.from_struct accepts only a scalar struct or ControllerConfig.");
       end
-      out = experiment.ControllerConfig();
-      if isempty(s)
-        return;
-      end
-      actual = string(fieldnames(s));
-      unknown = setdiff(actual, flat_field_names());
+
+      actual = string(fieldnames(value));
+      unknown = setdiff(actual, ["sos", "sample_time_s"]);
       if ~isempty(unknown)
         error("experiment:controller:invalid", ...
           "Unknown ControllerConfig field(s): %s.", strjoin(unknown, ", "));
       end
-      out.pid = experiment.BiquadStage.from_struct(struct( ...
-        "b0", get_field_or(s, "pid_b0", 0), ...
-        "b1", get_field_or(s, "pid_b1", 0), ...
-        "b2", get_field_or(s, "pid_b2", 0), ...
-        "a1", get_field_or(s, "pid_a1", 0), ...
-        "a2", get_field_or(s, "pid_a2", 0), ...
-        "enable", get_field_or(s, "enable_pid", true)));
-      out.lead = experiment.BiquadStage.from_struct(struct( ...
-        "b0", get_field_or(s, "lead_b0", 1), ...
-        "b1", get_field_or(s, "lead_b1", 0), ...
-        "b2", get_field_or(s, "lead_b2", 0), ...
-        "a1", get_field_or(s, "lead_a1", 0), ...
-        "a2", get_field_or(s, "lead_a2", 0), ...
-        "enable", get_field_or(s, "enable_lead", false)));
-      out.notch = experiment.BiquadStage.from_struct(struct( ...
-        "b0", get_field_or(s, "notch_b0", 1), ...
-        "b1", get_field_or(s, "notch_b1", 0), ...
-        "b2", get_field_or(s, "notch_b2", 0), ...
-        "a1", get_field_or(s, "notch_a1", 0), ...
-        "a2", get_field_or(s, "notch_a2", 0), ...
-        "enable", get_field_or(s, "enable_notch", false)));
-      out.reso = experiment.BiquadStage.from_struct(struct( ...
-        "b0", get_field_or(s, "reso_b0", 1), ...
-        "b1", get_field_or(s, "reso_b1", 0), ...
-        "b2", get_field_or(s, "reso_b2", 0), ...
-        "a1", get_field_or(s, "reso_a1", 0), ...
-        "a2", get_field_or(s, "reso_a2", 0), ...
-        "enable", get_field_or(s, "enable_reso", false)));
+
+      out = experiment.ControllerConfig();
+      if isfield(value, "sos")
+        out.sos = value.sos;
+      end
+      if isfield(value, "sample_time_s")
+        out.sample_time_s = value.sample_time_s;
+      end
+      out = out.normalize();
       out.validate();
     end
   end
@@ -75,63 +58,113 @@ classdef ControllerConfig
   methods
     function out = normalize(obj)
       out = obj;
-      out.pid = experiment.BiquadStage.from_struct(out.pid);
-      out.lead = experiment.BiquadStage.from_struct(out.lead);
-      out.notch = experiment.BiquadStage.from_struct(out.notch);
-      out.reso = experiment.BiquadStage.from_struct(out.reso);
+      out.sos = normalize_sos(obj.sos);
+      out.sample_time_s = normalize_sample_time(obj.sample_time_s);
     end
 
     function validate(obj)
-      obj.pid.validate();
-      obj.lead.validate();
-      obj.notch.validate();
-      obj.reso.validate();
+      normalize_sos(obj.sos);
+      normalize_sample_time(obj.sample_time_s);
     end
 
-    function s = to_flat_struct(obj)
+    function s = to_struct(obj)
       out = obj.normalize();
       out.validate();
-      s = struct();
-      s = copy_fields(s, out.pid.to_flat("pid_"));
-      s = copy_fields(s, out.lead.to_flat("lead_"));
-      s = copy_fields(s, out.notch.to_flat("notch_"));
-      s = copy_fields(s, out.reso.to_flat("reso_"));
-      s.enable_pid = logical(out.pid.enable);
-      s.enable_lead = logical(out.lead.enable);
-      s.enable_notch = logical(out.notch.enable);
-      s.enable_reso = logical(out.reso.enable);
+      s = struct("sos", out.sos, "sample_time_s", out.sample_time_s);
+    end
+
+    function validate_for_task_rate(obj, task_rate_hz)
+      out = obj.normalize();
+      out.validate();
+      if ~(isnumeric(task_rate_hz) && isreal(task_rate_hz) && isscalar(task_rate_hz) && ...
+          isfinite(double(task_rate_hz)) && double(task_rate_hz) > 0)
+        error("experiment:controller:invalidTaskRate", ...
+          "task_rate_hz must be a finite positive scalar.");
+      end
+
+      has_memory = ~isempty(out.sos) && any(any(out.sos(:, [2, 3, 5, 6]) ~= 0));
+      if isnan(out.sample_time_s)
+        if has_memory
+          error("experiment:controller:missingSampleTime", ...
+            "A dynamic SOS controller must declare sample_time_s.");
+        end
+        return;
+      end
+
+      expected = 1 / double(task_rate_hz);
+      tolerance = max(1e-15, 32 * eps(max(expected, out.sample_time_s)));
+      if abs(out.sample_time_s - expected) > tolerance
+        error("experiment:controller:sampleTimeMismatch", ...
+          "Controller sample_time_s %.17g does not match task period %.17g s (%g Hz).", ...
+          out.sample_time_s, expected, double(task_rate_hz));
+      end
+    end
+
+    function payload = to_ads_payload(obj)
+      out = obj.normalize();
+      out.validate();
+
+      rows = repmat([1, 0, 0, 0, 0], out.MAX_SOS_SECTIONS, 1);
+      section_count = size(out.sos, 1);
+      if section_count > 0
+        rows(1:section_count, :) = out.sos(:, [1, 2, 3, 5, 6]);
+      end
+
+      payload = struct( ...
+        "coefficients", reshape(rows.', [], 1), ...
+        "section_count", uint32(section_count));
     end
   end
 end
 
-function names = flat_field_names()
-names = ["pid_b0";"pid_b1";"pid_b2";"pid_a1";"pid_a2"; ...
-  "lead_b0";"lead_b1";"lead_b2";"lead_a1";"lead_a2"; ...
-  "notch_b0";"notch_b1";"notch_b2";"notch_a1";"notch_a2"; ...
-  "reso_b0";"reso_b1";"reso_b2";"reso_a1";"reso_a2"; ...
-  "enable_pid";"enable_lead";"enable_notch";"enable_reso"];
+function sos = normalize_sos(value)
+if isempty(value)
+  if ~(isnumeric(value) && isreal(value) && ismatrix(value) && ...
+      (isequal(size(value), [0, 0]) || size(value, 2) == 6))
+    error("experiment:controller:invalid", "sos must be a finite real numeric N-by-6 matrix.");
+  end
+  sos = zeros(0, 6);
+  return;
+end
+if ~(isnumeric(value) && isreal(value) && ismatrix(value) && ...
+    size(value, 2) == experiment.ControllerConfig.SOS_COLUMN_COUNT && ...
+    all(isfinite(double(value(:)))))
+  error("experiment:controller:invalid", ...
+    "sos must be a finite real numeric N-by-6 matrix [b0 b1 b2 a0 a1 a2].");
+end
+if size(value, 1) > experiment.ControllerConfig.MAX_SOS_SECTIONS
+  error("experiment:controller:tooManySections", ...
+    "Controller SOS has %d sections; ControllerCore supports at most %d.", ...
+    size(value, 1), experiment.ControllerConfig.MAX_SOS_SECTIONS);
+end
+
+sos = double(value);
+a0 = sos(:, 4);
+if any(a0 == 0)
+  error("experiment:controller:invalid", "Every SOS a0 coefficient must be nonzero.");
+end
+sos(:, 1:3) = sos(:, 1:3) ./ a0;
+sos(:, 5:6) = sos(:, 5:6) ./ a0;
+sos(:, 4) = 1;
+if ~all(isfinite(sos(:)))
+  error("experiment:controller:invalid", "Normalized SOS coefficients must be finite.");
+end
 end
 
 function validate_gain(value)
 if ~(isnumeric(value) && isreal(value) && isscalar(value) && isfinite(double(value)))
+  error("experiment:controller:invalid", "Kp must be a finite real numeric scalar.");
+end
+end
+
+function value = normalize_sample_time(value)
+if ~(isnumeric(value) && isreal(value) && isscalar(value))
   error("experiment:controller:invalid", ...
-    "Kp must be a finite real numeric scalar.");
+    "sample_time_s must be NaN or a finite positive real scalar.");
 end
-end
-
-function value = get_field_or(s, name, default_value)
-if isstruct(s) && isfield(s, name)
-  value = s.(name);
-elseif isobject(s) && isprop(s, name)
-  value = s.(name);
-else
-  value = default_value;
-end
-end
-
-function out = copy_fields(out, src)
-fields = fieldnames(src);
-for k = 1:numel(fields)
-  out.(fields{k}) = src.(fields{k});
+value = double(value);
+if ~(isnan(value) || (isfinite(value) && value > 0))
+  error("experiment:controller:invalid", ...
+    "sample_time_s must be NaN or a finite positive real scalar.");
 end
 end

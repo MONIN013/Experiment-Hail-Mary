@@ -3,7 +3,7 @@
   <Vendor>
     <Name>C++ Module Vendor</Name>
   </Vendor>
-  <DataTypes ><DataType><Name GUID="{7a41b282-b6ef-4da2-b9cd-74b2d70476b6}">ST_Notch</Name><SubItem><Name>notchB0</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>notchB1</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>notchB2</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>notchA1</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>notchA2</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem></DataType><DataType><Name GUID="{f0efd512-8498-4cbc-a25f-04d8e2741f50}">ST_Reso</Name><SubItem><Name>resoB0</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>resoB1</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>resoB2</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>resoA1</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>resoA2</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><Hides><Hide GUID="{7a41b282-b6ef-4da2-b9cd-74b2d70476b6}" /></Hides></DataType><DataType><Name GUID="{13107610-cd3f-4eb5-abff-3afc341e6827}">ST_FilterEnable</Name><SubItem><Name>enablePid</Name><Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type></SubItem><SubItem><Name>enableLead</Name><Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type></SubItem><SubItem><Name>enableNotch</Name><Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type></SubItem><SubItem><Name>enableReso</Name><Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type></SubItem></DataType><DataType><Name GUID="{601dea5d-cd1f-4da3-90a4-3260b161e2ac}">ST_PID</Name><SubItem><Name>pidB0</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>pidB1</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>pidB2</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>pidA1</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>pidA2</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem></DataType><DataType><Name GUID="{fe53c40b-e294-450d-ad06-deef6d604a43}">ST_PhaseLead</Name><SubItem><Name>leadB0</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>leadB1</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>leadB2</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>leadA1</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem><SubItem><Name>leadA2</Name><Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type></SubItem></DataType></DataTypes>
+  <DataTypes />
   <Groups>
     <Group SortOrder="701">
       <Name>C++</Name>
@@ -47,18 +47,76 @@
           <BaseType GUID="{8007ae3b-86bb-40f2-b385-ef87fcc239a4}">TcTraceLevel</BaseType>
           <PTCID>#x03002103</PTCID>
           <ContextId>1</ContextId>
-        </Parameter><Parameter CreateSymbol="true"><Name>NotchParams</Name><BaseType GUID="{7a41b282-b6ef-4da2-b9cd-74b2d70476b6}">ST_Notch</BaseType><PTCID>#x00000002</PTCID><ContextId>1</ContextId></Parameter><Parameter CreateSymbol="true"><Name>LeadParams</Name><BaseType GUID="{fe53c40b-e294-450d-ad06-deef6d604a43}">ST_PhaseLead</BaseType><PTCID>#x00000004</PTCID><ContextId>1</ContextId></Parameter><Parameter CreateSymbol="true"><Name>ResoParams</Name><BaseType GUID="{f0efd512-8498-4cbc-a25f-04d8e2741f50}">ST_Reso</BaseType><PTCID>#x00000006</PTCID><ContextId>1</ContextId></Parameter><Parameter CreateSymbol="true"><Name>EnableParams</Name><BaseType GUID="{13107610-cd3f-4eb5-abff-3afc341e6827}">ST_FilterEnable</BaseType><PTCID>#x00000005</PTCID><ContextId>1</ContextId></Parameter><Parameter CreateSymbol="true"><Name>PIDParams</Name><BaseType GUID="{601dea5d-cd1f-4da3-90a4-3260b161e2ac}">ST_PID</BaseType><PTCID>#x00000001</PTCID><ContextId>1</ContextId></Parameter>
+        </Parameter>
+        <Parameter CreateSymbol="true">
+          <Name>SosCoefficients</Name>
+          <BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType>
+          <ArrayInfo>
+            <LBound>0</LBound>
+            <Elements>50</Elements>
+          </ArrayInfo>
+          <PTCID>#x00000001</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
+        <Parameter CreateSymbol="true">
+          <Name>SosSectionCount</Name>
+          <BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+          <PTCID>#x00000002</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
+        <Parameter CreateSymbol="true">
+          <Name>SosApplyRevision</Name>
+          <BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+          <PTCID>#x00000003</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
       </Parameters>
       <DataAreas>
         <DataArea>
           <AreaNo AreaType="InputDst">0</AreaNo>
           <Name>Inputs</Name>
-          <ContextId>1</ContextId><Symbol><Name>refValue</Name><BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType></Symbol><Symbol><Name>ffValue</Name><BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType></Symbol><Symbol><Name>positionAct</Name><BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType></Symbol><Symbol><Name>resetReq</Name><BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType></Symbol>
+          <ContextId>1</ContextId>
+          <Symbol>
+            <Name>refValue</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType>
+          </Symbol>
+          <Symbol>
+            <Name>ffValue</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType>
+          </Symbol>
+          <Symbol>
+            <Name>positionAct</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType>
+          </Symbol>
+          <Symbol>
+            <Name>resetReq</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
+          </Symbol>
         </DataArea>
         <DataArea>
           <AreaNo AreaType="OutputSrc">1</AreaNo>
           <Name>Outputs</Name>
-          <ContextId>1</ContextId><Symbol><Name>controlInput</Name><BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType></Symbol><Symbol><Name>error</Name><BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType></Symbol>
+          <ContextId>1</ContextId>
+          <Symbol>
+            <Name>controlInput</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType>
+          </Symbol>
+          <Symbol>
+            <Name>error</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType>
+          </Symbol>
+          <Symbol CreateSymbol="true">
+            <Name>appliedRevision</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+          </Symbol>
+          <Symbol CreateSymbol="true">
+            <Name>processedRevision</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+          </Symbol>
+          <Symbol CreateSymbol="true">
+            <Name>parameterErrorCode</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+          </Symbol>
         </DataArea>
       </DataAreas>
       <InterfacePointers>
@@ -77,5 +135,3 @@
     <Version>0.0.0.1</Version>
   </Library>
 </TcModuleClass>
-
-

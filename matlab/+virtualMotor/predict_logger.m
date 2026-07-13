@@ -1,4 +1,4 @@
-function out = predict_logger(cfg, varargin)
+function out = predict_logger(cfg, plant_cfg, varargin)
 % predict_logger  Predict ExperimentLogger signals for the VirtualMotor runtime.
 %
 % The recurrence mirrors the checked-in ControllerCore, DriverAdapter, and
@@ -8,6 +8,7 @@ function out = predict_logger(cfg, varargin)
 
 arguments
   cfg experiment.ExperimentConfig
+  plant_cfg
 end
 arguments (Repeating)
   varargin
@@ -21,13 +22,10 @@ p.parse(varargin{:});
 opts = p.Results;
 
 cfg = experiment.ExperimentConfig.from_varargin(cfg);
-if isempty(cfg.virtual_motor_plant)
-  plant_cfg = virtualMotor.PlantConfig();
-else
-  plant_cfg = virtualMotor.PlantConfig.from_struct(cfg.virtual_motor_plant);
-end
+plant_cfg = virtualMotor.PlantConfig.from_struct(plant_cfg);
 plant = plant_cfg.to_struct();
-controller = cfg.controller.to_flat_struct();
+controller_cfg = cfg.controller.normalize();
+controller_sos = controller_cfg.sos;
 initial = normalize_initial_state(opts.initial_state);
 
 repeat_count = double(cfg.repeat_count);
@@ -67,10 +65,7 @@ scale_l = encoder_l / (2 * pi);
 offset_m_count = saturating_round(theta_m * scale_m, "int32");
 offset_l_count = saturating_round(theta_l * scale_l, "int32");
 
-pid_state = [0.0, 0.0];
-lead_state = [0.0, 0.0];
-notch_state = [0.0, 0.0];
-reso_state = [0.0, 0.0];
+sos_state = zeros(size(controller_sos, 1), 2);
 
 dt_s = 1 / double(cfg.env.task_rate_hz);
 rated_current_A = double(opts.driver_rated_current_A);
@@ -86,11 +81,12 @@ for k = 1:n
   if k > 1
     error_value(k) = ref_value(k - 1) - load_position(k - 1);
     y = error_value(k);
-    [y, pid_state] = apply_stage(y, controller, "pid", pid_state);
-    [y, lead_state] = apply_stage(y, controller, "lead", lead_state);
-    [y, notch_state] = apply_stage(y, controller, "notch", notch_state);
-    [y, reso_state] = apply_stage(y, controller, "reso", reso_state);
-    control_input(k) = finite_or_zero(y + ff_value(k - 1));
+    [y, sos_state, controller_ok] = apply_sos_bank(y, controller_sos, sos_state);
+    if controller_ok
+      control_input(k) = finite_or_zero(y + ff_value(k - 1));
+    else
+      control_input(k) = 0.0;
+    end
 
     % DriverAdapter output reaches the logger one task cycle later.
     current_cmd(k) = clamp_symmetric( ...
@@ -172,10 +168,11 @@ for k = 1:n
   motor_current_act(k) = double(motor_torque_permille) * rated_current_A / 1000;
 end
 
+timestamp_ns = uint64((0:n-1)') * uint64(round(dt_s * 1e9));
 raw = struct( ...
   "seq", uint32((0:n-1)'), ...
-  "t_ns", uint64((0:n-1)') * uint64(round(dt_s * 1e9)), ...
-  "t_s", (0:n-1)' * dt_s, ...
+  "t_ns", timestamp_ns, ...
+  "t_s", double(timestamp_ns) * 1e-9, ...
   "motor_position", motor_position, ...
   "motor_velocity", motor_velocity, ...
   "motor_current_act", motor_current_act, ...
@@ -205,19 +202,29 @@ out = struct( ...
     "theta_load", theta_l, "omega_load", omega_l));
 end
 
-function [y, state] = apply_stage(x, controller, prefix, state)
-if ~logical(controller.("enable_" + prefix))
-  y = x;
+function [y, states, ok] = apply_sos_bank(x, sos, states)
+y = x;
+ok = isfinite(y);
+if ~ok
+  y = 0.0;
   return;
 end
-b0 = double(controller.(prefix + "_b0"));
-b1 = double(controller.(prefix + "_b1"));
-b2 = double(controller.(prefix + "_b2"));
-a1 = double(controller.(prefix + "_a1"));
-a2 = double(controller.(prefix + "_a2"));
-y = b0 * x + state(1);
-state = [b1 * x - a1 * y + state(2), b2 * x - a2 * y];
-y = finite_or_zero(y);
+for section_index = 1:size(sos, 1)
+  row = sos(section_index, :);
+  state = states(section_index, :);
+  next_y = row(1) * y + state(1);
+  next_state = [ ...
+    row(2) * y - row(5) * next_y + state(2), ...
+    row(3) * y - row(6) * next_y];
+  if ~isfinite(next_y) || any(~isfinite(next_state))
+    states(section_index, :) = [0.0, 0.0];
+    y = 0.0;
+    ok = false;
+    return;
+  end
+  states(section_index, :) = next_state;
+  y = next_y;
+end
 end
 
 function y = clamp_symmetric(x, limit)

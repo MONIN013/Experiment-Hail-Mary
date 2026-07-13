@@ -34,9 +34,9 @@ classdef ExperimentRunner
         "servo_ready_s", 0.0, ...
         "total_s", 0.0);
 
-      if (cfg.write_controller_params || cfg.write_virtual_motor_params) && isempty(module_transport)
+      if cfg.write_controller_params && isempty(module_transport)
         error("experiment:runner:invalidConfig", ...
-          "module transport is required when controller or virtual-motor parameter writes are enabled.");
+          "module transport is required when controller parameter writes are enabled.");
       end
 
       phase_t0 = tic;
@@ -50,18 +50,19 @@ classdef ExperimentRunner
       ctrl = experiment.ModeManagerControl.resolve_symbols( ...
         ctrl_transport, plc_symbols, "experiment:runner:invalidConfig");
       startup_timing.contract_s = toc(phase_t0);
-      clear_mode_guard = onCleanup( ...
-        @() experiment.ExperimentRunner.safe_clear_mode_flags(ctrl_transport, ctrl));
+      restore_idle_guard = onCleanup( ...
+        @() experiment.ExperimentRunner.safe_restore_idle( ...
+          seq_transport, ctrl_transport, plc_symbols, ctrl, cfg.reset_timeout_s));
       heartbeat_state = experiment.ModeManagerControl.heartbeat_disabled();
       external_heartbeat_cleanup = [];
 
       table_n = numel(cfg.ref_profile);
       logger_path = string(env.logger_host_file_path);
       t_run = tic;
-      phase_t0 = tic;
       experiment.ModeManagerControl.write_mode_flags(ctrl_transport, ctrl, uint32(0));
       seq_transport.write_scalar(plc_symbols.tableLen, uint32(0), plc_symbols.types.u32);
 
+      phase_t0 = tic;
       [reset_acked, reset_diag, ~] = experiment.ModeManagerControl.request_reset_and_wait_ack( ...
         ctrl_transport, ctrl, cfg.reset_timeout_s, heartbeat_state);
       if ~reset_acked
@@ -85,14 +86,9 @@ classdef ExperimentRunner
       if cfg.write_controller_params
         experiment.write_controller_params( ...
           module_transport, env.controller_prefix, ...
-          cfg.controller.to_flat_struct());
+          cfg.controller);
       end
 
-      if cfg.write_virtual_motor_params
-        virtualMotor.writeParams(conn, cfg.virtual_motor_plant, ...
-          "taskDtNs", env.task_dt_ns(), ...
-          "validateSymbols", cfg.validate_symbols);
-      end
       startup_timing.parameter_write_s = toc(phase_t0);
 
       phase_t0 = tic;
@@ -224,6 +220,8 @@ classdef ExperimentRunner
           "raw", raw, ...
           "cmd", cmd, ...
           "host", host, ...
+          "logger", logger, ...
+          "logger_bin", logger_bin, ...
           "metrics", metrics, ...
           "config", config_out);
         save(cfg.save_path, "-struct", "save_payload");
@@ -242,6 +240,9 @@ classdef ExperimentRunner
       if ~isempty(external_heartbeat_cleanup)
         clear external_heartbeat_cleanup
       end
+      experiment.ExperimentRunner.restore_idle( ...
+        seq_transport, ctrl_transport, plc_symbols, ctrl, cfg.reset_timeout_s);
+      clear restore_idle_guard
     end
   end
 
@@ -277,6 +278,66 @@ classdef ExperimentRunner
         experiment.ModeManagerControl.write_mode_flags(control_transport, ctrl, uint32(0));
       catch
       end
+    end
+
+    function safe_restore_idle(seq_transport, ctrl_transport, plc_symbols, ctrl, timeout_s)
+      try
+        if experiment.ExperimentRunner.idle_state_is_restored( ...
+            seq_transport, ctrl_transport, plc_symbols, ctrl)
+          return;
+        end
+        experiment.ExperimentRunner.restore_idle( ...
+          seq_transport, ctrl_transport, plc_symbols, ctrl, timeout_s);
+      catch cause
+        experiment.ExperimentRunner.safe_clear_mode_flags(ctrl_transport, ctrl);
+        try
+          seq_transport.write_scalar( ...
+            plc_symbols.tableLen, uint32(0), plc_symbols.types.u32);
+        catch
+        end
+        warning("experiment:runner:cleanupFailed", ...
+          "Emergency cleanup could not confirm IDLE (%s: %s).", ...
+          string(cause.identifier), string(cause.message));
+      end
+    end
+
+    function restore_idle(seq_transport, ctrl_transport, plc_symbols, ctrl, timeout_s)
+      heartbeat_state = experiment.ModeManagerControl.heartbeat_disabled();
+      experiment.ModeManagerControl.write_mode_flags(ctrl_transport, ctrl, uint32(0));
+      seq_transport.write_scalar( ...
+        plc_symbols.tableLen, uint32(0), plc_symbols.types.u32);
+      [acked, diag, heartbeat_state] = ...
+        experiment.ModeManagerControl.request_reset_and_wait_ack( ...
+          ctrl_transport, ctrl, timeout_s, heartbeat_state);
+      if ~acked
+        error("experiment:runner:cleanupResetAckTimeout", ...
+          "Cleanup reset was not acknowledged (before=%g after=%g).", ...
+          diag.counter_before, diag.counter_after);
+      end
+      [idle, idle_diag] = experiment.ModeManagerControl.wait_for_reset_idle( ...
+        seq_transport, ctrl_transport, plc_symbols, ctrl, timeout_s, heartbeat_state);
+      if ~idle
+        error("experiment:runner:cleanupIdleTimeout", ...
+          "Cleanup did not reach IDLE (idx=%g modeState=%g experimentActive=%d).", ...
+          idle_diag.idx, idle_diag.mode_state, idle_diag.experiment_active);
+      end
+      if ~experiment.ExperimentRunner.idle_state_is_restored( ...
+          seq_transport, ctrl_transport, plc_symbols, ctrl)
+        error("experiment:runner:cleanupStateMismatch", ...
+          "Cleanup readback is not fully idle and hidden.");
+      end
+    end
+
+    function restored = idle_state_is_restored( ...
+        seq_transport, ctrl_transport, plc_symbols, ctrl)
+      t = plc_symbols.types;
+      restored = ...
+        uint32(seq_transport.read_scalar(plc_symbols.tableLen, t.u32)) == 0 && ...
+        uint32(seq_transport.read_scalar(plc_symbols.idx, t.u32)) == 0 && ...
+        uint16(ctrl_transport.read_scalar(ctrl.modeFlagsSymbol, t.u16)) == 0 && ...
+        int16(ctrl_transport.read_scalar(ctrl.modeStateSymbol, t.i16)) == ctrl.MODESTATE_IDLE && ...
+        ~logical(ctrl_transport.read_scalar(ctrl.experimentActiveSymbol, t.bool)) && ...
+        ~logical(ctrl_transport.read_scalar(ctrl.resetReqSymbol, t.bool));
     end
 
     function validate_connection_snapshot(conn, expected_env)

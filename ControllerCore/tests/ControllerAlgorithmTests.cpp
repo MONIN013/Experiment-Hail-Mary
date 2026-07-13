@@ -7,79 +7,64 @@
 
 namespace
 {
-struct EnableParams
-{
-	bool enablePid;
-	bool enableLead;
-	bool enableNotch;
-	bool enableReso;
-};
+constexpr std::size_t kMaxSections = controllercore::ControllerAlgorithm::kMaxSections;
+constexpr std::size_t kCoefficientCount = controllercore::ControllerAlgorithm::kCoefficientCount;
 
-struct PidParams
+void SetSection(
+	double* coefficients,
+	std::size_t section,
+	double b0,
+	double b1,
+	double b2,
+	double a1,
+	double a2) noexcept
 {
-	double pidB0;
-	double pidB1;
-	double pidB2;
-	double pidA1;
-	double pidA2;
-};
+	const std::size_t base = section * controllercore::ControllerAlgorithm::kCoefficientsPerSection;
+	coefficients[base + 0] = b0;
+	coefficients[base + 1] = b1;
+	coefficients[base + 2] = b2;
+	coefficients[base + 3] = a1;
+	coefficients[base + 4] = a2;
+}
 
-struct LeadParams
+void FillIdentity(double* coefficients) noexcept
 {
-	double leadB0;
-	double leadB1;
-	double leadB2;
-	double leadA1;
-	double leadA2;
-};
-
-struct NotchParams
-{
-	double notchB0;
-	double notchB1;
-	double notchB2;
-	double notchA1;
-	double notchA2;
-};
-
-struct ResoParams
-{
-	double resoB0;
-	double resoB1;
-	double resoB2;
-	double resoA1;
-	double resoA2;
-};
+	for (std::size_t section = 0; section < kMaxSections; ++section)
+	{
+		SetSection(coefficients, section, 1.0, 0.0, 0.0, 0.0, 0.0);
+	}
+}
 
 class ReferenceController
 {
 public:
 	ReferenceController() noexcept
+		: m_sectionCount(0)
 	{
+		FillIdentity(m_coefficients);
+		Reset();
+	}
+
+	void Configure(const double* coefficients, std::size_t sectionCount) noexcept
+	{
+		m_sectionCount = sectionCount;
+		for (std::size_t i = 0; i < kCoefficientCount; ++i)
+		{
+			m_coefficients[i] = coefficients[i];
+		}
 		Reset();
 	}
 
 	void Reset() noexcept
 	{
-		m_pidS1 = 0.0;
-		m_pidS2 = 0.0;
-		m_leadS1 = 0.0;
-		m_leadS2 = 0.0;
-		m_notchS1 = 0.0;
-		m_notchS2 = 0.0;
-		m_resoS1 = 0.0;
-		m_resoS2 = 0.0;
+		for (std::size_t section = 0; section < kMaxSections; ++section)
+		{
+			m_s1[section] = 0.0;
+			m_s2[section] = 0.0;
+		}
 	}
 
-	double Step(
-		double refValue,
-		double ffValue,
-		double positionAct,
-		const EnableParams& enable,
-		const PidParams& pid,
-		const LeadParams& lead,
-		const NotchParams& notch,
-		const ResoParams& reso) noexcept
+	double Step(double refValue, double ffValue, double positionAct) noexcept
 	{
 		if (!std::isfinite(refValue) || !std::isfinite(ffValue) || !std::isfinite(positionAct))
 		{
@@ -87,66 +72,27 @@ public:
 		}
 
 		double y = refValue - positionAct;
-		if (enable.enablePid)
+		for (std::size_t section = 0; section < m_sectionCount; ++section)
 		{
-			y = ApplyBiquad(y, pid.pidB0, pid.pidB1, pid.pidB2, pid.pidA1, pid.pidA2, m_pidS1, m_pidS2);
-		}
-		if (enable.enableLead)
-		{
-			y = ApplyBiquad(y, lead.leadB0, lead.leadB1, lead.leadB2, lead.leadA1, lead.leadA2, m_leadS1, m_leadS2);
-		}
-		if (enable.enableNotch)
-		{
-			y = ApplyBiquad(y, notch.notchB0, notch.notchB1, notch.notchB2, notch.notchA1, notch.notchA2, m_notchS1, m_notchS2);
-		}
-		if (enable.enableReso)
-		{
-			y = ApplyBiquad(y, reso.resoB0, reso.resoB1, reso.resoB2, reso.resoA1, reso.resoA2, m_resoS1, m_resoS2);
+			const std::size_t base = section * controllercore::ControllerAlgorithm::kCoefficientsPerSection;
+			const double x = y;
+			y = m_coefficients[base + 0] * x + m_s1[section];
+			const double s1Next = m_coefficients[base + 1] * x
+				- m_coefficients[base + 3] * y + m_s2[section];
+			const double s2Next = m_coefficients[base + 2] * x
+				- m_coefficients[base + 4] * y;
+			m_s1[section] = s1Next;
+			m_s2[section] = s2Next;
 		}
 		return y + ffValue;
 	}
 
 private:
-	static double ApplyBiquad(
-		double x,
-		double b0,
-		double b1,
-		double b2,
-		double a1,
-		double a2,
-		double& s1,
-		double& s2) noexcept
-	{
-		if (!std::isfinite(x))
-		{
-			return 0.0;
-		}
-		const double y = b0 * x + s1;
-		const double s1Next = b1 * x - a1 * y + s2;
-		const double s2Next = b2 * x - a2 * y;
-		s1 = s1Next;
-		s2 = s2Next;
-		if (!std::isfinite(y))
-		{
-			return 0.0;
-		}
-		return y;
-	}
-
-	double m_pidS1;
-	double m_pidS2;
-	double m_leadS1;
-	double m_leadS2;
-	double m_notchS1;
-	double m_notchS2;
-	double m_resoS1;
-	double m_resoS2;
+	double m_coefficients[kCoefficientCount];
+	double m_s1[kMaxSections];
+	double m_s2[kMaxSections];
+	std::size_t m_sectionCount;
 };
-
-const PidParams kPid = { 0.31, -0.08, 0.02, -0.37, 0.11 };
-const LeadParams kLead = { 0.42, -0.17, 0.04, -0.29, 0.07 };
-const NotchParams kNotch = { 0.73, -0.51, 0.19, -0.22, 0.05 };
-const ResoParams kReso = { 0.27, 0.09, -0.03, -0.18, 0.04 };
 
 double NextInput(std::uint32_t& state) noexcept
 {
@@ -156,17 +102,29 @@ double NextInput(std::uint32_t& state) noexcept
 
 bool VerifyFiniteCharacterization()
 {
-	for (unsigned mask = 0; mask < 16; ++mask)
+	double coefficients[kCoefficientCount];
+	FillIdentity(coefficients);
+	for (std::size_t section = 0; section < kMaxSections; ++section)
 	{
-		const EnableParams enable = {
-			(mask & 1u) != 0,
-			(mask & 2u) != 0,
-			(mask & 4u) != 0,
-			(mask & 8u) != 0
-		};
+		const double scale = static_cast<double>(section + 1);
+		SetSection(coefficients, section,
+			0.20 + 0.01 * scale,
+			-0.04 + 0.001 * scale,
+			0.01,
+			-0.30 + 0.005 * scale,
+			0.08);
+	}
+
+	for (std::uint32_t sectionCount = 0; sectionCount <= kMaxSections; ++sectionCount)
+	{
 		ReferenceController reference;
+		reference.Configure(coefficients, sectionCount);
 		controllercore::ControllerAlgorithm actual;
-		std::uint32_t state = 0x12345678u + mask;
+		if (!actual.ApplyParameters(coefficients, sectionCount, sectionCount + 1))
+		{
+			return false;
+		}
+		std::uint32_t state = 0x12345678u + sectionCount;
 
 		for (unsigned sample = 0; sample < 1000; ++sample)
 		{
@@ -178,11 +136,12 @@ bool VerifyFiniteCharacterization()
 			const double refValue = NextInput(state);
 			const double ffValue = 0.25 * NextInput(state);
 			const double positionAct = 0.5 * NextInput(state);
-			const double expected = reference.Step(refValue, ffValue, positionAct, enable, kPid, kLead, kNotch, kReso);
-			const double observed = actual.Step(refValue, ffValue, positionAct, enable, kPid, kLead, kNotch, kReso);
+			const double expected = reference.Step(refValue, ffValue, positionAct);
+			const double observed = actual.Step(refValue, ffValue, positionAct);
 			if (expected != observed)
 			{
-				std::cerr << "finite characterization mismatch: mask=" << mask << " sample=" << sample << '\n';
+				std::cerr << "finite characterization mismatch: sections="
+					<< sectionCount << " sample=" << sample << '\n';
 				return false;
 			}
 		}
@@ -190,70 +149,129 @@ bool VerifyFiniteCharacterization()
 	return true;
 }
 
-bool VerifyInvalidInputDoesNotMutateState()
+bool VerifyRevisionCommitResetsState()
 {
-	const EnableParams pidOnly = { true, false, false, false };
-	const PidParams statefulPid = { 1.0, 0.5, 0.0, 0.0, 0.0 };
+	double coefficients[kCoefficientCount];
+	FillIdentity(coefficients);
+	SetSection(coefficients, 0, 1.0, 0.5, 0.0, 0.0, 0.0);
 	controllercore::ControllerAlgorithm actual;
-	if (actual.Step(1.0, 0.0, 0.0, pidOnly, statefulPid, kLead, kNotch, kReso) != 1.0)
+	if (!actual.ApplyParameters(coefficients, 1, 7)
+		|| actual.AppliedRevision() != 7
+		|| actual.ProcessedRevision() != 7
+		|| actual.LastSeenRevision() != 7
+		|| actual.ParameterErrorCode() != controllercore::ControllerAlgorithm::ParameterErrorNone)
 	{
 		return false;
 	}
-	if (actual.Step(std::numeric_limits<double>::quiet_NaN(), 0.0, 0.0, pidOnly, statefulPid, kLead, kNotch, kReso) != 0.0)
+	if (actual.Step(1.0, 0.0, 0.0) != 1.0
+		|| actual.Step(0.0, 0.0, 0.0) != 0.5)
 	{
 		return false;
 	}
-	return actual.Step(0.0, 0.0, 0.0, pidOnly, statefulPid, kLead, kNotch, kReso) == 0.5;
+	return actual.ApplyParameters(coefficients, 1, 8)
+		&& actual.Step(0.0, 0.0, 0.0) == 0.0;
 }
 
-bool VerifyInvalidCoefficientsResetAffectedStage()
+bool VerifyRejectedPayloadPreservesActiveController()
 {
-	const EnableParams pidOnly = { true, false, false, false };
-	const double infinity = std::numeric_limits<double>::infinity();
-	const PidParams invalidPid = { infinity, 0.0, 0.0, 0.0, 0.0 };
-	const PidParams identityPid = { 1.0, 0.0, 0.0, 0.0, 0.0 };
+	double coefficients[kCoefficientCount];
+	FillIdentity(coefficients);
+	SetSection(coefficients, 0, 2.0, 0.0, 0.0, 0.0, 0.0);
 	controllercore::ControllerAlgorithm actual;
-	if (actual.Step(1.0, 0.25, 0.0, pidOnly, invalidPid, kLead, kNotch, kReso) != 0.0)
+	if (!actual.ApplyParameters(coefficients, 1, 1))
 	{
 		return false;
 	}
-	return actual.Step(1.0, 0.0, 0.0, pidOnly, identityPid, kLead, kNotch, kReso) == 1.0;
+	if (actual.ApplyParameters(coefficients, 11, 2)
+		|| actual.AppliedRevision() != 1
+		|| actual.ProcessedRevision() != 2
+		|| actual.LastSeenRevision() != 2
+		|| actual.ParameterErrorCode() != controllercore::ControllerAlgorithm::ParameterErrorSectionCount
+		|| actual.Step(3.0, 0.0, 0.0) != 6.0)
+	{
+		return false;
+	}
+
+	coefficients[0] = std::numeric_limits<double>::quiet_NaN();
+	return !actual.ApplyParameters(coefficients, 1, 3)
+		&& actual.AppliedRevision() == 1
+		&& actual.ProcessedRevision() == 3
+		&& actual.LastSeenRevision() == 3
+		&& actual.ParameterErrorCode() == controllercore::ControllerAlgorithm::ParameterErrorNonFiniteCoefficient
+		&& actual.Step(3.0, 0.0, 0.0) == 6.0;
+}
+
+bool VerifyIdentityAndZeroControllers()
+{
+	double coefficients[kCoefficientCount];
+	FillIdentity(coefficients);
+	controllercore::ControllerAlgorithm actual;
+	if (!actual.ApplyParameters(coefficients, 0, 1)
+		|| actual.Step(2.0, 0.25, 0.5) != 1.75)
+	{
+		return false;
+	}
+	SetSection(coefficients, 0, 0.0, 0.0, 0.0, 0.0, 0.0);
+	return actual.ApplyParameters(coefficients, 1, 2)
+		&& actual.Step(2.0, 0.25, 0.5) == 0.25;
+}
+
+bool VerifyInvalidInputDoesNotMutateState()
+{
+	double coefficients[kCoefficientCount];
+	FillIdentity(coefficients);
+	SetSection(coefficients, 0, 1.0, 0.5, 0.0, 0.0, 0.0);
+	controllercore::ControllerAlgorithm actual;
+	actual.ApplyParameters(coefficients, 1, 1);
+	if (actual.Step(1.0, 0.0, 0.0) != 1.0)
+	{
+		return false;
+	}
+	if (actual.Step(std::numeric_limits<double>::quiet_NaN(), 0.0, 0.0) != 0.0)
+	{
+		return false;
+	}
+	return actual.Step(0.0, 0.0, 0.0) == 0.5;
 }
 
 bool VerifyStateUpdateOverflowResetsAffectedStage()
 {
-	const EnableParams pidOnly = { true, false, false, false };
+	double coefficients[kCoefficientCount];
+	FillIdentity(coefficients);
 	const double maximum = std::numeric_limits<double>::max();
-	const PidParams stateOverflowPid = { 1.0, maximum, 0.0, 0.0, 0.0 };
-	const PidParams identityPid = { 1.0, 0.0, 0.0, 0.0, 0.0 };
+	SetSection(coefficients, 0, 1.0, maximum, 0.0, 0.0, 0.0);
 	controllercore::ControllerAlgorithm actual;
-	if (actual.Step(2.0, 0.25, 0.0, pidOnly, stateOverflowPid, kLead, kNotch, kReso) != 0.0)
+	actual.ApplyParameters(coefficients, 1, 1);
+	if (actual.Step(2.0, 0.25, 0.0) != 0.0)
 	{
 		return false;
 	}
-	return actual.Step(1.0, 0.0, 0.0, pidOnly, identityPid, kLead, kNotch, kReso) == 1.0;
+	SetSection(coefficients, 0, 1.0, 0.0, 0.0, 0.0, 0.0);
+	actual.ApplyParameters(coefficients, 1, 2);
+	return actual.Step(1.0, 0.0, 0.0) == 1.0;
 }
 
 bool VerifyFinalOutputOverflowPreservesFiniteState()
 {
-	const EnableParams pidOnly = { true, false, false, false };
+	double coefficients[kCoefficientCount];
+	FillIdentity(coefficients);
+	SetSection(coefficients, 0, 1.0, 0.5, 0.0, 0.0, 0.0);
 	const double maximum = std::numeric_limits<double>::max();
-	const PidParams statefulPid = { 1.0, 0.5, 0.0, 0.0, 0.0 };
 	controllercore::ControllerAlgorithm actual;
-	if (actual.Step(maximum, maximum, 0.0, pidOnly, statefulPid, kLead, kNotch, kReso) != 0.0)
+	actual.ApplyParameters(coefficients, 1, 1);
+	if (actual.Step(maximum, maximum, 0.0) != 0.0)
 	{
 		return false;
 	}
-	return actual.Step(0.0, 0.0, 0.0, pidOnly, statefulPid, kLead, kNotch, kReso) == (0.5 * maximum);
+	return actual.Step(0.0, 0.0, 0.0) == (0.5 * maximum);
 }
 
 bool VerifyOverflowFailsSafe()
 {
-	const EnableParams disabled = { false, false, false, false };
 	const double maximum = std::numeric_limits<double>::max();
 	controllercore::ControllerAlgorithm actual;
-	return actual.Step(maximum, maximum, 0.0, disabled, kPid, kLead, kNotch, kReso) == 0.0
-		&& actual.Step(maximum, 1.0, -maximum, disabled, kPid, kLead, kNotch, kReso) == 0.0
+	return actual.Step(maximum, maximum, 0.0) == 0.0
+		&& actual.Step(maximum, 1.0, -maximum) == 0.0
 		&& controllercore::ControllerAlgorithm::ComputeError(maximum, -maximum) == 0.0
 		&& controllercore::ControllerAlgorithm::ComputeError(
 			std::numeric_limits<double>::quiet_NaN(), 0.0) == 0.0;
@@ -263,8 +281,10 @@ bool VerifyOverflowFailsSafe()
 int main()
 {
 	if (!VerifyFiniteCharacterization()
+		|| !VerifyRevisionCommitResetsState()
+		|| !VerifyRejectedPayloadPreservesActiveController()
+		|| !VerifyIdentityAndZeroControllers()
 		|| !VerifyInvalidInputDoesNotMutateState()
-		|| !VerifyInvalidCoefficientsResetAffectedStage()
 		|| !VerifyStateUpdateOverflowResetsAffectedStage()
 		|| !VerifyFinalOutputOverflowPreservesFiniteState()
 		|| !VerifyOverflowFailsSafe())
@@ -272,6 +292,6 @@ int main()
 		return 1;
 	}
 
-	std::cout << "ControllerAlgorithm tests passed\n";
+	std::cout << "ControllerAlgorithm SOS tests passed\n";
 	return 0;
 }

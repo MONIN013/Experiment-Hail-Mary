@@ -12,11 +12,7 @@ classdef TestExperimentConfig < matlab.unittest.TestCase
       testCase.verifyEqual(cfg.env.control_port, double(env.control_port));
       testCase.verifyEqual(cfg.env.module_port, double(env.module_port));
       testCase.verifyEqual(cfg.logger_release_timeout_s, double(env.logger_release_timeout_s));
-      testCase.verifyFalse(isprop(cfg, "plant"));
       testCase.verifyFalse(cfg.external_host_heartbeat_enable);
-      testCase.verifyFalse(cfg.write_virtual_motor_params);
-      testCase.verifyFalse(cfg.restart_virtual_motor_runtime);
-      testCase.verifyTrue(isempty(cfg.virtual_motor_plant));
     end
 
     function flatEnvironmentOverridesAreRejected(testCase)
@@ -29,57 +25,24 @@ classdef TestExperimentConfig < matlab.unittest.TestCase
         "experiment:config:invalid");
     end
 
-    function rejectsLegacyAliasesAndRemovedBridgeFiles(testCase)
-      testCase.verifyError(@() experiment.ExperimentConfig.from_struct(struct( ...
-        "ams_port", 851, ...
-        "ref_profile", [1; 2])), "experiment:config:invalid");
-      testCase.verifyEqual(which("experiment.RunConfig"), '');
-      testCase.verifyEqual(which("experiment.PositionCommandConfig"), '');
-    end
-
-    function rejectsRemovedVmFields(testCase)
-      testCase.verifyError(@() experiment.ExperimentConfig.from_varargin( ...
-        "ref_profile", [1; 2], ...
-        "vm_param_symbol_prefix", "Vm."), "MATLAB:InputParser:UnmatchedParameter");
-      testCase.verifyError(@() experiment.ExperimentConfig.from_struct(struct( ...
-        "ref_profile", [1; 2], ...
-        "plant", struct())), "experiment:config:invalid");
-      testCase.verifyError(@() experiment.ExperimentConfig.from_struct(struct( ...
-        "ref_profile", [1; 2], ...
-        "write_plant_params", true)), "experiment:config:invalid");
-    end
-
-    function acceptsExplicitVirtualMotorPlant(testCase)
-      plant = experiment.exp01.nominal_overlay_plant();
-      cfg = experiment.ExperimentConfig.from_varargin( ...
-        "ref_profile", [1; 2], ...
-        "write_virtual_motor_params", true, ...
-        "virtual_motor_plant", plant);
-
-      testCase.verifyTrue(cfg.write_virtual_motor_params);
-      testCase.verifyTrue(isa(cfg.virtual_motor_plant, "virtualMotor.PlantConfig"));
-      s = cfg.to_struct();
-      testCase.verifyTrue(s.write_virtual_motor_params);
-      testCase.verifyEqual(s.virtual_motor_plant.motor.inertia, 7.1e-6, "AbsTol", 1e-12);
-    end
-
     function serializedConfigRoundTripsWithTypedController(testCase)
       cfg = experiment.ExperimentConfig.defaults();
       cfg.ref_profile = [0; 1];
       cfg.ff_profile = [0; 0];
       cfg.dist_profile = [0; 0];
       cfg.controller = experiment.ControllerConfig.p_only(2.5);
-      cfg.write_virtual_motor_params = true;
-      cfg.restart_virtual_motor_runtime = true;
-      cfg.virtual_motor_plant = virtualMotor.PlantConfig();
 
       restored = experiment.ExperimentConfig.from_struct(cfg.to_struct());
 
       testCase.verifyTrue(isa(restored.controller, "experiment.ControllerConfig"));
-      testCase.verifyEqual(restored.controller.pid.b0, 2.5, "AbsTol", 0);
-      testCase.verifyTrue(restored.write_virtual_motor_params);
-      testCase.verifyTrue(restored.restart_virtual_motor_runtime);
-      testCase.verifyTrue(isa(restored.virtual_motor_plant, "virtualMotor.PlantConfig"));
+      testCase.verifyEqual(restored.controller.sos, [2.5, 0, 0, 1, 0, 0], "AbsTol", 0);
+    end
+
+    function rejectsControllerSampleTimeMismatch(testCase)
+      controller = experiment.controller.from_discrete_tf(tf(1, [1, -0.5], 0.001));
+      testCase.verifyError(@() experiment.ExperimentConfig.from_varargin( ...
+        "controller", controller, "ref_profile", [0; 1]), ...
+        "experiment:controller:sampleTimeMismatch");
     end
 
     function rejectsWaveformLongerThanReference(testCase)
@@ -88,16 +51,19 @@ classdef TestExperimentConfig < matlab.unittest.TestCase
         "dist_profile", [0; 0; 0]), "experiment:config:invalid");
     end
 
-    function rejectsLegacyPlantAliases(testCase)
-      testCase.verifyError(@() experiment.ExperimentConfig.from_struct(struct( ...
-        "ref_profile", [1; 2], ...
-        "m", 0.1)), "experiment:config:invalid");
-    end
-
     function rejectsUnknownFields(testCase)
       testCase.verifyError(@() experiment.ExperimentConfig.from_struct(struct( ...
         "ref_profile", [1; 2], ...
         "typo_timeout_s", 1)), "experiment:config:invalid");
+    end
+
+    function rejectsUnknownNameValueFields(testCase)
+      testCase.verifyError(@() experiment.ExperimentConfig.from_struct(struct( ...
+        "ref_profile", [0; 1], ...
+        "pid_b0", 2.5)), "experiment:config:invalid");
+      testCase.verifyError(@() experiment.ExperimentConfig.from_varargin( ...
+        "ref_profile", [0; 1], ...
+        "enable_notch", true), "MATLAB:InputParser:UnmatchedParameter");
     end
 
     function rejectsNonFiniteWaveforms(testCase)
@@ -142,16 +108,5 @@ classdef TestExperimentConfig < matlab.unittest.TestCase
         "external_host_heartbeat_enable", true)), "experiment:config:invalid");
     end
 
-    function virtualMotorWriteRequiresPlant(testCase)
-      testCase.verifyError(@() experiment.ExperimentConfig.from_struct(struct( ...
-        "ref_profile", [0; 1], ...
-        "write_virtual_motor_params", true)), "experiment:config:invalid");
-    end
-
-    function virtualMotorRestartRequiresParameterWrites(testCase)
-      testCase.verifyError(@() experiment.ExperimentConfig.from_struct(struct( ...
-        "ref_profile", [0; 1], ...
-        "restart_virtual_motor_runtime", true)), "experiment:config:invalid");
-    end
   end
 end

@@ -26,7 +26,7 @@ idle_map = struct( ...
   "mode_state", {{symbols.modeState, t.i16}});
 
 control = make_transport();
-control_cleanup = onCleanup(@() control.disconnect()); %#ok<NASGU>
+control_cleanup = onCleanup(@() control.disconnect());
 control.connect(env.ams_net_id, env.control_port);
 before = control.read_struct(idle_map);
 if logical(before.experiment_active) || int16(before.mode_state) ~= int16(0)
@@ -36,9 +36,10 @@ if logical(before.experiment_active) || int16(before.mode_state) ~= int16(0)
     logical(before.logger_file_released));
 end
 control.disconnect();
+clear control_cleanup
 
 service = make_transport();
-service_cleanup = onCleanup(@() service.disconnect()); %#ok<NASGU>
+service_cleanup = onCleanup(@() service.disconnect());
 service.connect(env.ams_net_id, 10000);
 client = service.read_client();
 state_before = client.ReadState();
@@ -50,6 +51,7 @@ end
 client.WriteControl(TwinCAT.Ads.StateInfo( ...
   TwinCAT.Ads.AdsState.Reset, int16(state_before.DeviceState)));
 service.disconnect();
+clear service_cleanup
 
 t0 = tic;
 state_after = [];

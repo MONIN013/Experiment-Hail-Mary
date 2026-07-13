@@ -19,10 +19,10 @@ elseif isfield(metrics, "signals")
         names(k), item.max_abs_error, item.tolerance); %#ok<AGROW>
     end
   end
-  if ~metrics.seq_exact_match, failed(end + 1, 1) = "seq"; end %#ok<AGROW>
-  if ~metrics.timestamp_exact_match, failed(end + 1, 1) = "timestamp"; end %#ok<AGROW>
-  if ~metrics.predicted_fault_free, failed(end + 1, 1) = "predicted fault"; end %#ok<AGROW>
-  if ~metrics.predicted_position_unsaturated, failed(end + 1, 1) = "predicted position saturation"; end %#ok<AGROW>
+  if ~metrics.seq_exact_match, failed(end + 1, 1) = "seq"; end
+  if ~metrics.timestamp_exact_match, failed(end + 1, 1) = "timestamp"; end
+  if ~metrics.predicted_fault_free, failed(end + 1, 1) = "predicted fault"; end
+  if ~metrics.predicted_position_unsaturated, failed(end + 1, 1) = "predicted position saturation"; end
 else
   failed = "missing signal metrics";
 end

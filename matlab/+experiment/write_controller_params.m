@@ -1,60 +1,66 @@
-function write_controller_params(transport, controller_param_symbol_prefix, params)
-% write_controller_params  ControllerCore の biquad フィルタパラメータを Port 351 に書き込む。
+function applied_revision = write_controller_params(transport, controller_param_symbol_prefix, controller)
+% write_controller_params  Commit a fixed ten-section SOS bank to ControllerCore.
 %
-%   experiment.write_controller_params(transport, controller_param_symbol_prefix, params)
-%
-%   transport — 接続済み twincat_ads.IAdsTransport (env.module_port)
-%   controller_param_symbol_prefix — ControllerCore prefix
-%   params    — struct with fields:
-%               pid_b0..pid_a2, lead_b0..lead_a2, notch_b0..notch_a2, reso_b0..reso_a2,
-%               enable_pid, enable_lead, enable_notch, enable_reso
-%
-%   書込み先 (ControllerCore):
-%     PIDParams.pidB0..pidA2, LeadParams.leadB0..leadA2,
-%     NotchParams.notchB0..notchA2, ResoParams.resoB0..resoA2,
-%     EnableParams.enablePid/Lead/Notch/Reso
+% Writes are ordered as coefficients -> sectionCount -> applyRevision.
+% ControllerCore keeps the old active bank until applyRevision is accepted.
 
   arguments
     transport twincat_ads.IAdsTransport
     controller_param_symbol_prefix {mustBeTextScalar}
-    params    struct
+    controller
   end
 
-  symbols = experiment.RuntimeSymbols.from_controller_prefix(char(string(controller_param_symbol_prefix)));
+  cfg = experiment.ControllerConfig.from_struct(controller);
+  payload = cfg.to_ads_payload();
+  symbols = experiment.RuntimeSymbols.from_controller_prefix( ...
+    char(string(controller_param_symbol_prefix)));
   t = symbols.types;
   p = symbols.controllerParams;
 
-  % PID
-  transport.write_scalar(p.pidB0, double(params.pid_b0), t.double);
-  transport.write_scalar(p.pidB1, double(params.pid_b1), t.double);
-  transport.write_scalar(p.pidB2, double(params.pid_b2), t.double);
-  transport.write_scalar(p.pidA1, double(params.pid_a1), t.double);
-  transport.write_scalar(p.pidA2, double(params.pid_a2), t.double);
+  current_revision = uint32(transport.read_scalar(p.applyRevision, t.u32));
+  requested_revision = next_revision(current_revision);
 
-  % Lead
-  transport.write_scalar(p.leadB0, double(params.lead_b0), t.double);
-  transport.write_scalar(p.leadB1, double(params.lead_b1), t.double);
-  transport.write_scalar(p.leadB2, double(params.lead_b2), t.double);
-  transport.write_scalar(p.leadA1, double(params.lead_a1), t.double);
-  transport.write_scalar(p.leadA2, double(params.lead_a2), t.double);
+  transport.write_array(p.coefficients, payload.coefficients, t.double);
+  transport.write_scalar(p.sectionCount, payload.section_count, t.u32);
+  transport.write_scalar(p.applyRevision, requested_revision, t.u32);
 
-  % Notch
-  transport.write_scalar(p.notchB0, double(params.notch_b0), t.double);
-  transport.write_scalar(p.notchB1, double(params.notch_b1), t.double);
-  transport.write_scalar(p.notchB2, double(params.notch_b2), t.double);
-  transport.write_scalar(p.notchA1, double(params.notch_a1), t.double);
-  transport.write_scalar(p.notchA2, double(params.notch_a2), t.double);
+  applied_revision = wait_for_apply_ack(transport, p, t, requested_revision);
+end
 
-  % Reso
-  transport.write_scalar(p.resoB0, double(params.reso_b0), t.double);
-  transport.write_scalar(p.resoB1, double(params.reso_b1), t.double);
-  transport.write_scalar(p.resoB2, double(params.reso_b2), t.double);
-  transport.write_scalar(p.resoA1, double(params.reso_a1), t.double);
-  transport.write_scalar(p.resoA2, double(params.reso_a2), t.double);
+function revision = next_revision(current)
+revision = uint32(mod(double(uint32(current)) + 1, 2^32));
+end
 
-  % Enable flags
-  transport.write_scalar(p.enablePid, logical(params.enable_pid), t.bool);
-  transport.write_scalar(p.enableLead, logical(params.enable_lead), t.bool);
-  transport.write_scalar(p.enableNotch, logical(params.enable_notch), t.bool);
-  transport.write_scalar(p.enableReso, logical(params.enable_reso), t.bool);
+function applied = wait_for_apply_ack(transport, symbols, types, requested)
+timeout_s = 0.5;
+poll_period_s = 0.005;
+timer = tic;
+% Allow at least one 8 kHz ControllerCore cycle to process the new revision.
+% This also prevents a previous rejected revision's error code from being
+% mistaken for the result of the payload that was just committed.
+pause(poll_period_s);
+while true
+  processed = uint32(transport.read_scalar(symbols.processedRevision, types.u32));
+  if processed == requested
+    applied = uint32(transport.read_scalar(symbols.appliedRevision, types.u32));
+    error_code = uint32(transport.read_scalar(symbols.parameterErrorCode, types.u32));
+    if applied == requested && error_code == 0
+      return;
+    end
+    if error_code ~= 0
+      error("experiment:controller:parameterRejected", ...
+        "ControllerCore rejected SOS revision %u (parameterErrorCode=0x%08X).", ...
+        requested, error_code);
+    end
+    error("experiment:controller:invalidApplyStatus", ...
+      "ControllerCore processed SOS revision %u without applying or rejecting it.", requested);
+  end
+  if toc(timer) >= timeout_s
+    applied = uint32(transport.read_scalar(symbols.appliedRevision, types.u32));
+    error("experiment:controller:applyTimeout", ...
+      "Timed out waiting for ControllerCore SOS revision %u (processed=%u, applied=%u).", ...
+      requested, processed, applied);
+  end
+  pause(poll_period_s);
+end
 end

@@ -70,6 +70,35 @@ classdef TestTsprojMapping < matlab.unittest.TestCase
         '<Link VarA="Outputs^loadControlWordOut" VarB="Inputs^load^controlWord"/>'));
     end
 
+    function projectVariantsDifferOnlyAtDriveEndpointOwner(testCase)
+      vm_source = normalize_drive_endpoint_owner(testCase.read_vm_tsproj());
+      real_source = normalize_drive_endpoint_owner(testCase.read_real_motor_tsproj());
+
+      testCase.verifyEqual(real_source, vm_source);
+    end
+
+    function eachVariantOwnsExactlyOneElevenLinkDriveEndpoint(testCase)
+      vm_source = testCase.read_vm_tsproj();
+      real_source = testCase.read_real_motor_tsproj();
+      vm_owner = 'TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)';
+      real_owner = 'TIID^RealMotorPdo^RealMotorPdo Instance';
+
+      testCase.verifyNumElements(extract_owner_links(vm_source, vm_owner), 11);
+      testCase.verifyNumElements(extract_owner_links(real_source, real_owner), 11);
+      testCase.verifyEmpty(extract_owner_links(vm_source, real_owner));
+      testCase.verifyEmpty(extract_owner_links(real_source, vm_owner));
+    end
+
+    function variantsPinSharedEightKilohertzTaskAndRealScaffoldIsNondeployable(testCase)
+      expected_task = '<Task Id="4" Priority="1" CycleTime="1250" AmsPort="351"';
+      for source = [testCase.read_vm_tsproj(), testCase.read_real_motor_tsproj()]
+        testCase.verifyThat(source, ...
+          matlab.unittest.constraints.ContainsSubstring(expected_task));
+      end
+      testCase.verifyThat(testCase.read_real_motor_tsproj(), ...
+        matlab.unittest.constraints.ContainsSubstring('<Io/>'));
+    end
+
     function loggerRecordsSequencerDistValueInBothProjects(testCase)
       vm_source = testCase.read_vm_tsproj();
       real_source = testCase.read_real_motor_tsproj();
@@ -120,6 +149,24 @@ classdef TestTsprojMapping < matlab.unittest.TestCase
         testCase.verifyEqual(str2double(read_parameter_value(source, "LoadParams.maxCurrentA")), 1.6, "RelTol", 1e-14);
       end
     end
+
+    function controllerProjectsExposeOnlyTransactionalSosContract(testCase)
+      required = [ ...
+        "<Name>SosCoefficients</Name>", ...
+        "<Name>SosSectionCount</Name>", ...
+        "<Name>SosApplyRevision</Name>", ...
+        "<Elements>50</Elements>", ...
+        "<Name>appliedRevision</Name>", ...
+        "<Name>processedRevision</Name>", ...
+        "<Name>parameterErrorCode</Name>" ...
+      ];
+      for source = [testCase.read_vm_tsproj(), testCase.read_real_motor_tsproj()]
+        for expected = required
+          testCase.verifyThat(source, ...
+            matlab.unittest.constraints.ContainsSubstring(expected));
+        end
+      end
+    end
   end
 
   methods (Static, Access = private)
@@ -144,4 +191,26 @@ if isempty(tokens)
 else
   value = string(tokens{1});
 end
+end
+
+function out = normalize_drive_endpoint_owner(source)
+out = replace(source, ...
+  'TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)', ...
+  'DRIVE_ENDPOINT_OWNER');
+out = replace(out, ...
+  'TIID^RealMotorPdo^RealMotorPdo Instance', ...
+  'DRIVE_ENDPOINT_OWNER');
+out = string(regexprep(char(out), '\r\n?', '\n'));
+end
+
+function links = extract_owner_links(source, owner)
+owner_pattern = regexptranslate('escape', char(owner));
+pattern = ['<OwnerB Name="' owner_pattern '">([\s\S]*?)</OwnerB>'];
+block = regexp(char(source), pattern, 'tokens', 'once');
+if isempty(block)
+  links = strings(0, 1);
+  return;
+end
+matches = regexp(block{1}, '<Link\s+VarA="[^"]+"\s+VarB="[^"]+"/>', 'match');
+links = string(matches(:));
 end

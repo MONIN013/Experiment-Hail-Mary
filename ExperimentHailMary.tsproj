@@ -186,173 +186,6 @@
 			</SubItem>
 		</DataType>
 		<DataType>
-			<Name GUID="{7A41B282-B6EF-4DA2-B9CD-74B2D70476B6}" AutoDeleteType="true">ST_Notch</Name>
-			<BitSize>320</BitSize>
-			<SubItem>
-				<Name>notchB0</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>0</BitOffs>
-			</SubItem>
-			<SubItem>
-				<Name>notchB1</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>64</BitOffs>
-			</SubItem>
-			<SubItem>
-				<Name>notchB2</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>128</BitOffs>
-			</SubItem>
-			<SubItem>
-				<Name>notchA1</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>192</BitOffs>
-			</SubItem>
-			<SubItem>
-				<Name>notchA2</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>256</BitOffs>
-			</SubItem>
-		</DataType>
-		<DataType>
-			<Name GUID="{FE53C40B-E294-450D-AD06-DEEF6D604A43}">ST_PhaseLead</Name>
-			<BitSize>320</BitSize>
-			<SubItem>
-				<Name>leadB0</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>0</BitOffs>
-			</SubItem>
-			<SubItem>
-				<Name>leadB1</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>64</BitOffs>
-			</SubItem>
-			<SubItem>
-				<Name>leadB2</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>128</BitOffs>
-			</SubItem>
-			<SubItem>
-				<Name>leadA1</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>192</BitOffs>
-			</SubItem>
-			<SubItem>
-				<Name>leadA2</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>256</BitOffs>
-			</SubItem>
-		</DataType>
-		<DataType>
-			<Name GUID="{F0EFD512-8498-4CBC-A25F-04D8E2741F50}">ST_Reso</Name>
-			<BitSize>320</BitSize>
-			<SubItem>
-				<Name>resoB0</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>0</BitOffs>
-			</SubItem>
-			<SubItem>
-				<Name>resoB1</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>64</BitOffs>
-			</SubItem>
-			<SubItem>
-				<Name>resoB2</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>128</BitOffs>
-			</SubItem>
-			<SubItem>
-				<Name>resoA1</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>192</BitOffs>
-			</SubItem>
-			<SubItem>
-				<Name>resoA2</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>256</BitOffs>
-			</SubItem>
-			<Hides>
-				<Hide GUID="{7A41B282-B6EF-4DA2-B9CD-74B2D70476B6}"/>
-			</Hides>
-		</DataType>
-		<DataType>
-			<Name GUID="{13107610-CD3F-4EB5-ABFF-3AFC341E6827}">ST_FilterEnable</Name>
-			<BitSize>32</BitSize>
-			<SubItem>
-				<Name>enablePid</Name>
-				<Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
-				<BitSize>8</BitSize>
-				<BitOffs>0</BitOffs>
-			</SubItem>
-			<SubItem>
-				<Name>enableLead</Name>
-				<Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
-				<BitSize>8</BitSize>
-				<BitOffs>8</BitOffs>
-			</SubItem>
-			<SubItem>
-				<Name>enableNotch</Name>
-				<Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
-				<BitSize>8</BitSize>
-				<BitOffs>16</BitOffs>
-			</SubItem>
-			<SubItem>
-				<Name>enableReso</Name>
-				<Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
-				<BitSize>8</BitSize>
-				<BitOffs>24</BitOffs>
-			</SubItem>
-		</DataType>
-		<DataType>
-			<Name GUID="{601DEA5D-CD1F-4DA3-90A4-3260B161E2AC}">ST_PID</Name>
-			<BitSize>320</BitSize>
-			<SubItem>
-				<Name>pidB0</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>0</BitOffs>
-			</SubItem>
-			<SubItem>
-				<Name>pidB1</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>64</BitOffs>
-			</SubItem>
-			<SubItem>
-				<Name>pidB2</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>128</BitOffs>
-			</SubItem>
-			<SubItem>
-				<Name>pidA1</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>192</BitOffs>
-			</SubItem>
-			<SubItem>
-				<Name>pidA2</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>256</BitOffs>
-			</SubItem>
-		</DataType>
-		<DataType>
 			<Name GUID="{C88B2D87-C9BF-4A79-8397-1AA7A5B65131}">ST_LoggerMotorSignals</Name>
 			<BitSize>192</BitSize>
 			<SubItem>
@@ -988,38 +821,28 @@
 								<ContextId>1</ContextId>
 							</Parameter>
 							<Parameter CreateSymbol="true">
-								<Name>NotchParams</Name>
-								<BitSize>320</BitSize>
-								<BaseType GUID="{7A41B282-B6EF-4DA2-B9CD-74B2D70476B6}">ST_Notch</BaseType>
+								<Name>SosCoefficients</Name>
+								<BitSize>3200</BitSize>
+								<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
+								<ArrayInfo>
+									<LBound>0</LBound>
+									<Elements>50</Elements>
+								</ArrayInfo>
+								<PTCID>#x00000001</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+							<Parameter CreateSymbol="true">
+								<Name>SosSectionCount</Name>
+								<BitSize>32</BitSize>
+								<BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
 								<PTCID>#x00000002</PTCID>
 								<ContextId>1</ContextId>
 							</Parameter>
 							<Parameter CreateSymbol="true">
-								<Name>LeadParams</Name>
-								<BitSize>320</BitSize>
-								<BaseType GUID="{FE53C40B-E294-450D-AD06-DEEF6D604A43}">ST_PhaseLead</BaseType>
-								<PTCID>#x00000004</PTCID>
-								<ContextId>1</ContextId>
-							</Parameter>
-							<Parameter CreateSymbol="true">
-								<Name>ResoParams</Name>
-								<BitSize>320</BitSize>
-								<BaseType GUID="{F0EFD512-8498-4CBC-A25F-04D8E2741F50}">ST_Reso</BaseType>
-								<PTCID>#x00000006</PTCID>
-								<ContextId>1</ContextId>
-							</Parameter>
-							<Parameter CreateSymbol="true">
-								<Name>EnableParams</Name>
+								<Name>SosApplyRevision</Name>
 								<BitSize>32</BitSize>
-								<BaseType GUID="{13107610-CD3F-4EB5-ABFF-3AFC341E6827}">ST_FilterEnable</BaseType>
-								<PTCID>#x00000005</PTCID>
-								<ContextId>1</ContextId>
-							</Parameter>
-							<Parameter CreateSymbol="true">
-								<Name>PIDParams</Name>
-								<BitSize>320</BitSize>
-								<BaseType GUID="{601DEA5D-CD1F-4DA3-90A4-3260B161E2AC}">ST_PID</BaseType>
-								<PTCID>#x00000001</PTCID>
+								<BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+								<PTCID>#x00000003</PTCID>
 								<ContextId>1</ContextId>
 							</Parameter>
 						</Parameters>
@@ -1058,7 +881,7 @@
 								<AreaNo AreaType="OutputSrc">1</AreaNo>
 								<Name>Outputs</Name>
 								<ContextId>1</ContextId>
-								<ByteSize>16</ByteSize>
+								<ByteSize>28</ByteSize>
 								<Symbol CreateSymbol="true">
 									<Name>controlInput</Name>
 									<BitSize>64</BitSize>
@@ -1070,6 +893,24 @@
 									<BitSize>64</BitSize>
 									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
 									<BitOffs>64</BitOffs>
+								</Symbol>
+								<Symbol CreateSymbol="true">
+									<Name>appliedRevision</Name>
+									<BitSize>32</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+									<BitOffs>128</BitOffs>
+								</Symbol>
+								<Symbol CreateSymbol="true">
+									<Name>processedRevision</Name>
+									<BitSize>32</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+									<BitOffs>160</BitOffs>
+								</Symbol>
+								<Symbol CreateSymbol="true">
+									<Name>parameterErrorCode</Name>
+									<BitSize>32</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+									<BitOffs>192</BitOffs>
 								</Symbol>
 							</DataArea>
 						</DataAreas>
@@ -1086,99 +927,211 @@
 								<EnumText>tlAlways</EnumText>
 							</Value>
 							<Value>
-								<Name>NotchParams.notchB0</Name>
+								<Name>SosCoefficients[0]</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>NotchParams.notchB1</Name>
+								<Name>SosCoefficients[1]</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>NotchParams.notchB2</Name>
+								<Name>SosCoefficients[2]</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>NotchParams.notchA1</Name>
+								<Name>SosCoefficients[3]</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>NotchParams.notchA2</Name>
+								<Name>SosCoefficients[4]</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>LeadParams.leadB0</Name>
+								<Name>SosCoefficients[5]</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>LeadParams.leadB1</Name>
+								<Name>SosCoefficients[6]</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>LeadParams.leadB2</Name>
+								<Name>SosCoefficients[7]</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>LeadParams.leadA1</Name>
+								<Name>SosCoefficients[8]</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>LeadParams.leadA2</Name>
+								<Name>SosCoefficients[9]</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>ResoParams.resoB0</Name>
+								<Name>SosCoefficients[10]</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>ResoParams.resoB1</Name>
+								<Name>SosCoefficients[11]</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>ResoParams.resoB2</Name>
+								<Name>SosCoefficients[12]</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>ResoParams.resoA1</Name>
+								<Name>SosCoefficients[13]</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>ResoParams.resoA2</Name>
+								<Name>SosCoefficients[14]</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>EnableParams.enablePid</Name>
-								<EnumText>TRUE</EnumText>
-							</Value>
-							<Value>
-								<Name>EnableParams.enableLead</Name>
-								<EnumText>FALSE</EnumText>
-							</Value>
-							<Value>
-								<Name>EnableParams.enableNotch</Name>
-								<EnumText>FALSE</EnumText>
-							</Value>
-							<Value>
-								<Name>EnableParams.enableReso</Name>
-								<EnumText>FALSE</EnumText>
-							</Value>
-							<Value>
-								<Name>PIDParams.pidB0</Name>
+								<Name>SosCoefficients[15]</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>PIDParams.pidB1</Name>
+								<Name>SosCoefficients[16]</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>PIDParams.pidB2</Name>
+								<Name>SosCoefficients[17]</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>PIDParams.pidA1</Name>
+								<Name>SosCoefficients[18]</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>PIDParams.pidA2</Name>
+								<Name>SosCoefficients[19]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[20]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[21]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[22]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[23]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[24]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[25]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[26]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[27]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[28]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[29]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[30]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[31]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[32]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[33]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[34]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[35]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[36]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[37]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[38]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[39]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[40]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[41]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[42]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[43]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[44]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[45]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[46]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[47]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[48]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosCoefficients[49]</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosSectionCount</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SosApplyRevision</Name>
 								<Value>0</Value>
 							</Value>
 						</ParameterValues>
@@ -1432,7 +1385,7 @@
 								</Symbol>
 							</DataArea>
 							<DataArea>
-								<AreaNo AreaType="OutputSrc">1</AreaNo>
+								<AreaNo AreaType="OutputSrc" ShowSymbols="true">1</AreaNo>
 								<Name>Outputs</Name>
 								<ContextId>1</ContextId>
 								<ByteSize>82</ByteSize>
