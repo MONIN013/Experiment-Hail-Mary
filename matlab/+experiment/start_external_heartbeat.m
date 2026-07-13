@@ -38,8 +38,10 @@ fclose(fid);
 
 try
   [assembly_ref, assembly_is_path] = resolve_ads_assembly(ads_assembly);
+  owner_pid = feature("getpid");
   script = build_powershell_script( ...
-    assembly_ref, assembly_is_path, env, flag_path, ready_path, error_path, period_ms);
+    assembly_ref, assembly_is_path, env, flag_path, ready_path, error_path, ...
+    period_ms, owner_pid);
   encoded = encode_powershell(script);
 
   psi = System.Diagnostics.ProcessStartInfo();
@@ -80,31 +82,15 @@ end
 end
 
 function [assembly_ref, is_path] = resolve_ads_assembly(ads_assembly)
-known_path = "C:\Program Files (x86)\Beckhoff\TwinCAT\Functions\TE14xx-ToolsForMatlabAndSimulink\TE140x\NET\TwinCAT.Ads.dll";
-assembly_ref = strtrim(string(ads_assembly));
-if strlength(assembly_ref) == 0
-  if isfile(known_path)
-    assembly_ref = known_path;
-    is_path = true;
-  else
-    assembly_ref = "TwinCAT.Ads";
-    is_path = false;
-  end
-  return;
-end
-if isfile(assembly_ref)
-  is_path = true;
-  return;
-end
-looks_like_path = endsWith(lower(assembly_ref), ".dll") || contains(assembly_ref, "\") || contains(assembly_ref, "/");
-if looks_like_path
-  error("experiment:heartbeat:adsAssemblyMissing", ...
-    "TwinCAT ADS .NET assembly is not found: %s", assembly_ref);
-end
-is_path = false;
+candidates = twincat_ads.assembly_candidates( ...
+  ads_assembly, "experiment:heartbeat:adsAssemblyMissing");
+assembly_ref = candidates(1);
+is_path = isfile(assembly_ref);
 end
 
-function script = build_powershell_script(assembly_ref, assembly_is_path, env, flag_path, ready_path, error_path, period_ms)
+function script = build_powershell_script( ...
+    assembly_ref, assembly_is_path, env, flag_path, ready_path, ...
+    error_path, period_ms, owner_pid)
 if assembly_is_path
   load_assembly_line = "  [void][Reflection.Assembly]::LoadFrom('" + escape_ps(assembly_ref) + "')";
 else
@@ -114,14 +100,18 @@ lines = [
   "$ErrorActionPreference='Stop'"
   "$client=$null"
   "$h=$null"
+  "$owner=$null"
   "try {"
   load_assembly_line
+  "  $owner = [Diagnostics.Process]::GetProcessById(" + ...
+    string(round(owner_pid)) + ")"
   "  $client = New-Object TwinCAT.Ads.TcAdsClient"
   "  $client.Connect('" + escape_ps(env.ams_net_id) + "', " + string(round(env.control_port)) + ")"
   "  $h = $client.CreateVariableHandle('GVL_MODE.hostHeartbeatCounter')"
   "  Set-Content -LiteralPath '" + escape_ps(ready_path) + "' -Value 'ready' -NoNewline -Encoding UTF8"
   "  $counter = [uint32]$client.ReadAny($h, [UInt32])"
-  "  while (Test-Path -LiteralPath '" + escape_ps(flag_path) + "') {"
+  "  while ((Test-Path -LiteralPath '" + escape_ps(flag_path) + ...
+    "') -and (-not $owner.HasExited)) {"
   "    $counter = [uint32](($counter + 1) % [math]::Pow(2,32))"
   "    $client.WriteAny($h, $counter)"
   "    Start-Sleep -Milliseconds " + string(period_ms)
@@ -132,6 +122,7 @@ lines = [
   "} finally {"
   "  if ($null -ne $h -and $null -ne $client) { try { $client.DeleteVariableHandle($h) } catch {} }"
   "  if ($null -ne $client) { $client.Dispose() }"
+  "  if ($null -ne $owner) { $owner.Dispose() }"
   "}"
   ];
 script = strjoin(lines, newline);

@@ -11,25 +11,35 @@ classdef TestMatlabEnvironment < matlab.unittest.TestCase
     function installWritesCacheAndStartupFile(testCase)
       matlab_root = create_fake_matlab_root();
       pref_dir = create_temp_folder();
-      cleanup = onCleanup(@() cleanup_dirs({matlab_root, pref_dir})); 
+      startup_dir = create_temp_folder();
+      cleanup = onCleanup(@() cleanup_dirs({matlab_root, pref_dir, startup_dir}));
 
       out = config.MatlabEnvironment.install(matlab_root, ...
         "pref_dir", pref_dir, ...
+        "startup_dir", startup_dir, ...
         "apply_now", false);
       cache = config.MatlabEnvironment.load_cache(char(out.cache_file));
 
       testCase.verifyTrue(isfile(char(out.cache_file)));
       testCase.verifyTrue(isfile(char(out.startup_file)));
+      testCase.verifyEqual(char(out.cache_file), ...
+        char(fullfile(pref_dir, "ExperimentHailMaryPathCache.mat")));
+      testCase.verifyEqual(char(out.startup_file), char(fullfile(startup_dir, "startup.m")));
+      testCase.verifyFalse(isfile(fullfile(pref_dir, "startup.m")));
       testCase.verifyEqual(cache.matlab_root, matlab_root);
       testCase.verifyTrue(isequal(cache.path_entries, config.MatlabEnvironment.default_path_entries(matlab_root)));
+      startup_source = string(fileread(char(out.startup_file)));
+      testCase.verifyThat(startup_source, matlab.unittest.constraints.ContainsSubstring( ...
+        "fullfile(prefdir, 'ExperimentHailMaryPathCache.mat')"));
     end
 
     function startupManagedBlockIsIdempotentAndPreservesUserContent(testCase)
       matlab_root = create_fake_matlab_root();
       pref_dir = create_temp_folder();
-      cleanup = onCleanup(@() cleanup_dirs({matlab_root, pref_dir})); 
+      startup_dir = create_temp_folder();
+      cleanup = onCleanup(@() cleanup_dirs({matlab_root, pref_dir, startup_dir}));
 
-      startup_file = config.MatlabEnvironment.startup_file(pref_dir);
+      startup_file = config.MatlabEnvironment.startup_file(startup_dir);
       cache_file = config.MatlabEnvironment.cache_file(pref_dir);
       fid = fopen(startup_file, "w");
       fwrite(fid, char("disp('custom startup');" + newline), "char");
@@ -44,6 +54,15 @@ classdef TestMatlabEnvironment < matlab.unittest.TestCase
       testCase.verifyEqual(count(source, "% >>> ExperimentHailMary MATLAB environment >>>"), 1);
       testCase.verifyEqual(count(source, "% <<< ExperimentHailMary MATLAB environment <<<"), 1);
       testCase.verifyThat(source, matlab.unittest.constraints.ContainsSubstring("disp('custom startup');"));
+    end
+
+    function defaultStartupDirUsesFirstUserpathEntry(testCase)
+      entries = strsplit(char(string(userpath)), pathsep);
+      entries = entries(~cellfun(@(value) isempty(strtrim(value)), entries));
+
+      testCase.assertNotEmpty(entries, "This test requires a configured MATLAB userpath.");
+      testCase.verifyEqual(config.MatlabEnvironment.default_startup_dir(), ...
+        strtrim(entries{1}));
     end
 
     function staleCacheWarnsAndDoesNotApplyPaths(testCase)
@@ -91,10 +110,12 @@ classdef TestMatlabEnvironment < matlab.unittest.TestCase
     function setupWritesLocalEnvironmentConfigNonInteractively(testCase)
       matlab_root = create_fake_matlab_root();
       pref_dir = create_temp_folder();
-      cleanup = onCleanup(@() cleanup_dirs({matlab_root, pref_dir})); 
+      startup_dir = create_temp_folder();
+      cleanup = onCleanup(@() cleanup_dirs({matlab_root, pref_dir, startup_dir}));
 
       out = config.MatlabEnvironment.setup(matlab_root, ...
         "pref_dir", pref_dir, ...
+        "startup_dir", startup_dir, ...
         "apply_now", false, ...
         "Interactive", false, ...
         "ValidateAds", false, ...
@@ -112,7 +133,8 @@ classdef TestMatlabEnvironment < matlab.unittest.TestCase
     function setupDoesNotRediscoverWhenLocalEnvironmentConfigExists(testCase)
       matlab_root = create_fake_matlab_root();
       pref_dir = create_temp_folder();
-      cleanup = onCleanup(@() cleanup_dirs({matlab_root, pref_dir})); 
+      startup_dir = create_temp_folder();
+      cleanup = onCleanup(@() cleanup_dirs({matlab_root, pref_dir, startup_dir}));
 
       local_file = fullfile(matlab_root, "+config", "LocalEnvironmentConfig.m");
       write_text(local_file, join([
@@ -135,6 +157,7 @@ classdef TestMatlabEnvironment < matlab.unittest.TestCase
         ""], newline));
       out = config.MatlabEnvironment.setup(matlab_root, ...
         "pref_dir", pref_dir, ...
+        "startup_dir", startup_dir, ...
         "apply_now", false, ...
         "Interactive", false, ...
         "ValidateAds", false);

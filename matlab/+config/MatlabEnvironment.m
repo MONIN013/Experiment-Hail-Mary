@@ -11,6 +11,7 @@ classdef MatlabEnvironment
 
       p = inputParser;
       p.addParameter("pref_dir", prefdir, @(x) ischar(x) || isstring(x));
+      p.addParameter("startup_dir", "", @(x) ischar(x) || isstring(x));
       p.addParameter("apply_now", true, @(x) islogical(x) || isnumeric(x));
       p.addParameter("Reconfigure", false, @(x) islogical(x) || isnumeric(x));
       p.addParameter("Interactive", true, @(x) islogical(x) || isnumeric(x));
@@ -21,6 +22,7 @@ classdef MatlabEnvironment
       out = config.MatlabEnvironment.install( ...
         matlab_root, ...
         "pref_dir", opts.pref_dir, ...
+        "startup_dir", opts.startup_dir, ...
         "apply_now", opts.apply_now);
 
       % Resolve the generated file from the root being configured so tests and
@@ -97,6 +99,7 @@ classdef MatlabEnvironment
     function out = install(matlab_root, varargin)
       p = inputParser;
       p.addParameter("pref_dir", prefdir, @(x) ischar(x) || isstring(x));
+      p.addParameter("startup_dir", "", @(x) ischar(x) || isstring(x));
       p.addParameter("apply_now", true, @(x) islogical(x) || isnumeric(x));
       p.parse(varargin{:});
 
@@ -105,10 +108,17 @@ classdef MatlabEnvironment
       if ~isfolder(pref_dir)
         mkdir(pref_dir);
       end
+      startup_dir = char(string(p.Results.startup_dir));
+      if isempty(strtrim(startup_dir))
+        startup_dir = config.MatlabEnvironment.default_startup_dir();
+      end
+      if ~isfolder(startup_dir)
+        mkdir(startup_dir);
+      end
 
       path_entries = config.MatlabEnvironment.default_path_entries(matlab_root);
       cache_file = config.MatlabEnvironment.cache_file(pref_dir);
-      startup_file = config.MatlabEnvironment.startup_file(pref_dir);
+      startup_file = config.MatlabEnvironment.startup_file(startup_dir);
 
       config.MatlabEnvironment.save_cache(cache_file, matlab_root, path_entries);
       config.MatlabEnvironment.upsert_startup_file(startup_file, cache_file);
@@ -234,6 +244,16 @@ classdef MatlabEnvironment
     function startup_file = startup_file(pref_dir)
       startup_file = fullfile(char(string(pref_dir)), "startup.m");
     end
+
+    function startup_dir = default_startup_dir()
+      entries = strsplit(char(string(userpath)), pathsep);
+      entries = entries(~cellfun(@(value) isempty(strtrim(value)), entries));
+      if isempty(entries)
+        error("config:MatlabEnvironment:userpathUnavailable", ...
+          "MATLAB userpath is empty. Configure userpath before installing startup.m.");
+      end
+      startup_dir = strtrim(entries{1});
+    end
   end
 
   methods (Static, Access = private)
@@ -247,7 +267,7 @@ classdef MatlabEnvironment
       first = varargin{1};
       if (ischar(first) || isstring(first)) && isscalar(string(first)) && ...
           isfolder(char(string(first))) && ...
-          ~any(strcmpi(char(string(first)), {"pref_dir", "apply_now", "Reconfigure", "Interactive", "ValidateAds"}))
+          ~any(strcmpi(char(string(first)), {"pref_dir", "startup_dir", "apply_now", "Reconfigure", "Interactive", "ValidateAds"}))
         matlab_root = char(string(first));
         args = varargin(2:end);
       end
@@ -272,11 +292,12 @@ classdef MatlabEnvironment
     end
 
     function block = managed_startup_block(cache_file)
-      escaped_cache = strrep(char(string(cache_file)), "'", "''");
+      [~, cache_name, cache_ext] = fileparts(char(string(cache_file)));
+      escaped_cache_name = strrep([cache_name, cache_ext], "'", "''");
       escaped_message = strrep(config.MatlabEnvironment.setup_required_message(), "'", "''");
       lines = {
         char(config.MatlabEnvironment.START_MARKER)
-        sprintf("ehm_cache_file = '%s';", escaped_cache)
+        sprintf("ehm_cache_file = fullfile(prefdir, '%s');", escaped_cache_name)
         "if isfile(ehm_cache_file)"
         "  ehm_cache = load(ehm_cache_file, 'matlab_root', 'path_entries');"
         "  if isfield(ehm_cache, 'matlab_root') && isfield(ehm_cache, 'path_entries')"

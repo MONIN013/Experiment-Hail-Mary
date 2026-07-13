@@ -337,23 +337,8 @@ classdef AdsTransport < twincat_ads.IAdsTransport
     end
 
     function candidates = assembly_candidates(obj)
-      known_path = "C:\Program Files (x86)\Beckhoff\TwinCAT\Functions\TE14xx-ToolsForMatlabAndSimulink\TE140x\NET\TwinCAT.Ads.dll";
-      explicit = strtrim(obj.ads_assembly);
-      base = strings(3, 1);
-      count = 0;
-      if strlength(explicit) > 0
-        count = count + 1;
-        base(count) = explicit;
-      end
-      if isfile(known_path)
-        count = count + 1;
-        base(count) = known_path;
-      end
-      count = count + 1;
-      base(count) = "TwinCAT.Ads";
-      base = base(1:count);
-      [~, ia] = unique(base, "stable");
-      candidates = base(ia);
+      candidates = twincat_ads.assembly_candidates( ...
+        obj.ads_assembly, "twincat_ads:transport:assemblyMissing");
     end
 
     function c = require_client(obj)
