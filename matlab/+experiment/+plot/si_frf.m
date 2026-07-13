@@ -21,7 +21,7 @@ grid on;
 xlabel("Frequency [Hz]");
 ylabel("Gain [dB]");
 legend("Location", "best");
-title("FRF Gain: ffValue -> loadPosition (loadVelocity / s)");
+title("FRF Gain: ffValue -> loadPosition (semi-implicit discrete integration)");
 
 nexttile;
 semilogx(freq_hz, phase_measured_deg, "-", "LineWidth", 1.2, "DisplayName", "Measured"); hold on;
@@ -35,7 +35,7 @@ ylabel("Phase [deg]");
 ylim([-180, 180]);
 yticks([-180, -135, -90, -45, 0, 45, 90, 135, 180]);
 legend("Location", "best");
-title("FRF Phase: ffValue -> loadPosition (loadVelocity / s)");
+title("FRF Phase: ffValue -> loadPosition (semi-implicit discrete integration)");
 
 nexttile;
 semilogx(freq_hz, coherence(:), "-", "LineWidth", 1.2);

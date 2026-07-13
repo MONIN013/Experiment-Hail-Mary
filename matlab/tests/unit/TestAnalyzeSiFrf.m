@@ -27,6 +27,15 @@ classdef TestAnalyzeSiFrf < matlab.unittest.TestCase
       testCase.verifyEqual(numel(out.signals.input), 3 * cycle_samples);
       testCase.verifyEqual(numel(out.freq_hz), numel(out.frf));
       testCase.verifyEqual(numel(out.freq_hz), numel(out.coherence));
+      positive_frequency = out.freq_hz > 0;
+      expected_integrator = Ts ./ ...
+        (1 - exp(-1i * 2 * pi * out.freq_hz(positive_frequency) * Ts));
+      testCase.verifyEqual(out.position_freq_hz, out.freq_hz(positive_frequency));
+      testCase.verifyEqual(out.position_frf, ...
+        out.frf(positive_frequency) .* expected_integrator, "AbsTol", 1e-12);
+      testCase.verifyEqual(out.frd_velocity.Ts, Ts, "AbsTol", 1e-12);
+      testCase.verifyClass(out.frd_position, "frd");
+      testCase.verifyEqual(out.frd_position.Ts, Ts, "AbsTol", 1e-12);
       testCase.verifyEqual(numel(out.signals.control_input), 3 * cycle_samples);
       testCase.verifyEqual(numel(out.signals.current_cmd), 3 * cycle_samples);
     end

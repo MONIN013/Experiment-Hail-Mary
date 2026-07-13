@@ -16,9 +16,12 @@ function out = analyze_si_frf(logger_source, varargin)
 %     .freq_hz
 %     .frf
 %     .coherence
+%     .position_freq_hz
+%     .position_frf
 %     .trim_info
 %     .signals
 %     .frd_velocity
+%     .frd_position
 
   if ~isstruct(logger_source)
     error("experiment:analyze_si_frf:invalidInput", ...
@@ -81,6 +84,18 @@ function out = analyze_si_frf(logger_source, varargin)
   [frf, freq_hz] = tfestimate(input_trim, output_trim, window, 0, window_samples, fs);
   coherence = mscohere(input_trim, output_trim, window, 0, window_samples, fs);
 
+  positive_frequency = freq_hz > 0;
+  position_freq_hz = freq_hz(positive_frequency);
+  % VirtualMotor advances position with theta(k)=theta(k-1)+Ts*omega(k).
+  % Evaluating that exact discrete integrator on the unit circle avoids the
+  % continuous 1/s approximation that is inaccurate near Nyquist.
+  position_integrator = Ts ./ (1 - exp(-1i * 2 * pi * position_freq_hz * Ts));
+  position_frf = frf(positive_frequency) .* position_integrator;
+  frd_velocity = frd(frf(:), freq_hz(:), "FrequencyUnit", "Hz");
+  frd_velocity.Ts = Ts;
+  frd_position = frd(position_frf(:), position_freq_hz(:), "FrequencyUnit", "Hz");
+  frd_position.Ts = Ts;
+
   t_trim = [];
   if isfield(raw, "t_s") && ~isempty(raw.t_s)
     t_all = double(raw.t_s(:));
@@ -97,6 +112,8 @@ function out = analyze_si_frf(logger_source, varargin)
     "freq_hz", freq_hz(:), ...
     "frf", frf(:), ...
     "coherence", coherence(:), ...
+    "position_freq_hz", position_freq_hz(:), ...
+    "position_frf", position_frf(:), ...
     "trim_info", struct( ...
       "transient_cycles_removed", double(args.transient_cycles), ...
       "start_index", double(start_idx), ...
@@ -110,7 +127,8 @@ function out = analyze_si_frf(logger_source, varargin)
       "output", output_trim(:), ...
       "control_input", get_optional_signal(raw, "control_input", trim_idx), ...
       "current_cmd", get_optional_signal(raw, "current_cmd", trim_idx)), ...
-    "frd_velocity", frd(frf(:), freq_hz(:), "FrequencyUnit", "Hz"));
+    "frd_velocity", frd_velocity, ...
+    "frd_position", frd_position);
 end
 
 function raw = extract_raw(logger_source)

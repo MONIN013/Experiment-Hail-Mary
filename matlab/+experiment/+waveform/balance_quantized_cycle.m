@@ -1,0 +1,56 @@
+function [balanced, report] = balance_quantized_cycle(signal, quantum_A)
+% balance_quantized_cycle  Remove exact DC imbalance after current quantization.
+
+if ~(isnumeric(signal) && isreal(signal) && isvector(signal) && ...
+    ~isempty(signal) && all(isfinite(signal(:))))
+  error("experiment:waveform:invalidQuantizedCycle", ...
+    "signal must be a nonempty finite real numeric vector.");
+end
+if ~(isnumeric(quantum_A) && isreal(quantum_A) && isscalar(quantum_A) && ...
+    isfinite(quantum_A) && quantum_A > 0)
+  error("experiment:waveform:invalidQuantizedCycle", ...
+    "quantum_A must be a finite positive real scalar.");
+end
+
+signal = double(signal);
+quantum_A = double(quantum_A);
+counts = round(signal / quantum_A);
+original_count_sum = sum(counts(:));
+adjusted_sample_count = abs(original_count_sum);
+
+if original_count_sum ~= 0
+  adjustment_direction = sign(original_count_sum);
+  eligible = find(sign(counts(:)) == adjustment_direction);
+  if numel(eligible) < adjusted_sample_count
+    error("experiment:waveform:quantizedCycleBalanceImpossible", ...
+      ["Exact balance requires %d distinct same-sign nonzero samples, " ...
+       "but only %d are available."], adjusted_sample_count, numel(eligible));
+  end
+
+  current_error = (counts(eligible) * quantum_A - signal(eligible)).^2;
+  adjusted_error = ( ...
+    (counts(eligible) - adjustment_direction) * quantum_A - ...
+    signal(eligible)).^2;
+  error_increment = adjusted_error - current_error;
+  [~, order] = sortrows( ...
+    [error_increment(:), double(eligible(:))], [1 2]);
+  selected = eligible(order(1:adjusted_sample_count));
+  counts(selected) = counts(selected) - adjustment_direction;
+end
+
+balanced_count_sum = sum(counts(:));
+if balanced_count_sum ~= 0
+  error("experiment:waveform:quantizedCycleBalanceFailed", ...
+    "Internal quantized-cycle balance failed with count sum %.17g.", ...
+    balanced_count_sum);
+end
+
+balanced = counts * quantum_A;
+report = struct( ...
+  "quantum_A", quantum_A, ...
+  "original_count_sum", original_count_sum, ...
+  "balanced_count_sum", balanced_count_sum, ...
+  "adjusted_sample_count", adjusted_sample_count, ...
+  "original_mean_A", mean(signal(:)), ...
+  "balanced_mean_A", mean(balanced(:)));
+end
