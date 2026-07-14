@@ -17,14 +17,51 @@ classdef TestStudentExperimentHelpers < matlab.unittest.TestCase
       testCase.verifySize(out.signal, [100, 1]);
     end
 
-    function controllerConfigFromDiscreteTfUsesBiquadStage(testCase)
+    function controllerConfigFromDiscreteTfUsesSosBank(testCase)
       discrete_tf = tf([2 -1], [1 -0.5], 0.001);
       cfg = experiment.controller.from_discrete_tf(discrete_tf);
-      flat = cfg.to_flat_struct();
-      testCase.verifyTrue(flat.enable_pid);
-      testCase.verifyEqual(flat.pid_b0, 2, "AbsTol", 1e-12);
-      testCase.verifyEqual(flat.pid_b1, -1, "AbsTol", 1e-12);
-      testCase.verifyEqual(flat.pid_a1, -0.5, "AbsTol", 1e-12);
+      testCase.verifySize(cfg.sos, [1, 6]);
+      testCase.verifyEqual(cfg.sample_time_s, 0.001, "AbsTol", 0);
+      testCase.verifyEqual(cfg.sos(1, 1), 2, "AbsTol", 1e-12);
+      testCase.verifyEqual(cfg.sos(1, 2), -1, "AbsTol", 1e-12);
+      testCase.verifyEqual(cfg.sos(1, 5), -0.5, "AbsTol", 1e-12);
+    end
+
+    function controllerConfigFromDiscreteTfSupportsMultipleSections(testCase)
+      discrete_tf = tf([1, 0.2, 0.3, 0.1, 0.05], ...
+        [1, -0.4, 0.2, -0.1, 0.01], 0.001);
+      cfg = experiment.controller.from_discrete_tf(discrete_tf);
+      testCase.verifyEqual(size(cfg.sos, 1), 2);
+      testCase.verifyEqual(cfg.sos(:, 4), ones(2, 1), "AbsTol", 1e-12);
+    end
+
+    function controllerConfigPreservesStrictlyProperDelay(testCase)
+      Ts = 0.001;
+      discrete_tf = tf(1, [1, -0.5], Ts);
+      cfg = experiment.controller.from_discrete_tf(discrete_tf);
+      x = [1; zeros(15, 1)];
+      expected = lsim(discrete_tf, x, (0:numel(x)-1)' * Ts);
+      actual = sosfilt(cfg.sos, x);
+
+      testCase.verifyEqual(actual, expected, "AbsTol", 1e-12);
+      testCase.verifyEqual(cfg.sos(1, 1), 0, "AbsTol", 0);
+    end
+
+    function zeroDiscreteControllerRemainsAnExplicitZeroSection(testCase)
+      cfg = experiment.controller.from_discrete_tf(tf(0, 1, 0.001));
+      testCase.verifyEqual(size(cfg.sos, 1), 1);
+      testCase.verifyEqual(cfg.sos(1, 1:3), [0, 0, 0], "AbsTol", 0);
+    end
+
+    function controllerConfigFromDiscreteTfRejectsContinuousAndMimo(testCase)
+      testCase.verifyError(@() experiment.controller.from_discrete_tf(tf(1, [1, 1])), ...
+        "experiment:controller:invalidController");
+      mimo = tf({1, 2}, {1, 1}, 0.001);
+      testCase.verifyError(@() experiment.controller.from_discrete_tf(mimo), ...
+        "experiment:controller:invalidController");
+      unspecified = tf(1, [1, -0.5], -1);
+      testCase.verifyError(@() experiment.controller.from_discrete_tf(unspecified), ...
+        "experiment:controller:invalidController");
     end
 
     function loadReferenceProfileFromMatReadsColumnVector(testCase)
@@ -39,15 +76,27 @@ classdef TestStudentExperimentHelpers < matlab.unittest.TestCase
       testCase.verifyEqual(out, [1; 2; 3]);
     end
 
-    function nominalTwoInertiaFrfReturnsFiniteVector(testCase)
-      plant = experiment.exp01.nominal_overlay_plant();
-      frf = experiment.analysis.nominal_two_inertia_frf(plant, 2*pi*[1; 10], "Ts", 0.001, "sample_delay", 1);
-      frf_half_torque_per_amp = experiment.analysis.nominal_two_inertia_frf( ...
-        plant, 2*pi*[1; 10], "Ts", 0.001, "sample_delay", 1, "rated_current_A", 3.2);
+    function discreteVirtualMotorFrfUsesCanonicalPlantAndDelay(testCase)
+      plant = virtualMotor.PlantConfig();
+      plant = virtualMotor.PlantConfig.from_struct(plant.to_struct());
+      Ts = 1 / 8000;
+      omega = 2*pi*[1; 200];
+      frf = virtualMotor.discrete_velocity_frf( ...
+        plant, omega, "Ts", Ts, "sample_delay", 4, "axis", "load");
+      frf_without_delay = virtualMotor.discrete_velocity_frf( ...
+        plant, omega, "Ts", Ts, "sample_delay", 0, "axis", "load");
+      frf_half_torque_per_amp = virtualMotor.discrete_velocity_frf( ...
+        plant, omega, "Ts", Ts, "sample_delay", 4, ...
+        "rated_current_A", 3.2, "axis", "load");
       testCase.verifySize(frf, [2, 1]);
       testCase.verifyTrue(all(isfinite(real(frf))));
       testCase.verifyTrue(all(isfinite(imag(frf))));
+      testCase.verifyEqual(frf, frf_without_delay .* exp(-1i * omega * Ts * 4), ...
+        "RelTol", 1e-12);
       testCase.verifyEqual(frf, 2 * frf_half_torque_per_amp, "RelTol", 1e-12);
+      mode = virtualMotor.torsional_mode(plant);
+      testCase.verifyEqual(mode.natural_frequency_hz, 200, "RelTol", 1e-3);
+      testCase.verifyLessThan(abs(mode.damped_frequency_hz - 200), 1);
     end
 
     function runAndCollectExistsAndRejectsNonExperimentConfig(testCase)
@@ -88,6 +137,8 @@ classdef TestStudentExperimentHelpers < matlab.unittest.TestCase
       raw = struct( ...
         "t_s", [0; 0.1], ...
         "ref_value", [0; 1], ...
+        "ff_value", [0; 0], ...
+        "dist_value", [0; 0], ...
         "load_position", [0; 0.8], ...
         "error", [0; 0.2], ...
         "control_input", [0; 0.1], ...
@@ -98,6 +149,8 @@ classdef TestStudentExperimentHelpers < matlab.unittest.TestCase
         logger, "expected_sample_count", 2);
 
       testCase.verifyEqual(signals.position_act, [0; 0.8]);
+      testCase.verifyEqual(signals.applied_feedforward, [0; 0]);
+      testCase.verifyEqual(signals.feedback_input, [0; 0.1]);
       testCase.verifyEqual(metrics.tracking_error_l2, 0.2, "AbsTol", 1e-12);
       testCase.verifyError(@() experiment.exp02.signals_from_logger_bin( ...
         logger, "expected_sample_count", 3), ...

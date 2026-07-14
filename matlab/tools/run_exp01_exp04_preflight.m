@@ -4,8 +4,6 @@
 % and the exp01 -> exp02/exp03/exp04 plant data handoff. It does not write ADS symbols
 % and does not start an experiment.
 
-use_virtual_motor = true; % false for the RealMotor project
-
 tool_file = mfilename("fullpath");
 matlab_root = fileparts(fileparts(tool_file));
 addpath(matlab_root, fullfile(matlab_root, "experiment"));
@@ -25,6 +23,7 @@ required_functions = {
   "freqresp", "Control System Toolbox"
   "tfestimate", "Signal Processing Toolbox"
   "mscohere", "Signal Processing Toolbox"
+  "tf2sos", "Signal Processing Toolbox"
 };
 for k = 1:size(required_functions, 1)
   assert_function_available(required_functions{k, 1}, required_functions{k, 2});
@@ -37,12 +36,17 @@ fprintf("amsNetId=%s ports(seq/control/module)=%d/%d/%d taskRate=%.0fHz\n", ...
 fprintf("loggerHostFile=%s\n", char(env.logger_host_file_path));
 
 run(fullfile(preflight_matlab_root, "tools", "run_verify_xar.m"));
-if exist("n_fail", "var") && n_fail > 0
+if ~isstruct(run_verify_xar_result) || ...
+    ~isfield(run_verify_xar_result, "passed") || ...
+    ~logical(run_verify_xar_result.passed)
+  failure_count = NaN;
+  if isstruct(run_verify_xar_result) && ...
+      isfield(run_verify_xar_result, "fail_count")
+    failure_count = double(run_verify_xar_result.fail_count);
+  end
   error("experiment:preflight:xarFailed", ...
-    "run_verify_xar.m reported %d failure(s). Fix ADS/runtime readiness before exp01-exp04.", n_fail);
-end
-if use_virtual_motor
-  run(fullfile(preflight_matlab_root, "tools", "run_verify_virtual_motor.m"));
+    "run_verify_xar.m reported %g failure(s). Fix ADS/runtime readiness before exp01-exp04.", ...
+    failure_count);
 end
 
 plant_mat_path = fullfile(preflight_matlab_root, "experiment", "data", "plant.mat");

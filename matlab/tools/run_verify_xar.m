@@ -6,9 +6,13 @@
 %    3. PLC 必須シンボルの存在検証
 %    4. Controller パラメータシンボルの存在検証
 %    5. 基本スカラー読み取り
-%    6. Controller パラメータ読み出し (PIDParams 等)
+
+run_verify_xar_result = run_verify_xar_main();
+
+function xar_verification = run_verify_xar_main()
+%    6. Controller SOS パラメータと適用状態の読み出し
 %
-%  参照: docs/MatlabSpec.md §7.3 / §8
+%  参照: docs/architecture/MatlabSpec.md §7.3 / §8
 
 tool_file = mfilename("fullpath");
 matlab_root = fileparts(fileparts(tool_file));
@@ -144,15 +148,17 @@ end
 %% 6. Controller パラメータ読み出し
 if ~isempty(mod)
   ctrl_sym = experiment.RuntimeSymbols.from_controller_prefix(char(env.controller_prefix));
-  param_keys = {"pidB0", "leadB0", "notchB0", "resoB0", "enablePid"};
-  for k = 1:numel(param_keys)
-    key = param_keys{k};
+  parameter_checks = {
+    "sectionCount", t.u32
+    "applyRevision", t.u32
+    "appliedRevision", t.u32
+    "processedRevision", t.u32
+    "parameterErrorCode", t.u32
+  };
+  for k = 1:size(parameter_checks, 1)
+    key = parameter_checks{k, 1};
     sym = ctrl_sym.controllerParams.(key);
-    if contains(key, "enable")
-      nt = t.bool;
-    else
-      nt = t.double;
-    end
+    nt = parameter_checks{k, 2};
     name = sprintf("Read controller %s", key);
     try
       v = mod.read_scalar(char(sym), nt);
@@ -163,6 +169,19 @@ if ~isempty(mod)
       results = add_result(results, name, false, e.message);
       n_fail = n_fail + 1;
     end
+  end
+  name = "Read controller coefficients";
+  try
+    coefficient_n = experiment.ControllerConfig.MAX_SOS_SECTIONS * ...
+      experiment.ControllerConfig.ADS_COEFFICIENTS_PER_SECTION;
+    coefficients = mod.read_array( ...
+      ctrl_sym.controllerParams.coefficients, t.double, coefficient_n);
+    ok = numel(coefficients) == coefficient_n && all(isfinite(coefficients));
+    results = add_result(results, name, ok, sprintf("count=%d", numel(coefficients)));
+    if ok, n_pass = n_pass + 1; else, n_fail = n_fail + 1; end
+  catch e
+    results = add_result(results, name, false, e.message);
+    n_fail = n_fail + 1;
   end
 end
 
@@ -184,6 +203,11 @@ fprintf("Total: %d PASS, %d FAIL (of %d)\n", n_pass, n_fail, n_pass + n_fail);
 
 if n_fail > 0
   warning("experiment:verify:failures", "%d checks failed.", n_fail);
+end
+
+xar_verification = struct( ...
+  "results", {results}, "pass_count", n_pass, "fail_count", n_fail, ...
+  "passed", n_fail == 0);
 end
 
 %% --- helper functions ---

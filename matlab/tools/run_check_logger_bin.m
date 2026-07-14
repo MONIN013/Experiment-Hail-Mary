@@ -10,7 +10,12 @@ clear tool_file matlab_root;
 env = config.EnvironmentConfig.current();
 share_dir = string(fileparts(char(env.logger_host_file_path)));
 file_glob = "*.bin";
-target_file = "";
+if ~exist("target_file", "var")
+  target_file = "";
+end
+if ~exist("render_plots", "var")
+  render_plots = true;
+end
 
 if strlength(target_file) == 0
   latest = experiment.io.read_latest_logger_bin(share_dir, file_glob);
@@ -40,7 +45,7 @@ else
   fprintf("File is empty.\n");
 end
 
-if out.record_count > 0
+if render_plots && out.record_count > 0
   t_s = out.raw.t_s - out.raw.t_s(1);
 
   figure("Name", "ExperimentLogger bin check", "Color", "w");

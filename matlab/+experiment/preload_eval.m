@@ -286,10 +286,6 @@ end
 v = double(v);
 end
 
-function tf = has_cfg_field(cfg, name)
-tf = (isstruct(cfg) && isfield(cfg, name)) || (isobject(cfg) && isprop(cfg, name));
-end
-
 function task_rate_hz = cfg_task_rate_hz(cfg)
 if isa(cfg, "experiment.ExperimentConfig")
   task_rate_hz = cfg.env.task_rate_hz;

@@ -11,7 +11,7 @@ classdef TestRunAdsTransportE2eConfig < matlab.unittest.TestCase
       testCase.verifyFalse(contains(source, "net_arr(k)"));
     end
 
-    function toolCoversLiveStructArraySliceAndWriteApis(testCase)
+    function toolCoversLiveStructArraySliceAndSosWriteApis(testCase)
       root = fileparts(fileparts(fileparts(mfilename("fullpath"))));
       source = string(fileread(fullfile(root, "tools", "run_ads_transport_e2e.m")));
 
@@ -20,7 +20,9 @@ classdef TestRunAdsTransportE2eConfig < matlab.unittest.TestCase
         "conn.seq.read_array(symbols.refTable"
         "conn.seq.read_array_slice("
         "conn.seq.write_array(symbols.refTable"
-        "conn.module.write_struct(controller_map"
+        "conn.module.write_array(controller_symbols.controllerParams.coefficients"
+        "conn.module.write_scalar(controller_symbols.controllerParams.sectionCount"
+        "conn.module.write_scalar(controller_symbols.controllerParams.applyRevision"
         "conn.module.read_client().ReadState()"
         '"pass", true'];
       for value = required'

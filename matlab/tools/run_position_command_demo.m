@@ -1,6 +1,6 @@
 %% Position command demo with repeated trials
 %
-%  P 制御を ControllerCore にロードし、同一ステップ位置指令を
+%  filtered PID を ControllerCore にロードし、同一ステップ位置指令を
 %  N_REPEAT 回だけ連続再生する。
 
 tool_file = mfilename("fullpath");
@@ -12,13 +12,14 @@ clear tool_file matlab_root;
 cfg = experiment.ExperimentConfig.defaults();
 
 %% Demo runtime config via ExperimentConfig
-target_position_rad = 0.25;
+target_position_rad = 0.75;
 step_duration_s     = 2.0;
 hold_margin_s       = 0.50;
 pre_step_s          = 2.0;
 N_REPEAT            = 1;
-Kp = 0.02;
-vm_cfg = virtualMotor.PlantConfig();
+controller_bandwidth_rad_s = 20;
+Jn = 7.1e-5;
+Dn = 5.325e-4;
 
 %% Derived waveforms for this demo
 sample_time_s = 1 / cfg.env.task_rate_hz;
@@ -37,16 +38,18 @@ cfg.logger_release_timeout_s = 5.0;
 cfg.hold_seconds = per_trial_s + hold_margin_s;
 cfg.host_heartbeat_enable = false;
 cfg.external_host_heartbeat_enable = true;
-cfg.controller = experiment.ControllerConfig.p_only(Kp);
-cfg.write_virtual_motor_params = true;
-cfg.restart_virtual_motor_runtime = false;
-cfg.virtual_motor_plant = vm_cfg;
+Kpid = experiment.exp02.designpid( ...
+  Dn / Jn, 0, 1 / Jn, controller_bandwidth_rad_s);
+Kd = c2d(Kpid, sample_time_s, "tustin");
+cfg.controller = experiment.controller.from_discrete_tf(Kd);
 
-fprintf("=== Position Command Demo (P control, Kp=%g, repeats=%d) ===\n", Kp, N_REPEAT);
+fprintf("=== Position Command Demo (filtered PID, bandwidth=%g rad/s, repeats=%d) ===\n", ...
+  controller_bandwidth_rad_s, N_REPEAT);
 fprintf("Target=%.4f rad, stepDuration=%.3f s, preStep=%.3f s, perTrial=%.3f s, N=%d\n", ...
   target_position_rad, step_sample_n / cfg.env.task_rate_hz, pre_step_n / cfg.env.task_rate_hz, per_trial_s, sample_n);
 
-fprintf("Controller: Kp=%.3g (pid_b0), enable_pid=%d\n", Kp, logical(cfg.controller.pid.enable));
+fprintf("Controller: filtered PID (%d SOS section)\n", ...
+  size(cfg.controller.sos, 1));
 
 %% 実験実行
 collect_out = experiment.exp0n.run_and_collect(cfg);
@@ -74,7 +77,7 @@ print_sampling_metrics(out.metrics.sampling, out.metrics.sample_count);
 if ~sampling_counts_match(out.metrics.sampling)
   if logical(out.host.done) && ~logical(out.host.timed_out)
     warning("experiment:demo:countMismatchNonFatal", ...
-      "Log count mismatch (input=%d, ref=%d, pos=%d). Repeated playback may extend counts. See docs/ExperimentProcedure.md.", ...
+      "Log count mismatch (input=%d, ref=%d, pos=%d). Repeated playback may extend counts. See docs/operations/ExperimentProcedure.md.", ...
       double(out.metrics.sampling.command_count), ...
       double(out.metrics.sampling.ref_log_count), ...
       double(out.metrics.sampling.position_log_count));

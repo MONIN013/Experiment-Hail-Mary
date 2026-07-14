@@ -1,6 +1,6 @@
 %% ADS port/symbol discovery demo
 %
-%  参照: docs/MatlabSpec.md §7.2
+%  参照: docs/architecture/MatlabSpec.md §7.2
 
 tool_file = mfilename("fullpath");
 matlab_root = fileparts(fileparts(tool_file));
@@ -9,7 +9,16 @@ clear tool_file matlab_root;
 
 env = config.EnvironmentConfig.current();
 ams_net_id = env.ams_net_id;
-ports = unique([851 env.control_port env.seq_port env.module_port], "stable");
+% The active runtime contract is 351/852/853.  Port 851 belongs to an
+% optional discovery probe and is included only when the caller requests it.
+if ~exist("optional_probe_ports", "var")
+  optional_probe_ports = zeros(1, 0);
+end
+validateattributes(optional_probe_ports, "numeric", ...
+  ["vector", "integer", "positive", "finite"], ...
+  mfilename, "optional_probe_ports");
+ports = unique([double(optional_probe_ports(:).'), ...
+  env.control_port, env.seq_port, env.module_port], "stable");
 connect_timeout_ms = 1000;
 
 fprintf("[%s] Starting ADS discovery\n", string(datetime("now")));

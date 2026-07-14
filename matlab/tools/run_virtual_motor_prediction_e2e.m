@@ -4,6 +4,10 @@
 % runtime to establish a zero hidden state, then compares every logger signal
 % against the fixed 8 kHz discrete prediction. Do not use on RealMotor.
 
+run_virtual_motor_prediction_e2e_result = run_virtual_motor_prediction_e2e_main();
+
+function virtual_motor_prediction_e2e = run_virtual_motor_prediction_e2e_main()
+
 tool_file = mfilename("fullpath");
 matlab_root = fileparts(fileparts(tool_file));
 addpath(matlab_root, fullfile(matlab_root, "experiment"));
@@ -13,8 +17,10 @@ cfg = experiment.ExperimentConfig.defaults();
 Ts = 1 / cfg.env.task_rate_hz;
 sample_n = round(1.0 / Ts);
 ff = zeros(sample_n, 1);
-ff(round(0.125 / Ts) + 1:round(0.375 / Ts)) = 0.05;
-ff(round(0.375 / Ts) + 1:round(0.625 / Ts)) = -0.05;
+% Thirty exact 1.6 mA driver quanta keep the independent lsim stimulus
+% identical to the command applied by the quantized strict VM oracle.
+ff(round(0.125 / Ts) + 1:round(0.375 / Ts)) = 0.048;
+ff(round(0.375 / Ts) + 1:round(0.625 / Ts)) = -0.048;
 
 cfg.ref_profile = zeros(sample_n, 1);
 cfg.ff_profile = ff;
@@ -27,18 +33,24 @@ cfg.logger_release_timeout_s = 5.0;
 cfg.host_heartbeat_enable = false;
 cfg.external_host_heartbeat_enable = true;
 cfg.controller = experiment.ControllerConfig.p_only(0.0);
-cfg.write_virtual_motor_params = true;
-cfg.restart_virtual_motor_runtime = false;
-cfg.virtual_motor_plant = virtualMotor.PlantConfig();
+plant = virtualMotor.PlantConfig();
 
-prediction = virtualMotor.predict_logger(cfg);
+restart = virtualMotor.restart_runtime(cfg.env);
+configure_conn = experiment.ConnectionManager.create(cfg);
+configure_cleanup = onCleanup(@() configure_conn.session.close());
+configuration = virtualMotor.configure(configure_conn, plant, ...
+  "taskDtNs", cfg.env.task_dt_ns(), ...
+  "timeout_s", cfg.reset_timeout_s, ...
+  "validateSymbols", true);
+clear configure_cleanup
+
+prediction = virtualMotor.predict_logger(cfg, plant);
 if prediction.fault.motor || prediction.fault.load || prediction.position_saturated
   error("virtualMotor:predictionE2e:unsafeStimulus", ...
     "Test stimulus is unsafe in the oracle (motorFault=%d, loadFault=%d, positionSaturated=%d).", ...
     prediction.fault.motor, prediction.fault.load, prediction.position_saturated);
 end
 
-restart = virtualMotor.restart_runtime(cfg.env);
 collect_out = experiment.exp0n.run_and_collect(cfg);
 experiment.exp0n.assert_run_contract(collect_out.run);
 metrics = virtualMotor.compare_prediction(collect_out.logger_bin, prediction);
@@ -58,4 +70,6 @@ virtual_motor_prediction_e2e = struct( ...
   "logger_bin", collect_out.logger_bin, ...
   "prediction", prediction, ...
   "metrics", metrics, ...
-  "restart", restart);
+  "restart", restart, ...
+  "configuration", configuration);
+end
