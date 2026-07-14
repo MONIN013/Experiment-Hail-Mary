@@ -11,10 +11,10 @@ function [next_ff, limit_check] = learning_update(current_ff, error_signal, lear
   p.addParameter("max_input", 1.6, ...
     @(x) isnumeric(x) && isscalar(x) && isfinite(x) && x > 0);
   p.parse(varargin{:});
-  required_fields = ["Linv", "Qnum", "Qden"];
+  required_fields = ["Linv", "Qnum", "Qden", "error_quantum_rad"];
   if ~isstruct(learning_filters) || ~all(isfield(learning_filters, required_fields))
     error("experiment:exp04:invalidLearningInput", ...
-      "learning_filters must contain Linv, Qnum, and Qden.");
+      "learning_filters must contain Linv, Qnum, Qden, and error_quantum_rad.");
   end
 
   current_ff = double(current_ff(:));
@@ -24,6 +24,13 @@ function [next_ff, limit_check] = learning_update(current_ff, error_signal, lear
     error("experiment:exp04:invalidLearningInput", ...
       "current_ff and error_signal must be equal-length finite vectors.");
   end
+  error_quantum_rad = double(learning_filters.error_quantum_rad);
+  if ~(isreal(error_quantum_rad) && isscalar(error_quantum_rad) && ...
+      isfinite(error_quantum_rad) && error_quantum_rad > 0)
+    error("experiment:exp04:invalidLearningInput", ...
+      "learning_filters.error_quantum_rad must be a positive scalar.");
+  end
+  error_signal = round(error_signal / error_quantum_rad) * error_quantum_rad;
   learned = current_ff + p.Results.alpha * experiment.exp04.srinv( ...
     learning_filters.Linv, error_signal, p.Results.Npad);
   filtered = experiment.exp04.filtfilt_clean( ...

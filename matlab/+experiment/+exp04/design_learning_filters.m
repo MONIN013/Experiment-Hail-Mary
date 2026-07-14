@@ -1,9 +1,11 @@
-function out = design_learning_filters(Pd, Pdn, Kd, Ts, alpha, q_cutoff_hz, noQ)
+function out = design_learning_filters( ...
+    Pd, Pdn, Kd, Ts, alpha, q_cutoff_hz, noQ, error_quantum_rad)
 % design_learning_filters  ILC の L inverse、Q filter、収束条件を設計する。
 
   require_scalar(alpha, "alpha", @(x) x > 0 && x <= 1);
   require_scalar(q_cutoff_hz, "q_cutoff_hz", @(x) x > 0);
   require_scalar(Ts, "Ts", @(x) x > 0);
+  require_scalar(error_quantum_rad, "error_quantum_rad", @(x) x > 0);
   if ~(islogical(noQ) && isscalar(noQ))
     error("experiment:exp04:invalidFilterConfig", "noQ must be a logical scalar.");
   end
@@ -50,7 +52,8 @@ function out = design_learning_filters(Pd, Pdn, Kd, Ts, alpha, q_cutoff_hz, noQ)
     "Qden", Qden, ...
     "convergence_condition", convergence_condition, ...
     "convergence_frequency_hz", convergence_frequency_hz, ...
-    "max_convergence_gain", double(max_convergence_gain));
+    "max_convergence_gain", double(max_convergence_gain), ...
+    "error_quantum_rad", double(error_quantum_rad));
 end
 
 function require_scalar(value, name, predicate)
