@@ -61,24 +61,42 @@
 | 入力 | `resetReq` | `BOOL` | `MAIN.resetOut` | 内部状態リセット |
 | 出力 | `controlInput` | `LREAL` | DriverAdapter / ExperimentLogger | 制御出力 [A] |
 | 出力 | `error` | `LREAL` | ExperimentLogger | 誤差 [rad] |
+| 出力 | `appliedRevision` | `UDINT` | MATLAB / 診断 | active 設定として受理した revision |
+| 出力 | `processedRevision` | `UDINT` | MATLAB / 診断 | 検証を完了した最新 revision |
+| 出力 | `parameterErrorCode` | `UDINT` | MATLAB / 診断 | 最後の parameter apply 結果。`0` は成功、非 0 は reject |
 
 ### 2.2 CycleUpdate
 
-1. `resetReq` 立ち上がりで biquad の内部状態をクリア
+1. `resetReq` 立ち上がりで全 SOS 段の内部状態をクリア
 2. `error = refValue - positionAct`
-3. `PID -> Lead -> Notch -> Reso`
-4. `controlInput = y + ffValue`
+3. active 設定の `sectionCount` 段を SOS 0 から順に cascade
+4. `controlInput = u_fb + ffValue`
 5. 非有限な入力・係数・状態更新・最終出力は `controlInput = 0.0` に倒す
 6. biquad の係数または状態更新が非有限になった段は、その段の内部状態を 0 に戻して次周期から回復可能にする
 7. `error` の入力または減算結果が非有限の場合は `error = 0.0`
 
-### 2.3 ADS シンボル
+`sectionCount = 0` は feedback identity とし、`u_fb = error` とする。SOS は最大 10 段であり、表現できる離散 Controller は最大 20 次である。
 
-* `ControllerCore_Obj1 (Module1).PIDParams.*`
-* `ControllerCore_Obj1 (Module1).LeadParams.*`
-* `ControllerCore_Obj1 (Module1).NotchParams.*`
-* `ControllerCore_Obj1 (Module1).ResoParams.*`
-* `ControllerCore_Obj1 (Module1).EnableParams.*`
+### 2.3 SOS parameter contract
+
+MATLAB 側の公開形式は標準 SOS 行列と同じ `N x 6` の `[b0 b1 b2 a0 a1 a2]` とする。ControllerCore へは各段の `a0` を 1 に正規化し、段優先の `[b0, b1, b2, a1, a2]` を 10 段分、計 50 `LREAL` で送る。
+
+| パラメータ | 型 | 意味 |
+|---|---|---|
+| `coefficients` | `ARRAY[0..49] OF LREAL` | 10 段分の正規化済み SOS 係数 |
+| `sectionCount` | `UDINT` | 使用する先頭 SOS 段数。`0..10` |
+| `applyRevision` | `UDINT` | staging 設定を active 化する revision |
+
+MATLAB は `coefficients` と `sectionCount` を書いた後、`applyRevision` を最後に書く。ControllerCore は `applyRevision` の変化時だけ staging 値を検証し、検証に通った設定を active copy へ反映して全 10 段の内部状態をリセットする。検証完了時は成否にかかわらず `Outputs.processedRevision` を更新する。成功時はさらに `Outputs.appliedRevision` を更新して `Outputs.parameterErrorCode = 0` とし、検証失敗時は `parameterErrorCode` を非 0 にして従来の active copy と内部状態を維持する。これにより ADS 配列書込み途中、不正な係数、または以前の reject status を新 revision の結果として誤認しない。
+
+### 2.4 ADS シンボル
+
+* `ControllerCore_Obj1 (Module1).SosCoefficients`
+* `ControllerCore_Obj1 (Module1).SosSectionCount`
+* `ControllerCore_Obj1 (Module1).SosApplyRevision`
+* `ControllerCore_Obj1 (Module1).Outputs.appliedRevision`
+* `ControllerCore_Obj1 (Module1).Outputs.processedRevision`
+* `ControllerCore_Obj1 (Module1).Outputs.parameterErrorCode`
 
 ---
 
@@ -123,9 +141,9 @@
 5. `enableCurrentOutput && !playbackDone` のときだけ `currentCmd -> targetTorque [‰ rated]`
 6. `motorControlWordOut = motorControlWordIn`, `loadControlWordOut = loadControlWordIn` を relay し、Motor/Load の `statusWord` を個別公開
 
-### 3.5 現行 SIL 配線の注記
+### 3.5 Drive endpoint Mapping契約
 
-`.tsproj` の現行 SIL 配線では `VirtualMotorCore.Outputs.motor/*` を Motor、`VirtualMotorCore.Outputs.load/*` を Load として扱う。
+両`.tsproj`はDriverAdapter末端の11 Linkだけを交換する。VM variantのOwnerは`TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)`、RealMotor scaffoldのOwnerは`TIID^RealMotorPdo^RealMotorPdo Instance`である。RealMotor側はI/O tree未確定のため現時点ではactivateできない。
 
 * `motorRaw.positionActualValue <- VirtualMotorCore.Outputs.motor.positionActualValue`
 * `motorRaw.velocityActualValue <- VirtualMotorCore.Outputs.motor.velocityActualValue`
@@ -136,7 +154,7 @@
 * `loadRaw.torqueActualValue <- VirtualMotorCore.Outputs.load.torqueActualValue`
 * `loadRaw.statusWord <- VirtualMotorCore.Outputs.load.statusWord`
 
-`targetTorque` は `VirtualMotorCore.Inputs.motor.targetTorque` にのみ接続される。Motor/Load ControlWord は個別に relay され、Load 軸は CiA 状態追従と fault 監視のみを担当する。
+VMでは`targetTorque`を`VirtualMotorCore.Inputs.motor.targetTorque`に接続する。実機PDOも同じINT/UINT/DINT境界を実装し、Motor/Load ControlWordを個別relayする。
 
 ---
 
@@ -223,7 +241,9 @@
 * `ExperimentLogger.Outputs.status.fileReleased -> MAIN.loggerFileReleasedIn`
 * `ExperimentLogger.Outputs.status.errorCode -> MAIN.loggerErrorCodeIn`
 
-### 6.4 Driver / VirtualMotor / Logger
+### 6.4 Driver / Drive endpoint / Logger
+
+以下の11 Linkは両variantで同一で、右辺OwnerだけがVirtualMotorCoreまたはRealMotorPdoへ切り替わる。
 
 * `DriverAdapter.Outputs.targetTorque -> VirtualMotorCore.Inputs.motor.targetTorque`
 * `DriverAdapter.Outputs.motorControlWordOut -> VirtualMotorCore.Inputs.motor.controlWord`
@@ -236,6 +256,8 @@
 * `VirtualMotorCore.Outputs.load.velocityActualValue -> DriverAdapter.Inputs.loadRaw.velocityActualValue`
 * `VirtualMotorCore.Outputs.load.torqueActualValue -> DriverAdapter.Inputs.loadRaw.torqueActualValue`
 * `VirtualMotorCore.Outputs.load.statusWord -> DriverAdapter.Inputs.loadRaw.statusWord`
+
+期待型はposition/velocity=`DINT`、torque/targetTorque=`INT`、status/controlWord=`UINT`とする。RealMotor PDO取込み後にこの型一致をXAE上で検証する。
 * `DriverAdapter.Outputs.currentCmd -> ExperimentLogger.Inputs.record.currentCmd`
 * `DriverAdapter.Outputs.load.positionRel -> ExperimentLogger.Inputs.record.load.position`
 * `DriverAdapter.Outputs.load.velocityAct -> ExperimentLogger.Inputs.record.load.velocity`

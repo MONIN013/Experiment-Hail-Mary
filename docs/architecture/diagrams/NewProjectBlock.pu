@@ -28,11 +28,10 @@ package "TwinCAT Real-Time (Phase 1-3: 1 ms / Phase 4: 125 µs = 8 kHz)" {
   package "ControllerCore\n(C++ TcCOM\nテーブル非所有・スカラ I/O)" as CC {
     [Error Calc\n(e = r - y)] as Err
 
-    package "FB Chain (各ブロック enable/bypass)" {
-      [PID\n(Discrete)] as PID
-      [Lead\nCompensator] as Lead
-      [Notch\nFilter] as Notch
-      [Phase-Optimal\nResonance Filter] as Reso
+    package "Generic SOS Cascade (0..10 sections)" {
+      [SOS 0\n(biquad)] as SOS0
+      [SOS 1..8\n(biquad)] as SOSMid
+      [SOS 9\n(biquad)] as SOS9
     }
 
     [FF Adder\n(u = u_fb + ff_value)] as FFAdd
@@ -63,11 +62,10 @@ package "TwinCAT Real-Time (Phase 1-3: 1 ms / Phase 4: 125 µs = 8 kHz)" {
   Dist --> DistAddDrv : dist_value\n(scalar)
 
   ' ---- ControllerCore internal ----
-  Err --> PID : error
-  PID --> Lead
-  Lead --> Notch
-  Notch --> Reso
-  Reso --> FFAdd : u_fb
+  Err --> SOS0 : error
+  SOS0 --> SOSMid
+  SOSMid --> SOS9
+  SOS9 --> FFAdd : u_fb
 
   ' ---- ControllerCore → DriverAdapter ----
   FFAdd --> DistAddDrv : control_input\n(u_fb + u_ff)
@@ -104,7 +102,7 @@ package "MATLAB (Non-RT)" {
 
 ' ---- ADS parameter injection (Non-RT → RT) ----
 Matlab --> Mode : ADS\n(mode_flags)
-Matlab --> CC : ADS\n(PID/Lead/Notch/Reso params\nenable_* flags)
+Matlab --> CC : ADS\n(SOS coefficients + sectionCount\napplyRevision last)
 Matlab --> RefTbl : ADS\n(ref_table[])
 Matlab --> FF : ADS\n(ff_table[])
 Matlab --> Dist : ADS\n(dist_table[])
@@ -121,7 +119,9 @@ note right of CC
   入力: ref_value, ff_value, position_act (全スカラ)
   position_act = **Load 側**実位置 (FB 対象)
   出力: control_input (u_fb + ff_value) → DriverAdapter
-  ゲイン・係数は ADS Tunable Parameter で注入。
+  SOS 係数と段数は ADS Tunable Parameter で注入。
+  applyRevision 変化時に一括反映し、全段の状態をリセット。
+  appliedRevision / parameterErrorCode で反映結果を公開。
 end note
 
 note right of Seq

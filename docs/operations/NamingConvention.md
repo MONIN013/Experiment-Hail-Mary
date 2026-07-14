@@ -35,7 +35,7 @@
 | 種別 | 規則 | 例 |
 |------|------|----|
 | クラス | `C` + PascalCase | `CModule1` |
-| 構造体 (TMC) | `ST_` + PascalCase | `ST_Notch`, `ST_PhaseLead`, `ST_LoggerStatus` |
+| 構造体 (TMC) | `ST_` + PascalCase | `ST_LoggerStatus`, `ST_VirtualPlantParams` |
 | 構造体 (手書き) | PascalCase | `LogRecord`, `AxisRuntimeState` |
 | enum class | `E` + PascalCase | `EDriveState`, `EFileFsmState` |
 | I/O 構造体 | `Module1Inputs` / `Module1Outputs` | (TwinCAT 規約に従う) |
@@ -44,7 +44,7 @@
 
 | 種別 | 規則 | 例 |
 |------|------|----|
-| メンバ変数 | `m_` + PascalCase | `m_PidS1`, `m_BufferCount`, `m_IsLoggingActive` |
+| メンバ変数 | `m_` + PascalCase | `m_SosState`, `m_BufferCount`, `m_IsLoggingActive` |
 | スマートポインタ | `m_sp` + PascalCase | `m_spCyclicCaller`, `m_spSrv` |
 | ローカル変数 | camelCase | `resetEdge`, `loggingCmd`, `risingEdge` |
 | 関数パラメータ | camelCase | `refValue`, `axisIndex`, `flushRemaining` |
@@ -72,8 +72,7 @@
 
 | 規則 | 例 |
 |------|----|
-| camelCase | `notchB0`, `notchB1`, `notchA1` |
-| Pid 系 | `pidB0`, `pidB1`, `pidA1` (~~`PID_b0`~~ は廃止) |
+| camelCase | `coefficients`, `sectionCount`, `applyRevision` |
 | 物理量 | `tauLimit`, `velLimit`, `taskDtNs` (~~`M`~~, ~~`D`~~ → `mass`, `damping`) |
 
 > **移行メモ:** 物理量 1文字記号 (`M`, `D`) はコメントで物理的意味を補記し、

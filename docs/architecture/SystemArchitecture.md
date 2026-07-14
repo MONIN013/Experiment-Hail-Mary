@@ -9,9 +9,11 @@
 
 ## 0. 現行構成の要点
 
-* checked-in TwinCAT project は `ExperimentHailMary.tsproj` (VM variant) と `ExperimentHailMary.RealMotor.tsproj` (real-motor mapping scaffold) の 2 本を持つ。
+* checked-in TwinCAT project は `ExperimentHailMary.tsproj` (VM variant) と `ExperimentHailMary.RealMotor.tsproj` (real-motor mapping scaffold) の 2 本を持つ。共通XMLの論理差分はDriverAdapter末端11 LinkのOwnerだけである。
 * どちらの project でも **`VirtualMotorTask = 125 us (8 kHz)`** を正とする。
 * `ExperimentSequencer`, `ControllerCore`, `DriverAdapter`, `VirtualMotorCore`, `ExperimentLogger` は同一 RT タスク上で動作する。
+* RealMotor variant は現在 `<Io/>` で、`RealMotorPdo` ownerを定義するI/O treeを持たないため非deployableなscaffoldである。PDO確定後にI/O treeを追加する。
+* Mapping選択はproject選択とActivate/Restartで行い、MATLABのExperimentConfig/Runner/exp01〜04は同一のまま使用する。
 * `ModeManager` は `StateMachineControl` 内の PLC FSM として `PlcTask1 (10 ms)` で動作し、reset handshake / watchdog / logger handshake を管理する。
 * `DriverAdapter` の active 実装は **C++ TcCOM** (`DriverAdapter_Obj1 (Module1)`) である。
 * DriverAdapter の実装正本は C++ TcCOM `DriverAdapter/` のみである。
@@ -76,12 +78,16 @@ ExperimentLogger ◄─ Inputs.control.playbackDone
 |---|---|---|---|
 | `controlInput` | `LREAL` | DriverAdapter / ExperimentLogger | 制御出力 [A] |
 | `error` | `LREAL` | ExperimentLogger | 位置誤差 [rad] |
+| `appliedRevision` | `UDINT` | MATLAB / 診断 | active 化済み SOS revision |
+| `parameterErrorCode` | `UDINT` | MATLAB / 診断 | parameter apply 結果。`0` 成功、非 0 reject |
 
 **処理**
 
 1. `error = refValue - positionAct`
-2. `PID -> Lead -> Notch -> Reso` の 4 段 biquad
+2. active な汎用 SOS を先頭から cascade（最大 10 段 / 20 次）
 3. `controlInput = u_fb + ffValue`
+
+`sectionCount = 0` は identity feedback とする。係数は独立 parameter の `SosCoefficients` と `SosSectionCount` を staging 書込した後、`SosApplyRevision` の変化で一括反映し、全 SOS 状態をリセットする。不正 payload は reject して active 設定を維持し、`processedRevision` / `appliedRevision` / `parameterErrorCode` で MATLAB が結果を確認する。
 
 ### 2.2 ExperimentSequencer
 
@@ -143,9 +149,9 @@ ExperimentLogger ◄─ Inputs.control.playbackDone
 | `motorControlWordOut`, `loadControlWordOut` | `UINT` | relay |
 | `motorStatusWordOut`, `loadStatusWordOut` | `UINT` | relay |
 
-**SIL 配線上の注意**
+**Drive endpoint 配線上の注意**
 
-* checked-in `.tsproj` では SIL 時に `VirtualMotorCore.Outputs.motor/*` を Motor、`VirtualMotorCore.Outputs.load/*` を Load として接続する。
+* VM variantは`VirtualMotorCore`、RealMotor scaffoldは`RealMotorPdo`を、同じ11 Link契約でDriverAdapterへ接続する。
 * `targetTorque` は `VirtualMotorCore.Inputs.motor.targetTorque` にのみ入り、Motor/Load ControlWord は個別 relay する。
 * Motor/Load の力学連成は `VirtualMotorCore` 内部の 2 慣性モデルで表現する。
 
@@ -228,12 +234,13 @@ ExperimentLogger ◄─ Inputs.control.playbackDone
 |---|---|---|
 | テーブル | `GVL_SEQ.*` (853) | `refTable`, `ffTable`, `distTable`, `tableLen`, `repeatCount` |
 | 状態制御 | `GVL_MODE.*` (852) | `modeFlags`, `resetReq`, `resetAckCounter`, `modeState` |
-| Controller params | `ControllerCore_Obj1 (Module1).*` (351) | symbol write |
-| VM params | `VirtualMotorCore_Obj1 (Module1).PlantParameter.*` (351) | symbol write |
+| Controller params | `ControllerCore_Obj1 (Module1).SosCoefficients` / `SosSectionCount` / `SosApplyRevision` / `Outputs.*Revision` / `Outputs.parameterErrorCode` (351) | 係数 / 段数を書き、revision を最後に書いて反映確認 |
+| VM params | `VirtualMotorCore_Obj1 (Module1).PlantParameter.*` (351) | VM専用configure toolだけがIDLE中にwrite/readback |
 | logger 監視 | `GVL_MODE.loggerFileReleased/loggerErrorCode` (852) | MATLAB は logger TcCOM を直接待機しない |
 | logger 本体 | `.bin` file read | `read_logger_bin` で解析 |
 
 > 現行 MATLAB 実装には DriverAdapter `MotorParams` / `LoadParams` を書く専用 helper は含まれない。必要なら別途追加する。
+> 通常のExperimentRunnerはDrive endpointとVM parameterを参照せず、Mapping切替を意識しない。
 
 ---
 

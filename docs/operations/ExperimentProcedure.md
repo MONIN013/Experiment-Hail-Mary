@@ -16,7 +16,7 @@
 |---|---|---|---|
 | **StateMachineControl** (ModeManager) | PLC ST | PlcTask1 (10 ms) | CiA 402 状態遷移 + フラグ管理 + 実験開始/停止制御 |
 | **ExperimentSequencer** | PLC ST | VirtualMotorTask (125 us / 8 kHz) | テーブルリプレイ |
-| **ControllerCore** | C++ TcCOM | VirtualMotorTask (125 us / 8 kHz) | 誤差計算 + FB Chain + FF 付加 |
+| **ControllerCore** | C++ TcCOM | VirtualMotorTask (125 us / 8 kHz) | 誤差計算 + 最大 10 段の汎用 SOS cascade + FF 付加 |
 | **DriverAdapter** | C++ TcCOM | VirtualMotorTask (125 us / 8 kHz) | Raw/工学単位変換 + 相対位置化 + 外乱加算 + CW/SW 中継 + 電流ゲート |
 | **VirtualMotorCore** | C++ TcCOM | VirtualMotorTask (125 us / 8 kHz) | 仮想モーター物理シミュレーション (CiA 402 内蔵) |
 | **ExperimentLogger** | C++ TcCOM | VirtualMotorTask (125 us / 8 kHz) | バイナリファイルロギング (8kHz × 100s 対応、非同期 I/O) |
@@ -72,7 +72,8 @@
 
  ②  テーブル書込      GVL_SEQ.refTable[], ffTable[], distTable[], tableLen を ADS 書込 (Port 853)
 
- ③  パラメータ注入    ControllerCore / VirtualMotorCore の TcCOM パラメータを ADS 書込 (Port 351)
+ ③  パラメータ注入    ControllerCore の SOS 係数 / 段数 / applyRevision を書き、
+                       processedRevision / appliedRevision / parameterErrorCode で確認
 
  ④  サーボ有効化      modeFlags := MODEF_SERVO_ENABLE (16#0001)
                        → ModeManager が CiA 402 状態遷移を開始
@@ -119,7 +120,7 @@ END_IF
 |---|---|---|---|---|
 | **StateMachineControl** | `GVL_MODE.resetReq` | エッジ | `doneLatched` / `experimentActive` クリア, `resetAckCounter` +1, `resetOut` パルス生成 | heartbeat timeout 時に `modeFlags := 0` を自動実行 |
 | **ExperimentSequencer** | `GVL_SEQ.resetReq` (`AT %I*`) | **エッジ** | `idx`/`refValue`/`ffValue`/`distValue`/`playbackDone` クリア, `ExperimentLogger` リセット | M14 解消済み。エッジ検出に統一 |
-| **ControllerCore** | `Inputs.resetReq` | エッジ | biquad 内部状態クリア | 相対位置化は DriverAdapter に移管済み (D12) |
+| **ControllerCore** | `Inputs.resetReq` | エッジ | 全 SOS 段の内部状態クリア | 相対位置化は DriverAdapter に移管済み (D12) |
 | **ExperimentLogger** | `Inputs.control.resetReq` | エッジ | ファイルクローズ, `bufferCount`/`seq`/`recordsWritten` 等クリア | — |
 | **VirtualMotorCore** | **なし** | — | — | 設計決定: 実機同等。`position`/`velocity` は実験間で carry-over する。DriverAdapter の `positionOffsetRad` で相対位置は補正される |
 | **DriverAdapter** | `Inputs.resetReq` | エッジ | Motor/Load の位置オフセット再キャプチャ | 相対位置化を担当 (D12、M15 解消) |
@@ -128,7 +129,8 @@ END_IF
 > `hostHeartbeatCounter` の更新が 500 ms 以上停止すると ModeManager watchdog が `modeFlags := 0` を実行する。
 > MATLAB 実行中の任意停止は watchdog を待たず、`modeFlags := 0` を明示送信する explicit abort を正規経路とする。
 > internal heartbeat と external helper は同時に有効化しない。学生入口は internal を無効化し、`cfg.ads_assembly` を使う external helper の起動・生存・停止を Runner が監視する。
-> `use_virtual_motor=true` の学生入口 / VM tool は System Service を再起動せず、settle、position saturation 拒否、DriverAdapter の相対位置 reset を使う。`restart_virtual_motor_runtime=true` と予測照合は Test/E2E 専用であり、RealMotor では使用しない。
+> 通常の学生入口 / demo / Runner はVM parameterやlifecycleを扱わない。VM parameter変更はIDLE中に`run_configure_virtual_motor.m`を明示実行し、Test/E2Eの予測照合だけが`virtualMotor.restart_runtime`を使う。
+> VM configure時にraw positionが`DINT`上下限へ到達している場合は`virtualMotor:settle:positionSaturated`で停止する。Scope非記録を確認してTest/E2E用lifecycle resetでhidden stateをゼロ化するまでparameterを書かない。
 
 #### サーボ有効化 → CiA 402 状態遷移
 
@@ -195,11 +197,12 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 │                                                                       │
 │  ② resetReq = TRUE                ModeManager: resetEdge → resetOut   │
 │    (RESET REQUEST)                ExperimentSequencer: idx=0, ログクリア│
-│                                   ControllerCore: biquad 状態クリア    │
+│                                   ControllerCore: 全 SOS 状態クリア   │
 │                                   DriverAdapter: positionOffsetRad     │
 │                                     := positionRad (相対位置リセット) │
 │                                                                       │
-│  ③ TcCOM パラメータ ADS 書込     ControllerCore: biquad 係数更新      │
+│  ③ TcCOM パラメータ ADS 書込     ControllerCore: SOS 係数・段数を     │
+│                                   applyRevision で一括反映          │
 │                                   VirtualMotorCore: PlantParameter.motor/load/coupling 更新 │
 │                                                                       │
 │  ④ refTable[], ffTable[],         GVL_SEQ に全テーブルデータ格納      │
@@ -218,8 +221,8 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 │     毎スキャン (125 us / 8 kHz):                                       │
 │       ExperimentSequencer → ref/ff/dist → ControllerCore              │
 │       ControllerCore → controlInput → DriverAdapter                   │
-│       DriverAdapter → targetTorque (Drive 境界, ‰ rated, INT) → VirtualMotorCore │
-│       VirtualMotorCore → positionActualValue (pulses) → DriverAdapter │
+│       DriverAdapter → targetTorque (Drive 境界, ‰ rated, INT) → selected endpoint │
+│       selected endpoint → positionActualValue (pulses) → DriverAdapter │
 │       DriverAdapter: raw→rad変換 + 相対位置化 → load.positionRel      │
 │       DriverAdapter.load.positionRel → ControllerCore (FB)            │
 │                                                                       │
@@ -255,14 +258,20 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 | **状態監視** | 852 | `GVL_MODE.modeState` | `INT16` | R |
 | **テーブル書込** | 853 | `GVL_SEQ.refTable` / `ffTable` / `distTable` | `LREAL[]` | W |
 | **テーブル長** | 853 | `GVL_SEQ.tableLen` | `UDINT` | W |
-| **フィルタ係数** | 351 | `ControllerCore_Obj1 (Module1).*Params.*` | `LREAL` | W |
-| **VM パラメータ** | 351 | `VirtualMotorCore_Obj1 (Module1).PlantParameter.*` | `LREAL/UDINT/ULINT` | W |
+| **SOS 係数** | 351 | `ControllerCore_Obj1 (Module1).SosCoefficients` | `LREAL[50]` | W |
+| **SOS 段数** | 351 | `ControllerCore_Obj1 (Module1).SosSectionCount` | `UDINT` | W |
+| **SOS 反映** | 351 | `ControllerCore_Obj1 (Module1).SosApplyRevision` | `UDINT` | W（最後） |
+| **SOS 反映確認** | 351 | `ControllerCore_Obj1 (Module1).Outputs.appliedRevision` | `UDINT` | R |
+| **SOS 処理確認** | 351 | `ControllerCore_Obj1 (Module1).Outputs.processedRevision` | `UDINT` | R |
+| **SOS エラー** | 351 | `ControllerCore_Obj1 (Module1).Outputs.parameterErrorCode` | `UDINT` | R |
+| **VM パラメータ（専用tool）** | 351 | `VirtualMotorCore_Obj1 (Module1).PlantParameter.*` | `LREAL/UDINT/ULINT` | W/R |
 | **ログ pre-arm** | 852 | `MAIN.preArmOut` → `Inputs.control.preArmReq` | `BOOL` | Auto |
 | **ログ制御** | 852 | `MAIN.experimentActiveOut` → `Inputs.control.loggingReq` | `BOOL` | Auto |
 | **logger status** | 351 | `ExperimentLogger_Obj1 (Module1).Outputs.status.*` | `UDINT/BOOL` | R |
 
 > 全シンボルの完全な一覧は [TechnicalReference](../architecture/TechnicalReference.md) §8 を参照。
 > `modeFlags` の正規書込み先は `GVL_MODE.modeFlags` のみであり、reset は `resetReq/resetAckCounter` handshake を使う。
+> Controller parameter 更新は `processedRevision` が送信 revision と一致した後、`appliedRevision` が同じ revision で `parameterErrorCode = 0` となるまで成功扱いしない。非 0 の場合は active 設定が維持されるため、実験開始前に停止する。
 > ログ本体は ADS では読まず、`GVL_MODE.loggerFileReleased=TRUE` 確認後に `.bin` をファイル読み出しする。
 
 ---
@@ -307,13 +316,15 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 
 MATLAB の Current Folder はリポジトリ直下にする。初回または環境再設定時だけ setup を実行する。full preflight は TwinCAT activation、runtime/config変更後、または実験日の開始時に一度実行し、同一状態の trial ごとには繰り返さない。
 
+TwinCAT側はVM用`ExperimentHailMary.tsproj`または実機用`ExperimentHailMary.RealMotor.tsproj`を選択してActivate/Restartする。後者は実PDO未取込みの非deployable scaffoldであり、現時点では実機運転に使用しない。VM parameterを変更する場合だけ、共通preflightより前に`run('matlab/tools/run_configure_virtual_motor.m')`を実行する。
+
 ```matlab
 cd('<repository-root>')
 run('matlab/setup_matlab_environment.m')
 run('matlab/tools/run_exp01_exp04_preflight.m')
 ```
 
-`run_exp01_exp04_preflight.m` は MATLAB path、必須 toolbox 関数、ADS 接続、active contract symbol、`plant.mat`、tracked 8 kHz 軌道を確認し、ADS symbol の書き込みや実験開始は行わない。各入口上部の `use_virtual_motor=true` では VM symbol も検査・設定し、RealMotor 用の `false` では VM symbol の検査・parameter write を行わない。
+`run_exp01_exp04_preflight.m` はMapping種別に依存せず、MATLAB path、必須 toolbox 関数、ADS 接続、共通active contract symbol、`plant.mat`、tracked 8 kHz 軌道を確認する。VM symbolの検査・parameter writeや実験開始は行わない。
 
 ### 7.2 標準実行順
 
@@ -329,17 +340,17 @@ run('matlab/experiment/exp04_ILC.m')
 | `exp01_SysId.m` | 同左 | `data/chirp_result.mat`, `data/plant.mat` | logarithmic chirp SI と manual `Jn/Dn/Ndelay` fit |
 | `exp02_FeedBack.m` | 同左 | `data/feedback_result.mat` | `designpid`、Nyquist、`Smax=2` 感度確認、tracking |
 | `exp03_FeedForward.m` | 同左 | `data/feedforward_result.mat` | identified `Jn/Dn` 既定の FF と tracking |
-| `exp04_ILC.m` | 同左 | `data/exp04_runs/<timestamp>/ilc_result.mat`, `trialXX.mat` | `srinv` / `filtfilt_clean` による ILC trial 遷移 |
+| `exp04_ILC.m` | 同左 | `data/exp04_runs/<timestamp>/ilc_result.mat`, `trialXX.mat`, `trialXX_logger.bin` | `srinv` / `filtfilt_clean` による ILC trial 遷移 |
 
-`exp02.m` / `exp03.m` / `exp04.m` の互換入口は現行構成では存在しない。exp02〜exp04 は `matlab/experiment/data/plant.mat` を前提にするため、必ず exp01 の SI と manual fit を先に実行する。
+`experiment.scenario.exp02` / `exp03` / `exp04` は学生入口ではなく、Live ScriptとTestから共有する副作用なしbuilderである。exp02〜exp04 は `matlab/experiment/data/plant.mat` を前提にするため、必ず exp01 の SI と manual fit を先に実行する。
 
 ### 7.3 exp01: chirp SI と plant.mat
 
-exp01 は open-loop logarithmic chirp を FF 入力として注入する。既定値は `Tend=100`、`Tcycle=10`、`f0=0.5 Hz`、`f1=4000 Hz`、`A=0.25 A`、`trans=2`、`Ndelay=4 samples` である。0.25 A は現行6500 rpm VirtualMotor速度契約を超えない一様chirp上限として固定する。
+exp01 は open-loop logarithmic chirp を FF 入力として注入する。既定値は `Tend=100`、`Tcycle=10`、`f0=0.5 Hz`、`f1=4000 Hz`、`A=0.25 A`、`trans=2`、`Ndelay=4 samples` である。各cycleは平均0へ補正してから最大絶対値を0.25 Aへ正規化し、DC driftを持ち込まない。
 
-過渡 2 周期を除去し、後退差分速度、`tfestimate`、`mscohere`、`c2d(1/s,Ts,"tustin")` による位置 FRD を確認する。初期値は VirtualMotor preset の電流入力換算から `Jn=7.1e-5`、`Dn=5.325e-4`、`Ndelay=4` とし、学生は bode overlay が測定 FRF に合うように手動調整する。
+過渡 2 周期を除去し、loggerの `ff_value` から実測速度への `tfestimate` / `mscohere` を計算する。位置 FRD は連続近似を使わず、semi-implicit Eulerの恒等式 `theta(k)=theta(k-1)+Ts*omega(k)` に対応する厳密な離散積分器 `Ts*z/(z-1)` で構成する。初期値は VirtualMotor preset の電流入力換算から `Jn=7.1e-5`、`Dn=5.325e-4`、`Ndelay=4` とし、学生は bode overlay が測定 FRF に合うように手動調整する。
 
-`plant.mat` の変数集合は `Pd` / `Pd_motor` / `Pd_load` / `Pd_vel_load` / `Pd_vel_motor` / `Pdn` / `Jn` / `Dn` / `Ndelay` / `Ts` / `vm_plant` / `vm_mode` である。`Pd` は load 側 position FRD、`Pdn` は `c2d(1/(Jn*s+Dn)/s,Ts,"zoh")/z^Ndelay` である。VM実験では exp02〜04 が `vm_plant` / `vm_mode` を現行presetと照合し、別plantの古いSI結果を拒否する。
+`plant.mat` の変数集合は `Pd` / `Pd_motor` / `Pd_load` / `Pd_vel_load` / `Pd_vel_motor` / `Pdn` / `Jn` / `Dn` / `Ndelay` / `Ts` である。`Pd` はload側position FRD、`Pdn`は`c2d(1/(Jn*s+Dn)/s,Ts,"zoh")/z^Ndelay`である。Mapping種別は保存せず、Mapping変更後もexp01から標準順序で再同定する。
 
 ### 7.4 exp02〜exp04: 標準軌道と制御設計
 
@@ -349,12 +360,22 @@ exp02 は `designpid(Dn/Jn,0,1/Jn,omega)` を `omega=15 rad/s` で設計し、`c
 
 exp03 は exp02 と同じ FB 設計に、`f=Kfa*a+Kfv*v+Kfc*sign(v)` の FF を加える。`Kfa=[]` / `Kfv=[]` / `Kfc=[]` の既定では、`plant.mat` の `Jn` / `Dn` を使って `Kfa=Jn`、`Kfv=Dn`、`Kfc=0` とし、`Ndelay` 分の先読み補償を行う。保存変数は `t,r,y,e,u,f,Kd` である。
 
-exp04 は Temp 参照実装と同じ `Linv=feedback(Pdn,Kd)`、`J=feedback(Pd,Kd)` と2次 low-pass Qを使い、`|Q|^2|1-alpha*J/Linv| < 1` を実験前に数値確認する。学習更新は `f_{j+1}=filtfilt_clean(Qnum,Qden,f_j+alpha*srinv(Linv,e_j,Npad),Npad)` で、200 sample transient splice を行う。既定は `Ntrial=10`、`alpha=0.6`、`q_cutoff_hz=120`、`maxInput=1.6 A` である。120 Hz Q は200 Hz VMねじり共振を学習帯域外に置きつつ、10 Hz Qで末尾splice値へ混入した長い終端過渡を避ける。次 trial の FF が1.6 Aを超える場合だけ送信前エラーとする。実測 error norm 増加は警告・診断として記録し、設定した10 trialを続ける。trial は run 固有フォルダへ保存し、既存結果を事前削除しない。保存変数は `t,history,Kd,stability,learning_filters` で、`history.trialSummary` に各 trial の error norm、最大実入力、error増加、収束ピークを保持する。
-VirtualMotor 予測と `precompute_virtual_motor_plan` は Test 専用とする。実験中の ILC は実測 error から次 FF を計算し、入力上限だけを次送信前の停止条件にする。
+exp04 は Temp 参照実装と同じ `Linv=feedback(Pdn,Kd)`、`J=feedback(Pd,Kd)` と2次 low-pass Qを使い、`|Q|^2|1-alpha*J/Linv| < 1` を実験前に数値確認する。学習更新は `f_{j+1}=filtfilt_clean(Qnum,Qden,f_j+alpha*srinv(Linv,e_j,Npad),Npad)` で、200 sample transient splice を行う。既定は `Ntrial=10`、`alpha=0.6`、`q_cutoff_hz=120`、`maxInput=1.6 A` である。720 deg往復の後ろへ6秒のゼロreference整定tailを付け、学習は元の往復軌道だけへ適用し、tailのFFは全trialで厳密に0へ固定する。manifest生成時に全trialの終端速度量子値0・motor/load位置差2 count以内を確認する。各trialの実測直後、学習更新前に位置、誤差、logger上で整列したFF/FB入力の同一dashboardを更新する。次trialのFFが1.6 Aを超える場合、または実測error normが増加した場合は、完了済み数値history、`trialSummary`、停止理由を `ilc_result.mat` へcheckpointしてから例外化する。trial別画像は保存しない。
+VirtualMotor予測は `testoracle.simulate_ilc_campaign` / `predict_ilc_campaign` に集約し、Test専用とする。実験中のILCは実測errorから次FFを計算し、予測・VM再起動・parameter設定を行わない。
 
 ### 7.5 VirtualMotor での目安
 
 VirtualMotor は Panasonic MHMF011L1A2 相当の小慣性 preset を既定にする。Motor / Load inertia は `7.1e-6 kg m^2`、rated torque は `0.32 N m`、DriverAdapter の rated current は `1.6 A`、encoder resolution は 23 bit (`8388608`) である。coupling はねじり自然周波数 `200 Hz`、減衰比 `0.05`（減衰付き約 `199.749 Hz`）に設定する。preset 更新後は exp01〜exp04 を同じ順序で再実行して `plant.mat` の fit、720 deg 軌道、FF 上限、Q帯域、heartbeat / logger 状態を確認する。
 
-VM tools の既定は position demo が `Kp=0.02`、SI demo が cycle mean を除去した `A=0.25 A` chirp である。SI demo は測定 FRF と coherence を出力し、nominal予測との照合は Test に限定する。長時間runのheartbeatは学生入口と同じ外部helperを使う。
+VM tools の既定は position demo が20 rad/s filtered PIDによる `0.75 rad` step、SI demo がcycle meanを除去してからDriverAdapterの `1.6 mA/count` へ量子化し、1周期のcount総和を厳密0へ補正した `A=0.25 A` chirp、prediction E2E がdriver量子の30 countに一致する `±0.048 A` 入力である。SI demo は測定 FRF と coherence を出力する。Testでは過渡2周期後の同位相cycle間位置差をsecular driftとして判定し、終端位置・終端速度そのものをdriftとはみなさない。nominal予測との照合はTestに限定する。長時間runのheartbeatは学生入口と同じ外部helperを使う。
+
+### 7.6 rich Live Script結果更新のDesktop fallback
+
+R2025bのheadless `matlab.internal.liveeditor.executeAndSave` が不安定な場合だけ、次のfallbackを使う。
+
+1. 原本backupと更新target backupが存在し、実行前file SHAとoutput JSON digestが記録済みであることを確認する。
+2. `exp01_SysId.m`〜`exp04_ILC.m`をそれぞれ別のDesktop MATLAB session/processで1本ずつ開き、`Run All` → `Save`する。自動実行済みentryを再実行してVM実験を二重化しない。
+3. 各保存直後に`experiment.liveeditor.inspect` / `assert_valid`を実行し、output参照とappendix定義の全単射、ID/JSON一意性、PNG magic、metadata/sectionを検証する。画像数18は4本を集計して確認する。
+4. fresh `completedAtUtc`、実行前後のfile SHA、output JSON digestを保存証拠にする。mtimeだけでは合格にしない。
+5. headless失敗後も自動campaignが続行したことにはしない。当該entryを未完了として停止し、Desktop実行、構造検証、実測照合後にledgerへ完了結果を反映する。
 

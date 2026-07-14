@@ -10,7 +10,7 @@
 ## プロジェクト設計仕様
 
 本プロジェクトの最終目標は、
-**MATLAB / Simulink + TwinCAT を用いた 8kHz トルク制御実験環境において、Build 回数を極限まで削減しつつ、再現性と同期性を保証する実験基盤を確立すること**である。
+**MATLAB + TwinCAT を用いた 8kHz トルク制御実験環境において、Build 回数を極限まで削減しつつ、再現性と同期性を保証する実験基盤を確立すること**である。
 
 ---
 
@@ -21,7 +21,7 @@
 * `StateMachineControl` (ModeManager) は `PlcTask1` (10 ms) で動作し、reset handshake / heartbeat watchdog / logger handshake を担う。
 * MATLAB 側の主実行面は `experiment.ExperimentConfig + experiment.ConnectionManager + experiment.ExperimentRunner` に一本化されている。
 * `config` 名前空間は `EnvironmentConfig` と `MatlabEnvironment` を正本にし、実験入口は `ExperimentConfig.defaults()` が `cfg.env` に環境 snapshot を内包する。
-* MATLAB の PATH は `run('matlab/setup_matlab_environment.m')` を一度実行して `prefdir/startup.m` へ登録する運用にしている。
+* MATLAB の PATH は `run('matlab/setup_matlab_environment.m')` を一度実行して `userpath/startup.m` へ登録し、`prefdir` の cache を読む運用にしている。
 * DriverAdapter の正本は C++ TcCOM `DriverAdapter/` のみである。
 
 > 旧来の `1 ms SIL` 前提や Phase 途中の記述は履歴情報であり、現行構成の正本ではない。詳細は [SystemArchitecture](../architecture/SystemArchitecture.md) を参照。
