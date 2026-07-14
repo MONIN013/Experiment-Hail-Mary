@@ -12,7 +12,7 @@ assert(all([results.Passed]), "Some MATLAB tests failed.");
 
 function results = run_test_suite(script_file)
 original_path = path;
-path_cleanup = onCleanup(@() path(original_path)); %#ok<NASGU>
+path_cleanup = onCleanup(@() path(original_path));
 
 script_dir = fileparts(script_file);
 matlab_root = fileparts(script_dir);
@@ -21,4 +21,5 @@ addpath(matlab_root, fullfile(matlab_root, "experiment"), fullfile(script_dir, "
 
 suite = testsuite(fullfile(matlab_root, "tests"), "IncludeSubfolders", true);
 results = run(suite);
+clear path_cleanup
 end

@@ -13,7 +13,7 @@ classdef TestExperimentDataLoaders < matlab.unittest.TestCase
 
     function plantLoaderAcceptsCanonicalContract(testCase)
       file_path = [tempname '.mat'];
-      cleanup = onCleanup(@() delete_if_exists(file_path)); %#ok<NASGU>
+      testCase.addTeardown(@() delete_if_exists(file_path));
       create_plant_fixture(file_path, 1.25e-4);
 
       data = experiment.exp0n.load_plant_data( ...
@@ -26,7 +26,7 @@ classdef TestExperimentDataLoaders < matlab.unittest.TestCase
 
     function plantLoaderRejectsSampleTimeMismatch(testCase)
       file_path = [tempname '.mat'];
-      cleanup = onCleanup(@() delete_if_exists(file_path)); %#ok<NASGU>
+      testCase.addTeardown(@() delete_if_exists(file_path));
       create_plant_fixture(file_path, 1e-3);
 
       testCase.verifyError(@() experiment.exp0n.load_plant_data( ...
@@ -57,8 +57,9 @@ fid = fopen(file_path, "rb");
 if fid < 0
   error("test:resourceReadFailed", "Cannot open %s.", file_path);
 end
-cleanup = onCleanup(@() fclose(fid)); %#ok<NASGU>
+cleanup = onCleanup(@() fclose(fid));
 bytes = fread(fid, Inf, "*uint8");
+clear cleanup
 engine = java.security.MessageDigest.getInstance("SHA-256");
 engine.update(bytes);
 digest = lower(join(string(dec2hex(typecast(engine.digest(), "uint8"), 2)), ""));

@@ -44,6 +44,7 @@ classdef TestEnvironmentConfig < matlab.unittest.TestCase
 
     function currentUsesLocalEnvironmentConfig(testCase)
       guard = preserve_local_environment_config();
+      testCase.verifyClass(guard, "onCleanup");
       local_file = config.EnvironmentConfig.local_config_file();
       write_text(local_file, join([
         "classdef LocalEnvironmentConfig"

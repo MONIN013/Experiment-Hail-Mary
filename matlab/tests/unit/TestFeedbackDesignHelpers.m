@@ -38,11 +38,12 @@ classdef TestFeedbackDesignHelpers < matlab.unittest.TestCase
         Pd, Pdn, Kd, 2, "plot", false), ...
         "experiment:exp02:sensitivityLimitExceeded");
       warning_state = warning("off", "experiment:exp02:sensitivityLimitExceeded");
-      cleanup = onCleanup(@() warning(warning_state)); %#ok<NASGU>
+      cleanup = onCleanup(@() warning(warning_state));
       out = experiment.exp02.stability_check(Pd, Pdn, Kd, 2, "plot", false);
       testCase.verifyFalse(out.ok);
       testCase.verifyTrue(out.limit_exceeded);
       testCase.verifyGreaterThan(out.max_sensitivity, 2);
+      clear cleanup
     end
   end
 end
