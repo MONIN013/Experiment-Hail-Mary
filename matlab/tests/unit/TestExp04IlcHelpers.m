@@ -85,7 +85,8 @@ classdef TestExp04IlcHelpers < matlab.unittest.TestCase
       filters = struct( ...
         "Linv", (z - 0.2) / (z - 0.6), ...
         "Qnum", 1, ...
-        "Qden", 1);
+        "Qden", 1, ...
+        "error_quantum_rad", 1e-6);
       previous_ff = 0.2 * ones(1001, 1);
       error_signal = zeros(size(previous_ff));
 
@@ -98,89 +99,116 @@ classdef TestExp04IlcHelpers < matlab.unittest.TestCase
       testCase.verifyEqual(status.reason, "input_limit");
     end
 
-    function precomputesCompleteVirtualMotorCampaign(testCase)
-      cfg = small_vm_config(zeros(256, 1));
-      filters = identity_learning_filters(1 / cfg.env.task_rate_hz);
+    function learningUpdateRejectsSubEncoderRoundoff(testCase)
+      Ts = 1e-3;
+      filters = struct( ...
+        "Linv", tf(1, 1, Ts), "Qnum", 1, "Qden", 1, ...
+        "error_quantum_rad", 1e-6);
+      current_ff = zeros(1001, 1);
+      nominal_error = 0.25e-6 * ones(1001, 1);
+      rounded_error = nominal_error + 4e-15;
 
-      plan = experiment.exp04.precompute_virtual_motor_plan( ...
-        cfg, cfg.ref_profile, filters, ...
-        "trial_count", 3, "Npad", 10, "transient_samples", 0);
+      nominal = experiment.exp04.learning_update( ...
+        current_ff, nominal_error, filters, "transient_samples", 0);
+      rounded = experiment.exp04.learning_update( ...
+        current_ff, rounded_error, filters, "transient_samples", 0);
 
-      testCase.verifyEqual(plan.completedTrials, 3);
-      testCase.verifyEqual(plan.stopReason, "completed");
-      testCase.verifyEqual(plan.bestTrial, 1);
-      testCase.verifyEqual(plan.eNorm, zeros(1, 3));
-      testCase.verifySize(plan.f, [256, 3]);
+      testCase.verifyEqual(rounded, nominal);
+    end
+
+    function simulatesCompleteVirtualMotorCampaign(testCase)
+      scenario = small_vm_scenario(zeros(256, 1));
+      plant = virtualMotor.PlantConfig();
+
+      plan = testoracle.simulate_ilc_campaign(scenario, plant);
+
+      testCase.verifyEqual(plan.best_trial, 1);
+      testCase.verifyEqual(plan.error_norm, zeros(1, 3));
+      testCase.verifySize(plan.feedforward, [256, 3]);
       testCase.verifyNumElements(plan.predictions, 3);
+      testCase.verifyEqual(plan.max_feedforward_A, 0);
+      testCase.verifyEqual(plan.max_total_input_A, 0);
     end
 
-    function precomputedCampaignRejectsPredictedInputLimit(testCase)
-      cfg = small_vm_config(ones(256, 1));
-      filters = identity_learning_filters(1 / cfg.env.task_rate_hz);
+    function simulatedCampaignRejectsPredictedInputLimit(testCase)
+      scenario = small_vm_scenario(ones(256, 1), 0.01);
+      plant = virtualMotor.PlantConfig();
 
-      testCase.verifyError(@() experiment.exp04.precompute_virtual_motor_plan( ...
-        cfg, cfg.ref_profile, filters, ...
-        "trial_count", 3, "Npad", 10, "transient_samples", 0, ...
-        "max_input", 0.01), "experiment:exp04:inputLimitExceeded");
+      testCase.verifyError(@() testoracle.simulate_ilc_campaign( ...
+        scenario, plant), "testoracle:ilc:inputLimit");
     end
 
-    function precomputedCampaignRecordsErrorIncreaseAndCompletesTrials(testCase)
-      cfg = small_vm_config(0.01 * ones(256, 1));
-      filters = identity_learning_filters(1 / cfg.env.task_rate_hz);
-      filters.Linv = tf(-1, 1, 1 / cfg.env.task_rate_hz);
+    function simulatedCampaignRecordsErrorIncreaseAndCompletesTrials(testCase)
+      scenario = small_vm_scenario(0.01 * ones(256, 1));
+      plant = virtualMotor.PlantConfig();
+      scenario.learning_filters.Linv = tf(-1, 1, ...
+        1 / scenario.cfg.env.task_rate_hz);
 
-      plan = experiment.exp04.precompute_virtual_motor_plan( ...
-        cfg, cfg.ref_profile, filters, ...
-        "trial_count", 3, "Npad", 0, "transient_samples", 0);
+      plan = testoracle.simulate_ilc_campaign(scenario, plant);
 
-      testCase.verifyEqual(plan.completedTrials, 3);
-      testCase.verifyEqual(plan.stopReason, "completed");
-      testCase.verifyTrue(any(plan.errorIncreased(2:end)));
-      testCase.verifySize(plan.maxAbsInput, [1, 3]);
+      testCase.verifyNumElements(plan.predictions, 3);
+      testCase.verifyTrue(any(diff(plan.error_norm) > 0));
+      testCase.verifySize(plan.current_cmd, [256, 3]);
+      testCase.verifyGreaterThan(plan.max_total_input_A, 0);
+      testCase.verifyEqual(plan.initial_states{2}, ...
+        plan.predictions{1}.final_state);
+      testCase.verifyTrue(plan.inter_trial_state_carried);
     end
 
     function twoHundredHzVmCompletesTenTrialsWithTempLearningLaw(testCase)
-      [cfg, reference, filters] = two_hundred_hz_learning_fixture();
+      [scenario, plant] = two_hundred_hz_learning_fixture();
 
-      plan = experiment.exp04.precompute_virtual_motor_plan( ...
-        cfg, reference, filters, ...
-        "trial_count", 10, "alpha", 0.6, "Npad", 100, ...
-        "transient_samples", 200, "max_input", 1.6);
+      plan = testoracle.predict_ilc_campaign(scenario, plant);
 
-      testCase.verifyEqual(plan.completedTrials, 10);
-      testCase.verifyEqual(plan.stopReason, "completed");
-      testCase.verifyEqual(plan.bestTrial, 10);
-      testCase.verifyTrue(all(diff(plan.eNorm) < 0));
-      testCase.verifyLessThan(plan.eNorm(end), 1.0);
-      testCase.verifyLessThan(max(abs(plan.f), [], "all"), 0.5);
-      testCase.verifyLessThan(filters.max_convergence_gain, 0.8);
+      testCase.verifyNumElements(plan.predictions, 10);
+      testCase.verifyEqual(plan.best_trial, 10);
+      testCase.verifyTrue(all(diff(plan.error_norm) < 0));
+      testCase.verifyLessThan(plan.error_norm(end), 1.0);
+      testCase.verifyLessThan( ...
+        plan.error_norm(end) / plan.error_norm(1), 0.01);
+      testCase.verifyLessThan(plan.max_feedforward_A, 0.5);
+      testCase.verifyLessThan(plan.max_total_input_A, 0.5);
+      testCase.verifyLessThan(plan.convergence_factor, 0.8);
+      testCase.verifyEqual([plan.endpoints.motor_velocity_count], zeros(1, 10));
+      testCase.verifyEqual([plan.endpoints.load_velocity_count], zeros(1, 10));
+      testCase.verifyLessThanOrEqual( ...
+        max([plan.endpoints.motor_load_position_delta_count]), 2);
     end
   end
 end
 
-function cfg = small_vm_config(reference)
-cfg = experiment.ExperimentConfig.defaults();
-cfg.ref_profile = reference(:);
-cfg.ff_profile = zeros(size(reference(:)));
-cfg.dist_profile = zeros(size(reference(:)));
-cfg.controller = experiment.ControllerConfig.p_only(0);
-cfg.write_virtual_motor_params = true;
-cfg.virtual_motor_plant = virtualMotor.PlantConfig();
+function scenario = small_vm_scenario(reference, max_input_A)
+if nargin < 2
+  max_input_A = 1.6;
+end
+Ts = 1 / 8000;
+plant_data = struct( ...
+  "Pd", tf(1, 1, Ts), "Pdn", tf(1, 1, Ts), ...
+  "Jn", 1, "Dn", 1, "Ts", Ts);
+reference = double(reference(:));
+trajectory = struct( ...
+  "t", (0:numel(reference) - 1)' * Ts, "p", reference);
+scenario = experiment.scenario.exp04( ...
+  plant_data, trajectory, "Kd", tf(1, 1, Ts), ...
+  "trial_count", 3, "max_input_A", max_input_A, ...
+  "Npad", 10, "transient_samples", 0, "settling_tail_s", 0, ...
+  "save_results", false);
+scenario.learning_filters = struct( ...
+  "Linv", tf(1, 1, Ts), "Qnum", 1, "Qden", 1, ...
+  "max_convergence_gain", 0, ...
+  "error_quantum_rad", scenario.learning_error_quantum_rad);
 end
 
-function filters = identity_learning_filters(Ts)
-filters = struct("Linv", tf(1, 1, Ts), "Qnum", 1, "Qden", 1);
-end
-
-function [cfg, reference, filters] = two_hundred_hz_learning_fixture()
+function [scenario, plant] = two_hundred_hz_learning_fixture()
 Ts = 1 / 8000;
 plant = virtualMotor.PlantConfig();
 frequency_hz = logspace(0, log10(1/(2*Ts)), 4000)';
 omega_rad_s = 2*pi*frequency_hz;
-velocity_frf = experiment.analysis.nominal_two_inertia_frf( ...
-  plant, omega_rad_s, "Ts", Ts, "sample_delay", 3);
+velocity_frf = virtualMotor.discrete_velocity_frf( ...
+  plant, omega_rad_s, "Ts", Ts, "sample_delay", 4);
 s = tf("s");
-position_integrator = c2d(1/s, Ts, "tustin");
+z = tf("z", Ts);
+position_integrator = Ts*z/(z-1);
 integrator_frf = squeeze(freqresp(position_integrator, omega_rad_s));
 Pd = frd(velocity_frf .* integrator_frf(:), frequency_hz, ...
   "FrequencyUnit", "Hz");
@@ -189,22 +217,17 @@ Pd.Ts = Ts;
 torque_per_amp = plant.motor.ratedTorque / 1.6;
 Jn = (plant.motor.inertia + plant.load.inertia) / torque_per_amp;
 Dn = (plant.motor.damping + plant.load.damping) / torque_per_amp;
-z = tf("z", Ts);
-Pdn = c2d(1/(Jn*s + Dn)/s, Ts, "zoh") / z^2;
+Pdn = c2d(1/(Jn*s + Dn)/s, Ts, "zoh") / z^4;
 Kd = c2d(experiment.exp02.designpid(Dn/Jn, 0, 1/Jn, 15), Ts, "tustin");
-filters = experiment.exp04.design_learning_filters( ...
-  Pd, Pdn, Kd, Ts, 0.6, 120, false);
-
 trajectory = experiment.exp0n.load_trajectory( ...
   "expected_sample_time_s", Ts, "table_max_n", 100000);
-reference = trajectory.p;
-cfg = experiment.ExperimentConfig.defaults();
-cfg.ref_profile = reference;
-cfg.ff_profile = zeros(size(reference));
-cfg.dist_profile = zeros(size(reference));
-cfg.controller = experiment.controller.from_discrete_tf(Kd);
-cfg.write_virtual_motor_params = true;
-cfg.virtual_motor_plant = plant;
+plant_data = struct( ...
+  "Pd", Pd, "Pdn", Pdn, "Jn", Jn, "Dn", Dn, "Ts", Ts);
+scenario = experiment.scenario.exp04( ...
+  plant_data, trajectory, "Kd", Kd, ...
+  "trial_count", 10, "alpha", 0.6, "q_cutoff_hz", 120, ...
+  "max_input_A", 1.6, "Npad", 100, "transient_samples", 200, ...
+  "settling_tail_s", 9, "save_results", false);
 end
 
 function out = add_polynomials(a, b)
