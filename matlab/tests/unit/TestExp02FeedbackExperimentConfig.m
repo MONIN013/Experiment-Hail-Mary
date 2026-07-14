@@ -1,49 +1,71 @@
 classdef TestExp02FeedbackExperimentConfig < matlab.unittest.TestCase
   methods (Test)
     function studentSurfaceAndSectionsRemainStable(testCase)
-      source = read_source("exp02_FeedBack.m");
+      source = read_student_surface("exp02_FeedBack.m");
       required = [ ...
         "STEP 1: DESIGN FEEDBACK CONTROLLER"
         "Always check before experiment"
         "STEP 2: FEEDBACK EXPERIMENT"
         "STEP 3: Analyze the results"
         "omega = 15;"
-        "Smax = 2;"
-        "use_virtual_motor = true;"];
+        "Smax = 2;"];
       for value = required'
         testCase.verifyTrue(contains(source, value));
       end
-      testCase.verifyTrue(contains(source, "cfg.restart_virtual_motor_runtime = false"));
-      testCase.verifyFalse(contains(source, "virtualMotor.predict_logger("));
-      testCase.verifyFalse(contains(source, "virtualMotor.compare_prediction("));
-      testCase.verifyFalse(contains(source, "virtualMotor.assert_prediction("));
       testCase.verifyFalse(contains(source, newline + "function "));
     end
 
-    function scriptUsesStrictSharedHelpers(testCase)
-      source = read_source("exp02_FeedBack.m");
+    function scriptDelegatesToScenarioAndWorkflow(testCase)
+      source = read_student_surface("exp02_FeedBack.m");
       required = [ ...
         "experiment.exp0n.load_plant_data("
         "experiment.exp0n.load_trajectory("
-        "experiment.exp01.assert_plant_provenance("
-        "experiment.exp02.stability_check("
-        "experiment.exp02.signals_from_logger_bin("
-        "experiment.exp0n.assert_run_contract("
+        "experiment.scenario.exp02("
+        "experiment.workflow.run_exp02(scenario)"
         "experiment.plot.feedback_result("];
       for value = required'
         testCase.verifyTrue(contains(source, value));
       end
+      verify_normal_flow_has_no_vm_oracle(testCase, source);
     end
 
-    function scriptPreservesResultContract(testCase)
-      source = read_source("exp02_FeedBack.m");
+    function scriptUsesNamedLiveEditorSummaries(testCase)
+      source = read_student_surface("exp02_FeedBack.m");
+      for required = ["stability_summary = table(", ...
+          "artifact_summary = table(", "tracking_summary = table(", ...
+          "VariableNames="]
+        testCase.verifyTrue(contains(source, required));
+      end
+    end
+
+    function workflowPreservesNumericResultContract(testCase)
+      source = read_package_source("+experiment", "+workflow", "run_exp02.m");
       testCase.verifyTrue(contains(source, ...
-        'save(char(feedback_result_path), "t", "r", "y", "e", "u", "Kd")'));
+        '"t", "r", "y", "e", "u", "Kd", "feedback_metrics", "stability"'));
+      testCase.verifyTrue(contains(source, "experiment.exp0n.assert_run_contract"));
+      verify_normal_flow_has_no_vm_oracle(testCase, source);
     end
   end
 end
 
-function source = read_source(file_name)
+function source = read_student_surface(file_name)
 root = fileparts(fileparts(fileparts(mfilename("fullpath"))));
 source = string(fileread(fullfile(root, "experiment", file_name)));
+appendix = strfind(source, "%[appendix]");
+if ~isempty(appendix), source = extractBefore(source, appendix(1)); end
+end
+
+function source = read_package_source(varargin)
+root = fileparts(fileparts(fileparts(mfilename("fullpath"))));
+source = string(fileread(fullfile(root, varargin{:})));
+end
+
+function verify_normal_flow_has_no_vm_oracle(testCase, source)
+for forbidden = [ ...
+    "virtualMotor.predict_logger(", "virtualMotor.compare_prediction(", ...
+    "virtualMotor.assert_prediction(", "virtualMotor.restart_runtime(", ...
+    "virtualMotor.configure(", "virtualMotor.writeParams("]
+  testCase.verifyFalse(contains(source, forbidden), ...
+    "Normal experiment flow must not contain test-only VM operations.");
+end
 end
