@@ -16,7 +16,7 @@
 - 8 Hzの交差周波数を決めていたのは、96条件ゲート（特に「最悪周期＋6 samples遅延」）と、旧設計の形（LPF 100 Hz、lead比3）の組合せだった。形を固定したままでは、このゲートの下で9.5〜11.8 Hzまでしか上がらない。LPFを300 Hzへ上げ、lead比を広げると、同じゲートの下で線形でも25.7 Hzまで上がる。
 - HIGSの利得は、線形目標を固定してHIGSを入れるだけでは得られない。生じた位相余裕を使って再調整したときに現れる。
 - 同じ感度制約で比べると、両HIGSは線形より交差周波数が60〜80%高い。
-- 既存のゲートの下で誤差を最小にする設計どうしを比べると、両HIGSは往復誤差RMSを71%減らした（1.68→0.49 mrad）。負荷ステップIAEも小さく（0.043→0.020 mrad·s）、ピーク電流は29→36 mAだった。代わりに、200〜400 Hzのねじれが増える。
+- 既存のゲートの下で誤差を最小にする設計どうしを比べると、両HIGSは往復誤差RMSを71%減らした（1.68→0.49 mrad）。負荷ステップIAEも小さく（0.043→0.020 mrad·s）、ピーク電流は29→36 mAだった。どちらもLPF 300 Hzの探索上限に当たった設計である。代わりに、200〜400 Hzのねじれが増える。
 - 実機ではまだ確認していない（§11）。
 
 添付の旧 `chirp_result.mat` からモデルを求め、そのモデルに対して実際の `ControllerAlgorithm.cpp` を実行した。初回候補は、線形比較器の目標ゲイン交差周波数を 8 Hz とする。通常の往復動作では誤差 RMS が約 5.1% 減ったが、整定区間や初期値応答には悪化もある。実機で確認すべき候補であり、最適な調整値や非線形安定性を保証する値ではない。
@@ -27,7 +27,7 @@
 | 毎周期の位置・速度・相対ねじれ保護、停止ラッチ | 実装済み。C++ host tests 通過 |
 | 旧データの単位調査、FRF、二慣性モデル、設計比較 | 再現コードと結果を保存済み |
 | MATLAB の preview／linear／integrator／lowpass／both 入口 | 実装済み。MATLAB R2025a の unit test を実行（preview は ADS に接続しない）。実機での試行は未実施 |
-| Windows / TwinCAT SDK でのモジュール再ビルド | ControllerCore・ExperimentLogger は VS2019 MSBuild（Release｜TwinCAT RT x64）でビルド済み。有効化・実機は未実施 |
+| Windows / TwinCAT SDK でのモジュール再ビルド | ControllerCore・ExperimentLogger は VS2019 MSBuild（Release｜TwinCAT RT x64）でビルドし、ターゲットへ有効化済み。実機運転は未実施 |
 | 実 EtherCAT I/O | `ExperimentHailMary.tsproj` に EK1100＋ELM7211-0011×2 を定義し、DriverAdapter の raw 入力と出力を Term 2（motor）・Term 3（load）へ結線済み。EtherCAT master が INIT から上がらず、PDO・CoE は未確認（§11） |
 
 **現時点で「そのまま実機へ通電できる」とは扱わない。** `ExperimentHailMary.tsproj` は実 PDO へ結線したが、ドライブの定格・エンコーダ分解能・符号は CoE から読めていない。`ExperimentHailMary.RealMotor.tsproj` は `<Io/>` が空の雛形のままである。
@@ -334,7 +334,7 @@ b = exp05_Higs("both", "target_label", "bench-A", ...
 
 ## 8. 検証の範囲と参考資料
 
-二HIGSへの変更ではC++数値コア試験、独立の離散則との比較、元の線形カスケードとの数値照合、TMC/tsprojの型幅とoffset照合を行った。MATLAB unit testsはR2025aで実行した（ADS接続なし）。ControllerCoreとExperimentLoggerのTwinCATモジュールはビルドしたが、tsprojのXAE読み込み、実PDOの検証、モータの運転は未実施である。
+二HIGSへの変更ではC++数値コア試験、独立の離散則との比較、元の線形カスケードとの数値照合、TMC/tsprojの型幅とoffset照合を行った。MATLAB unit testsはR2025aで実行した（ADS接続なし）。ControllerCoreとExperimentLoggerのTwinCATモジュールをビルドし、ターゲットへ有効化してシンボルを確認した。実PDOの検証とモータの運転は未実施である（§11）。`higs_two_inertia.py` と `audit_*.py` は二HIGS化に合わせて編集したが再実行しておらず、`summary.json`・`tracking.png`・`validation.png` は編集前の単一HIGSの結果である。
 
 - S. van den Eijnden, M. Heertjes, M. Heemels, H. Nijmeijer, *Hybrid Integrator-Gain Systems: Analysis, Design and Applications*, Springer, 2026. [DOI](https://doi.org/10.1007/978-3-032-18101-5)。第8章は印刷185〜214頁。今回のLPF整形は印刷195頁/PDF201頁、図8.7・式(8.9)〜(8.11)。離散実装は§2.4、印刷36〜38頁/PDF48〜50頁。
 - B. Sharif, D. Alferink, M. Heertjes, H. Nijmeijer, M. Heemels, “Analysis of sampled-data hybrid integrator-gain systems: A discrete-time approach,” *Automatica*, 167, 111765, 2024. [DOI](https://doi.org/10.1016/j.automatica.2024.111765) / [著者所属機関の公開情報](https://research.tue.nl/en/publications/analysis-of-sampled-data-hybrid-integrator-gain-systems-a-discret/)。離散時間モデルと、仮定を満たす場合の安定性解析の出典。
@@ -465,7 +465,7 @@ G0で、最良の線形 \(C^*\) にHIGSだけを入れたmatchedと、再調整�
 
 **実機の比較実験はまだ実施していない。** 本文書の性能値はすべてモデル上の結果である。
 
-- 対象は、ブランチ `exp/higs-hardware` の `ExperimentHailMary.tsproj` である。DriverAdapter の raw 入力は ELM7211-0011 の Term 2（motor）と Term 3（load）へ結線した。`targetTorque` は Term 2 の Target torque、`loadControlWordOut` は Term 3 の Controlword に結んだ。Term 3 の Target torque は未結線で、VirtualMotorCore へのリンクは外した。ControllerCore・DriverAdapter・ExperimentLogger は VS2019 でビルドし、有効化後に HIGS と Safety のシンボルを ADS で確認した。二HIGS構成（a47c964）のマージ後はまだ有効化していない。
-- ターゲット（192.168.10.3）で、システム・I/O server・PLCはRunになる。EtherCAT device の AdsState は Invalid で、master と全 slave が INIT のままだった。Config modeで adapter を scan しても、何も見つからなかった。ただし Run mode でも同じく空だったため、この結果だけでは「adapter・RT driver の不在」と「リンク断（ケーブル、EK1100の24 V、非常停止）」を区別できない。デバイスは MAC 7C-83-34-BF-BB-57 の Intel NIC に割り当てられている。
+- 対象は、ブランチ `exp/higs-hardware` の `ExperimentHailMary.tsproj` である。DriverAdapter の raw 入力は ELM7211-0011 の Term 2（motor）と Term 3（load）へ結線した。`targetTorque` は Term 2 の Target torque、`loadControlWordOut` は Term 3 の Controlword に結んだ。Term 3 の Target torque は未結線で、VirtualMotorCore へのリンクは外した。ControllerCore・DriverAdapter・ExperimentLogger は VS2019 でビルドした。二HIGS構成（a47c964）を有効化し、ポート351で `HigsLp*`・`HigsI*`・6つの `*SectionCount`・`Outputs.higsLp*/higsI*`・`SafetyLimits` を確認した。PLC の modeFlags・両 ControlWord・電流出力許可は0だった。
+- ターゲット（192.168.10.3）で、システム・I/O server・PLCはRunになる。EtherCAT device の AdsState は Invalid で、master と全 slave が INIT のままだった（3時間以上、変化なし）。8 kHz タスクのポート351も ReadState が Invalid を返した。ポート351には周期ごとに変わるシンボルがないため、このタスクが周期実行されているかは遠隔では判定できなかった。XAE のオンライン表示で、タスクの周期カウンタと EtherCAT の状態を確認する。Config modeで adapter を scan しても、何も見つからなかった。ただし Run mode でも同じく空だったため、この結果だけでは「adapter・RT driver の不在」と「リンク断（ケーブル、EK1100の24 V、非常停止）」を区別できない。デバイスは MAC 7C-83-34-BF-BB-57 の Intel NIC に割り当てられている。
 - 復旧には、ターゲットで次の3点を確認する。(1) 非常停止の解除と EK1100 の 24 V。(2) 上記 NIC が有効で、EK1100 へケーブルがつながっていること。(3) TwinCAT の「Ethernet Adapters」で、その NIC に RT driver が入っていること。
-- 復旧後は次の順に進める。(1) 二HIGS構成を有効化し、DTE で結線を確認する。(2) CoE（0x6075、0x8011、0x8000/0x8008、0x9009/0x9010、0x6061、0x603F）から定格電流・分解能・動作モードを読み、`ratedCurrentA`・`encoderResolution`・`SafetyLimits` を設定する。`SafetyLimits` は有効化時点ですべて0だった。(3) 短い開ループ電流パルスで、位置と電流の符号を確認する。(4) 8 kHz で再同定し、FRF と遅延を測る。(5) §10の手順で linear と both を再調整し、A–B–B–A の順で比較する。
+- 復旧後は次の順に進める。(1) DTE で結線を確認する。(2) CoE（0x6075、0x8011、0x8000/0x8008、0x9009/0x9010、0x6061、0x603F）から定格電流・分解能・動作モードを読み、`ratedCurrentA`・`encoderResolution`・`SafetyLimits` を設定する。`SafetyLimits` は有効化時点ですべて0だった。(3) 短い開ループ電流パルスで、位置と電流の符号を確認する。(4) 8 kHz で再同定し、FRF と遅延を測る。(5) §10の手順で linear と both を再調整し、A–B–B–A の順で比較する。
