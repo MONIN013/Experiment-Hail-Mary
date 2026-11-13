@@ -28,13 +28,8 @@ if f(1) > 1 || f(end) < 500 || f(end) > (1/(2*Ts))*(1+1e-12)
     "Measured FRD must cover 1-500 Hz and remain at or below Nyquist.");
 end
 Pd = frd(response, f, Ts, "FrequencyUnit", "Hz");
-% Preserve each SOS realization; a high-order TF is ill-conditioned near z=1.
-Kd = ss([], [], [], 1, Ts);
-for k = 1:size(controller.sos, 1)
-  row = controller.sos(k,:);
-  section = ss(tf(row(1:3), row(4:6), Ts, "Variable", "z^-1"));
-  Kd = section * Kd;
-end
+% Reconstruct the packed branch bank as Post*LP*(P+I), preserving SOS factors.
+Kd = controller.linear_system();
 Pdn = ss(plant.Pdn);
 if ~isstable(feedback(Pdn * Kd, 1))
   error("experiment:higs:unstableLinearReference", ...

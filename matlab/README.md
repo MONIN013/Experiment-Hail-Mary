@@ -38,7 +38,7 @@ config.MatlabEnvironment.setup("Reconfigure", true)
 | `experiment.ConnectionManager` | `AdsSession` ベースの接続構築 |
 | `experiment.ExperimentRunner` | 実験実行と logger 回収 |
 | `experiment.ExperimentConfig` | 実験実行の主 runtime config (`cfg.env` に環境 snapshot を内包) |
-| `experiment.ControllerConfig` | 最大10段の SOS controller (`N x 6`, `[b0 b1 b2 a0 a1 a2]`) |
+| `experiment.ControllerConfig` | 固定 Hlp/Hi 行を含む最大10段の packed SOS controller と6 segment count (`N x 6`) |
 | `experiment.exp0n.run_and_collect` | 学生実験入口の接続、実行、logger bin 回収 |
 | `experiment.exp0n.load_plant_data` / `load_trajectory` | plant と tracked 8 kHz 軌道の strict loader |
 | `experiment.exp0n.assert_run_contract` | 学生実験の受入判定 |
@@ -104,7 +104,7 @@ cleanup = onCleanup(@() conn.session.close());
 out = experiment.ExperimentRunner.run(conn, cfg);
 ```
 
-任意次数の離散 controller は SOS へ2次分解して設定する。`a0` は自動で1へ正規化され、10段を超える controller は拒否される。`from_discrete_tf` は元の sample time を保持し、実行時に `1 / cfg.env.task_rate_hz` と一致しない controller は拒否される。空の SOS bank は identity feedback、ゼロ controller は `experiment.ControllerConfig.p_only(0)` の1段として表す。raw の動的 SOS を直接構築する場合は `sample_time_s` も明示する。
+任意次数の離散 controller は SOS へ2次分解して設定する。一般 cascade の最大は7段で、固定 Hlp/Hi 行などを含む packed bank 全体は10段まで設定できる。`a0` は自動で1へ正規化され、上限を超える controller は拒否される。`from_discrete_tf` は元の sample time を保持し、実行時に `1 / cfg.env.task_rate_hz` と一致しない controller は拒否される。`experiment.ControllerConfig.from_sos` は一般 cascade を P path に配置し、I path をゼロにする。ゼロ controller は `experiment.ControllerConfig.p_only(0)` として表す。raw packed SOS を構築する場合は6 segment count と `sample_time_s` を明示する。
 
 ```matlab
 Kd = c2d(K, 1 / cfg.env.task_rate_hz, "tustin");
@@ -197,7 +197,7 @@ Test専用E2Eは実行前に、(1)量子化・固定delay・SOS・電流制限�
 
 HIGS の比較入口は関数 `exp05_Higs` で、既存の rich Live Script とは独立している。
 `exp05_Higs("preview")` は ADS に接続せず、設計JSONと軌道を確認する。
-`linear` / `higs` は、現行8 kHz条件で取得した `plant.mat` の線形事前検査後に1試行を実行する。
+`linear` / `integrator` / `lowpass` / `both` は、現行8 kHz条件で取得した `plant.mat` の線形事前検査後に1試行を実行する。
 `target_label` は結果のラベルで、接続先やVM/実機を切り替えない。実機への反映と保護設定は上記手順書を参照する。
 
 ## テスト

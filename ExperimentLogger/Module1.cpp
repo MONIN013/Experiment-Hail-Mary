@@ -785,7 +785,13 @@ bool CModule1::AppendCurrentInputsAsRecord()
 		m_Inputs.record.refValue,
 		m_Inputs.record.ffValue,
 		m_Inputs.record.distValue,
-		m_Inputs.record.controlInput
+		m_Inputs.record.controlInput,
+		m_Inputs.record.higsLpInput,
+		m_Inputs.record.higsLpOutput,
+		m_Inputs.record.higsLpMode,
+		m_Inputs.record.higsIInput,
+		m_Inputs.record.higsIOutput,
+		m_Inputs.record.higsIMode
 	};
 	if (!m_recordBuffer.Append(sample, static_cast<std::uint64_t>(m_timestampStepNsRuntime)))
 	{

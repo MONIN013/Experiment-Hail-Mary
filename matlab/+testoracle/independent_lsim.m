@@ -75,16 +75,26 @@ end
 
 function system = sos_system(controller, Ts)
 controller = experiment.ControllerConfig.from_struct(controller);
-if isempty(controller.sos)
-  system = tf(1, 1, Ts);
-  return;
+% Packed bank [lpPre; Hlp; lpPost; P; iPre; Hi; iPost; post]; every H row is the
+% linear element, so the controller is post * (P + I) * LP.
+counts = double([controller.lp_pre_section_count, controller.lp_post_section_count, ...
+  controller.p_section_count, controller.i_pre_section_count, ...
+  controller.i_post_section_count, controller.post_section_count]);
+rows = @(first, count) controller.sos(first:first+count-1, :);
+lp_count = counts(1) + 1 + counts(2);
+i_first = lp_count + counts(3) + 1;
+lp = sos_cascade(rows(1, lp_count), Ts);
+p = sos_cascade(rows(lp_count + 1, counts(3)), Ts);
+i = sos_cascade(rows(i_first, counts(4) + 1 + counts(5)), Ts);
+post = sos_cascade(rows(i_first + counts(4) + 1 + counts(5), counts(6)), Ts);
+system = minreal(post * (p + i) * lp, 1e-12);
 end
+
+function system = sos_cascade(sos, Ts)
 system = tf(1, 1, Ts);
-for row = 1:size(controller.sos, 1)
-  system = system * tf(controller.sos(row, 1:3), ...
-    controller.sos(row, 4:6), Ts);
+for row = 1:size(sos, 1)
+  system = system * tf(sos(row, 1:3), sos(row, 4:6), Ts);
 end
-system = minreal(system, 1e-12);
 end
 
 function tf_value = is_positive_scalar(value)

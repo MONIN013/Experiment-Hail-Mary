@@ -64,66 +64,87 @@
 | 出力 | `appliedRevision` | `UDINT` | MATLAB / 診断 | active 設定として受理した revision |
 | 出力 | `processedRevision` | `UDINT` | MATLAB / 診断 | 検証を完了した最新 revision |
 | 出力 | `parameterErrorCode` | `UDINT` | MATLAB / 診断 | 最後の parameter apply 結果。`0` は成功、非 0 は reject |
-| 出力 | `higsInput` | `LREAL` | ADS 診断 | HIGS へ入力した値 |
-| 出力 | `higsOutput` | `LREAL` | ADS 診断 | HIGS の状態兼出力 |
-| 出力 | `higsMode` | `UDINT` | ADS 診断 | `0`: 無効 / reset、`1`: integrator、`2`: gain、`3`: zeroing |
+| 出力 | `higsLpInput` | `LREAL` | ADS 診断 / ExperimentLogger | LP ブロックの HIGS（無効時は線形 H）へ入力した値 |
+| 出力 | `higsLpOutput` | `LREAL` | ADS 診断 / ExperimentLogger | LP ブロックの HIGS（無効時は線形 H）の出力 |
+| 出力 | `higsLpMode` | `UDINT` | ADS 診断 / ExperimentLogger | `0`: 線形 H / reset、`1`: integrator、`2`: gain、`3`: zeroing |
+| 出力 | `higsIInput` | `LREAL` | ADS 診断 / ExperimentLogger | I ブロックの HIGS（無効時は線形 H）へ入力した値 |
+| 出力 | `higsIOutput` | `LREAL` | ADS 診断 / ExperimentLogger | I ブロックの HIGS（無効時は線形 H）の出力 |
+| 出力 | `higsIMode` | `UDINT` | ADS 診断 / ExperimentLogger | `0`: 線形 H / reset、`1`: integrator、`2`: gain、`3`: zeroing |
 
 ### 2.2 CycleUpdate
 
-1. `resetReq` 立ち上がりで全 SOS 段と HIGS の状態・前回入力をクリア
+1. `resetReq` 立ち上がりで全 SOS 段と両 HIGS の状態・前回入力をクリア
 2. `error = refValue - positionAct`
-3. active 設定の `sectionCount` 段を SOS 0 から順に cascade し、有効時は `HigsPreSectionCount` 段を処理した位置に HIGS を 1 個挿入
+3. 図8.9の構造で計算する。`x = LP[error]`、`u = P[x] + I[x]`、`u_fb = Post[u]`。LP ブロックと I ブロックは `W 前置 SOS → HIGS または線形 H → 後置 SOS (W^-1 V)` で、各ブロックは独立した HIGS（ゲイン、`omega_h*Ts`、状態、mode）を持つ
 4. `controlInput = u_fb + ffValue`
 5. 入力・演算結果・状態更新・最終出力が非有限なら `controlInput = 0.0` にする
 6. biquad の状態更新が非有限になった段は、その段の状態を 0 に戻す。HIGS の候補値または sector 境界が非有限なら HIGS の状態・前回入力・mode を 0 に戻す
 7. `error` の入力または減算結果が非有限の場合は `error = 0.0`
 
-`sectionCount = 0` かつ HIGS 無効時は feedback identity とし、`u_fb = error` とする。SOS は最大 10 段で、線形部分は最大 20 次である。HIGS は現在入力による積分候補を先に sector 判定し、違反時に gain / zeroing を選ぶ trimodal 実装である。式、モード判定、設計上の位置づけは [HigsExperiment](../operations/HigsExperiment.md) を参照。
+HIGS を無効にしたブロックは bypass せず、同じ位置の線形 H（`H(s)=k_h*wc/(s+wc)`、`wc=(omega_h/k_h)*sqrt(1+16/pi^2)` を MATLAB が Tustin 離散化した SOS 1 段）を通す。両ブロックが無効なら、設計した線形制御器 `C*` と浮動小数点誤差の範囲で一致する。SOS は H の 2 段を含め最大 10 段である。HIGS は現在入力による積分候補を先に sector 判定し、違反時に gain / zeroing を選ぶ trimodal 実装である。式、モード判定、設計上の位置づけは [HigsExperiment](../operations/HigsExperiment.md) を参照。
 
 ### 2.3 SOS / HIGS parameter contract
 
 MATLAB 側の公開形式は標準 SOS 行列と同じ `N x 6` の `[b0 b1 b2 a0 a1 a2]` とする。ControllerCore へは各段の `a0` を 1 に正規化し、段優先の `[b0, b1, b2, a1, a2]` を 10 段分、計 50 `LREAL` で送る。
 
+係数配列は次の順で並べる。`lpPre`、`Hlp`（LP の線形 H、1 段固定）、`lpPost`、`P`、`iPre`、`Hi`（I の線形 H、1 段固定）、`iPost`、`Post`。HIGS を有効にしたブロックは対応する H の 1 段を使わず、HIGS に置き換える。6 区間（`lpPre`、`lpPost`、`P`、`iPre`、`iPost`、`Post`）の段数は次の `*SectionCount` で指定する。
+
 | パラメータ | 型 | 意味 |
 |---|---|---|
 | `SosCoefficients` | `ARRAY[0..49] OF LREAL` | 10 段分の正規化済み SOS 係数 |
-| `SosSectionCount` | `UDINT` | 使用する先頭 SOS 段数。`0..10` |
+| `SosSectionCount` | `UDINT` | 使用する先頭 SOS 段数。6 区間の段数の和 + 2 と一致し、上限は 10。既定 `3` |
 | `SosApplyRevision` | `UDINT` | SOS と HIGS の staging 設定を同時に active 化する revision |
-| `HigsEnabled` | `BOOL` | HIGS の有効化。既定 `FALSE` |
-| `HigsGain` | `LREAL` | sector 上限のゲイン `k_h`。既定 `1` |
-| `HigsOmegaTs` | `LREAL` | `omega_h * Ts`。既定 `0`、有効時は `0 < HigsOmegaTs <= HigsGain` |
-| `HigsPreSectionCount` | `UDINT` | HIGS より前に処理する SOS 段数。既定 `0`、有効時は `0..SosSectionCount` |
+| `LpPreSectionCount` | `UDINT` | LP ブロックの H より前の SOS 段数。既定 `0` |
+| `LpPostSectionCount` | `UDINT` | LP ブロックの H より後の SOS 段数。既定 `0` |
+| `PSectionCount` | `UDINT` | P 枝の SOS 段数。既定 `0`（`0` 段は恒等） |
+| `IPreSectionCount` | `UDINT` | I ブロックの H より前の SOS 段数。既定 `1`（既定の係数では零段で I 枝は 0） |
+| `IPostSectionCount` | `UDINT` | I ブロックの H より後の SOS 段数。既定 `0` |
+| `PostSectionCount` | `UDINT` | `u = P + I` の後に処理する SOS 段数。既定 `0` |
+| `HigsLpEnabled` / `HigsIEnabled` | `BOOL` | LP / I ブロックの HIGS の有効化。既定 `FALSE`（線形 H を使う） |
+| `HigsLpGain` / `HigsIGain` | `LREAL` | sector 上限のゲイン `k_h`。既定 `1`、常に有限かつ正 |
+| `HigsLpOmegaTs` / `HigsIOmegaTs` | `LREAL` | `omega_h * Ts`。既定 `0`、有限かつ非負。有効時は `0 < HigsOmegaTs <= HigsGain` |
 
-`HigsPreSectionCount=0` は全 SOS の前、`SosSectionCount` と同じ値は全 SOS の後に挿入する。`HigsEnabled=FALSE` では従来の SOS のみを実行する。
+既定値は、`SosSectionCount=3` の係数（先頭が恒等、2 段目が零、3 段目が恒等）で、P 枝が恒等、I 枝が零の制御器になる。
 
-MATLAB は SOS と HIGS の全 staging 値を書いた後、`SosApplyRevision` を最後に書く。ControllerCore は revision の変化時だけ設定を検証し、成功時に全設定を active copy へ反映して SOS と HIGS の内部状態をリセットする。HIGS 有効時は `HigsGain` が有限かつ正、`HigsOmegaTs` が有限かつ表の範囲内であることも検証する。現行タスクの `Ts` は `125 us`（8 kHz）である。
+MATLAB は SOS と HIGS の全 staging 値を書いた後、`SosApplyRevision` を最後に書く。ControllerCore は revision の変化時だけ設定を検証し、成功時に全設定を active copy へ反映して SOS と両 HIGS の内部状態をリセットする。6 区間の段数の和 + 2 が `SosSectionCount` と一致し 10 以下であること、両 HIGS の `Gain` が有限かつ正、`OmegaTs` が有限かつ表の範囲内であることも検証する。現行タスクの `Ts` は `125 us`（8 kHz）である。
 
 検証完了時は成否にかかわらず `Outputs.processedRevision` を更新する。成功時は `Outputs.appliedRevision` も更新し、失敗時は従来の active copy と内部状態を維持する。MATLAB は要求した revision と両出力を照合し、以前の reject status を今回の結果と取り違えないようにする。
 
 | `parameterErrorCode` | apply 結果 |
 |---:|---|
 | 0 | 成功 |
-| 1 | SOS 段数が上限を超過 |
+| 1 | 6 区間の段数の和 + 2 が `SosSectionCount` と一致しない、または 10 を超過 |
 | 2 | SOS 係数が非有限、または必要な係数配列が未指定 |
-| 3 | HIGS 有効時のゲイン・積分係数・挿入位置が不正 |
+| 3 | HIGS のゲイン・積分係数が不正（有効時は `0 < OmegaTs <= Gain` を満たさない） |
 
 ### 2.4 ADS シンボル
 
 * `ControllerCore_Obj1 (Module1).SosCoefficients`
 * `ControllerCore_Obj1 (Module1).SosSectionCount`
 * `ControllerCore_Obj1 (Module1).SosApplyRevision`
-* `ControllerCore_Obj1 (Module1).HigsEnabled`
-* `ControllerCore_Obj1 (Module1).HigsGain`
-* `ControllerCore_Obj1 (Module1).HigsOmegaTs`
-* `ControllerCore_Obj1 (Module1).HigsPreSectionCount`
+* `ControllerCore_Obj1 (Module1).LpPreSectionCount`
+* `ControllerCore_Obj1 (Module1).LpPostSectionCount`
+* `ControllerCore_Obj1 (Module1).PSectionCount`
+* `ControllerCore_Obj1 (Module1).IPreSectionCount`
+* `ControllerCore_Obj1 (Module1).IPostSectionCount`
+* `ControllerCore_Obj1 (Module1).PostSectionCount`
+* `ControllerCore_Obj1 (Module1).HigsLpEnabled`
+* `ControllerCore_Obj1 (Module1).HigsLpGain`
+* `ControllerCore_Obj1 (Module1).HigsLpOmegaTs`
+* `ControllerCore_Obj1 (Module1).HigsIEnabled`
+* `ControllerCore_Obj1 (Module1).HigsIGain`
+* `ControllerCore_Obj1 (Module1).HigsIOmegaTs`
 * `ControllerCore_Obj1 (Module1).Outputs.appliedRevision`
 * `ControllerCore_Obj1 (Module1).Outputs.processedRevision`
 * `ControllerCore_Obj1 (Module1).Outputs.parameterErrorCode`
-* `ControllerCore_Obj1 (Module1).Outputs.higsInput`
-* `ControllerCore_Obj1 (Module1).Outputs.higsOutput`
-* `ControllerCore_Obj1 (Module1).Outputs.higsMode`
+* `ControllerCore_Obj1 (Module1).Outputs.higsLpInput`
+* `ControllerCore_Obj1 (Module1).Outputs.higsLpOutput`
+* `ControllerCore_Obj1 (Module1).Outputs.higsLpMode`
+* `ControllerCore_Obj1 (Module1).Outputs.higsIInput`
+* `ControllerCore_Obj1 (Module1).Outputs.higsIOutput`
+* `ControllerCore_Obj1 (Module1).Outputs.higsIMode`
 
-HIGS の 3 出力は ADS 診断用であり、既存の 104-byte logger record には追加していない。HIGS / 保護出力を追加した TMC と古い `.tmx` は組み合わせて使わず、ControllerCore と DriverAdapter を Windows / TwinCAT SDK で再ビルドし、XAE の TMC と構成を更新する。
+HIGS の 6 出力は ADS 診断に使い、ExperimentLogger の record にも入る（§5.3）。これらを追加した TMC と古い `.tmx` は組み合わせて使わず、ControllerCore、ExperimentLogger、DriverAdapter を Windows / TwinCAT SDK で再ビルドし、XAE の TMC と構成を更新する。
 
 ---
 
@@ -250,9 +271,11 @@ ADS の接頭辞は `DriverAdapter_Obj1 (Module1).` とする。
 
 ### 5.3 バイナリ形式
 
-1 レコード = 104 bytes
+1 レコード = 144 bytes
 
-`seq`, `reservedPad0` (= schema version 2), `tNs`, `motorPosition`, `motorVelocity`, `motorCurrentAct`, `loadPosition`, `loadVelocity`, `currentCmd`, `error`, `refValue`, `ffValue`, `distValue`, `controlInput`
+`seq`, `reservedPad0` (= schema version 3), `tNs`, `motorPosition`, `motorVelocity`, `motorCurrentAct`, `loadPosition`, `loadVelocity`, `currentCmd`, `error`, `refValue`, `ffValue`, `distValue`, `controlInput`, `higsLpInput` (offset 104), `higsLpOutput` (112), `higsLpMode` (`UDINT`, 120), `higsIInput` (124), `higsIOutput` (132), `higsIMode` (`UDINT`, 140)
+
+schema version 2（104 bytes）は読まない。MATLAB reader は schema 3 の固定サイズだけを受理する。
 
 ---
 

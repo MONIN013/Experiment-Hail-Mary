@@ -7,7 +7,9 @@
 
 ## 1. 今回用意したものと、実機側に残る作業
 
-既存の SOS 制御器に HIGS を一つ挿入し、同じ軌道で線形制御器と比較する `exp05_Higs` を追加した。制御計算は既存の C++ コアを使い、MATLAB は係数設定・実験実行・ログ回収を担当する。HIGS 用に別の実時間フレームワークは作っていない。
+図8.9のLPブロックとIブロックに、それぞれ独立したHIGSを実装した。`exp05_Higs` は同じ線形設計から `linear`・`integrator`・`lowpass`・`both` を生成する。制御計算は既存の C++ コアを使い、MATLAB は係数設定・実験実行・ログ回収を担当する。HIGS 用に別の実時間フレームワークは作っていない。
+
+§4・§5と保存済みの図・`simulations/results` は、変更前の単一HIGS（Hの折点20 Hz）に対する結果であり、現在の二HIGS構成の性能を示さない。現在の構成ではC++ホストで線形等価性と4モードの離散則を検査した。以下の同定と過去の性能比較は履歴資料として残す。
 
 添付の旧 `chirp_result.mat` からモデルを求め、そのモデルに対して実際の `ControllerAlgorithm.cpp` を実行した。初回候補は、線形比較器の目標ゲイン交差周波数を 8 Hz とする。通常の往復動作では誤差 RMS が約 5.1% 減ったが、整定区間や初期値応答には悪化もある。実機で確認すべき候補であり、最適な調整値や非線形安定性を保証する値ではない。
 
@@ -16,7 +18,7 @@
 | HIGS、係数反映、既存 SOS との切替 | 実装済み。C++ host tests 通過 |
 | 毎周期の位置・速度・相対ねじれ保護、停止ラッチ | 実装済み。C++ host tests 通過 |
 | 旧データの単位調査、FRF、二慣性モデル、設計比較 | 再現コードと結果を保存済み |
-| MATLAB の preview／linear／higs 入口 | 実装・構文検査済み。MATLAB 本体での実行は未確認 |
+| MATLAB の preview／linear／integrator／lowpass／both 入口 | 実装・構文検査済み。MATLAB 本体での実行は未確認 |
 | Windows / TwinCAT SDK でのモジュール再ビルド | 未実施 |
 | 実 EtherCAT I/O、ドライブ設定、実機への反映 | 未実施。`RealMotor.tsproj` の I/O 定義は空 |
 
@@ -26,9 +28,9 @@
 
 | ファイル | 用途 |
 |---|---|
-| [exp05_Higs.m](../../matlab/experiment/exp05_Higs.m) | preview と linear/HIGS の単一試行 |
+| [exp05_Higs.m](../../matlab/experiment/exp05_Higs.m) | preview と4モードの単一試行 |
 | [ControllerAlgorithm.cpp](../../ControllerCore/ControllerAlgorithm.cpp) | 既存 SOS と離散時間 HIGS の実計算 |
-| [higs_design.json](../../simulations/higs_design.json) | 8 kHz 用の係数、軌道、試行上限 |
+| [higs_design.json](../../simulations/higs_design.json) | 8 kHz 用の設計値、軌道、試行上限 |
 | [identify_chirp.py](../../simulations/identify_chirp.py) | 添付形式の旧 MAT から FRF とモデルを再生成 |
 | [higs_two_inertia.py](../../simulations/higs_two_inertia.py) | 実 C++ コアによる閉ループ比較、調整値の検討 |
 | [identified_plant.json](../../simulations/data/identified_plant.json) | データの出所、単位、同定値、適合誤差 |
@@ -94,19 +96,19 @@ motor/load を同時に 5〜700 Hz で当てはめた。入力ゲインを含む
 
 ## 3. 第8章から採用した構成
 
-書籍第8章の図8.7、式(8.9)〜(8.11)では、線形比較器 \(C^*\) を HIGS と補償器 \(V=H^{-1}C^*\) に分ける。今回の構成は、LPF を HIGS 一つに置き換えるところまでに絞った。同章の二つの HIGS を使う PID や実験 Table 8.2 全体の再現ではない。
+書籍第8章の図8.9に合わせ、次の流れで計算する。
 
-線形比較器は次式とした。
+```text
+x = LP[e]; u = P[x] + I[x]; u_fb = Post[u]; output = u_fb + ff
+```
 
-\[
-C_L(s)=K_p\frac{s+\omega_i}{s}
-\frac{1+s/\omega_z}{1+s/\omega_p}
-\frac{\omega_\ell^2}{s^2+\sqrt2\omega_\ell s+\omega_\ell^2}.
-\]
+線形設計は `C* = kp * Clp * lead * (1 + wi/s)` とする。LPブロックに100 Hz Butterworth LPF、P枝に `kp*lead`、Iブロックの目標に `wi/s` を割り当て、Iの後段にも `kp*lead` を置く。既定のPostは空である。
 
-\(k_h=1\)、\(H(s)=\omega_c/(s+\omega_c)\) として、誤差信号を HIGS に通した後へ \(V(s)=H^{-1}(s)C_L(s)\) を置く。\(H^{-1}\) 単体を非プロパーな微分器として実装せず、2次 LPF とまとめてプロパーな SOS にする。HIGS を \(H\) に置き換えれば線形比較器へ戻るため、同じ目標線形特性から非線形化の効果を比較できる。
+LP・Iの各ブロックは `W → element → W^-1 V` とする。既定の `W=1` に対して、線形Hは `kh*wc/(s+wc)`、`Vlp=Clp/Hlp`、`Vi=wi/(kh_i*wc_i)*(s+wc_i)/s` である。
 
-HIGS は DC で有限ゲインを持つ。元の I 要素をそのまま HIGS に置き換えると一定外乱への性質まで変わるので、この構成では通常の PI の積分器を残した。
+HIGSを無効にしたブロックでも線形Hを通す。両ブロックが線形なら、分解前のPI・lead・LPFカスケードと同じ伝達特性になる。線形部分はMATLABの共通Tustin関数で離散化し、Hも通常のSOS係数として送る。
+
+係数配列は `[lpPre; Hlp; lpPost; P; iPre; Hi; iPost; Post]` の順である。6区間の段数はHの2行を含まず、総段数は6区間の和+2（最大10）。既定では6区間が `[0,1,1,0,1,0]`、Hの2行を含めて計5行を使う。HIGSを有効にしたブロックは、対応するHの1行を非線形素子へ置き換える。
 
 ### 3.1 実装した離散時間則
 
@@ -142,11 +144,11 @@ HIGS は DC で有限ゲインを持つ。元の I 要素をそのまま HIGS �
 | PI の折点 | 2 Hz |
 | lead の零点／極 | 2.6667 / 24 Hz |
 | 2次 LPF | 100 Hz、Butterworth |
-| HIGS に対応させる \(H\) の折点 | 20 Hz |
+| LP / I のH折点 | 100 / 2 Hz |
 | \(k_h\) | 1 |
-| \(\omega_h T_s\) | 0.00970230350436 |
-| HIGS の前の SOS | 0 段 |
-| HIGS の後の SOS | 3 段 |
+| LP / I の \(\omega_h T_s\) | 約0.0485115 / 0.000970230 |
+| LP / I の前置SOS | どちらも0段 |
+| LP / I の後置SOS | 1 / 1段（Iのleadを含む） |
 | 前置フィルタ \(W\) | なし |
 
 8 Hz は線形比較器の調整目標であり、HIGS に一意の LTI ゲイン交差周波数を割り当てた値ではない。線形比較器を8/10/15/20 Hzへ調整したときの感度比較は `summary.json` の `bandwidth_comparison` に残している。
@@ -240,7 +242,7 @@ g++ -std=c++17 -Wall -Wextra -Werror -O2 -IDriverAdapter -ICommonLib \
 /tmp/driver_tests
 ```
 
-HIGS の3モード、sector 境界、符号変化時の優先順、全挿入位置、reset、無効設定の拒否、overflowを含む。DriverAdapter は既存の100万scan比較に加え、各保護、同一scanのゼロ出力、通常reset後のラッチ保持、明示解除条件を検査する。これらは TwinCAT SDK ビルドや実機の停止時間の測定を代替しない。
+C++ホスト検査には、両HIGSの独立性、4モード、6区間の順序、線形等価性、reset、無効設定の拒否、非有限入力を含む。DriverAdapter は既存の100万scan比較に加え、各保護、同一scanのゼロ出力、通常reset後のラッチ保持、明示解除条件を検査する。これらは TwinCAT SDK ビルドや実機の停止時間の測定を代替しない。
 
 ## 7. 実機へ反映する手順
 
@@ -302,7 +304,7 @@ plant_path = 'C:/experiment/current_8khz/plant.mat';
 result_dir = 'C:/experiment/higs_comparison';
 a = exp05_Higs("linear", "target_label", "bench-A", ...
     "plant_path", plant_path, "result_dir", result_dir);
-b = exp05_Higs("higs", "target_label", "bench-A", ...
+b = exp05_Higs("both", "target_label", "bench-A", ...
     "plant_path", plant_path, "result_dir", result_dir);
 ```
 
@@ -314,7 +316,7 @@ b = exp05_Higs("higs", "target_label", "bench-A", ...
 
 試行ごとに `result_dir/exp05/<UTC日時+一意suffix>/` を作り、`result.mat`、`runner.mat`、失敗時の `failure.mat` を分ける。取得したrawデータを保存してから受入判定するため、比較を繰り返しても過去の結果を上書きしない。結果には電流指令・実測電流、誤差、入力換算値、制御器、設定、保護状態が含まれる。`accepted` はログ契約・完了状態・電流条件等の受入結果であり、HIGSが線形より良いことを意味しない。
 
-`Outputs.higsInput/higsOutput/higsMode` はADS/Scopeで観測できる。既存の104-byte logger recordには追加していないので、通常のbinary logだけから毎周期のmodeを測定したとは扱わない。またログの時刻列はsample番号と周期から作ったもので、実ジッタの測定値ではない。
+`Outputs.higsLpInput/higsLpOutput/higsLpMode` と `Outputs.higsIInput/higsIOutput/higsIMode` はADS/Scopeとschema 3のbinary logで観測できる。またログの時刻列はsample番号と周期から作ったもので、実ジッタの測定値ではない。
 
 ### 7.5 保護停止後
 
@@ -324,7 +326,7 @@ b = exp05_Higs("higs", "target_label", "bench-A", ...
 
 ## 8. 検証の範囲と参考資料
 
-この変更ではC++数値コア試験、独立のsector判定との比較、モデル・SOSの数値照合、TMC/tsprojの型幅とoffset照合、MATLAB R2021a構文検査を行った。MATLAB unit testsは追加したが、MATLAB実行環境がないため実行していない。Windows/TwinCAT SDKのビルド、実PDOの検証、モータの運転も未実施である。
+二HIGSへの変更ではC++数値コア試験、独立の離散則との比較、元の線形カスケードとの数値照合、TMC/tsprojの型幅とoffset照合を行った。MATLAB unit testsは追加したが、MATLAB実行環境がないため実行していない。Windows/TwinCAT SDKのビルド、実PDOの検証、モータの運転も未実施である。
 
 - S. van den Eijnden, M. Heertjes, M. Heemels, H. Nijmeijer, *Hybrid Integrator-Gain Systems: Analysis, Design and Applications*, Springer, 2026. [DOI](https://doi.org/10.1007/978-3-032-18101-5)。第8章は印刷185〜214頁。今回のLPF整形は印刷195頁/PDF201頁、図8.7・式(8.9)〜(8.11)。離散実装は§2.4、印刷36〜38頁/PDF48〜50頁。
 - B. Sharif, D. Alferink, M. Heertjes, H. Nijmeijer, M. Heemels, “Analysis of sampled-data hybrid integrator-gain systems: A discrete-time approach,” *Automatica*, 167, 111765, 2024. [DOI](https://doi.org/10.1016/j.automatica.2024.111765) / [著者所属機関の公開情報](https://research.tue.nl/en/publications/analysis-of-sampled-data-hybrid-integrator-gain-systems-a-discret/)。離散時間モデルと、仮定を満たす場合の安定性解析の出典。

@@ -7,16 +7,13 @@ Run from the repository: python simulations/audit_higs.py
 """
 from __future__ import annotations
 import argparse
-import ctypes
 import hashlib
 import itertools
 import json
-import os
 from pathlib import Path
-import subprocess
-import tempfile
 import numpy as np
 from scipy import signal
+from higs_two_inertia import Host as RuntimeHost, make_design
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -32,37 +29,16 @@ def plant(p, ts):
     ad, bd, _, _, _ = signal.cont2discrete((a,b,np.eye(4),np.zeros((4,1))),ts)
     return ad, bd[:,0]
 
-class Host:
-    def __init__(self):
-        self.temp = tempfile.TemporaryDirectory(prefix='higs-audit-')
-        library = Path(self.temp.name)/'higs.so'
-        subprocess.run([os.environ.get('CXX','g++'),'-std=c++17','-O2','-shared','-fPIC',
-            '-Wall','-Wextra','-Werror','-I'+str(ROOT/'ControllerCore'),
-            str(ROOT/'ControllerCore/ControllerAlgorithm.cpp'),str(ROOT/'simulations/higs_host.cpp'),
-            '-o',str(library)],check=True)
-        self.lib = ctypes.CDLL(str(library))
-        self.fn = self.lib.simulate_higs
-        ptr = np.ctypeslib.ndpointer(dtype=np.float64,flags='C_CONTIGUOUS')
-        self.fn.argtypes = [ctypes.c_int]+[ptr]*6+[ctypes.c_uint,ctypes.c_int,
-            ctypes.c_double,ctypes.c_double,ctypes.c_uint,ctypes.c_int,
-            ctypes.c_double,ctypes.c_double,ctypes.c_double,ptr,ptr]
-        self.fn.restype = ctypes.c_int
-
-    def run(self, design, p, r, *, higs=False, delay=2, disturbance=None,
+class Host(RuntimeHost):
+    def run(self, design, p, r, *, mode="linear", delay=2, disturbance=None,
             noise=None, initial=None, quantized=True):
-        n = len(r)
-        a,b = plant(p,design['sample_time_s'])
-        sos = np.asarray(design['higs_sos' if higs else 'linear_sos'])
-        coef = np.ascontiguousarray(sos[:,[0,1,2,4,5]])
-        out = np.zeros((n,11))
-        vector = lambda x: np.ascontiguousarray(x,dtype=np.float64)
-        code = self.fn(n,vector(r),vector(np.zeros(n) if disturbance is None else disturbance),
-            vector(np.zeros(n) if noise is None else noise),vector(a),vector(b),coef,len(sos),int(higs),
-            design['higs_gain'],design['higs_omega_ts'],design['pre_section_count'],delay,
-            design['max_current_a'],.0016 if quantized else 0.,
-            2*np.pi/8388608 if quantized else 0.,vector(np.zeros(4) if initial is None else initial),out)
-        if code: raise RuntimeError(f'Host failed: {code}')
-        return out
+        baseline, _, _ = candidate(design)
+        controller = baseline | dict(higs_lp_enabled=mode in ("lowpass", "both"),
+                                     higs_i_enabled=mode in ("integrator", "both"))
+        model = dict(jm=p['jm'], jl=p['jl'], bm=p['bm'], bl=p['bl'],
+                     stiffness=p['ks'], damping=p['cs'], torque_constant=p['kt'])
+        return super().run(controller, r, disturbance, model=model, delay=delay,
+            noise=noise, initial=initial, quantized=quantized, current_limit=design['max_current_a'])
 
 
 def reference(d, amplitude=None, move=None):
@@ -94,16 +70,19 @@ def metrics(r, out, d, disturbance=None, t=None):
         plateau=(t>=start+move)&(t<start+move+hold)
         m.update(moving_rms_rad=rms(e[moving]),plateau_rms_rad=rms(e[plateau]))
     # Check the invariant with a scale-dependent floating-point tolerance.
-    z,h = out[:,7],out[:,8]
-    bound=d['higs_gain']*z
-    tolerance=64*np.finfo(float).eps*np.maximum(np.maximum(abs(h),abs(bound)),1e-300)
-    m['sector_violations']=int(np.sum((h<np.minimum(0,bound)-tolerance)|(h>np.maximum(0,bound)+tolerance)))
+    m['sector_violations'] = 0
+    for name, col in [('lp', 7), ('i', 11)]:
+        z,h,mode = out[:,col],out[:,col+1],out[:,col+2]
+        bound=d['tuning'][f'higs_{name}_gain']*z
+        tolerance=64*np.finfo(float).eps*np.maximum(np.maximum(abs(h),abs(bound)),1e-300)
+        violations=(h<np.minimum(0,bound)-tolerance)|(h>np.maximum(0,bound)+tolerance)
+        m['sector_violations'] += int(np.sum(violations & (mode != 0)))
     return m
 
 
 def linear_check(d, p, delay=2):
     """Unsaturated saved-model linear loop; stability is not inferred from |S|."""
-    ts=d['sample_time_s']; a,b=plant(p,ts); sos=np.asarray(d['linear_sos'])
+    ts=d['sample_time_s']; a,b=plant(p,ts); sos=np.asarray(candidate(d)[0]['linear_sos'])
     size=4+2*len(sos)+delay
     def advance(x):
         nxt=np.zeros(size); u=-x[2]
@@ -123,20 +102,14 @@ def linear_check(d, p, delay=2):
             'peak_sensitivity':float(np.max(abs(1/(1+C*G/z**delay))))}
 
 
-def candidate(d,corner,shaping=0.):
-    ts=d['sample_time_s']; wl=2*np.pi*d['tuning']['lowpass_hz']; wc=2*np.pi*corner
-    def section(b,a):
-        bz,az=signal.bilinear(b,a,fs=1/ts)
-        return np.r_[np.pad(bz,(0,3-len(bz))),np.pad(az,(0,3-len(az)))]
-    num=np.array([wl*wl/wc,wl*wl]); den=[1,np.sqrt(2)*wl,wl*wl]
-    pre=[]
-    if shaping:
-        ww=2*np.pi*shaping
-        pre=[section([ww],[1,ww])]
-        num=np.convolve([1,ww],num)/ww
-    sos=np.vstack(pre+[section(num,den),np.array(d['linear_sos'][0]),np.array(d['linear_sos'][1])])
-    return d|{'higs_sos':sos,'pre_section_count':len(pre),
-              'higs_omega_ts':wc*ts/np.sqrt(1+16/np.pi**2)}
+def candidate(d):
+    tuning=d['tuning']
+    return make_design(crossover_hz=tuning['measured_crossover_target_hz'],
+        lowpass_hz=tuning['lowpass_hz'],
+        integral_hz=tuning['integral_hz'], lead_zero_hz=tuning['lead_zero_hz'],
+        lead_pole_hz=tuning['lead_pole_hz'],
+        higs_lp_corner_hz=tuning['higs_lp_corner_hz'], higs_i_corner_hz=tuning['higs_i_corner_hz'],
+        higs_lp_gain=tuning['higs_lp_gain'], higs_i_gain=tuning['higs_i_gain'], kp=tuning['kp'])
 
 
 def main():
@@ -155,11 +128,11 @@ def main():
     traces={}
     def pair(name,ref,model=p,design=d,kind='validation',**kwargs):
         report={'name':name,'kind':kind}
-        for key in ['linear','higs']:
-            trace=host.run(design,model,ref,higs=key=='higs',**kwargs)
+        for key in ['linear','integrator','lowpass','both']:
+            trace=host.run(design,model,ref,mode=key,**kwargs)
             report[key]=metrics(ref,trace,design,kwargs.get('disturbance'),t if name=='nominal' else None)
             if name=='nominal':traces[key]=trace
-        report['rms_reduction_percent']=100*(1-report['higs']['rms_rad']/report['linear']['rms_rad'])
+        report['rms_reduction_percent']=100*(1-report['both']['rms_rad']/report['linear']['rms_rad'])
         result['cases'].append(report)
         return report
     pair('nominal',r)
@@ -180,20 +153,20 @@ def main():
         q=pair(f'Jm{jm}_Jl{jl}_K{k}_C{c}_B{b}_d{delay}',r,model=pp,delay=delay,kind='corner')
         q['linear_check']=linear_check(d,pp,delay)
         result['corner_scan'].append(q)
-    for corner,shaping in itertools.product([5.,10.,20.,40.,60.,100.],[0.,20.,40.,80.]):
-        dd=candidate(d,corner,shaping)
-        out=host.run(dd,p,r,higs=True)
-        initial=host.run(dd,p,np.zeros_like(t6),higs=True,initial=[.005,0,.005,0])
-        result['tuning_exploration'].append({'corner_hz':corner,'prefilter_hz':shaping,
+    for lp_corner,i_corner in itertools.product([20.,60.,100.],[1.,2.,5.]):
+        dd=d|{'tuning':d['tuning']|{'higs_lp_corner_hz':lp_corner,'higs_i_corner_hz':i_corner}}
+        out=host.run(dd,p,r,mode='both')
+        initial=host.run(dd,p,np.zeros_like(t6),mode='both',initial=[.005,0,.005,0])
+        result['tuning_exploration'].append({'lp_corner_hz':lp_corner,'i_corner_hz':i_corner,
             'tracking':metrics(r,out,dd,t=t),'initial_displacement':metrics(np.zeros_like(t6),initial,dd)})
-    # Replace HIGS by the bilinear representative LPF H. H*V must recover C_L.
-    wc=2*np.pi*d['tuning']['higs_corner_hz']
-    bz,az=signal.bilinear([wc],[1,wc],fs=1/ts)
-    hs=np.r_[np.pad(bz,(0,3-len(bz))),np.pad(az,(0,3-len(az)))]
-    all_sos=np.insert(np.asarray(d['higs_sos']),d['pre_section_count'],hs,axis=0)
+    # Compare packed LP*(P+I) against the original PI*lead*Butterworth cascade.
+    baseline,_,_=candidate(d)
     omega=2*np.pi*ts*np.geomspace(.01,.49/ts,10000)
-    _,linear=signal.sosfreqz(d['linear_sos'],worN=omega)
-    _,reconstructed=signal.sosfreqz(all_sos,worN=omega)
+    sos=baseline['sos']
+    def response(rows):
+        return signal.sosfreqz(rows,worN=omega)[1]
+    linear=response(baseline['linear_sos'])
+    reconstructed=response(sos[:2])*(response(sos[2:3])+response(sos[3:]))
     error=float(np.max(abs(reconstructed/linear-1)))
     result['linear_replacement_max_relative_error']=error
     result['linear_nominal_check']=linear_check(d,p)
@@ -201,8 +174,8 @@ def main():
     result['worst_linear_corner_sensitivity']=max(q['linear_check']['peak_sensitivity'] for q in result['corner_scan'])
     result['corner_count']=len(result['corner_scan'])
     result['corner_reduction_range_percent']=[min(q['rms_reduction_percent'] for q in result['corner_scan']),max(q['rms_reduction_percent'] for q in result['corner_scan'])]
-    result['corner_envelope_pass']=all(q[key]['within_envelope'] for q in result['corner_scan'] for key in ['linear','higs'])
-    result['sector_violation_count']=sum(q['higs']['sector_violations'] for q in result['cases'])
+    result['corner_envelope_pass']=all(q[key]['within_envelope'] for q in result['corner_scan'] for key in ['linear','integrator','lowpass','both'])
+    result['sector_violation_count']=sum(q[mode]['sector_violations'] for q in result['cases'] for mode in ['integrator','lowpass','both'])
     np.savez_compressed(args.output/'nominal_traces.npz',t=t,reference=r,**traces)
     save(args.output/'audit_summary.json',result)
     if not (result['corner_envelope_pass'] and result['sector_violation_count']==0 and error<1e-8
@@ -211,6 +184,6 @@ def main():
         raise SystemExit('Saved-design regression failed; inspect audit_summary.json')
     print(json.dumps({k:result[k] for k in ['corner_count','corner_reduction_range_percent','corner_envelope_pass','sector_violation_count','linear_replacement_max_relative_error']},indent=2))
     for q in result['cases']:
-        if q['kind']!='corner':print(q['name'],q['rms_reduction_percent'],q['linear']['rms_rad'],q['higs']['rms_rad'],q['higs']['within_envelope'])
+        if q['kind']!='corner':print(q['name'],q['rms_reduction_percent'],q['linear']['rms_rad'],q['both']['rms_rad'],q['both']['within_envelope'])
 
 if __name__=='__main__':main()

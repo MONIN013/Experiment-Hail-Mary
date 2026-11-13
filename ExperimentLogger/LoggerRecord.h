@@ -8,7 +8,7 @@
 
 namespace experimentlogger
 {
-constexpr std::uint32_t kLogSchemaVersion = 2U;
+constexpr std::uint32_t kLogSchemaVersion = 3U;
 
 #pragma pack(push, 1)
 struct LogRecord
@@ -27,6 +27,12 @@ struct LogRecord
 	double ffValue;
 	double distValue;
 	double controlInput;
+	double higsLpInput;
+	double higsLpOutput;
+	std::uint32_t higsLpMode;
+	double higsIInput;
+	double higsIOutput;
+	std::uint32_t higsIMode;
 };
 #pragma pack(pop)
 
@@ -43,6 +49,12 @@ struct LogSample
 	double ffValue;
 	double distValue;
 	double controlInput;
+	double higsLpInput;
+	double higsLpOutput;
+	std::uint32_t higsLpMode;
+	double higsIInput;
+	double higsIOutput;
+	std::uint32_t higsIMode;
 };
 
 inline LogRecord BuildLogRecord(
@@ -65,10 +77,16 @@ inline LogRecord BuildLogRecord(
 	record.ffValue = sample.ffValue;
 	record.distValue = sample.distValue;
 	record.controlInput = sample.controlInput;
+	record.higsLpInput = sample.higsLpInput;
+	record.higsLpOutput = sample.higsLpOutput;
+	record.higsLpMode = sample.higsLpMode;
+	record.higsIInput = sample.higsIInput;
+	record.higsIOutput = sample.higsIOutput;
+	record.higsIMode = sample.higsIMode;
 	return record;
 }
 
-static_assert(sizeof(LogRecord) == 104U, "LogRecord must be 104 bytes");
+static_assert(sizeof(LogRecord) == 144U, "LogRecord must be 144 bytes");
 static_assert(offsetof(LogRecord, seq) == 0U, "LogRecord.seq offset changed");
 static_assert(offsetof(LogRecord, reservedPad0) == 4U, "LogRecord.reservedPad0 offset changed");
 static_assert(offsetof(LogRecord, tNs) == 8U, "LogRecord.tNs offset changed");
@@ -83,4 +101,10 @@ static_assert(offsetof(LogRecord, refValue) == 72U, "LogRecord.refValue offset c
 static_assert(offsetof(LogRecord, ffValue) == 80U, "LogRecord.ffValue offset changed");
 static_assert(offsetof(LogRecord, distValue) == 88U, "LogRecord.distValue offset changed");
 static_assert(offsetof(LogRecord, controlInput) == 96U, "LogRecord.controlInput offset changed");
+static_assert(offsetof(LogRecord, higsLpInput) == 104U, "LogRecord.higsLpInput offset changed");
+static_assert(offsetof(LogRecord, higsLpOutput) == 112U, "LogRecord.higsLpOutput offset changed");
+static_assert(offsetof(LogRecord, higsLpMode) == 120U, "LogRecord.higsLpMode offset changed");
+static_assert(offsetof(LogRecord, higsIInput) == 124U, "LogRecord.higsIInput offset changed");
+static_assert(offsetof(LogRecord, higsIOutput) == 132U, "LogRecord.higsIOutput offset changed");
+static_assert(offsetof(LogRecord, higsIMode) == 140U, "LogRecord.higsIMode offset changed");
 } // namespace experimentlogger

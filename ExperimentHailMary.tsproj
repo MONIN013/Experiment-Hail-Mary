@@ -225,7 +225,7 @@
 		</DataType>
 		<DataType>
 			<Name GUID="{B5BB3647-4067-4A21-8892-0F60A144E5B0}">ST_LoggerRecordInputs</Name>
-			<BitSize>704</BitSize>
+			<BitSize>1024</BitSize>
 			<SubItem>
 				<Name>currentCmd</Name>
 				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
@@ -273,6 +273,42 @@
 				<Type GUID="{F77CCAAA-7889-4B95-9096-6E794FC34B65}">ST_LoggerLoadSignals</Type>
 				<BitSize>128</BitSize>
 				<BitOffs>576</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>higsLpInput</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>704</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>higsLpOutput</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>768</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>higsLpMode</Name>
+				<Type GUID="{18071995-0000-0000-0000-000000000008}">UDINT</Type>
+				<BitSize>32</BitSize>
+				<BitOffs>832</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>higsIInput</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>864</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>higsIOutput</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>928</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>higsIMode</Name>
+				<Type GUID="{18071995-0000-0000-0000-000000000008}">UDINT</Type>
+				<BitSize>32</BitSize>
+				<BitOffs>992</BitOffs>
 			</SubItem>
 		</DataType>
 		<DataType>
@@ -909,31 +945,87 @@
 								<ContextId>1</ContextId>
 							</Parameter>
 							<Parameter CreateSymbol="true">
-								<Name>HigsEnabled</Name>
+								<Name>HigsLpEnabled</Name>
 								<BitSize>8</BitSize>
 								<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
 								<PTCID>#x00000004</PTCID>
 								<ContextId>1</ContextId>
 							</Parameter>
 							<Parameter CreateSymbol="true">
-								<Name>HigsGain</Name>
+								<Name>HigsLpGain</Name>
 								<BitSize>64</BitSize>
 								<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
 								<PTCID>#x00000005</PTCID>
 								<ContextId>1</ContextId>
 							</Parameter>
 							<Parameter CreateSymbol="true">
-								<Name>HigsOmegaTs</Name>
+								<Name>HigsLpOmegaTs</Name>
 								<BitSize>64</BitSize>
 								<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
 								<PTCID>#x00000006</PTCID>
 								<ContextId>1</ContextId>
 							</Parameter>
 							<Parameter CreateSymbol="true">
-								<Name>HigsPreSectionCount</Name>
+								<Name>HigsIEnabled</Name>
+								<BitSize>8</BitSize>
+								<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
+								<PTCID>#x00000007</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+							<Parameter CreateSymbol="true">
+								<Name>HigsIGain</Name>
+								<BitSize>64</BitSize>
+								<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
+								<PTCID>#x00000008</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+							<Parameter CreateSymbol="true">
+								<Name>HigsIOmegaTs</Name>
+								<BitSize>64</BitSize>
+								<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
+								<PTCID>#x00000009</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+							<Parameter CreateSymbol="true">
+								<Name>LpPreSectionCount</Name>
 								<BitSize>32</BitSize>
 								<BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
-								<PTCID>#x00000007</PTCID>
+								<PTCID>#x0000000A</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+							<Parameter CreateSymbol="true">
+								<Name>LpPostSectionCount</Name>
+								<BitSize>32</BitSize>
+								<BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+								<PTCID>#x0000000B</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+							<Parameter CreateSymbol="true">
+								<Name>PSectionCount</Name>
+								<BitSize>32</BitSize>
+								<BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+								<PTCID>#x0000000C</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+							<Parameter CreateSymbol="true">
+								<Name>IPreSectionCount</Name>
+								<BitSize>32</BitSize>
+								<BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+								<PTCID>#x0000000D</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+							<Parameter CreateSymbol="true">
+								<Name>IPostSectionCount</Name>
+								<BitSize>32</BitSize>
+								<BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+								<PTCID>#x0000000E</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+							<Parameter CreateSymbol="true">
+								<Name>PostSectionCount</Name>
+								<BitSize>32</BitSize>
+								<BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+								<PTCID>#x0000000F</PTCID>
 								<ContextId>1</ContextId>
 							</Parameter>
 						</Parameters>
@@ -1004,22 +1096,40 @@
 									<BitOffs>192</BitOffs>
 								</Symbol>
 								<Symbol CreateSymbol="true">
-									<Name>higsInput</Name>
+									<Name>higsLpInput</Name>
 									<BitSize>64</BitSize>
 									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
 									<BitOffs>224</BitOffs>
 								</Symbol>
 								<Symbol CreateSymbol="true">
-									<Name>higsOutput</Name>
+									<Name>higsLpOutput</Name>
 									<BitSize>64</BitSize>
 									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
 									<BitOffs>288</BitOffs>
 								</Symbol>
 								<Symbol CreateSymbol="true">
-									<Name>higsMode</Name>
+									<Name>higsLpMode</Name>
 									<BitSize>32</BitSize>
 									<BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
 									<BitOffs>352</BitOffs>
+								</Symbol>
+								<Symbol CreateSymbol="true">
+									<Name>higsIInput</Name>
+									<BitSize>64</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
+									<BitOffs>384</BitOffs>
+								</Symbol>
+								<Symbol CreateSymbol="true">
+									<Name>higsIOutput</Name>
+									<BitSize>64</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
+									<BitOffs>448</BitOffs>
+								</Symbol>
+								<Symbol CreateSymbol="true">
+									<Name>higsIMode</Name>
+									<BitSize>32</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+									<BitOffs>512</BitOffs>
 								</Symbol>
 							</DataArea>
 						</DataAreas>
@@ -1037,7 +1147,7 @@
 							</Value>
 							<Value>
 								<Name>SosCoefficients[0]</Name>
-								<Value>0</Value>
+								<Value>1</Value>
 							</Value>
 							<Value>
 								<Name>SosCoefficients[1]</Name>
@@ -1077,7 +1187,7 @@
 							</Value>
 							<Value>
 								<Name>SosCoefficients[10]</Name>
-								<Value>0</Value>
+								<Value>1</Value>
 							</Value>
 							<Value>
 								<Name>SosCoefficients[11]</Name>
@@ -1237,26 +1347,58 @@
 							</Value>
 							<Value>
 								<Name>SosSectionCount</Name>
-								<Value>0</Value>
+								<Value>3</Value>
 							</Value>
 							<Value>
 								<Name>SosApplyRevision</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>HigsEnabled</Name>
+								<Name>HigsLpEnabled</Name>
 								<EnumText>FALSE</EnumText>
 							</Value>
 							<Value>
-								<Name>HigsGain</Name>
+								<Name>HigsLpGain</Name>
 								<Value>1</Value>
 							</Value>
 							<Value>
-								<Name>HigsOmegaTs</Name>
+								<Name>HigsLpOmegaTs</Name>
 								<Value>0</Value>
 							</Value>
 							<Value>
-								<Name>HigsPreSectionCount</Name>
+								<Name>HigsIEnabled</Name>
+								<EnumText>FALSE</EnumText>
+							</Value>
+							<Value>
+								<Name>HigsIGain</Name>
+								<Value>1</Value>
+							</Value>
+							<Value>
+								<Name>HigsIOmegaTs</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>LpPreSectionCount</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>LpPostSectionCount</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>PSectionCount</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>IPreSectionCount</Name>
+								<Value>1</Value>
+							</Value>
+							<Value>
+								<Name>IPostSectionCount</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>PostSectionCount</Name>
 								<Value>0</Value>
 							</Value>
 						</ParameterValues>
@@ -2389,6 +2531,12 @@ Bit 8 - 15 : reserved]]></Comment>
 			<OwnerB Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
 				<Link VarA="Outputs^controlInput" VarB="Inputs^record^controlInput"/>
 				<Link VarA="Outputs^error" VarB="Inputs^record^error"/>
+				<Link VarA="Outputs^higsLpInput" VarB="Inputs^record^higsLpInput"/>
+				<Link VarA="Outputs^higsLpOutput" VarB="Inputs^record^higsLpOutput"/>
+				<Link VarA="Outputs^higsLpMode" VarB="Inputs^record^higsLpMode"/>
+				<Link VarA="Outputs^higsIInput" VarB="Inputs^record^higsIInput"/>
+				<Link VarA="Outputs^higsIOutput" VarB="Inputs^record^higsIOutput"/>
+				<Link VarA="Outputs^higsIMode" VarB="Inputs^record^higsIMode"/>
 			</OwnerB>
 		</OwnerA>
 		<OwnerA Name="TIXC^DriverAdapter^DriverAdapter_Obj1 (Module1)">

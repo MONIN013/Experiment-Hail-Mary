@@ -82,7 +82,8 @@ def main():
     ts8 = design['sample_time_s']; band8 = (f>=1)&(f<=1000)
     fb = f[band8]
     correction = np.sinc(fb*ts8)/np.sinc(fb*ts)*np.exp(-1j*np.pi*fb*(ts8-ts))
-    _,C = signal.sosfreqz(design['linear_sos'],worN=2*np.pi*fb*ts8)
+    from audit_higs import candidate
+    _,C = signal.sosfreqz(candidate(design)[0]['linear_sos'],worN=2*np.pi*fb*ts8)
     L = C*h[1,band8]*correction
     S = abs(1/(1+L))
     periods = period[1][:,band8]*correction

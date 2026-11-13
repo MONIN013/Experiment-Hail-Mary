@@ -211,11 +211,9 @@ classdef TestTestOracle < matlab.unittest.TestCase
 
       controller = experiment.ControllerConfig.p_only(0.1);
       payload = controller.to_ads_payload();
-      actual = struct( ...
-        "coefficients", payload.coefficients, ...
-        "section_count", payload.section_count, ...
-        "apply_revision", uint32(7), "applied_revision", uint32(7), ...
-        "processed_revision", uint32(7), "parameter_error_code", uint32(0));
+      actual = controller_readback_payload(payload);
+      actual.apply_revision = uint32(7); actual.applied_revision = uint32(7);
+      actual.processed_revision = uint32(7); actual.parameter_error_code = uint32(0);
       report = testoracle.compare_controller_readback(controller, actual);
       testCase.verifyTrue(report.pass);
       actual.processed_revision = uint32(6);
@@ -259,9 +257,7 @@ classdef TestTestOracle < matlab.unittest.TestCase
         cfg, plant, "frequency_hz", [10; 200]);
       frozen = rmfield(frozen, "system");
       payload = cfg.controller.to_ads_payload();
-      controller = struct( ...
-        "coefficients", payload.coefficients, ...
-        "section_count", payload.section_count);
+      controller = controller_readback_payload(payload);
       parameters = struct( ...
         "plant", plant.to_struct(), "taskDtNs", uint64(cfg.env.task_dt_ns()));
       report = testoracle.compare_readback_freqresp( ...
@@ -517,10 +513,9 @@ classdef TestTestOracle < matlab.unittest.TestCase
 
       controller = experiment.ControllerConfig.p_only(0.1);
       payload = controller.to_ads_payload();
-      readback = struct("coefficients", payload.coefficients, ...
-        "section_count", payload.section_count, ...
-        "apply_revision", uint32(1), "applied_revision", uint32(1), ...
-        "processed_revision", uint32(1), "parameter_error_code", uint32(0));
+      readback = controller_readback_payload(payload);
+      readback.apply_revision = uint32(1); readback.applied_revision = uint32(1);
+      readback.processed_revision = uint32(1); readback.parameter_error_code = uint32(0);
       readback.coefficients(1) = readback.coefficients(1) + 8*eps(1);
       testCase.verifyTrue(testoracle.compare_controller_readback( ...
         controller, readback, "eps_factor", 16).pass);
@@ -764,7 +759,22 @@ function write_logger_record(file_path)
 if fid < 0, error("testoracle:test:openFailed", "%s", message); end
 cleanup = onCleanup(@() fclose(fid));
 fwrite(fid, uint32(1), "uint32");
-fwrite(fid, uint32(2), "uint32");
+fwrite(fid, uint32(3), "uint32");
 fwrite(fid, uint64(1000), "uint64");
 fwrite(fid, 0.1:0.1:1.1, "double");
+fwrite(fid, [1.2, 1.3], "double");
+fwrite(fid, uint32(2), "uint32");
+fwrite(fid, [1.4, 1.5], "double");
+fwrite(fid, uint32(1), "uint32");
+end
+
+function value = controller_readback_payload(payload)
+counts=payload.section_counts;
+value=struct("coefficients",payload.coefficients,"section_count",payload.section_count, ...
+  "lp_pre_section_count",counts(1),"lp_post_section_count",counts(2), ...
+  "p_section_count",counts(3),"i_pre_section_count",counts(4), ...
+  "i_post_section_count",counts(5),"post_section_count",counts(6), ...
+  "higs_lp_enabled",payload.higs_lp_enabled,"higs_lp_gain",payload.higs_lp_gain, ...
+  "higs_lp_omega_ts",payload.higs_lp_omega_ts,"higs_i_enabled",payload.higs_i_enabled, ...
+  "higs_i_gain",payload.higs_i_gain,"higs_i_omega_ts",payload.higs_i_omega_ts);
 end

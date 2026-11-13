@@ -22,7 +22,13 @@ bool VerifyRecordFields()
 		8.0,
 		9.0,
 		10.0,
-		11.0
+		11.0,
+		12.0,
+		13.0,
+		2U,
+		14.0,
+		15.0,
+		1U
 	};
 	const experimentlogger::LogRecord record = experimentlogger::BuildLogRecord(4U, 125000U, sample);
 	return record.seq == 4U
@@ -38,7 +44,13 @@ bool VerifyRecordFields()
 		&& record.refValue == 8.0
 		&& record.ffValue == 9.0
 		&& record.distValue == 10.0
-		&& record.controlInput == 11.0;
+		&& record.controlInput == 11.0
+		&& record.higsLpInput == 12.0
+		&& record.higsLpOutput == 13.0
+		&& record.higsIInput == 14.0
+		&& record.higsIOutput == 15.0
+		&& record.higsLpMode == 2U
+		&& record.higsIMode == 1U;
 }
 
 bool VerifySerializedOffsets()
@@ -54,7 +66,13 @@ bool VerifySerializedOffsets()
 		-8.0,
 		-9.0,
 		-10.0,
-		-11.0
+		-11.0,
+		-12.0,
+		-13.0,
+		3U,
+		-14.0,
+		-15.0,
+		2U
 	};
 	const experimentlogger::LogRecord record = experimentlogger::BuildLogRecord(7U, 10U, sample);
 	std::uint8_t bytes[sizeof(record)] = {};
@@ -67,12 +85,18 @@ bool VerifySerializedOffsets()
 	std::memcpy(&seq, bytes + 0U, sizeof(seq));
 	std::memcpy(&schemaVersion, bytes + 4U, sizeof(schemaVersion));
 	std::memcpy(&timestamp, bytes + 8U, sizeof(timestamp));
+	std::uint32_t lpMode = 0;
+	std::uint32_t iMode = 0;
 	std::memcpy(&controlInput, bytes + 96U, sizeof(controlInput));
-	return sizeof(record) == 104U
+	std::memcpy(&lpMode, bytes + 120U, sizeof(lpMode));
+	std::memcpy(&iMode, bytes + 140U, sizeof(iMode));
+	return sizeof(record) == 144U
 		&& seq == 7U
-		&& schemaVersion == 2U
+		&& schemaVersion == 3U
 		&& timestamp == 70U
-		&& controlInput == -11.0;
+		&& controlInput == -11.0
+		&& lpMode == 3U
+		&& iMode == 2U;
 }
 
 experimentlogger::LogSample MakeSample(double base) noexcept
@@ -88,7 +112,13 @@ experimentlogger::LogSample MakeSample(double base) noexcept
 		base + 7.0,
 		base + 8.0,
 		base + 9.0,
-		base + 10.0
+		base + 10.0,
+		base + 11.0,
+		base + 12.0,
+		static_cast<std::uint32_t>(base + 13.0),
+		base + 14.0,
+		base + 15.0,
+		static_cast<std::uint32_t>(base + 16.0)
 	};
 }
 

@@ -1,5 +1,5 @@
 function applied_revision = write_controller_params(transport, controller_param_symbol_prefix, controller)
-% write_controller_params  Commit SOS and HIGS parameters in one revision.
+% write_controller_params  Commit packed SOS, section counts and HIGS parameters in one revision.
 %
 % Write the complete payload before applyRevision.
 % ControllerCore keeps the old active bank until applyRevision is accepted.
@@ -22,10 +22,19 @@ function applied_revision = write_controller_params(transport, controller_param_
 
   transport.write_array(p.coefficients, payload.coefficients, t.double);
   transport.write_scalar(p.sectionCount, payload.section_count, t.u32);
-  transport.write_scalar(p.higsEnabled, payload.higs_enabled, t.bool);
-  transport.write_scalar(p.higsGain, payload.higs_gain, t.double);
-  transport.write_scalar(p.higsOmegaTs, payload.higs_omega_ts, t.double);
-  transport.write_scalar(p.higsPreSectionCount, payload.higs_pre_section_count, t.u32);
+  counts = payload.section_counts;
+  transport.write_scalar(p.lpPreSectionCount, counts(1), t.u32);
+  transport.write_scalar(p.lpPostSectionCount, counts(2), t.u32);
+  transport.write_scalar(p.pSectionCount, counts(3), t.u32);
+  transport.write_scalar(p.iPreSectionCount, counts(4), t.u32);
+  transport.write_scalar(p.iPostSectionCount, counts(5), t.u32);
+  transport.write_scalar(p.postSectionCount, counts(6), t.u32);
+  transport.write_scalar(p.higsLpEnabled, payload.higs_lp_enabled, t.bool);
+  transport.write_scalar(p.higsLpGain, payload.higs_lp_gain, t.double);
+  transport.write_scalar(p.higsLpOmegaTs, payload.higs_lp_omega_ts, t.double);
+  transport.write_scalar(p.higsIEnabled, payload.higs_i_enabled, t.bool);
+  transport.write_scalar(p.higsIGain, payload.higs_i_gain, t.double);
+  transport.write_scalar(p.higsIOmegaTs, payload.higs_i_omega_ts, t.double);
   transport.write_scalar(p.applyRevision, requested_revision, t.u32);
 
   applied_revision = wait_for_apply_ack(transport, p, t, requested_revision);

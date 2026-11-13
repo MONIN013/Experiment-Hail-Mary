@@ -1,6 +1,6 @@
 # ControllerAlgorithm host tests
 
-These tests compile the allocation-free controller algorithm without the TwinCAT SDK and compare the fixed ten-section SOS cascade against an independent reference implementation.
+Build the allocation-free controller core and its direct-cascade reference tests without the TwinCAT SDK:
 
 ```powershell
 & 'C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Current\Bin\MSBuild.exe' `
@@ -10,20 +10,15 @@ These tests compile the allocation-free controller algorithm without the TwinCAT
 .\.tmp\cpp-tests\Release\ControllerAlgorithmTests.exe
 ```
 
-The suite also verifies revision commits, rejected-payload isolation, identity and zero controllers, state reset, and fail-safe recovery from non-finite inputs, state updates, and output overflow.
+The suite compares the two-HIGS implementation against a direct PI-lead / Butterworth cascade at 100 Hz and 8 kHz across 12,000 samples, including reset. It checks both HIGS elements against independent trimodal references through modes 1, 2, and 3; linear mode is checked separately with mode 0 diagnostics. It also covers section layout, independent state, both parameter validators, revision reset and rejection behavior, non-finite input, stage overflow recovery, and final-output overflow.
 
-HIGS checks cover all three digital modes, sector invariance, odd symmetry,
-insertion before/between/after SOS sections, reset, rejected-parameter isolation,
-and the sampling bound. A quadratic-sector reference independently checks 20,000
-samples against the interval-based implementation.
-
-Without the TwinCAT SDK, the same numerical core can be checked on Linux:
+The separate host simulation regression links the runtime core to its simulation adapter and checks the 100,000-sample linear comparator, four-mode trajectories, diagnostics, and simulation ABI. Build and run it with:
 
 ```sh
 g++ -std=c++17 -Wall -Wextra -Werror -O2 -IControllerCore \
-  ControllerCore/ControllerAlgorithm.cpp ControllerCore/tests/ControllerAlgorithmTests.cpp \
-  -o /tmp/controller_tests
-/tmp/controller_tests
+  ControllerCore/ControllerAlgorithm.cpp simulations/higs_host.cpp simulations/higs_regression.cpp \
+  -o /tmp/higs_regression
+/tmp/higs_regression
 ```
 
-This host test does not build the TwinCAT module or validate a hardware deployment.
+These host checks do not build the TwinCAT module or validate a hardware deployment.

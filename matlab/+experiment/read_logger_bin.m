@@ -4,7 +4,7 @@ function out = read_logger_bin(file_path)
 %   out = experiment.read_logger_bin(file_path)
 %
 %   入力:
-%     file_path - LogRecord(104 bytes) が連結された .bin ファイル
+%     file_path - LogRecord(144 bytes) が連結された .bin ファイル
 %
 %   戻り値 out (struct):
 %     .file_path     - 読み込んだファイルパス
@@ -25,7 +25,7 @@ function out = read_logger_bin(file_path)
   end
 
   info = dir(char(file_path));
-  record_size = 104;
+  record_size = 144;
   if mod(info.bytes, record_size) ~= 0
     error("experiment:read_logger_bin:invalidSize", ...
       "Logger bin size must be a multiple of %d bytes, got %d bytes.", ...
@@ -42,7 +42,7 @@ function out = read_logger_bin(file_path)
   raw_bytes = fread(fid, [record_size, inf], "*uint8");
   record_count = size(raw_bytes, 2);
   raw = decode_records(raw_bytes);
-  schema_version = uint32(2);
+  schema_version = uint32(3);
   if record_count > 0 && any(raw.reserved_pad0 ~= schema_version)
     error("experiment:read_logger_bin:invalidSchema", ...
       "Logger bin schema version must be %u.", schema_version);
@@ -68,11 +68,19 @@ function out = read_logger_bin(file_path)
     raw.ff_value, ...
     raw.dist_value, ...
     raw.control_input, ...
+    raw.higs_lp_input, ...
+    raw.higs_lp_output, ...
+    raw.higs_lp_mode, ...
+    raw.higs_i_input, ...
+    raw.higs_i_output, ...
+    raw.higs_i_mode, ...
     'VariableNames', { ...
       'seq', 't_ns', 't_s', ...
       'motor_position', 'motor_velocity', 'motor_current_act', ...
       'load_position', 'load_velocity', 'current_cmd', ...
-      'error', 'ref_value', 'ff_value', 'dist_value', 'control_input'});
+      'error', 'ref_value', 'ff_value', 'dist_value', 'control_input', ...
+      'higs_lp_input', 'higs_lp_output', 'higs_lp_mode', ...
+      'higs_i_input', 'higs_i_output', 'higs_i_mode'});
   out.raw = raw;
 end
 
@@ -92,6 +100,12 @@ function raw = decode_records(raw_bytes)
   raw.ff_value = decode_double(raw_bytes, 81, 88);
   raw.dist_value = decode_double(raw_bytes, 89, 96);
   raw.control_input = decode_double(raw_bytes, 97, 104);
+  raw.higs_lp_input = decode_double(raw_bytes, 105, 112);
+  raw.higs_lp_output = decode_double(raw_bytes, 113, 120);
+  raw.higs_lp_mode = decode_uint32(raw_bytes, 121, 124);
+  raw.higs_i_input = decode_double(raw_bytes, 125, 132);
+  raw.higs_i_output = decode_double(raw_bytes, 133, 140);
+  raw.higs_i_mode = decode_uint32(raw_bytes, 141, 144);
   raw.t_s = double(raw.t_ns) * 1e-9;
 end
 

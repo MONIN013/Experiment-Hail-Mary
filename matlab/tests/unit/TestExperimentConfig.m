@@ -35,7 +35,8 @@ classdef TestExperimentConfig < matlab.unittest.TestCase
       restored = experiment.ExperimentConfig.from_struct(cfg.to_struct());
 
       testCase.verifyTrue(isa(restored.controller, "experiment.ControllerConfig"));
-      testCase.verifyEqual(restored.controller.sos, [2.5, 0, 0, 1, 0, 0], "AbsTol", 0);
+      % Packed bank [lpH; P; iPre; iH]: the P branch is row 2.
+      testCase.verifyEqual(restored.controller.sos(2, :), [2.5, 0, 0, 1, 0, 0], "AbsTol", 0);
     end
 
     function rejectsControllerSampleTimeMismatch(testCase)

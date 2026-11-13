@@ -80,9 +80,12 @@ cleaner = onCleanup(@() fclose(fid));
 
 for k = 1:n_records
   fwrite(fid, uint32(k), "uint32");
-  fwrite(fid, uint32(2), "uint32");
+  fwrite(fid, uint32(3), "uint32");
   fwrite(fid, uint64(1000 * k), "uint64");
-  fwrite(fid, [0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0 1.1], "double");
+  fwrite(fid, [0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0 1.1 1.2 1.3], "double");
+  fwrite(fid, uint32(2), "uint32");
+  fwrite(fid, [1.4 1.5], "double");
+  fwrite(fid, uint32(1), "uint32");
 end
 end
 
