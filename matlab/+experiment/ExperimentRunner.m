@@ -461,12 +461,9 @@ classdef ExperimentRunner
         [status, heartbeat_state, observer_state] = experiment.ModeManagerControl.wait_until_inactive( ...
           ctrl_transport, ctrl, min(cfg.abort_check_period_s, remaining_s), ...
           heartbeat_state, observer_state);
-        if status.completed
-          done = strcmp(status.stop_reason, "done");
-          stop_reason = char(string(status.stop_reason));
-          return;
-        end
-
+        % Observe latched hardware trips even if they already ended the run.
+        % Otherwise a drive-loss terminal state skips the callback and its
+        % diagnostic could be mistaken for natural experiment completion.
         if ~isempty(opts.abort_condition)
           [abort_requested, abort_diag] = experiment.ExperimentRunner.check_abort_condition( ...
             opts.abort_condition, struct( ...
@@ -474,6 +471,12 @@ classdef ExperimentRunner
               "status", status, ...
               "cfg", opts.cfg_snapshot, ...
               "heartbeat_state", heartbeat_state));
+        end
+        if status.completed
+          done = strcmp(status.stop_reason, "done") && ~abort_requested;
+          stop_reason = char(string(status.stop_reason));
+          if abort_requested, stop_reason = "abort"; end
+          return;
         end
         if abort_requested
           [aborted, abort_diag, heartbeat_state] = experiment.ModeManagerControl.abort_experiment( ...

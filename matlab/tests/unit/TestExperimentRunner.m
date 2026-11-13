@@ -246,6 +246,30 @@ classdef TestExperimentRunner < matlab.unittest.TestCase
       testCase.verifyEqual(string(out.host.stop_reason), "done");
     end
 
+    function terminalStateStillObservesSafetyCallback(testCase)
+      seq = MockAdsTransport();
+      ctrl = MockAdsTransport();
+      module = MockAdsTransport();
+      seed_controller(module);
+      seed_seq(seq);
+      seed_ctrl(ctrl);
+      ctrl.set_scalar_read_sequence("GVL_MODE.modeState", ...
+        [int16(0); int16(0); int16(20); int16(30); int16(40)]);
+      ctrl.set_scalar_read_sequence("GVL_MODE.experimentActive", [false; true; false]);
+      ctrl.scalarMap("GVL_MODE.loggerFileReleased") = true;
+      conn = experiment.ConnectionManager.from_transports(seq, ctrl, module);
+      cfg = experiment.ExperimentConfig.from_varargin( ...
+        "ref_profile", [0.1; 0.2], "wait_for_done", true, ...
+        "done_timeout_s", 0.05, "abort_check_period_s", 0.001, ...
+        "read_logs", false, "validate_symbols", false);
+      out = experiment.ExperimentRunner.run(conn, cfg, ...
+        "abort_condition", @(context) context.status.completed);
+      testCase.verifyFalse(out.host.done);
+      testCase.verifyTrue(out.host.abort_requested);
+      testCase.verifyEqual(string(out.host.stop_reason), "abort");
+      testCase.verifyTrue(out.host.abort_diag.requested_by_callback);
+    end
+
     function timeoutStillErrors(testCase)
       seq = MockAdsTransport();
       ctrl = MockAdsTransport();

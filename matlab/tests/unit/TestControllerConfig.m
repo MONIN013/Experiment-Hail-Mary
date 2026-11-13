@@ -45,6 +45,37 @@ classdef TestControllerConfig < matlab.unittest.TestCase
       testCase.verifyEqual(cfg.sos(1, 1:3), [0, 0, 0]);
     end
 
+    function higsPayloadRetainsInsertionAndRate(testCase)
+      cfg = experiment.ControllerConfig.from_struct(struct( ...
+        "sos", [2, 0, 0, 1, 0, 0], "sample_time_s", 1/8000, ...
+        "higs_enabled", true, "higs_gain", 1.5, ...
+        "higs_omega_ts", 0.02, "higs_pre_section_count", 1));
+      cfg.validate_for_task_rate(8000);
+      payload = cfg.to_ads_payload();
+      testCase.verifyTrue(payload.higs_enabled);
+      testCase.verifyEqual(payload.higs_gain, 1.5);
+      testCase.verifyEqual(payload.higs_omega_ts, 0.02);
+      testCase.verifyEqual(payload.higs_pre_section_count, uint32(1));
+      copy = experiment.ControllerConfig.from_struct(cfg.to_struct());
+      testCase.verifyEqual(copy.to_struct(), cfg.to_struct());
+    end
+
+    function rejectsInvalidHigsAndMissingTaskPeriod(testCase)
+      cfg = experiment.ControllerConfig();
+      cfg.higs_enabled = true;
+      testCase.verifyError(@() cfg.validate(), "experiment:controller:invalid");
+      cfg.higs_omega_ts = 1.1;
+      testCase.verifyError(@() cfg.validate(), "experiment:controller:invalid");
+      cfg.higs_omega_ts = 0.1;
+      cfg.higs_pre_section_count = 1;
+      testCase.verifyError(@() cfg.validate(), "experiment:controller:invalid");
+      cfg.higs_pre_section_count = 0;
+      testCase.verifyError(@() cfg.validate_for_task_rate(8000), ...
+        "experiment:controller:missingSampleTime");
+      cfg.sample_time_s = 1/8000;
+      cfg.validate_for_task_rate(8000);
+    end
+
     function rejectsUnknownFields(testCase)
       testCase.verifyError(@() experiment.ControllerConfig.from_struct( ...
         struct("sos", zeros(0, 6), "typo", 1)), ...

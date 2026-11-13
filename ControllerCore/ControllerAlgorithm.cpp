@@ -8,7 +8,8 @@
 namespace controllercore
 {
 ControllerAlgorithm::ControllerAlgorithm() noexcept
-	: m_activeSectionCount(0)
+	: m_higs{ false, 1.0, 0.0, 0 }
+	, m_activeSectionCount(0)
 	, m_appliedRevision(0)
 	, m_lastSeenRevision(0)
 	, m_parameterErrorCode(ParameterErrorNone)
@@ -22,6 +23,9 @@ ControllerAlgorithm::ControllerAlgorithm() noexcept
 
 void ControllerAlgorithm::Reset() noexcept
 {
+	m_higsInput = 0.0;
+	m_higsState = 0.0;
+	m_higsMode = 0;
 	for (std::size_t i = 0; i < kMaxSections; ++i)
 	{
 		m_states[i] = { 0.0, 0.0 };
@@ -31,7 +35,8 @@ void ControllerAlgorithm::Reset() noexcept
 bool ControllerAlgorithm::ApplyParameters(
 	const double* coefficients,
 	std::uint32_t sectionCount,
-	std::uint32_t revision) noexcept
+	std::uint32_t revision,
+	const HigsParameters& higs) noexcept
 {
 	m_lastSeenRevision = revision;
 
@@ -44,6 +49,13 @@ bool ControllerAlgorithm::ApplyParameters(
 	if (sectionCount > 0 && coefficients == nullptr)
 	{
 		m_parameterErrorCode = ParameterErrorNonFiniteCoefficient;
+		return false;
+	}
+	if (higs.enabled && (!IsFinite(higs.gain) || !IsFinite(higs.omegaTs)
+		|| higs.gain <= 0.0 || higs.omegaTs <= 0.0 || higs.omegaTs > higs.gain
+		|| higs.preSectionCount > sectionCount))
+	{
+		m_parameterErrorCode = ParameterErrorHigsParameters;
 		return false;
 	}
 
@@ -78,6 +90,7 @@ bool ControllerAlgorithm::ApplyParameters(
 	}
 
 	m_activeSectionCount = sectionCount;
+	m_higs = higs;
 	m_appliedRevision = revision;
 	m_parameterErrorCode = ParameterErrorNone;
 	Reset();
@@ -97,9 +110,14 @@ double ControllerAlgorithm::Step(double refValue, double ffValue, double positio
 		return 0.0;
 	}
 
-	for (std::size_t section = 0; section < m_activeSectionCount; ++section)
+	for (std::size_t section = 0; section <= m_activeSectionCount; ++section)
 	{
-		if (!TryApplyBiquad(y, m_activeCoefficients[section], m_states[section], y))
+		if (m_higs.enabled && section == m_higs.preSectionCount && !TryApplyHigs(y, y))
+		{
+			return 0.0;
+		}
+		if (section < m_activeSectionCount
+			&& !TryApplyBiquad(y, m_activeCoefficients[section], m_states[section], y))
 		{
 			return 0.0;
 		}
@@ -127,6 +145,34 @@ std::uint32_t ControllerAlgorithm::LastSeenRevision() const noexcept
 std::uint32_t ControllerAlgorithm::ParameterErrorCode() const noexcept
 {
 	return m_parameterErrorCode;
+}
+
+double ControllerAlgorithm::HigsInput() const noexcept { return m_higsInput; }
+double ControllerAlgorithm::HigsOutput() const noexcept { return m_higsState; }
+std::uint32_t ControllerAlgorithm::HigsMode() const noexcept { return m_higsMode; }
+
+bool ControllerAlgorithm::TryApplyHigs(double input, double& output) noexcept
+{
+	// Trimodal digital HIGS: book Section 2.4, Eqs. (2.43)-(2.44).
+	// Test the candidate first; a sign change alone does not require zeroing.
+	const double candidate = m_higsState + m_higs.omegaTs * input;
+	const double boundary = m_higs.gain * input;
+	if (!IsFinite(candidate) || !IsFinite(boundary))
+	{
+		m_higsInput = m_higsState = output = 0.0;
+		m_higsMode = 0;
+		return false;
+	}
+	const bool inside = input >= 0.0
+		? (candidate >= 0.0 && candidate <= boundary)
+		: (candidate >= boundary && candidate <= 0.0);
+	const bool sameSign = (input >= 0.0 && m_higsInput >= 0.0)
+		|| (input <= 0.0 && m_higsInput <= 0.0);
+	m_higsMode = inside ? 1u : (sameSign ? 2u : 3u);
+	m_higsState = inside ? candidate : (sameSign ? boundary : 0.0);
+	m_higsInput = input;
+	output = m_higsState;
+	return true;
 }
 
 double ControllerAlgorithm::ComputeError(double refValue, double positionAct) noexcept

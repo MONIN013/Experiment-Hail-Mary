@@ -439,6 +439,28 @@
 				<BitOffs>192</BitOffs>
 			</SubItem>
 		</DataType>
+		<DataType>
+			<Name GUID="{93636CB0-7708-43A8-90E2-7A8041EF97BD}">ST_DriverSafetyLimits</Name>
+			<BitSize>192</BitSize>
+			<SubItem>
+				<Name>maxPositionRad</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>0</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>maxVelocityRadS</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>64</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>maxTwistRad</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>128</BitOffs>
+			</SubItem>
+		</DataType>
 	</DataTypes>
 	<Project ProjectGUID="{4A5895CC-136C-4342-8211-A3240A616049}" TargetNetId="192.168.10.3.1.1" Target64Bit="true" ShowHideConfigurations="#x6">
 		<System>
@@ -845,6 +867,34 @@
 								<PTCID>#x00000003</PTCID>
 								<ContextId>1</ContextId>
 							</Parameter>
+							<Parameter CreateSymbol="true">
+								<Name>HigsEnabled</Name>
+								<BitSize>8</BitSize>
+								<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
+								<PTCID>#x00000004</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+							<Parameter CreateSymbol="true">
+								<Name>HigsGain</Name>
+								<BitSize>64</BitSize>
+								<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
+								<PTCID>#x00000005</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+							<Parameter CreateSymbol="true">
+								<Name>HigsOmegaTs</Name>
+								<BitSize>64</BitSize>
+								<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
+								<PTCID>#x00000006</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+							<Parameter CreateSymbol="true">
+								<Name>HigsPreSectionCount</Name>
+								<BitSize>32</BitSize>
+								<BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+								<PTCID>#x00000007</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
 						</Parameters>
 						<DataAreas>
 							<DataArea>
@@ -881,7 +931,7 @@
 								<AreaNo AreaType="OutputSrc">1</AreaNo>
 								<Name>Outputs</Name>
 								<ContextId>1</ContextId>
-								<ByteSize>28</ByteSize>
+								<ByteSize>48</ByteSize>
 								<Symbol CreateSymbol="true">
 									<Name>controlInput</Name>
 									<BitSize>64</BitSize>
@@ -911,6 +961,24 @@
 									<BitSize>32</BitSize>
 									<BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
 									<BitOffs>192</BitOffs>
+								</Symbol>
+								<Symbol CreateSymbol="true">
+									<Name>higsInput</Name>
+									<BitSize>64</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
+									<BitOffs>224</BitOffs>
+								</Symbol>
+								<Symbol CreateSymbol="true">
+									<Name>higsOutput</Name>
+									<BitSize>64</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</BaseType>
+									<BitOffs>288</BitOffs>
+								</Symbol>
+								<Symbol CreateSymbol="true">
+									<Name>higsMode</Name>
+									<BitSize>32</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+									<BitOffs>352</BitOffs>
 								</Symbol>
 							</DataArea>
 						</DataAreas>
@@ -1134,6 +1202,22 @@
 								<Name>SosApplyRevision</Name>
 								<Value>0</Value>
 							</Value>
+							<Value>
+								<Name>HigsEnabled</Name>
+								<EnumText>FALSE</EnumText>
+							</Value>
+							<Value>
+								<Name>HigsGain</Name>
+								<Value>1</Value>
+							</Value>
+							<Value>
+								<Name>HigsOmegaTs</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>HigsPreSectionCount</Name>
+								<Value>0</Value>
+							</Value>
 						</ParameterValues>
 						<InterfacePointerValues>
 							<Value>
@@ -1322,6 +1406,20 @@
 								<PTCID>#x00000002</PTCID>
 								<ContextId>1</ContextId>
 							</Parameter>
+							<Parameter CreateSymbol="true">
+								<Name>SafetyLimits</Name>
+								<BitSize>192</BitSize>
+								<BaseType GUID="{93636CB0-7708-43A8-90E2-7A8041EF97BD}">ST_DriverSafetyLimits</BaseType>
+								<PTCID>#x00000003</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
+							<Parameter CreateSymbol="true">
+								<Name>SafetyResetRevision</Name>
+								<BitSize>32</BitSize>
+								<BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+								<PTCID>#x00000004</PTCID>
+								<ContextId>1</ContextId>
+							</Parameter>
 						</Parameters>
 						<DataAreas>
 							<DataArea>
@@ -1388,7 +1486,7 @@
 								<AreaNo AreaType="OutputSrc" ShowSymbols="true">1</AreaNo>
 								<Name>Outputs</Name>
 								<ContextId>1</ContextId>
-								<ByteSize>82</ByteSize>
+								<ByteSize>87</ByteSize>
 								<Symbol>
 									<Name>motor</Name>
 									<BitSize>256</BitSize>
@@ -1436,6 +1534,18 @@
 									<BitSize>16</BitSize>
 									<BaseType GUID="{18071995-0000-0000-0000-000000000005}">UINT</BaseType>
 									<BitOffs>640</BitOffs>
+								</Symbol>
+								<Symbol CreateSymbol="true">
+									<Name>safetyTrip</Name>
+									<BitSize>8</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
+									<BitOffs>656</BitOffs>
+								</Symbol>
+								<Symbol CreateSymbol="true">
+									<Name>safetyCode</Name>
+									<BitSize>32</BitSize>
+									<BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+									<BitOffs>664</BitOffs>
 								</Symbol>
 							</DataArea>
 						</DataAreas>
@@ -1506,6 +1616,22 @@
 							<Value>
 								<Name>LoadParams.enableRelativePosition</Name>
 								<EnumText>TRUE</EnumText>
+							</Value>
+							<Value>
+								<Name>SafetyLimits.maxPositionRad</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SafetyLimits.maxVelocityRadS</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SafetyLimits.maxTwistRad</Name>
+								<Value>0</Value>
+							</Value>
+							<Value>
+								<Name>SafetyResetRevision</Name>
+								<Value>0</Value>
 							</Value>
 						</ParameterValues>
 						<InterfacePointerValues>

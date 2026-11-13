@@ -16,7 +16,7 @@ driveradapter::AxisParameters MakeAxisParameters() noexcept
 
 driveradapter::Parameters MakeParameters() noexcept
 {
-	return { MakeAxisParameters(), MakeAxisParameters() };
+	return { MakeAxisParameters(), MakeAxisParameters(), { 0, 0, 0 }, 0 };
 }
 
 driveradapter::Inputs MakeInputs() noexcept
@@ -54,7 +54,8 @@ bool Equal(const driveradapter::Outputs& left, const driveradapter::Outputs& rig
 		&& left.motorControlWordOut == right.motorControlWordOut
 		&& left.loadControlWordOut == right.loadControlWordOut
 		&& left.motorStatusWordOut == right.motorStatusWordOut
-		&& left.loadStatusWordOut == right.loadStatusWordOut;
+		&& left.loadStatusWordOut == right.loadStatusWordOut
+		&& left.safetyTrip == right.safetyTrip && left.safetyCode == right.safetyCode;
 }
 
 bool VerifyCurrentPresetAndRelays()
@@ -271,6 +272,132 @@ bool VerifyDeterministicStress()
 	}
 	return true;
 }
+
+bool Stopped(const driveradapter::Outputs& out, std::uint32_t code)
+{
+	return out.safetyTrip && out.safetyCode == code && out.targetTorque == 0
+		&& out.currentCmd == 0 && out.motorControlWordOut == 0 && out.loadControlWordOut == 0;
+}
+
+bool VerifySafetyTripsInOneScan()
+{
+	// Each encoder is checked independently for travel and speed.
+	for (unsigned axis = 0; axis < 2; ++axis)
+	{
+		for (unsigned kind = 1; kind <= 2; ++kind)
+		{
+			driveradapter::DriverAdapterAlgorithm algorithm;
+			auto parameters = MakeParameters();
+			auto inputs = MakeInputs();
+			inputs.controlInput = 1;
+			auto& raw = axis == 0 ? inputs.motorRaw : inputs.loadRaw;
+			if (kind == 1) { parameters.safety.maxPositionRad = 1; raw.positionActualValue = -200; }
+			else { parameters.safety.maxVelocityRadS = 1; raw.velocityActualValue = -200; }
+			if (!Stopped(algorithm.Step(parameters, inputs), kind)) return false;
+		}
+	}
+	driveradapter::DriverAdapterAlgorithm algorithm;
+	auto parameters = MakeParameters();
+	auto inputs = MakeInputs();
+	parameters.safety.maxTwistRad = 0.5;
+	inputs.motorRaw.positionActualValue = 100;
+	inputs.loadRaw.positionActualValue = 200;
+	inputs.resetReq = true;
+	if (algorithm.Step(parameters, inputs).safetyTrip) return false;
+	inputs.resetReq = false;
+	inputs.motorRaw.positionActualValue += 50;
+	inputs.loadRaw.positionActualValue -= 50;
+	return Stopped(algorithm.Step(parameters, inputs), 3);
+}
+
+bool VerifySafetyLatchAndExplicitReset()
+{
+	driveradapter::DriverAdapterAlgorithm algorithm;
+	auto parameters = MakeParameters();
+	auto inputs = MakeInputs();
+	parameters.safety.maxVelocityRadS = 1;
+	inputs.motorRaw.velocityActualValue = 200;
+	if (!Stopped(algorithm.Step(parameters, inputs), 2)) return false;
+	inputs.resetReq = true;
+	// Ordinary experiment resets never clear a trip, even after the fault ends.
+	if (!Stopped(algorithm.Step(parameters, inputs), 2)) return false;
+	inputs.motorRaw.velocityActualValue = 0;
+	inputs.enableCurrentOutput = false;
+	parameters.safety.maxVelocityRadS = 0;
+	// Neither cleared limits, a closed current gate nor a held reset releases it.
+	if (!Stopped(algorithm.Step(parameters, inputs), 2)) return false;
+	inputs.resetReq = false;
+	if (!Stopped(algorithm.Step(parameters, inputs), 2)) return false;
+	inputs.resetReq = true;
+	if (!Stopped(algorithm.Step(parameters, inputs), 2)) return false;
+	inputs.motorControlWordIn = inputs.loadControlWordIn = 0;
+	inputs.enableCurrentOutput = true;
+	parameters.safetyResetRevision = 1;
+	if (!Stopped(algorithm.Step(parameters, inputs), 2)) return false;
+	inputs.enableCurrentOutput = false;
+	inputs.motorControlWordIn = 0x000F;
+	parameters.safetyResetRevision = 2;
+	if (!Stopped(algorithm.Step(parameters, inputs), 2)) return false;
+	inputs.motorControlWordIn = 0;
+	inputs.loadControlWordIn = 0x000F;
+	parameters.safetyResetRevision = 3;
+	if (!Stopped(algorithm.Step(parameters, inputs), 2)) return false;
+	inputs.loadControlWordIn = 0;
+	// The unsafe revision was consumed; becoming idle is not itself a clear.
+	if (!Stopped(algorithm.Step(parameters, inputs), 2)) return false;
+	parameters.safetyResetRevision = 4;
+	if (algorithm.Step(parameters, inputs).safetyTrip) return false;
+	inputs.resetReq = false;
+	inputs.enableCurrentOutput = true;
+	inputs.motorControlWordIn = 0x000F;
+	inputs.controlInput = 0.8;
+	const auto out = algorithm.Step(parameters, inputs);
+	return !out.safetyTrip && out.safetyCode == 0 && out.targetTorque == 500
+		&& out.motorControlWordOut == inputs.motorControlWordIn;
+}
+
+bool VerifySafetyBoundaryAndGate()
+{
+	driveradapter::DriverAdapterAlgorithm algorithm;
+	auto parameters = MakeParameters();
+	auto inputs = MakeInputs();
+	parameters.safety.maxPositionRad = 200 * (kTwoPi / 1000.0);
+	inputs.motorRaw.positionActualValue = 200;
+	if (algorithm.Step(parameters, inputs).safetyTrip) return false;
+	inputs.motorRaw.positionActualValue = 201;
+	inputs.enableCurrentOutput = false;
+	if (algorithm.Step(parameters, inputs).safetyTrip) return false;
+	inputs.enableCurrentOutput = true;
+	inputs.playbackDone = true;
+	if (algorithm.Step(parameters, inputs).safetyTrip) return false;
+	inputs.playbackDone = false;
+	return Stopped(algorithm.Step(parameters, inputs), 1);
+}
+
+bool VerifyInvalidSafetyLimitsFailClosed()
+{
+	const double bad[] = { -1, std::numeric_limits<double>::quiet_NaN(),
+		std::numeric_limits<double>::infinity() };
+	for (unsigned field = 0; field < 3; ++field)
+	{
+		for (double value : bad)
+		{
+			driveradapter::DriverAdapterAlgorithm algorithm;
+			auto parameters = MakeParameters();
+			auto inputs = MakeInputs();
+			if (field == 0) parameters.safety.maxPositionRad = value;
+			if (field == 1) parameters.safety.maxVelocityRadS = value;
+			if (field == 2) parameters.safety.maxTwistRad = value;
+			inputs.controlInput = 1;
+			if (!Stopped(algorithm.Step(parameters, inputs), 4)) return false;
+		}
+	}
+	driveradapter::DriverAdapterAlgorithm algorithm;
+	auto parameters = MakeParameters();
+	parameters.safety.maxPositionRad = 1;
+	parameters.load.encoderResolution = 0;
+	return Stopped(algorithm.Step(parameters, MakeInputs()), 4);
+}
 } // namespace
 
 int main()
@@ -280,11 +407,15 @@ int main()
 		|| !VerifySignsAndInvalidScales()
 		|| !VerifyCurrentGateRoundingAndSaturation()
 		|| !VerifyNonFiniteCurrentPath()
-		|| !VerifyDeterministicStress())
+		|| !VerifyDeterministicStress()
+		|| !VerifySafetyTripsInOneScan()
+		|| !VerifySafetyLatchAndExplicitReset()
+		|| !VerifySafetyBoundaryAndGate()
+		|| !VerifyInvalidSafetyLimitsFailClosed())
 	{
 		return 1;
 	}
 
-	std::cout << "DriverAdapterAlgorithm tests passed\n";
+	std::cout << "DriverAdapterAlgorithm and safety tests passed\n";
 	return 0;
 }

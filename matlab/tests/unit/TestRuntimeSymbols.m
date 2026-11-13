@@ -29,6 +29,9 @@ classdef TestRuntimeSymbols < matlab.unittest.TestCase
         "Controller.Outputs.processedRevision");
       testCase.verifyEqual(s.controllerParams.parameterErrorCode, ...
         "Controller.Outputs.parameterErrorCode");
+      testCase.verifyEqual(s.controllerParams.higsEnabled, "Controller.HigsEnabled");
+      testCase.verifyEqual(s.controllerParams.higsOmegaTs, "Controller.HigsOmegaTs");
+      testCase.verifyEqual(s.controllerParams.higsMode, "Controller.Outputs.higsMode");
       probe_names = string(s.controllerRequiredProbes(:, 1));
       testCase.verifyTrue(any(probe_names == "Controller.SosCoefficients[0]"));
     end

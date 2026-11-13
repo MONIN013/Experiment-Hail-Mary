@@ -1,0 +1,80 @@
+{
+  "linear_sos": [
+    [
+      0.18675360258079887,
+      -0.18646048092505935,
+      0.0,
+      1.0,
+      -1.0,
+      0.0
+    ],
+    [
+      8.925305753006704,
+      -8.90663219125838,
+      0.0,
+      1.0,
+      -0.981326438251676,
+      0.0
+    ],
+    [
+      0.0014588568210959763,
+      0.0029177136421919526,
+      0.0014588568210959763,
+      1.0,
+      -1.8890899647980324,
+      0.8949253920824163
+    ]
+  ],
+  "higs_sos": [
+    [
+      0.18720627629369876,
+      0.0029177136421919526,
+      -0.18428856265150678,
+      1.0,
+      -1.8890899647980324,
+      0.8949253920824163
+    ],
+    [
+      0.18675360258079887,
+      -0.18646048092505935,
+      0.0,
+      1.0,
+      -1.0,
+      0.0
+    ],
+    [
+      8.925305753006704,
+      -8.90663219125838,
+      0.0,
+      1.0,
+      -0.981326438251676,
+      0.0
+    ]
+  ],
+  "pre_section_count": 0,
+  "higs_gain": 1.0,
+  "higs_omega_ts": 0.009702303504362688,
+  "sample_time_s": 0.000125,
+  "reference_amplitude_rad": 0.1,
+  "move_time_s": 0.1,
+  "dwell_time_s": 0.2,
+  "settle_time_s": 0.4,
+  "sensitivity_limit": 2.0,
+  "max_current_a": 0.08,
+  "max_position_rad": 0.25,
+  "max_velocity_rad_s": 10.0,
+  "max_twist_rad": 0.01,
+  "tuning": {
+    "kp": 0.1866070417529291,
+    "integral_hz": 2.0,
+    "lead_zero_hz": 2.6666666666666665,
+    "lead_pole_hz": 24.0,
+    "lowpass_hz": 100.0,
+    "shaping_hz": 0.0,
+    "higs_corner_hz": 20.0,
+    "measured_crossover_target_hz": 8.0,
+    "gain_basis": "Legacy measured load FRF with approximate hold correction"
+  },
+  "provenance": "Legacy chirp_result.mat command-current/degree data, normalized 5-700 Hz fit; fresh 8 kHz identification required before use.",
+  "source_sha256": "d882ff79015b8759f70110aaee2aebf039f4aa261c25994ee895e46800d8b4e4"
+}
