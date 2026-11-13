@@ -1,0 +1,19 @@
+name: HIGS chapter 8 verification
+on:
+  push:
+    branches: [feat/higs-chapter8]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Archive tracked source
+        run: git archive --format=zip HEAD -o /tmp/higs-source.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: higs-source
+          path: /tmp/higs-source.zip
+          retention-days: 7
