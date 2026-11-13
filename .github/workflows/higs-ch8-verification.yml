@@ -17,3 +17,21 @@ jobs:
           name: higs-source
           path: /tmp/higs-source.zip
           retention-days: 7
+  matlab-contracts:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          release: R2025b
+          products: Control_System_Toolbox Signal_Processing_Toolbox
+      - uses: matlab-actions/run-command@v3
+        with:
+          command: diary('matlab-contracts.log'); run('matlab/tests/run_tests.m'); diary off
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: matlab-contracts
+          path: matlab-contracts.log
+          retention-days: 7
