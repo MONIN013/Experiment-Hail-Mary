@@ -1,0 +1,38 @@
+name: Chapter8 SDK availability probe
+on:
+  push:
+    branches: [feat/higs-chapter8]
+    paths: [.github/workflows/ch8-sdk-probe.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - name: Inspect publicly documented installer location
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory sdk-probe -Force | Out-Null
+          $url='https://cstweb.wtb.tue.nl/4tc00/twincat/setup.html'
+          try {
+            $page=Invoke-WebRequest -Uri $url -TimeoutSec 45
+            $page.Content | Set-Content sdk-probe/setup.html
+            $links=$page.Links.href | Where-Object { $_ -like '*TC31-Full-Setup*' }
+            $links | Set-Content sdk-probe/links.txt
+            if (-not $links) { throw 'No published full-setup link found' }
+            $installer=([uri]::new([uri]$url,[string]$links[0])).AbsoluteUri
+            $installer | Set-Content sdk-probe/source-url.txt
+            Invoke-WebRequest -Uri $installer -OutFile sdk-probe/setup.exe -TimeoutSec 300
+            Get-FileHash sdk-probe/setup.exe | Format-List | Out-File sdk-probe/hash.txt
+            Get-AuthenticodeSignature sdk-probe/setup.exe | Format-List | Out-File sdk-probe/signature.txt
+            & 'C:\Program Files\7-Zip\7z.exe' l sdk-probe/setup.exe | Out-File sdk-probe/archive-list.txt
+          } catch { $_ | Out-String | Set-Content sdk-probe/error.txt; Write-Output $_ }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ch8-sdk-probe
+          path: |
+            sdk-probe/*.txt
+            sdk-probe/*.html
+          retention-days: 2
