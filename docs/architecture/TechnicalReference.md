@@ -64,39 +64,66 @@
 | 出力 | `appliedRevision` | `UDINT` | MATLAB / 診断 | active 設定として受理した revision |
 | 出力 | `processedRevision` | `UDINT` | MATLAB / 診断 | 検証を完了した最新 revision |
 | 出力 | `parameterErrorCode` | `UDINT` | MATLAB / 診断 | 最後の parameter apply 結果。`0` は成功、非 0 は reject |
+| 出力 | `higsInput` | `LREAL` | ADS 診断 | HIGS へ入力した値 |
+| 出力 | `higsOutput` | `LREAL` | ADS 診断 | HIGS の状態兼出力 |
+| 出力 | `higsMode` | `UDINT` | ADS 診断 | `0`: 無効 / reset、`1`: integrator、`2`: gain、`3`: zeroing |
 
 ### 2.2 CycleUpdate
 
-1. `resetReq` 立ち上がりで全 SOS 段の内部状態をクリア
+1. `resetReq` 立ち上がりで全 SOS 段と HIGS の状態・前回入力をクリア
 2. `error = refValue - positionAct`
-3. active 設定の `sectionCount` 段を SOS 0 から順に cascade
+3. active 設定の `sectionCount` 段を SOS 0 から順に cascade し、有効時は `HigsPreSectionCount` 段を処理した位置に HIGS を 1 個挿入
 4. `controlInput = u_fb + ffValue`
-5. 非有限な入力・係数・状態更新・最終出力は `controlInput = 0.0` に倒す
-6. biquad の係数または状態更新が非有限になった段は、その段の内部状態を 0 に戻して次周期から回復可能にする
+5. 入力・演算結果・状態更新・最終出力が非有限なら `controlInput = 0.0` にする
+6. biquad の状態更新が非有限になった段は、その段の状態を 0 に戻す。HIGS の候補値または sector 境界が非有限なら HIGS の状態・前回入力・mode を 0 に戻す
 7. `error` の入力または減算結果が非有限の場合は `error = 0.0`
 
-`sectionCount = 0` は feedback identity とし、`u_fb = error` とする。SOS は最大 10 段であり、表現できる離散 Controller は最大 20 次である。
+`sectionCount = 0` かつ HIGS 無効時は feedback identity とし、`u_fb = error` とする。SOS は最大 10 段で、線形部分は最大 20 次である。HIGS は現在入力による積分候補を先に sector 判定し、違反時に gain / zeroing を選ぶ trimodal 実装である。式、モード判定、設計上の位置づけは [HigsExperiment](../operations/HigsExperiment.md) を参照。
 
-### 2.3 SOS parameter contract
+### 2.3 SOS / HIGS parameter contract
 
 MATLAB 側の公開形式は標準 SOS 行列と同じ `N x 6` の `[b0 b1 b2 a0 a1 a2]` とする。ControllerCore へは各段の `a0` を 1 に正規化し、段優先の `[b0, b1, b2, a1, a2]` を 10 段分、計 50 `LREAL` で送る。
 
 | パラメータ | 型 | 意味 |
 |---|---|---|
-| `coefficients` | `ARRAY[0..49] OF LREAL` | 10 段分の正規化済み SOS 係数 |
-| `sectionCount` | `UDINT` | 使用する先頭 SOS 段数。`0..10` |
-| `applyRevision` | `UDINT` | staging 設定を active 化する revision |
+| `SosCoefficients` | `ARRAY[0..49] OF LREAL` | 10 段分の正規化済み SOS 係数 |
+| `SosSectionCount` | `UDINT` | 使用する先頭 SOS 段数。`0..10` |
+| `SosApplyRevision` | `UDINT` | SOS と HIGS の staging 設定を同時に active 化する revision |
+| `HigsEnabled` | `BOOL` | HIGS の有効化。既定 `FALSE` |
+| `HigsGain` | `LREAL` | sector 上限のゲイン `k_h`。既定 `1` |
+| `HigsOmegaTs` | `LREAL` | `omega_h * Ts`。既定 `0`、有効時は `0 < HigsOmegaTs <= HigsGain` |
+| `HigsPreSectionCount` | `UDINT` | HIGS より前に処理する SOS 段数。既定 `0`、有効時は `0..SosSectionCount` |
 
-MATLAB は `coefficients` と `sectionCount` を書いた後、`applyRevision` を最後に書く。ControllerCore は `applyRevision` の変化時だけ staging 値を検証し、検証に通った設定を active copy へ反映して全 10 段の内部状態をリセットする。検証完了時は成否にかかわらず `Outputs.processedRevision` を更新する。成功時はさらに `Outputs.appliedRevision` を更新して `Outputs.parameterErrorCode = 0` とし、検証失敗時は `parameterErrorCode` を非 0 にして従来の active copy と内部状態を維持する。これにより ADS 配列書込み途中、不正な係数、または以前の reject status を新 revision の結果として誤認しない。
+`HigsPreSectionCount=0` は全 SOS の前、`SosSectionCount` と同じ値は全 SOS の後に挿入する。`HigsEnabled=FALSE` では従来の SOS のみを実行する。
+
+MATLAB は SOS と HIGS の全 staging 値を書いた後、`SosApplyRevision` を最後に書く。ControllerCore は revision の変化時だけ設定を検証し、成功時に全設定を active copy へ反映して SOS と HIGS の内部状態をリセットする。HIGS 有効時は `HigsGain` が有限かつ正、`HigsOmegaTs` が有限かつ表の範囲内であることも検証する。現行タスクの `Ts` は `125 us`（8 kHz）である。
+
+検証完了時は成否にかかわらず `Outputs.processedRevision` を更新する。成功時は `Outputs.appliedRevision` も更新し、失敗時は従来の active copy と内部状態を維持する。MATLAB は要求した revision と両出力を照合し、以前の reject status を今回の結果と取り違えないようにする。
+
+| `parameterErrorCode` | apply 結果 |
+|---:|---|
+| 0 | 成功 |
+| 1 | SOS 段数が上限を超過 |
+| 2 | SOS 係数が非有限、または必要な係数配列が未指定 |
+| 3 | HIGS 有効時のゲイン・積分係数・挿入位置が不正 |
 
 ### 2.4 ADS シンボル
 
 * `ControllerCore_Obj1 (Module1).SosCoefficients`
 * `ControllerCore_Obj1 (Module1).SosSectionCount`
 * `ControllerCore_Obj1 (Module1).SosApplyRevision`
+* `ControllerCore_Obj1 (Module1).HigsEnabled`
+* `ControllerCore_Obj1 (Module1).HigsGain`
+* `ControllerCore_Obj1 (Module1).HigsOmegaTs`
+* `ControllerCore_Obj1 (Module1).HigsPreSectionCount`
 * `ControllerCore_Obj1 (Module1).Outputs.appliedRevision`
 * `ControllerCore_Obj1 (Module1).Outputs.processedRevision`
 * `ControllerCore_Obj1 (Module1).Outputs.parameterErrorCode`
+* `ControllerCore_Obj1 (Module1).Outputs.higsInput`
+* `ControllerCore_Obj1 (Module1).Outputs.higsOutput`
+* `ControllerCore_Obj1 (Module1).Outputs.higsMode`
+
+HIGS の 3 出力は ADS 診断用であり、既存の 104-byte logger record には追加していない。HIGS / 保護出力を追加した TMC と古い `.tmx` は組み合わせて使わず、ControllerCore と DriverAdapter を Windows / TwinCAT SDK で再ビルドし、XAE の TMC と構成を更新する。
 
 ---
 
@@ -125,10 +152,12 @@ MATLAB は `coefficients` と `sectionCount` を書いた後、`applyRevision` �
 | フィールド | 型 | 説明 |
 |---|---|---|
 | `motor`, `load` | `ST_DriverEngineeringSignals` | 工学単位変換済み信号 |
-| `currentCmd` | `double` | `clamp(controlInput + distValue)` 後の指令電流 [A] |
+| `currentCmd` | `double` | `clamp(controlInput + distValue)` 後の指令電流 [A]。保護停止中は 0 |
 | `targetTorque` | `SHORT` | 指令トルク [‰ rated] |
-| `motorControlWordOut`, `loadControlWordOut` | `USHORT` | relay |
+| `motorControlWordOut`, `loadControlWordOut` | `USHORT` | relay。保護停止中は両方 0 |
 | `motorStatusWordOut`, `loadStatusWordOut` | `USHORT` | relay |
+| `safetyTrip` | `bool` | 保護停止のラッチが有効 |
+| `safetyCode` | `ULONG` | `0`: ラッチなし、`1`: 位置、`2`: 速度、`3`: ねじれ、`4`: 設定不正 |
 
 ### 3.4 CycleUpdate
 
@@ -138,12 +167,14 @@ MATLAB は `coefficients` と `sectionCount` を書いた後、`applyRevision` �
 2. `resetReq` 立ち上がりで Motor/Load の位置オフセットを再キャプチャ
 3. `motor.positionRel`, `load.positionRel` を更新
 4. `currentCmd = ClampSymmetric(controlInput + distValue, MotorParams.maxCurrentA)`
-5. `enableCurrentOutput && !playbackDone` のときだけ `currentCmd -> targetTorque [‰ rated]`
-6. `motorControlWordOut = motorControlWordIn`, `loadControlWordOut = loadControlWordIn` を relay し、Motor/Load の `statusWord` を個別公開
+5. `SafetyResetRevision` に変化があれば、3.6 の条件で保護ラッチの解除を評価
+6. `enableCurrentOutput && !playbackDone` のときに位置・速度・ねじれの上限を評価し、停止原因を保持
+7. 電流ゲートが開いているときだけ `currentCmd -> targetTorque [‰ rated]`
+8. 両軸の ControlWord / StatusWord を relay。保護ラッチが有効なら、その周期から `currentCmd`、`targetTorque`、両軸の `ControlWordOut` を 0 に上書き
 
 ### 3.5 Drive endpoint Mapping契約
 
-両`.tsproj`はDriverAdapter末端の11 Linkだけを交換する。VM variantのOwnerは`TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)`、RealMotor scaffoldのOwnerは`TIID^RealMotorPdo^RealMotorPdo Instance`である。RealMotor側はI/O tree未確定のため現時点ではactivateできない。
+両 `.tsproj` は DriverAdapter 末端の 11 Link だけを交換する。VM variant の Owner は `TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)`、RealMotor scaffold の Owner は `TIID^RealMotorPdo^RealMotorPdo Instance` である。RealMotor 側は `<Io/>` が空で、実機の I/O tree と PDO mapping が未確定のため、このまま実機構成として activate しない。
 
 * `motorRaw.positionActualValue <- VirtualMotorCore.Outputs.motor.positionActualValue`
 * `motorRaw.velocityActualValue <- VirtualMotorCore.Outputs.motor.velocityActualValue`
@@ -155,6 +186,21 @@ MATLAB は `coefficients` と `sectionCount` を書いた後、`applyRevision` �
 * `loadRaw.statusWord <- VirtualMotorCore.Outputs.load.statusWord`
 
 VMでは`targetTorque`を`VirtualMotorCore.Inputs.motor.targetTorque`に接続する。実機PDOも同じINT/UINT/DINT境界を実装し、Motor/Load ControlWordを個別relayする。
+
+### 3.6 保護パラメータと解除
+
+ADS の接頭辞は `DriverAdapter_Obj1 (Module1).` とする。
+
+| パラメータ | 型 | 意味 |
+|---|---|---|
+| `SafetyLimits.maxPositionRad` | `LREAL` | 両軸の `abs(positionRel)` 上限 [rad] |
+| `SafetyLimits.maxVelocityRadS` | `LREAL` | 両軸の `abs(velocityAct)` 上限 [rad/s] |
+| `SafetyLimits.maxTwistRad` | `LREAL` | `abs(motor.positionRel - load.positionRel)` 上限 [rad] |
+| `SafetyResetRevision` | `UDINT` | 保護ラッチの明示解除要求 |
+
+既定値はすべて `0`。各上限の `0` はその項目を無効にし、正の上限を超えたときに停止する。負値・NaN・Inf、または保護有効時の片軸でも `encoderResolution=0` は code 4 とする。相対位置を有効にした軸では reset 時点からの変位を評価するため、初期ねじれは検出対象に含まれない。
+
+`resetReq` は位置 offset だけを更新し、保護ラッチを解除しない。`SafetyResetRevision` が変化した周期に `enableCurrentOutput=FALSE`、かつ motor/load の両 ControlWord の下位 4 bit が `16#F` 以外のときだけ解除する。条件を満たさない要求も処理済みとし、後で停止しても同じ revision では解除しない。MATLAB の通常終了・abort・cleanup はこの値を書かない。詳細は [DriverAdapter](../modules/DriverAdapter.md) と [HigsExperiment](../operations/HigsExperiment.md) を参照。
 
 ---
 

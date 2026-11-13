@@ -10,6 +10,9 @@
 4. [TechnicalReference](./architecture/TechnicalReference.md)
 5. 必要に応じて [modules/](./modules/) 配下の各モジュール仕様
 
+HIGS の実験準備と設計結果は [HigsExperiment](./operations/HigsExperiment.md) を参照する。
+旧 chirp データの同定、実 C++ コアによる比較、MATLAB の入口、実機 I/O の未接続箇所をまとめている。
+
 ## ディレクトリの目的
 
 - `overview/`: プロジェクト全体像、設計方針、読み始め文書

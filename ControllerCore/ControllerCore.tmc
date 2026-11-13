@@ -70,6 +70,30 @@
           <PTCID>#x00000003</PTCID>
           <ContextId>1</ContextId>
         </Parameter>
+        <Parameter CreateSymbol="true">
+          <Name>HigsEnabled</Name>
+          <BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
+          <PTCID>#x00000004</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
+        <Parameter CreateSymbol="true">
+          <Name>HigsGain</Name>
+          <BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType>
+          <PTCID>#x00000005</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
+        <Parameter CreateSymbol="true">
+          <Name>HigsOmegaTs</Name>
+          <BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType>
+          <PTCID>#x00000006</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
+        <Parameter CreateSymbol="true">
+          <Name>HigsPreSectionCount</Name>
+          <BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+          <PTCID>#x00000007</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
       </Parameters>
       <DataAreas>
         <DataArea>
@@ -115,6 +139,18 @@
           </Symbol>
           <Symbol CreateSymbol="true">
             <Name>parameterErrorCode</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+          </Symbol>
+          <Symbol CreateSymbol="true">
+            <Name>higsInput</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType>
+          </Symbol>
+          <Symbol CreateSymbol="true">
+            <Name>higsOutput</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType>
+          </Symbol>
+          <Symbol CreateSymbol="true">
+            <Name>higsMode</Name>
             <BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
           </Symbol>
         </DataArea>
