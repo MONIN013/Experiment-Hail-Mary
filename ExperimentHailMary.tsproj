@@ -384,6 +384,28 @@
 			</SubItem>
 		</DataType>
 		<DataType>
+			<Name GUID="{93636CB0-7708-43A8-90E2-7A8041EF97BD}">ST_DriverSafetyLimits</Name>
+			<BitSize>192</BitSize>
+			<SubItem>
+				<Name>maxPositionRad</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>0</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>maxVelocityRadS</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>64</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>maxTwistRad</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
+				<BitSize>64</BitSize>
+				<BitOffs>128</BitOffs>
+			</SubItem>
+		</DataType>
+		<DataType>
 			<Name GUID="{239C9DAA-833B-4E20-9510-FD1DEB403323}">ST_DriverRawSignals</Name>
 			<BitSize>96</BitSize>
 			<SubItem>
@@ -474,28 +496,6 @@
 				<LBound>0</LBound>
 				<Elements>10</Elements>
 			</ArrayInfo>
-		</DataType>
-		<DataType>
-			<Name GUID="{93636CB0-7708-43A8-90E2-7A8041EF97BD}">ST_DriverSafetyLimits</Name>
-			<BitSize>192</BitSize>
-			<SubItem>
-				<Name>maxPositionRad</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>0</BitOffs>
-			</SubItem>
-			<SubItem>
-				<Name>maxVelocityRadS</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>64</BitOffs>
-			</SubItem>
-			<SubItem>
-				<Name>maxTwistRad</Name>
-				<Type GUID="{18071995-0000-0000-0000-00000000000E}">LREAL</Type>
-				<BitSize>64</BitSize>
-				<BitOffs>128</BitOffs>
-			</SubItem>
 		</DataType>
 	</DataTypes>
 	<ImageDatas>
@@ -2323,7 +2323,6 @@ Bit 8 - 15 : reserved]]></Comment>
 	</Project>
 	<Mappings>
 		<MappingInfo Identifier="{00000000-0010-0304-4000-010110000403}" Id="#x020300c0"/>
-		<MappingInfo Identifier="{00000000-0040-0201-1000-010140000101}" Id="#x02030040"/>
 		<MappingInfo Identifier="{00000000-0040-0201-2000-010130000101}" Id="#x02030050"/>
 		<MappingInfo Identifier="{00000000-0040-0201-2000-010140000101}" Id="#x02030060"/>
 		<MappingInfo Identifier="{00000000-0040-0201-3000-010140000101}" Id="#x02030090"/>
@@ -2337,6 +2336,16 @@ Bit 8 - 15 : reserved]]></Comment>
 		<OwnerA Name="TIID^Device 1 (EtherCAT)">
 			<OwnerB Name="TIXC^DriverAdapter^DriverAdapter_Obj1 (Module1)">
 				<Link VarA="Term 1 (EK1100)^Term 2 (ELM7211-0011)^DS402 Controlword^Controlword" VarB="Outputs^motorControlWordOut"/>
+				<Link VarA="Term 1 (EK1100)^Term 2 (ELM7211-0011)^DS402 Position actual value^Position actual value" VarB="Inputs^motorRaw^positionActualValue"/>
+				<Link VarA="Term 1 (EK1100)^Term 2 (ELM7211-0011)^DS402 Statusword^Statusword" VarB="Inputs^motorRaw^statusWord"/>
+				<Link VarA="Term 1 (EK1100)^Term 2 (ELM7211-0011)^DS402 Target torque^Target torque" VarB="Outputs^targetTorque"/>
+				<Link VarA="Term 1 (EK1100)^Term 2 (ELM7211-0011)^DS402 Torque actual value^Torque actual value" VarB="Inputs^motorRaw^torqueActualValue"/>
+				<Link VarA="Term 1 (EK1100)^Term 2 (ELM7211-0011)^DS402 Velocity actual value^Velocity actual value" VarB="Inputs^motorRaw^velocityActualValue"/>
+				<Link VarA="Term 1 (EK1100)^Term 3 (ELM7211-0011)^DS402 Controlword^Controlword" VarB="Outputs^loadControlWordOut"/>
+				<Link VarA="Term 1 (EK1100)^Term 3 (ELM7211-0011)^DS402 Position actual value^Position actual value" VarB="Inputs^loadRaw^positionActualValue"/>
+				<Link VarA="Term 1 (EK1100)^Term 3 (ELM7211-0011)^DS402 Statusword^Statusword" VarB="Inputs^loadRaw^statusWord"/>
+				<Link VarA="Term 1 (EK1100)^Term 3 (ELM7211-0011)^DS402 Torque actual value^Torque actual value" VarB="Inputs^loadRaw^torqueActualValue"/>
+				<Link VarA="Term 1 (EK1100)^Term 3 (ELM7211-0011)^DS402 Velocity actual value^Velocity actual value" VarB="Inputs^loadRaw^velocityActualValue"/>
 			</OwnerB>
 		</OwnerA>
 		<OwnerA Name="TIPC^ExperimentSequencer^ExperimentSequencer Instance">
@@ -2399,19 +2408,6 @@ Bit 8 - 15 : reserved]]></Comment>
 				<Link VarA="Outputs^motor^currentAct" VarB="Inputs^record^motor^currentAct"/>
 				<Link VarA="Outputs^motor^positionRel" VarB="Inputs^record^motor^position"/>
 				<Link VarA="Outputs^motor^velocityAct" VarB="Inputs^record^motor^velocity"/>
-			</OwnerB>
-			<OwnerB Name="TIXC^VirtualMotorCore^VirtualMotorCore_Obj1 (Module1)">
-				<Link VarA="Inputs^loadRaw^positionActualValue" VarB="Outputs^load^positionActualValue"/>
-				<Link VarA="Inputs^loadRaw^statusWord" VarB="Outputs^load^statusWord"/>
-				<Link VarA="Inputs^loadRaw^torqueActualValue" VarB="Outputs^load^torqueActualValue"/>
-				<Link VarA="Inputs^loadRaw^velocityActualValue" VarB="Outputs^load^velocityActualValue"/>
-				<Link VarA="Inputs^motorRaw^positionActualValue" VarB="Outputs^motor^positionActualValue"/>
-				<Link VarA="Inputs^motorRaw^statusWord" VarB="Outputs^motor^statusWord"/>
-				<Link VarA="Inputs^motorRaw^torqueActualValue" VarB="Outputs^motor^torqueActualValue"/>
-				<Link VarA="Inputs^motorRaw^velocityActualValue" VarB="Outputs^motor^velocityActualValue"/>
-				<Link VarA="Outputs^loadControlWordOut" VarB="Inputs^load^controlWord"/>
-				<Link VarA="Outputs^motorControlWordOut" VarB="Inputs^motor^controlWord"/>
-				<Link VarA="Outputs^targetTorque" VarB="Inputs^motor^targetTorque"/>
 			</OwnerB>
 		</OwnerA>
 	</Mappings>
