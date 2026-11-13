@@ -1023,7 +1023,7 @@
 								<AreaNo AreaType="OutputSrc">1</AreaNo>
 								<Name>Outputs</Name>
 								<ContextId>1</ContextId>
-								<ByteSize>48</ByteSize>
+								<ByteSize>68</ByteSize>
 								<Symbol CreateSymbol="true">
 									<Name>controlInput</Name>
 									<BitSize>64</BitSize>
@@ -1436,10 +1436,10 @@
 								<AreaNo AreaType="InputDst">0</AreaNo>
 								<Name>Inputs</Name>
 								<ContextId>1</ContextId>
-								<ByteSize>92</ByteSize>
+								<ByteSize>132</ByteSize>
 								<Symbol>
 									<Name>record</Name>
-									<BitSize>704</BitSize>
+									<BitSize>1024</BitSize>
 									<BaseType GUID="{B5BB3647-4067-4A21-8892-0F60A144E5B0}">ST_LoggerRecordInputs</BaseType>
 									<BitOffs>0</BitOffs>
 								</Symbol>
@@ -1447,7 +1447,7 @@
 									<Name>control</Name>
 									<BitSize>32</BitSize>
 									<BaseType GUID="{2CA6D7A5-F578-481C-ACE6-CA114A3E5E88}">ST_LoggerControlInputs</BaseType>
-									<BitOffs>704</BitOffs>
+									<BitOffs>1024</BitOffs>
 								</Symbol>
 							</DataArea>
 							<DataArea>

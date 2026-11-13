@@ -18,8 +18,8 @@
 | HIGS、係数反映、既存 SOS との切替 | 実装済み。C++ host tests 通過 |
 | 毎周期の位置・速度・相対ねじれ保護、停止ラッチ | 実装済み。C++ host tests 通過 |
 | 旧データの単位調査、FRF、二慣性モデル、設計比較 | 再現コードと結果を保存済み |
-| MATLAB の preview／linear／integrator／lowpass／both 入口 | 実装・構文検査済み。MATLAB 本体での実行は未確認 |
-| Windows / TwinCAT SDK でのモジュール再ビルド | 未実施 |
+| MATLAB の preview／linear／integrator／lowpass／both 入口 | 実装済み。MATLAB R2025a の unit test を実行（preview は ADS に接続しない）。実機での試行は未実施 |
+| Windows / TwinCAT SDK でのモジュール再ビルド | ControllerCore・ExperimentLogger は VS2019 MSBuild（Release｜TwinCAT RT x64）でビルド済み。有効化・実機は未実施 |
 | 実 EtherCAT I/O、ドライブ設定、実機への反映 | 未実施。`RealMotor.tsproj` の I/O 定義は空 |
 
 **現時点で「そのまま実機へ通電できる」とは扱わない。** リポジトリの `ExperimentHailMary.RealMotor.tsproj` は `<Io/>` が空で、`TIID^RealMotorPdo^RealMotorPdo Instance` への 11 個のリンクを持つ雛形である。実際の master/slave/PDO 定義を含む XAE プロジェクトが必要になる。対応させる信号は §7 に記載した。
@@ -326,7 +326,7 @@ b = exp05_Higs("both", "target_label", "bench-A", ...
 
 ## 8. 検証の範囲と参考資料
 
-二HIGSへの変更ではC++数値コア試験、独立の離散則との比較、元の線形カスケードとの数値照合、TMC/tsprojの型幅とoffset照合を行った。MATLAB unit testsは追加したが、MATLAB実行環境がないため実行していない。Windows/TwinCAT SDKのビルド、実PDOの検証、モータの運転も未実施である。
+二HIGSへの変更ではC++数値コア試験、独立の離散則との比較、元の線形カスケードとの数値照合、TMC/tsprojの型幅とoffset照合を行った。MATLAB unit testsはR2025aで実行した（ADS接続なし）。ControllerCoreとExperimentLoggerのTwinCATモジュールはビルドしたが、tsprojのXAE読み込み、実PDOの検証、モータの運転は未実施である。
 
 - S. van den Eijnden, M. Heertjes, M. Heemels, H. Nijmeijer, *Hybrid Integrator-Gain Systems: Analysis, Design and Applications*, Springer, 2026. [DOI](https://doi.org/10.1007/978-3-032-18101-5)。第8章は印刷185〜214頁。今回のLPF整形は印刷195頁/PDF201頁、図8.7・式(8.9)〜(8.11)。離散実装は§2.4、印刷36〜38頁/PDF48〜50頁。
 - B. Sharif, D. Alferink, M. Heertjes, H. Nijmeijer, M. Heemels, “Analysis of sampled-data hybrid integrator-gain systems: A discrete-time approach,” *Automatica*, 167, 111765, 2024. [DOI](https://doi.org/10.1016/j.automatica.2024.111765) / [著者所属機関の公開情報](https://research.tue.nl/en/publications/analysis-of-sampled-data-hybrid-integrator-gain-systems-a-discret/)。離散時間モデルと、仮定を満たす場合の安定性解析の出典。
