@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <ScopeProject AssemblyName="TwinCAT.Measurement.Scope.API.Model">
-  <ActiveWorkfolderPath>$ScopeProject$\Workfolder</ActiveWorkfolderPath>
+  <ActiveWorkfolderPath>C:\Users\Nogiku\source\repos\ExperimentHailMary\ExperimentHailMary\tools\TwinCATScope\YT Scope Project 1579161805</ActiveWorkfolderPath>
   <AutoDeleteCapacity>0</AutoDeleteCapacity>
   <AutoDeleteMode>Disabled</AutoDeleteMode>
   <AutoDeleteOlderThan>0</AutoDeleteOlderThan>
@@ -29,7 +29,7 @@
   <KeepPreviousImageExports>true</KeepPreviousImageExports>
   <Layout>&lt;?xml version="1.0" encoding="utf-16"?&gt;
 &lt;Layout&gt;
-  &lt;Window Guid="9f489b72-0cb1-469d-b893-db32204ef25c" LastFocused="134276251001385803" DockedSize="200" PopupSize="0" FloatingLocation="-1, -1" FloatingSize="550, 400" LastOpenDockSituation="Document" LastFixedDockSituation="Document" LastFixedDockLocation="Right" LastFloatingWindowGuid="00000000-0000-0000-0000-000000000000" LastDockContainerCount="0" LastDockContainerIndex="0" DockedWorkingSize="250, 400" DockedWindowGroupGuid="00000000-0000-0000-0000-000000000000" DockedIndexInWindowGroup="0" DockedSplitPath="0" DocumentWorkingSize="250, 400" DocumentWindowGroupGuid="5e24a302-044c-4834-b85d-97c34ac23dd2" DocumentIndexInWindowGroup="0" DocumentSplitPath="0" FloatingWorkingSize="250, 400" FloatingWindowGroupGuid="00000000-0000-0000-0000-000000000000" FloatingIndexInWindowGroup="0" FloatingSplitPath="0" /&gt;
+  &lt;Window Guid="9f489b72-0cb1-469d-b893-db32204ef25c" LastFocused="134284063261845835" DockedSize="200" PopupSize="0" FloatingLocation="-1, -1" FloatingSize="550, 400" LastOpenDockSituation="Document" LastFixedDockSituation="Document" LastFixedDockLocation="Right" LastFloatingWindowGuid="00000000-0000-0000-0000-000000000000" LastDockContainerCount="0" LastDockContainerIndex="0" DockedWorkingSize="250, 400" DockedWindowGroupGuid="00000000-0000-0000-0000-000000000000" DockedIndexInWindowGroup="0" DockedSplitPath="0" DocumentWorkingSize="250, 400" DocumentWindowGroupGuid="5e24a302-044c-4834-b85d-97c34ac23dd2" DocumentIndexInWindowGroup="0" DocumentSplitPath="0" FloatingWorkingSize="250, 400" FloatingWindowGroupGuid="00000000-0000-0000-0000-000000000000" FloatingIndexInWindowGroup="0" FloatingSplitPath="0" /&gt;
   &lt;DocumentContainer Dock="5"&gt;
     &lt;SplitLayoutSystem WorkingSize="250, 400" SplitMode="0"&gt;
       &lt;ControlLayoutSystem WorkingSize="250, 400" Guid="5e24a302-044c-4834-b85d-97c34ac23dd2" Collapsed="0" SelectedControl="9f489b72-0cb1-469d-b893-db32204ef25c"&gt;
@@ -81,11 +81,11 @@
           <DataType>BIT</DataType>
           <DisplayColor>Black</DisplayColor>
           <Enabled>true</Enabled>
-          <FileHandle>1</FileHandle>
+          <FileHandle>0</FileHandle>
           <ForceOversampling>false</ForceOversampling>
           <Guid>21af205b-5571-42b6-923d-fb5b23720cf7</Guid>
           <IndexGroup>61488</IndexGroup>
-          <IndexOffset>387132</IndexOffset>
+          <IndexOffset>387228</IndexOffset>
           <IsEvent>false</IsEvent>
           <IsHistorical>false</IsHistorical>
           <IsTimeline>false</IsTimeline>
@@ -180,11 +180,11 @@
           <DataType>BIT</DataType>
           <DisplayColor>Black</DisplayColor>
           <Enabled>true</Enabled>
-          <FileHandle>2</FileHandle>
+          <FileHandle>0</FileHandle>
           <ForceOversampling>false</ForceOversampling>
           <Guid>e8ac4427-eed6-44f7-aec9-1993b3c56f77</Guid>
           <IndexGroup>61488</IndexGroup>
-          <IndexOffset>387129</IndexOffset>
+          <IndexOffset>387225</IndexOffset>
           <IsEvent>false</IsEvent>
           <IsHistorical>false</IsHistorical>
           <IsTimeline>false</IsTimeline>
@@ -279,11 +279,11 @@
           <DataType>BIT</DataType>
           <DisplayColor>Black</DisplayColor>
           <Enabled>true</Enabled>
-          <FileHandle>3</FileHandle>
+          <FileHandle>0</FileHandle>
           <ForceOversampling>false</ForceOversampling>
           <Guid>02616244-a863-4e15-ab37-db701660f64b</Guid>
           <IndexGroup>61488</IndexGroup>
-          <IndexOffset>387130</IndexOffset>
+          <IndexOffset>387226</IndexOffset>
           <IsEvent>false</IsEvent>
           <IsHistorical>false</IsHistorical>
           <IsTimeline>false</IsTimeline>
@@ -378,11 +378,11 @@
           <DataType>BIT</DataType>
           <DisplayColor>Black</DisplayColor>
           <Enabled>true</Enabled>
-          <FileHandle>4</FileHandle>
+          <FileHandle>0</FileHandle>
           <ForceOversampling>false</ForceOversampling>
           <Guid>3ad5d2d0-cd8d-4126-9fa0-099b293be8ca</Guid>
           <IndexGroup>61488</IndexGroup>
-          <IndexOffset>387131</IndexOffset>
+          <IndexOffset>387227</IndexOffset>
           <IsEvent>false</IsEvent>
           <IsHistorical>false</IsHistorical>
           <IsTimeline>false</IsTimeline>
@@ -477,11 +477,11 @@
           <DataType>BIT</DataType>
           <DisplayColor>Black</DisplayColor>
           <Enabled>true</Enabled>
-          <FileHandle>5</FileHandle>
+          <FileHandle>0</FileHandle>
           <ForceOversampling>false</ForceOversampling>
           <Guid>e74ce2ae-28ed-4df7-acdd-54668a5f7f54</Guid>
           <IndexGroup>61472</IndexGroup>
-          <IndexOffset>387128</IndexOffset>
+          <IndexOffset>387224</IndexOffset>
           <IsEvent>false</IsEvent>
           <IsHistorical>false</IsHistorical>
           <IsTimeline>false</IsTimeline>
@@ -576,7 +576,7 @@
           <DataType>REAL64</DataType>
           <DisplayColor>Black</DisplayColor>
           <Enabled>true</Enabled>
-          <FileHandle>6</FileHandle>
+          <FileHandle>0</FileHandle>
           <ForceOversampling>false</ForceOversampling>
           <Guid>2ee97e33-bd7d-4743-862b-a274c3021d4a</Guid>
           <IndexGroup>16842784</IndexGroup>
@@ -675,7 +675,7 @@
           <DataType>REAL64</DataType>
           <DisplayColor>Black</DisplayColor>
           <Enabled>true</Enabled>
-          <FileHandle>7</FileHandle>
+          <FileHandle>0</FileHandle>
           <ForceOversampling>false</ForceOversampling>
           <Guid>f007a817-1d5d-4201-89d6-fa8caaaa7609</Guid>
           <IndexGroup>16842784</IndexGroup>
@@ -774,7 +774,7 @@
           <DataType>REAL64</DataType>
           <DisplayColor>Black</DisplayColor>
           <Enabled>true</Enabled>
-          <FileHandle>8</FileHandle>
+          <FileHandle>0</FileHandle>
           <ForceOversampling>false</ForceOversampling>
           <Guid>47aaf2b9-8b67-4304-972a-e8207965ba54</Guid>
           <IndexGroup>16842784</IndexGroup>
@@ -873,7 +873,7 @@
           <DataType>REAL64</DataType>
           <DisplayColor>Black</DisplayColor>
           <Enabled>true</Enabled>
-          <FileHandle>9</FileHandle>
+          <FileHandle>0</FileHandle>
           <ForceOversampling>false</ForceOversampling>
           <Guid>635a3444-b92c-45b6-8850-76ef766dfeaa</Guid>
           <IndexGroup>16842784</IndexGroup>
@@ -972,7 +972,7 @@
           <DataType>REAL64</DataType>
           <DisplayColor>Black</DisplayColor>
           <Enabled>true</Enabled>
-          <FileHandle>10</FileHandle>
+          <FileHandle>0</FileHandle>
           <ForceOversampling>false</ForceOversampling>
           <Guid>e7b60a69-5fdd-483c-ac9a-f404088e9b65</Guid>
           <IndexGroup>16842784</IndexGroup>
@@ -1071,7 +1071,7 @@
           <DataType>UINT32</DataType>
           <DisplayColor>Black</DisplayColor>
           <Enabled>true</Enabled>
-          <FileHandle>11</FileHandle>
+          <FileHandle>0</FileHandle>
           <ForceOversampling>false</ForceOversampling>
           <Guid>3b2edac5-9b60-47a3-8802-0feedf81fa4a</Guid>
           <IndexGroup>16842800</IndexGroup>
@@ -1170,7 +1170,7 @@
           <DataType>UINT32</DataType>
           <DisplayColor>Black</DisplayColor>
           <Enabled>true</Enabled>
-          <FileHandle>12</FileHandle>
+          <FileHandle>0</FileHandle>
           <ForceOversampling>false</ForceOversampling>
           <Guid>49d307e4-4241-46ae-94e2-a7c365dfc881</Guid>
           <IndexGroup>16842800</IndexGroup>
@@ -1269,7 +1269,7 @@
           <DataType>UINT32</DataType>
           <DisplayColor>Black</DisplayColor>
           <Enabled>true</Enabled>
-          <FileHandle>13</FileHandle>
+          <FileHandle>0</FileHandle>
           <ForceOversampling>false</ForceOversampling>
           <Guid>250d4272-2022-4a96-92ff-93b075f77bbf</Guid>
           <IndexGroup>16842800</IndexGroup>
@@ -1368,7 +1368,7 @@
           <DataType>BIT</DataType>
           <DisplayColor>Black</DisplayColor>
           <Enabled>true</Enabled>
-          <FileHandle>14</FileHandle>
+          <FileHandle>0</FileHandle>
           <ForceOversampling>false</ForceOversampling>
           <Guid>ad1f3441-0259-420c-818f-3a96ab3ee860</Guid>
           <IndexGroup>16842800</IndexGroup>
@@ -1467,7 +1467,7 @@
           <DataType>BIT</DataType>
           <DisplayColor>Black</DisplayColor>
           <Enabled>true</Enabled>
-          <FileHandle>15</FileHandle>
+          <FileHandle>0</FileHandle>
           <ForceOversampling>false</ForceOversampling>
           <Guid>54a39860-6db9-4bee-80d1-916645f34ca7</Guid>
           <IndexGroup>16842800</IndexGroup>
@@ -1566,7 +1566,7 @@
           <DataType>REAL64</DataType>
           <DisplayColor>Black</DisplayColor>
           <Enabled>true</Enabled>
-          <FileHandle>16</FileHandle>
+          <FileHandle>0</FileHandle>
           <ForceOversampling>false</ForceOversampling>
           <Guid>e9b12045-26fa-4947-8588-4f1ca16f0d9d</Guid>
           <IndexGroup>16842816</IndexGroup>
@@ -4302,12 +4302,12 @@
           <SubMember>
             <ChannelTriggerSet AssemblyName="TwinCAT.Measurement.Scope.API.Model">
               <AcquisitionInterpreterGuid>f2973ce6-7bdb-4785-aa37-29760ef9f06a</AcquisitionInterpreterGuid>
-              <ClientTriggerHandle>3</ClientTriggerHandle>
+              <ClientTriggerHandle>33</ClientTriggerHandle>
               <CombineOption>AND</CombineOption>
               <Comment />
               <DisplayColor>Black</DisplayColor>
               <Enabled>true</Enabled>
-              <GroupHandle>3</GroupHandle>
+              <GroupHandle>33</GroupHandle>
               <Guid>ea36d089-55f9-494f-8e52-f8241e9d91ad</Guid>
               <Name>Channel Trigger Set</Name>
               <ReleaseOption>RisingEdge</ReleaseOption>
@@ -4460,12 +4460,12 @@
           <SubMember>
             <ChannelTriggerSet AssemblyName="TwinCAT.Measurement.Scope.API.Model">
               <AcquisitionInterpreterGuid>0059a577-aba8-4c98-95bd-6ec48d0bb485</AcquisitionInterpreterGuid>
-              <ClientTriggerHandle>4</ClientTriggerHandle>
+              <ClientTriggerHandle>34</ClientTriggerHandle>
               <CombineOption>AND</CombineOption>
               <Comment />
               <DisplayColor>Black</DisplayColor>
               <Enabled>true</Enabled>
-              <GroupHandle>4</GroupHandle>
+              <GroupHandle>34</GroupHandle>
               <Guid>a7d4321b-06cf-4fbc-947f-717e2a9def64</Guid>
               <Name>Channel Trigger Set (1)</Name>
               <ReleaseOption>FallingEdge</ReleaseOption>
