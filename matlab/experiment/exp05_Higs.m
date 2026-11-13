@@ -116,12 +116,13 @@ metrics.motor_velocity_peak_rad_s = max(abs(raw.motor_velocity));
 metrics.load_velocity_peak_rad_s = max(abs(raw.load_velocity));
 result.signals = signals;
 result.metrics = metrics;
-result.accepted = metrics.current_peak_a < design.max_current_a && ...
-  metrics.command_peak_a < design.max_current_a;
+% Post-trial acceptance includes ACTUAL current, not only the clamped command.
+% This does not replace the drive's real-time overcurrent protection.
+result.accepted = experiment.higs_current_accepted(metrics, design.max_current_a);
 save(result_path, "result");
 if ~result.accepted
   error("experiment:higs:currentCriterionExceeded", ...
-    "Current exceeds the experiment criterion %.6g A; inspect the saved result before continuing.", ...
+    "A commanded/measured current peak is invalid or reaches %.6g A; inspect the saved result before continuing.", ...
     design.max_current_a);
 end
 catch cause
