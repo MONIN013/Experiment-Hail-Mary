@@ -8,10 +8,10 @@ classdef TestReadLoggerBin < matlab.unittest.TestCase
       out = experiment.read_logger_bin(file_path);
 
       testCase.verifyEqual(out.record_count, 2);
-      testCase.verifyEqual(out.schema_version, uint32(2));
-      testCase.verifyEqual(out.summary.file_size_bytes, 208);
+      testCase.verifyEqual(out.schema_version, uint32(3));
+      testCase.verifyEqual(out.summary.file_size_bytes, 288);
       testCase.verifyEqual(out.raw.seq, uint32([1; 2]));
-      testCase.verifyEqual(out.raw.reserved_pad0, uint32([2; 2]));
+      testCase.verifyEqual(out.raw.reserved_pad0, uint32([3; 3]));
       testCase.verifyEqual(out.raw.t_ns, uint64([1000; 2000]));
       testCase.verifyEqual(out.raw.load_position, [0.4; 1.4]);
       testCase.verifyEqual(out.raw.ff_value, [0.9; 1.9]);
@@ -20,6 +20,12 @@ classdef TestReadLoggerBin < matlab.unittest.TestCase
       testCase.verifyEqual(out.summary.duration_s, 1e-6, "AbsTol", 1e-12);
       testCase.verifyEqual(out.table.seq, uint32([1; 2]));
       testCase.verifyEqual(out.table.dist_value, [1.0; 2.0]);
+      testCase.verifyEqual(out.raw.higs_lp_input, [2.2; 3.2]);
+      testCase.verifyEqual(out.raw.higs_lp_output, [2.3; 3.3]);
+      testCase.verifyEqual(out.raw.higs_i_input, [2.4; 3.4]);
+      testCase.verifyEqual(out.raw.higs_i_output, [2.5; 3.5]);
+      testCase.verifyEqual(out.raw.higs_lp_mode, uint32([2; 3]));
+      testCase.verifyEqual(out.raw.higs_i_mode, uint32([1; 2]));
     end
 
     function rejectsNonAlignedFileSize(testCase)
@@ -56,14 +62,17 @@ function write_sample_file(file_path)
   cleaner = onCleanup(@() fclose(fid)); 
 
   rows = [ ...
-    1, 1000, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1; ...
-    2, 2000, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1];
+    1, 1000, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 2.2, 2.3, 2, 2.4, 2.5, 1; ...
+    2, 2000, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 3.2, 3.3, 3, 3.4, 3.5, 2];
 
   for k = 1:size(rows, 1)
     fwrite(fid, uint32(rows(k, 1)), "uint32");
-    fwrite(fid, uint32(2), "uint32");
+    fwrite(fid, uint32(3), "uint32");
     fwrite(fid, uint64(rows(k, 2)), "uint64");
-    fwrite(fid, rows(k, 3:end), "double");
+    fwrite(fid, rows(k, 3:15), "double");
+    fwrite(fid, uint32(rows(k, 16)), "uint32");
+    fwrite(fid, rows(k, 17:18), "double");
+    fwrite(fid, uint32(rows(k, 19)), "uint32");
   end
 end
 

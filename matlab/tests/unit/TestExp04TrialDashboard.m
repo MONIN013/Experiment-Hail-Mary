@@ -129,8 +129,12 @@ function write_logger_record(file_path)
 fid = fopen(file_path, "wb", "ieee-le");
 cleanup = onCleanup(@() fclose(fid));
 fwrite(fid, uint32(1), "uint32");
-fwrite(fid, uint32(2), "uint32");
+fwrite(fid, uint32(3), "uint32");
 fwrite(fid, uint64(1000), "uint64");
 fwrite(fid, 0.1:0.1:1.1, "double");
+fwrite(fid, [1.2, 1.3], "double");
+fwrite(fid, uint32(2), "uint32");
+fwrite(fid, [1.4, 1.5], "double");
+fwrite(fid, uint32(1), "uint32");
 clear cleanup
 end

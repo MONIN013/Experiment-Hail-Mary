@@ -15,6 +15,10 @@ ExperimentLogger は実験データをバイナリ形式で保存する C++ TcCO
 | `record.refValue` | `LREAL` | ExperimentSequencer | reference |
 | `record.ffValue` | `LREAL` | ExperimentSequencer | feedforward |
 | `record.controlInput` | `LREAL` | ControllerCore | controller output |
+| `record.higsLpInput`, `record.higsLpOutput` | `LREAL` | ControllerCore | low-pass branch HIGS input and output |
+| `record.higsLpMode` | `UDINT` | ControllerCore | low-pass branch HIGS mode |
+| `record.higsIInput`, `record.higsIOutput` | `LREAL` | ControllerCore | integral branch HIGS input and output |
+| `record.higsIMode` | `UDINT` | ControllerCore | integral branch HIGS mode |
 | `record.error` | `LREAL` | ControllerCore | `ref - loadPosition` |
 | `record.motor.position` | `LREAL` | DriverAdapter `motor.positionRel` | zero-based per run |
 | `record.motor.velocity` | `LREAL` | DriverAdapter `motor.velocityAct` | motor velocity |
@@ -55,7 +59,7 @@ ExperimentLogger は実験データをバイナリ形式で保存する C++ TcCO
 10. `control.loggingReq` 立下り時は `Write -> Write -> ... -> Close` の順でバッファを drain し、`WRITE_WAIT` 中に捕捉したレコードを落とさない。
 11. `status.fileReleased` は reset と新規 pre-arm でクリアされ、close 経路がエラーなく `IDLE` へ戻ったときだけ `TRUE` になる。
 
-`LoggerRecord.h` を 104-byte binary schema の C++ 正本とし、`LoggerRecordBuffer` が sequence・timestamp・2面bufferのactive/pending切替を所有する。`recordsWritten` は `LoggerRecordBuffer::RecordsAppended()` を公開した受理件数であり、file commit 件数ではない。field offset・schema version・8000件境界・write commit/rollbackはTwinCAT非依存のhost testで固定する。
+`LoggerRecord.h` を schema version 3 の 144-byte binary schema の C++ 正本とし、`LoggerRecordBuffer` が sequence・timestamp・2面bufferのactive/pending切替を所有する。`recordsWritten` は `LoggerRecordBuffer::RecordsAppended()` を公開した受理件数であり、file commit 件数ではない。field offset・schema version・8000件境界・write commit/rollbackはTwinCAT非依存のhost testで固定する。
 
 ## マッピング (SIL)
 - `record.motor.position <- DriverAdapter.motor.positionRel`

@@ -2,13 +2,13 @@ function result = exp05_Higs(mode, varargin)
 % exp05_Higs  Preview or run one linear/HIGS comparison trial.
 %   preview = exp05_Higs();                         % no ADS connection
 %   linear = exp05_Higs("linear", "target_label", "bench-A");
-%   higs   = exp05_Higs("higs",   "target_label", "bench-A");
+%   integrator = exp05_Higs("integrator", "target_label", "bench-A");
 % target_label is a record label only. ADS connects using cfg.env; this
 % function neither selects nor verifies VM versus hardware I/O mappings.
 % The repository RealMotor project is a scaffold.
 
 if nargin < 1, mode = "preview"; end
-mode = string(validatestring(mode, ["preview", "linear", "higs"]));
+mode = string(validatestring(mode, ["preview", "linear", "integrator", "lowpass", "both"]));
 repo_root = fileparts(fileparts(fileparts(mfilename("fullpath"))));
 data_dir = experiment.scenario.default_result_dir();
 p = inputParser;
@@ -22,12 +22,12 @@ o = p.Results;
 
 cfg = experiment.ExperimentConfig.defaults();
 design = jsondecode(fileread(o.design_path));
-[linear, higs, t, reference] = prepare_design(design, cfg.env.task_rate_hz);
+[linear, integrator, lowpass, both, t, reference] = prepare_design(design, cfg.env.task_rate_hz);
 if numel(reference) > cfg.env.table_max_n
   error("experiment:higs:tableTooLong", "HIGS reference exceeds table_max_n.");
 end
 result = struct("mode", mode, "design", design, "linear", linear.to_struct(), ...
-  "higs", higs.to_struct(), "t", t, "reference", reference, ...
+  "integrator", integrator.to_struct(), "lowpass", lowpass.to_struct(), "both", both.to_struct(), "t", t, "reference", reference, ...
   "target_label", string(o.target_label), "io_backend_verified", false, ...
   "connection_environment", cfg.env.to_struct());
 if mode == "preview"
@@ -55,7 +55,9 @@ stability = experiment.higs_linear_check(plant, linear, ...
   design.sensitivity_limit, o.plot);
 
 controller = linear;
-if mode == "higs", controller = higs; end
+if mode == "integrator", controller = integrator; end
+if mode == "lowpass", controller = lowpass; end
+if mode == "both", controller = both; end
 trial_root = fullfile(string(o.result_dir), "exp05");
 if ~isfolder(trial_root), mkdir(trial_root); end
 [~, suffix] = fileparts(tempname(trial_root));
@@ -145,52 +147,73 @@ if o.plot
 end
 end
 
-function [linear, higs, t, r] = prepare_design(d, rate)
-required = ["linear_sos", "higs_sos", "pre_section_count", "higs_gain", ...
-  "higs_omega_ts", "sample_time_s", "reference_amplitude_rad", "move_time_s", ...
-  "dwell_time_s", "settle_time_s", "sensitivity_limit", "max_current_a", ...
-  "max_position_rad", "max_velocity_rad_s", "max_twist_rad"];
-if ~isstruct(d) || ~isscalar(d) || any(~isfield(d, required))
-  error("experiment:higs:invalidDesign", "Design JSON is missing required fields.");
+function [linear, integrator, lowpass, both, t, r] = prepare_design(d, rate)
+required = ["tuning","sample_time_s","reference_amplitude_rad","move_time_s", ...
+  "dwell_time_s","settle_time_s","sensitivity_limit","max_current_a", ...
+  "max_position_rad","max_velocity_rad_s","max_twist_rad"];
+if ~isstruct(d)||~isscalar(d)||any(~isfield(d,required))||~isstruct(d.tuning)
+  error("experiment:higs:invalidDesign","Design JSON is missing required fields.");
 end
-positive = ["sample_time_s", "reference_amplitude_rad", "move_time_s", ...
-  "dwell_time_s", "settle_time_s", "sensitivity_limit", "max_current_a", ...
-  "max_position_rad", "max_velocity_rad_s", "max_twist_rad"];
-for name = positive
-  v = d.(name);
-  if ~(isnumeric(v) && isreal(v) && isscalar(v) && isfinite(v) && v > 0)
-    error("experiment:higs:invalidDesign", "%s must be a finite positive scalar.", name);
+tuning_required=["kp","integral_hz","lead_zero_hz","lead_pole_hz","lowpass_hz", ...
+  "higs_lp_corner_hz","higs_i_corner_hz","higs_lp_gain","higs_i_gain"];
+if any(~isfield(d.tuning,tuning_required))
+  error("experiment:higs:invalidDesign","Design tuning is missing required fields.");
+end
+positive=["sample_time_s","reference_amplitude_rad","move_time_s","dwell_time_s", ...
+  "settle_time_s","sensitivity_limit","max_current_a","max_position_rad", ...
+  "max_velocity_rad_s","max_twist_rad"];
+for name=positive
+  v=d.(name);if ~(isnumeric(v)&&isreal(v)&&isscalar(v)&&isfinite(v)&&v>0)
+    error("experiment:higs:invalidDesign","%s must be a finite positive scalar.",name);
   end
 end
-if d.reference_amplitude_rad >= d.max_position_rad || ...
-    2.1875*d.reference_amplitude_rad/d.move_time_s >= d.max_velocity_rad_s
-  error("experiment:higs:trajectoryLimit", "Reference position or velocity reaches a configured safety limit.");
+for name=tuning_required
+  v=d.tuning.(name);if ~(isnumeric(v)&&isreal(v)&&isscalar(v)&&isfinite(v))
+    error("experiment:higs:invalidDesign","tuning.%s must be a finite real scalar.",name);
+  end
 end
-linear = experiment.ControllerConfig.from_struct(struct( ...
-  "sos", json_sos(d.linear_sos), "sample_time_s", d.sample_time_s));
-higs = experiment.ControllerConfig.from_struct(struct( ...
-  "sos", json_sos(d.higs_sos), "sample_time_s", d.sample_time_s, ...
-  "higs_enabled", true, "higs_gain", d.higs_gain, ...
-  "higs_omega_ts", d.higs_omega_ts, "higs_pre_section_count", d.pre_section_count));
-linear.validate_for_task_rate(rate);
-higs.validate_for_task_rate(rate);
-Ts = d.sample_time_s;
-end_time = 2*d.settle_time_s + 2*d.move_time_s + d.dwell_time_s;
-t = (0:round(end_time/Ts))' * Ts;
-u_forward = min(1, max(0, (t-d.settle_time_s)/d.move_time_s));
-u_return = min(1, max(0, (t-d.settle_time_s-d.move_time_s-d.dwell_time_s)/d.move_time_s));
-r = d.reference_amplitude_rad * (smoothstep7(u_forward) - smoothstep7(u_return));
+if any([d.tuning.kp,d.tuning.integral_hz,d.tuning.lead_zero_hz,d.tuning.lead_pole_hz, ...
+    d.tuning.lowpass_hz,d.tuning.higs_lp_corner_hz,d.tuning.higs_i_corner_hz,d.tuning.higs_lp_gain,d.tuning.higs_i_gain]<=0) || ...
+    d.tuning.lead_zero_hz>=d.tuning.lead_pole_hz
+  error("experiment:higs:invalidDesign","Controller tuning values are outside their valid range.");
+end
+if d.reference_amplitude_rad>=d.max_position_rad|| ...
+    2.1875*d.reference_amplitude_rad/d.move_time_s>=d.max_velocity_rad_s
+  error("experiment:higs:trajectoryLimit","Reference position or velocity reaches a configured safety limit.");
+end
+Ts=d.sample_time_s;wn=2*pi*d.tuning.lowpass_hz;wi=2*pi*d.tuning.integral_hz;
+wz=2*pi*d.tuning.lead_zero_hz;wp=2*pi*d.tuning.lead_pole_hz;
+wcLp=2*pi*d.tuning.higs_lp_corner_hz;wcI=2*pi*d.tuning.higs_i_corner_hz;
+khLp=d.tuning.higs_lp_gain;khI=d.tuning.higs_i_gain;kp=d.tuning.kp;
+LPF=tf(wn^2,[1,sqrt(2)*wn,wn^2]);
+lead=tf([1/wz,1],[1/wp,1]);
+Hlp=tf(khLp*wcLp,[1,wcLp]);Hi=tf(khI*wcI,[1,wcI]);
+Vlp=LPF/Hlp;Vi=(wi/(khI*wcI))*tf([1,wcI],[1,0]);
+lpPre=zeros(0,6);lpPost=experiment.controller.tustin_sos(Vlp,Ts);
+p=experiment.controller.tustin_sos(kp*lead,Ts);
+iPre=zeros(0,6);iPost=experiment.controller.tustin_sos(kp*lead*Vi,Ts);post=zeros(0,6);
+hlpSos=experiment.controller.tustin_sos(Hlp,Ts);hiSos=experiment.controller.tustin_sos(Hi,Ts);
+packed=[lpPre;hlpSos;lpPost;p;iPre;hiSos;iPost;post];
+counts=struct("lp_pre_section_count",size(lpPre,1),"lp_post_section_count",size(lpPost,1), ...
+  "p_section_count",size(p,1),"i_pre_section_count",size(iPre,1), ...
+  "i_post_section_count",size(iPost,1),"post_section_count",size(post,1));
+base=counts;base.sos=packed;base.sample_time_s=Ts;
+base.higs_lp_gain=khLp;base.higs_lp_omega_ts=khLp*wcLp*Ts/sqrt(1+16/pi^2);
+base.higs_i_gain=khI;base.higs_i_omega_ts=khI*wcI*Ts/sqrt(1+16/pi^2);
+linear=experiment.ControllerConfig.from_struct(base);
+base.higs_i_enabled=true;integrator=experiment.ControllerConfig.from_struct(base);
+base.higs_i_enabled=false;base.higs_lp_enabled=true;lowpass=experiment.ControllerConfig.from_struct(base);
+base.higs_i_enabled=true;both=experiment.ControllerConfig.from_struct(base);
+for c={linear,integrator,lowpass,both},c{1}.validate_for_task_rate(rate);end
+end_time=2*d.settle_time_s+2*d.move_time_s+d.dwell_time_s;
+t=(0:round(end_time/Ts))'*Ts;
+u_forward=min(1,max(0,(t-d.settle_time_s)/d.move_time_s));
+u_return=min(1,max(0,(t-d.settle_time_s-d.move_time_s-d.dwell_time_s)/d.move_time_s));
+r=d.reference_amplitude_rad*(smoothstep7(u_forward)-smoothstep7(u_return));
 end
 
 function y = smoothstep7(u)
 y = u.^4 .* (35 - 84*u + 70*u.^2 - 20*u.^3);
-end
-
-function value = json_sos(value)
-% jsondecode makes a one-dimensional numeric array a column vector.
-if isnumeric(value) && isvector(value) && numel(value) == 6
-  value = reshape(value, 1, 6);
-end
 end
 
 function tf_out = is_text(x)

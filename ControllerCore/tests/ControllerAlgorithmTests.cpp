@@ -7,391 +7,354 @@
 
 namespace
 {
-constexpr std::size_t kMaxSections = controllercore::ControllerAlgorithm::kMaxSections;
-constexpr std::size_t kCoefficientCount = controllercore::ControllerAlgorithm::kCoefficientCount;
+using Algorithm = controllercore::ControllerAlgorithm;
+using Counts = Algorithm::SectionCounts;
+using Higs = Algorithm::HigsParameters;
+constexpr std::size_t kCapacity = Algorithm::kCoefficientCount;
 
-void SetSection(
-	double* coefficients,
-	std::size_t section,
-	double b0,
-	double b1,
-	double b2,
-	double a1,
-	double a2) noexcept
+void Set(double* c, std::size_t row, double b0, double b1, double b2, double a1, double a2)
 {
-	const std::size_t base = section * controllercore::ControllerAlgorithm::kCoefficientsPerSection;
-	coefficients[base + 0] = b0;
-	coefficients[base + 1] = b1;
-	coefficients[base + 2] = b2;
-	coefficients[base + 3] = a1;
-	coefficients[base + 4] = a2;
+	const std::size_t i = row * Algorithm::kCoefficientsPerSection;
+	c[i] = b0; c[i + 1] = b1; c[i + 2] = b2; c[i + 3] = a1; c[i + 4] = a2;
 }
 
-void FillIdentity(double* coefficients) noexcept
+void FillIdentity(double* c)
 {
-	for (std::size_t section = 0; section < kMaxSections; ++section)
-	{
-		SetSection(coefficients, section, 1.0, 0.0, 0.0, 0.0, 0.0);
-	}
+	for (std::size_t row = 0; row < Algorithm::kMaxSections; ++row)
+		Set(c, row, 1, 0, 0, 0, 0);
 }
 
-class ReferenceController
+bool Near(double a, double b, double tolerance = 1e-12)
+{
+	return std::abs(a - b) <= tolerance * (1.0 + std::abs(b));
+}
+
+class Biquad
 {
 public:
-	ReferenceController() noexcept
-		: m_sectionCount(0)
+	Biquad() : b0(1), b1(0), b2(0), a1(0), a2(0), s1(0), s2(0) {}
+	void SetCoefficients(const double* c, std::size_t row)
 	{
-		FillIdentity(m_coefficients);
-		Reset();
+		const std::size_t i = row * Algorithm::kCoefficientsPerSection;
+		b0 = c[i]; b1 = c[i + 1]; b2 = c[i + 2]; a1 = c[i + 3]; a2 = c[i + 4];
+		s1 = s2 = 0;
 	}
-
-	void Configure(const double* coefficients, std::size_t sectionCount) noexcept
+	double Step(double x)
 	{
-		m_sectionCount = sectionCount;
-		for (std::size_t i = 0; i < kCoefficientCount; ++i)
-		{
-			m_coefficients[i] = coefficients[i];
-		}
-		Reset();
+		const double y = b0 * x + s1;
+		const double next1 = b1 * x - a1 * y + s2;
+		const double next2 = b2 * x - a2 * y;
+		s1 = next1; s2 = next2;
+		return y;
 	}
-
-	void Reset() noexcept
-	{
-		for (std::size_t section = 0; section < kMaxSections; ++section)
-		{
-			m_s1[section] = 0.0;
-			m_s2[section] = 0.0;
-		}
-	}
-
-	double Step(double refValue, double ffValue, double positionAct) noexcept
-	{
-		if (!std::isfinite(refValue) || !std::isfinite(ffValue) || !std::isfinite(positionAct))
-		{
-			return 0.0;
-		}
-
-		double y = refValue - positionAct;
-		for (std::size_t section = 0; section < m_sectionCount; ++section)
-		{
-			const std::size_t base = section * controllercore::ControllerAlgorithm::kCoefficientsPerSection;
-			const double x = y;
-			y = m_coefficients[base + 0] * x + m_s1[section];
-			const double s1Next = m_coefficients[base + 1] * x
-				- m_coefficients[base + 3] * y + m_s2[section];
-			const double s2Next = m_coefficients[base + 2] * x
-				- m_coefficients[base + 4] * y;
-			m_s1[section] = s1Next;
-			m_s2[section] = s2Next;
-		}
-		return y + ffValue;
-	}
-
 private:
-	double m_coefficients[kCoefficientCount];
-	double m_s1[kMaxSections];
-	double m_s2[kMaxSections];
-	std::size_t m_sectionCount;
+	double b0, b1, b2, a1, a2, s1, s2;
 };
 
-double NextInput(std::uint32_t& state) noexcept
+class LinearCascadeReference
 {
-	state = state * 1664525u + 1013904223u;
-	return (static_cast<double>(state & 0xffffu) - 32768.0) / 32768.0;
-}
+public:
+	explicit LinearCascadeReference(const double* c)
+	{
+		lpPre.SetCoefficients(c, 0);
+		lpH.SetCoefficients(c, 1);
+		lpPost.SetCoefficients(c, 2);
+		p.SetCoefficients(c, 3);
+		iPre.SetCoefficients(c, 4);
+		iH.SetCoefficients(c, 5);
+		iPost.SetCoefficients(c, 6);
+		post.SetCoefficients(c, 7);
+	}
+	void Reset(const double* c)
+	{
+		*this = LinearCascadeReference(c);
+	}
+	double Step(double ref, double ff, double pos)
+	{
+		double x = lpPost.Step(lpH.Step(lpPre.Step(ref - pos)));
+		const double pOut = p.Step(x);
+		const double iOut = iPost.Step(iH.Step(iPre.Step(x)));
+		return post.Step(pOut + iOut) + ff;
+	}
+private:
+	Biquad lpPre, lpH, lpPost, p, iPre, iH, iPost, post;
+};
 
-bool VerifyFiniteCharacterization()
+bool VerifyLinearCascadeAgainstDirectReference()
 {
-	double coefficients[kCoefficientCount];
-	FillIdentity(coefficients);
-	for (std::size_t section = 0; section < kMaxSections; ++section)
-	{
-		const double scale = static_cast<double>(section + 1);
-		SetSection(coefficients, section,
-			0.20 + 0.01 * scale,
-			-0.04 + 0.001 * scale,
-			0.01,
-			-0.30 + 0.005 * scale,
-			0.08);
-	}
+	const Counts counts{ 1, 1, 1, 1, 1, 1 };
+	double c[kCapacity];
+	FillIdentity(c);
+	// 2nd-order Butterworth low-pass, bilinear transformed at 100 Hz / 8 kHz.
+	const double k = std::tan(3.14159265358979323846 * 100.0 / 8000.0);
+	const double norm = 1.0 / (1.0 + std::sqrt(2.0) * k + k * k);
+	Set(c, 0, 1.1, 0, 0, 0, 0); // lpPre
+	Set(c, 1, k * k * norm, 2 * k * k * norm, k * k * norm,
+		2 * (k * k - 1) * norm, (1 - std::sqrt(2.0) * k + k * k) * norm); // LP H
+	Set(c, 2, 0.9, 0, 0, 0, 0); // lpPost
+	// Lead zero at 200 Hz and pole at 1 kHz, bilinear transformed.
+	const double kz = std::tan(3.14159265358979323846 * 200.0 / 8000.0);
+	const double kp = std::tan(3.14159265358979323846 * 1000.0 / 8000.0);
+	Set(c, 3, (1 + kz) / (1 + kp), (kz - 1) / (1 + kp), 0, (kp - 1) / (1 + kp), 0); // P lead
+	Set(c, 4, 0.8, 0, 0, 0, 0); // iPre
+	Set(c, 5, 0.5, 0.5, 0, -1, 0); // trapezoidal I
+	Set(c, 6, 1.25, 0, 0, 0, 0); // iPost
+	Set(c, 7, 0.75, 0, 0, 0, 0); // post
 
-	for (std::uint32_t sectionCount = 0; sectionCount <= kMaxSections; ++sectionCount)
-	{
-		ReferenceController reference;
-		reference.Configure(coefficients, sectionCount);
-		controllercore::ControllerAlgorithm actual;
-		if (!actual.ApplyParameters(coefficients, sectionCount, sectionCount + 1))
-		{
-			return false;
-		}
-		std::uint32_t state = 0x12345678u + sectionCount;
-
-		for (unsigned sample = 0; sample < 1000; ++sample)
-		{
-			if (sample == 500)
-			{
-				reference.Reset();
-				actual.Reset();
-			}
-			const double refValue = NextInput(state);
-			const double ffValue = 0.25 * NextInput(state);
-			const double positionAct = 0.5 * NextInput(state);
-			const double expected = reference.Step(refValue, ffValue, positionAct);
-			const double observed = actual.Step(refValue, ffValue, positionAct);
-			if (expected != observed)
-			{
-				std::cerr << "finite characterization mismatch: sections="
-					<< sectionCount << " sample=" << sample << '\n';
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
-bool VerifyRevisionCommitResetsState()
-{
-	double coefficients[kCoefficientCount];
-	FillIdentity(coefficients);
-	SetSection(coefficients, 0, 1.0, 0.5, 0.0, 0.0, 0.0);
-	controllercore::ControllerAlgorithm actual;
-	if (!actual.ApplyParameters(coefficients, 1, 7)
-		|| actual.AppliedRevision() != 7
-		|| actual.ProcessedRevision() != 7
-		|| actual.LastSeenRevision() != 7
-		|| actual.ParameterErrorCode() != controllercore::ControllerAlgorithm::ParameterErrorNone)
-	{
-		return false;
-	}
-	if (actual.Step(1.0, 0.0, 0.0) != 1.0
-		|| actual.Step(0.0, 0.0, 0.0) != 0.5)
-	{
-		return false;
-	}
-	return actual.ApplyParameters(coefficients, 1, 8)
-		&& actual.Step(0.0, 0.0, 0.0) == 0.0;
-}
-
-bool VerifyRejectedPayloadPreservesActiveController()
-{
-	double coefficients[kCoefficientCount];
-	FillIdentity(coefficients);
-	SetSection(coefficients, 0, 2.0, 0.0, 0.0, 0.0, 0.0);
-	controllercore::ControllerAlgorithm actual;
-	if (!actual.ApplyParameters(coefficients, 1, 1))
-	{
-		return false;
-	}
-	if (actual.ApplyParameters(coefficients, 11, 2)
-		|| actual.AppliedRevision() != 1
-		|| actual.ProcessedRevision() != 2
-		|| actual.LastSeenRevision() != 2
-		|| actual.ParameterErrorCode() != controllercore::ControllerAlgorithm::ParameterErrorSectionCount
-		|| actual.Step(3.0, 0.0, 0.0) != 6.0)
-	{
-		return false;
-	}
-
-	coefficients[0] = std::numeric_limits<double>::quiet_NaN();
-	return !actual.ApplyParameters(coefficients, 1, 3)
-		&& actual.AppliedRevision() == 1
-		&& actual.ProcessedRevision() == 3
-		&& actual.LastSeenRevision() == 3
-		&& actual.ParameterErrorCode() == controllercore::ControllerAlgorithm::ParameterErrorNonFiniteCoefficient
-		&& actual.Step(3.0, 0.0, 0.0) == 6.0;
-}
-
-bool VerifyIdentityAndZeroControllers()
-{
-	double coefficients[kCoefficientCount];
-	FillIdentity(coefficients);
-	controllercore::ControllerAlgorithm actual;
-	if (!actual.ApplyParameters(coefficients, 0, 1)
-		|| actual.Step(2.0, 0.25, 0.5) != 1.75)
-	{
-		return false;
-	}
-	SetSection(coefficients, 0, 0.0, 0.0, 0.0, 0.0, 0.0);
-	return actual.ApplyParameters(coefficients, 1, 2)
-		&& actual.Step(2.0, 0.25, 0.5) == 0.25;
-}
-
-bool VerifyInvalidInputDoesNotMutateState()
-{
-	double coefficients[kCoefficientCount];
-	FillIdentity(coefficients);
-	SetSection(coefficients, 0, 1.0, 0.5, 0.0, 0.0, 0.0);
-	controllercore::ControllerAlgorithm actual;
-	actual.ApplyParameters(coefficients, 1, 1);
-	if (actual.Step(1.0, 0.0, 0.0) != 1.0)
-	{
-		return false;
-	}
-	if (actual.Step(std::numeric_limits<double>::quiet_NaN(), 0.0, 0.0) != 0.0)
-	{
-		return false;
-	}
-	return actual.Step(0.0, 0.0, 0.0) == 0.5;
-}
-
-bool VerifyStateUpdateOverflowResetsAffectedStage()
-{
-	double coefficients[kCoefficientCount];
-	FillIdentity(coefficients);
-	const double maximum = std::numeric_limits<double>::max();
-	SetSection(coefficients, 0, 1.0, maximum, 0.0, 0.0, 0.0);
-	controllercore::ControllerAlgorithm actual;
-	actual.ApplyParameters(coefficients, 1, 1);
-	if (actual.Step(2.0, 0.25, 0.0) != 0.0)
-	{
-		return false;
-	}
-	SetSection(coefficients, 0, 1.0, 0.0, 0.0, 0.0, 0.0);
-	actual.ApplyParameters(coefficients, 1, 2);
-	return actual.Step(1.0, 0.0, 0.0) == 1.0;
-}
-
-bool VerifyFinalOutputOverflowPreservesFiniteState()
-{
-	double coefficients[kCoefficientCount];
-	FillIdentity(coefficients);
-	SetSection(coefficients, 0, 1.0, 0.5, 0.0, 0.0, 0.0);
-	const double maximum = std::numeric_limits<double>::max();
-	controllercore::ControllerAlgorithm actual;
-	actual.ApplyParameters(coefficients, 1, 1);
-	if (actual.Step(maximum, maximum, 0.0) != 0.0)
-	{
-		return false;
-	}
-	return actual.Step(0.0, 0.0, 0.0) == (0.5 * maximum);
-}
-
-bool VerifyOverflowFailsSafe()
-{
-	const double maximum = std::numeric_limits<double>::max();
-	controllercore::ControllerAlgorithm actual;
-	return actual.Step(maximum, maximum, 0.0) == 0.0
-		&& actual.Step(maximum, 1.0, -maximum) == 0.0
-		&& controllercore::ControllerAlgorithm::ComputeError(maximum, -maximum) == 0.0
-		&& controllercore::ControllerAlgorithm::ComputeError(
-			std::numeric_limits<double>::quiet_NaN(), 0.0) == 0.0;
-}
-
-bool VerifyHigsModes()
-{
-	controllercore::ControllerAlgorithm actual;
-	if (!actual.ApplyParameters(nullptr, 0, 1, { true, 2.0, 0.5, 0 })) return false;
-	// Includes the sector boundary, moving boundary, sign change and zero input.
-	const double input[] = { 1, 1, 1, 1, 1, 0.25, -0.25, -0.25, 0 };
-	const double output[] = { 0.5, 1, 1.5, 2, 2, 0.5, 0, -0.125, 0 };
-	const std::uint32_t mode[] = { 1, 1, 1, 1, 2, 2, 3, 1, 2 };
-	for (std::size_t i = 0; i < sizeof(input) / sizeof(input[0]); ++i)
-	{
-		if (actual.Step(input[i], 0, 0) != output[i]
-			|| actual.HigsInput() != input[i] || actual.HigsOutput() != output[i]
-			|| actual.HigsMode() != mode[i]) return false;
-	}
-	actual.ApplyParameters(nullptr, 0, 2, { true, 1.0, 0.5, 0 });
-	// A crossing is still integrator mode if its candidate is inside the sector.
-	return actual.Step(1, 0, 0) == 0.5
-		&& actual.Step(-2, 0, 0) == -0.5 && actual.HigsMode() == 1;
-}
-
-bool VerifyHigsSectorAndOddSymmetry()
-{
-	controllercore::ControllerAlgorithm positive, negative;
-	const double gain = 1.75, omegaTs = 0.0625;
-	positive.ApplyParameters(nullptr, 0, 1, { true, gain, omegaTs, 0 });
-	negative.ApplyParameters(nullptr, 0, 1, { true, gain, omegaTs, 0 });
-	double state = 0, previous = 0;
-	std::uint32_t random = 23;
-	for (unsigned i = 0; i < 20000; ++i)
-	{
-		const double input = i % 17 == 0 ? 0.0 : NextInput(random);
-		const double candidate = state + omegaTs * input;
-		// Independent quadratic form of book Eqs. (2.43)-(2.44).
-		state = candidate * input >= candidate * candidate / gain ? candidate
-			: (input * previous >= 0 ? gain * input : 0);
-		previous = input;
-		const double y = positive.Step(input, 0, 0);
-		if (std::abs(y - state) > 1e-14 || negative.Step(-input, 0, 0) != -y
-			|| y * input + 1e-14 < y * y / gain) return false;
-	}
-	return true;
-}
-
-bool VerifyHigsInsertionAndReset()
-{
-	double coefficients[kCoefficientCount];
-	FillIdentity(coefficients);
-	SetSection(coefficients, 0, 2, 0, 0, 0, 0);
-	SetSection(coefficients, 1, 3, 0, 0, 0, 0);
-	const double expectedInput[] = { 1, 2, 6 };
-	for (std::uint32_t before = 0; before <= 2; ++before)
-	{
-		controllercore::ControllerAlgorithm actual;
-		actual.ApplyParameters(coefficients, 2, 1, { true, 1, 0.5, before });
-		if (actual.Step(1, 7, 0) != 10 || actual.HigsInput() != expectedInput[before]
-			|| actual.HigsOutput() != expectedInput[before] * 0.5) return false;
-		actual.Reset();
-		if (actual.HigsInput() != 0 || actual.HigsOutput() != 0 || actual.HigsMode() != 0
-			|| actual.Step(1, 7, 0) != 10) return false;
-		actual.ApplyParameters(coefficients, 2, 2, { true, 1, 0.5, before });
-		if (actual.HigsOutput() != 0 || actual.Step(1, 7, 0) != 10) return false;
-		actual.ApplyParameters(coefficients, 2, 3);
-		if (actual.Step(1, 7, 0) != 13 || actual.HigsMode() != 0) return false;
-	}
-	return true;
-}
-
-bool VerifyHigsRejectedParametersAndOverflow()
-{
-	using Algorithm = controllercore::ControllerAlgorithm;
+	const Higs disabled{ false, 1, 0 };
 	Algorithm actual;
-	actual.ApplyParameters(nullptr, 0, 1, { true, 1, 0.25, 0 });
-	actual.Step(1, 0, 0);
-	const double nan = std::numeric_limits<double>::quiet_NaN();
-	const Algorithm::HigsParameters invalid[] = {
-		{ true, 0, 0.25, 0 }, { true, -1, 0.25, 0 }, { true, nan, 0.25, 0 },
-		{ true, 1, 0, 0 }, { true, 1, -0.25, 0 }, { true, 1, nan, 0 },
-		{ true, 1, 1.25, 0 }, { true, 1, 0.25, 1 }
-	};
-	for (std::uint32_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); ++i)
+	if (!actual.ApplyParameters(c, 8, 1, counts, disabled, disabled)) return false;
+	LinearCascadeReference reference(c);
+	std::uint32_t random = 0x81234567u;
+	for (unsigned n = 0; n < 12000; ++n)
 	{
-		if (actual.ApplyParameters(nullptr, 0, i + 2, invalid[i])
-			|| actual.AppliedRevision() != 1 || actual.ProcessedRevision() != i + 2
-			|| actual.ParameterErrorCode() != Algorithm::ParameterErrorHigsParameters
-			|| actual.HigsOutput() != 0.25) return false;
+		random = random * 1664525u + 1013904223u;
+		const double ref = (static_cast<double>(random >> 8) / 8388608.0) - 1.0;
+		random = random * 1664525u + 1013904223u;
+		const double ff = 0.1 * (static_cast<double>(random >> 8) / 8388608.0) - 0.05;
+		random = random * 1664525u + 1013904223u;
+		const double pos = 0.4 * (static_cast<double>(random >> 8) / 8388608.0) - 0.2;
+		if (n == 6000)
+		{
+			actual.Reset();
+			reference.Reset(c);
+		}
+		const double expected = reference.Step(ref, ff, pos);
+		const double observed = actual.Step(ref, ff, pos);
+		if (!Near(observed, expected, 2e-14)) return false;
 	}
-	if (actual.Step(nan, 0, 0) != 0 || actual.HigsOutput() != 0.25
-		|| actual.Step(1, 0, 0) != 0.5) return false;
-	actual.ApplyParameters(nullptr, 0, 20, { true, 2, 0.5, 0 });
-	if (actual.Step(std::numeric_limits<double>::max(), 0, 0) != 0
-		|| actual.HigsOutput() != 0 || actual.Step(1, 0, 0) != 0.5) return false;
-	// Equality in Ts <= gain / omega_h is admissible.
-	return actual.ApplyParameters(nullptr, 0, 21, { true, 1, 1, 0 })
-		&& actual.Step(1, 0, 0) == 1 && actual.HigsMode() == 1;
+	return true;
+}
+
+struct HigsReference
+{
+	double gain;
+	double omegaTs;
+	double input = 0;
+	double output = 0;
+	std::uint32_t mode = 0;
+
+	double Step(double x)
+	{
+		const double candidate = output + omegaTs * x;
+		const double boundary = gain * x;
+		const bool inside = x >= 0 ? candidate >= 0 && candidate <= boundary
+			: candidate >= boundary && candidate <= 0;
+		const bool same = (x >= 0 && input >= 0) || (x <= 0 && input <= 0);
+		mode = inside ? 1u : (same ? 2u : 3u);
+		output = inside ? candidate : (same ? boundary : 0.0);
+		input = x;
+		return output;
+	}
+};
+
+bool VerifyTwoIndependentHigsAndDiagnostics()
+{
+	double c[kCapacity];
+	FillIdentity(c);
+	// H rows are at 0 and 1. Enabled HIGS skips both ordinary filters.
+	Algorithm actual;
+	const Counts counts{ 0, 0, 0, 0, 0, 0 };
+	const Higs lp{ true, 2.0, 0.5 };
+	const Higs i{ true, 1.0, 0.25 };
+	if (!actual.ApplyParameters(c, 2, 1, counts, lp, i)) return false;
+	HigsReference lpRef{ lp.gain, lp.omegaTs }, iRef{ i.gain, i.omegaTs };
+	const double inputs[] = { 0.2963, 0.7126, -2.4259, 2.9048, -3.1113, 1.265,
+		-2.0031, -0.8148, -0.8805, -0.2498, 1.0373, 0.0032, -1.9201,
+		-1.6814, 1.8825, 1.7748, -0.3933, 0.759, -2.6419, 2.5544,
+		-1.9321, -0.6086, -0.9647, 2.0348, 2.5771 };
+	std::uint32_t lpModes = 0, iModes = 0;
+	for (double x : inputs)
+	{
+		const double lpOut = lpRef.Step(x);
+		const double iOut = iRef.Step(lpOut);
+		const double expected = lpOut + iOut;
+		lpModes |= 1u << lpRef.mode;
+		iModes |= 1u << iRef.mode;
+		if (!Near(actual.Step(x, 0, 0), expected)
+			|| actual.HigsLpInput() != x || actual.HigsLpOutput() != lpOut
+			|| actual.HigsLpMode() != lpRef.mode
+			|| actual.HigsIInput() != lpOut || actual.HigsIOutput() != iOut
+			|| actual.HigsIMode() != iRef.mode)
+			return false;
+	}
+	if ((lpModes & 0x0eu) != 0x0eu || (iModes & 0x0eu) != 0x0eu) return false;
+	// The same input drives separate controller instances without sharing state.
+	Algorithm other;
+	if (!other.ApplyParameters(c, 2, 1, counts, i, lp)) return false;
+	const double lpBefore = actual.HigsLpOutput();
+	const double iBefore = actual.HigsIOutput();
+	return Near(other.Step(1, 0, 0), 0.375)
+		&& Near(other.HigsLpOutput(), 0.25)
+		&& Near(other.HigsIOutput(), 0.125)
+		&& actual.HigsLpOutput() == lpBefore && actual.HigsIOutput() == iBefore;
+}
+
+bool VerifyLinearModeDiagnosticsAndReset()
+{
+	double c[kCapacity];
+	FillIdentity(c);
+	const Counts counts{ 0, 0, 0, 0, 0, 0 };
+	Set(c, 0, 3, 0, 0, 0, 0);
+	Set(c, 1, 2, 0, 0, 0, 0);
+	const Higs linear{ false, 1, 0 };
+	Algorithm actual;
+	if (!actual.ApplyParameters(c, 2, 4, counts, linear, linear)
+		|| actual.Step(1, 0, 0) != 9
+		|| actual.HigsLpInput() != 1 || actual.HigsLpOutput() != 3 || actual.HigsLpMode() != 0
+		|| actual.HigsIInput() != 3 || actual.HigsIOutput() != 6 || actual.HigsIMode() != 0)
+		return false;
+	actual.Reset();
+	return actual.HigsLpInput() == 0 && actual.HigsLpOutput() == 0 && actual.HigsLpMode() == 0
+		&& actual.HigsIInput() == 0 && actual.HigsIOutput() == 0 && actual.HigsIMode() == 0
+		&& actual.Step(1, 0, 0) == 9;
+}
+
+bool VerifyRejectedParametersPreserveActiveState()
+{
+	double c[kCapacity];
+	FillIdentity(c);
+	Set(c, 3, 2, 0, 0, 0, 0);
+	Set(c, 5, 0, 0, 0, 0, 0);
+	const Counts counts{ 1, 1, 1, 1, 1, 1 };
+	const Higs disabled{ false, 1, 0 };
+	Algorithm actual;
+	if (!actual.ApplyParameters(c, 8, 10, counts, disabled, disabled)) return false;
+	const double nan = std::numeric_limits<double>::quiet_NaN();
+	const Higs invalid[] = {
+		{ false, 0, 0 }, { false, -1, 0 }, { false, nan, 0 }, { false, 1, nan },
+		{ false, 1, -0.1 }, { true, 1, 0 }, { true, 1, 2 }, { true, nan, 0.1 }
+	};
+	for (std::uint32_t n = 0; n < sizeof(invalid) / sizeof(invalid[0]); ++n)
+	{
+		if (actual.ApplyParameters(c, 8, 11 + n, counts, invalid[n], disabled)
+			|| actual.AppliedRevision() != 10 || actual.LastSeenRevision() != 11 + n
+			|| actual.ParameterErrorCode() != Algorithm::ParameterErrorHigsParameters
+			|| actual.Step(1, 0, 0) != 2)
+			return false;
+	}
+
+	for (std::uint32_t n = 0; n < sizeof(invalid) / sizeof(invalid[0]); ++n)
+	{
+		if (actual.ApplyParameters(c, 8, 40 + n, counts, disabled, invalid[n])
+			|| actual.AppliedRevision() != 10 || actual.LastSeenRevision() != 40 + n
+			|| actual.ParameterErrorCode() != Algorithm::ParameterErrorHigsParameters
+			|| actual.Step(1, 0, 0) != 2)
+			return false;
+	}
+
+	const Counts tooMany{ UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX };
+	if (actual.ApplyParameters(c, UINT32_MAX, 30, tooMany, disabled, disabled)
+		|| actual.ParameterErrorCode() != Algorithm::ParameterErrorSectionCount) return false;
+	if (actual.ApplyParameters(c, 7, 31, counts, disabled, disabled)
+		|| actual.ParameterErrorCode() != Algorithm::ParameterErrorSectionCount) return false;
+	c[0] = nan;
+	return !actual.ApplyParameters(c, 8, 32, counts, disabled, disabled)
+		&& actual.AppliedRevision() == 10
+		&& actual.ParameterErrorCode() == Algorithm::ParameterErrorNonFiniteCoefficient
+		&& actual.Step(1, 0, 0) == 2;
+}
+
+bool VerifyRevisionCommitResetsAllStageState()
+{
+	double c[kCapacity];
+	FillIdentity(c);
+	const Counts counts{ 1, 1, 1, 1, 1, 1 };
+	Set(c, 3, 1, 0.5, 0, 0, 0);
+	Set(c, 5, 0, 0, 0, 0, 0);
+	const Higs disabled{ false, 1, 0 };
+	Algorithm actual;
+	if (!actual.ApplyParameters(c, 8, 7, counts, disabled, disabled)
+		|| actual.Step(1, 0, 0) != 1 || actual.Step(0, 0, 0) != 0.5)
+		return false;
+	Set(c, 3, 2, 0, 0, 0, 0);
+	return actual.ApplyParameters(c, 8, 8, counts, disabled, disabled)
+		&& actual.AppliedRevision() == 8 && actual.ProcessedRevision() == 8
+		&& actual.Step(0, 0, 0) == 0;
+}
+
+bool VerifyOverflowFaultRecovery()
+{
+	const double maximum = std::numeric_limits<double>::max();
+	const Counts noSections{ 0, 0, 0, 0, 0, 0 };
+	const Higs enabled{ true, 2, 0.5 };
+	double c[kCapacity];
+	FillIdentity(c);
+	Algorithm higs;
+	if (!higs.ApplyParameters(c, 2, 1, noSections, enabled, enabled)
+		|| higs.Step(maximum, 0, 0) != 0
+		|| higs.HigsLpInput() != 0 || higs.HigsLpOutput() != 0 || higs.HigsLpMode() != 0
+		|| higs.Step(1, 0, 0) != 0.75)
+		return false;
+
+	const Counts lpOnly{ 0, 0, 0, 0, 0, 0 };
+	const Higs disabled{ false, 1, 0 };
+	Set(c, 0, 0, maximum, 0, -1, 0);
+	Algorithm biquad;
+	if (!biquad.ApplyParameters(c, 2, 1, lpOnly, disabled, disabled)
+		|| biquad.Step(1, 0, 0) != 0
+		|| biquad.Step(1, 0, 0) != 0
+		|| biquad.Step(0, 0, 0) != 0)
+		return false;
+
+	const Counts pOnly{ 0, 0, 1, 0, 0, 0 };
+	FillIdentity(c);
+	Set(c, 1, maximum, 0.5, 0, 0, 0);
+	Algorithm finalOverflow;
+	return finalOverflow.ApplyParameters(c, 3, 1, pOnly, disabled, disabled)
+		&& finalOverflow.Step(1, maximum, 0) == 0
+		&& finalOverflow.Step(0, 0, 0) == 0.5;
+}
+
+bool VerifyNonfiniteInputDoesNotChangeHigsState()
+{
+	double c[kCapacity];
+	FillIdentity(c);
+	const Counts counts{ 0, 0, 0, 0, 0, 0 };
+	const Higs enabled{ true, 1, 0.25 };
+	Algorithm actual;
+	if (!actual.ApplyParameters(c, 2, 1, counts, enabled, enabled)
+		|| actual.Step(1, 0, 0) != 0.3125) return false;
+	if (actual.Step(std::numeric_limits<double>::quiet_NaN(), 0, 0) != 0) return false;
+	return actual.HigsLpInput() == 1 && actual.HigsLpOutput() == 0.25
+		&& actual.HigsIInput() == 0.25 && actual.HigsIOutput() == 0.0625
+		&& actual.Step(1, 0, 0) == 0.6875;
+}
+
+bool VerifyIdentityDefaultsAndErrors()
+{
+	Algorithm fresh;
+	if (fresh.Step(2, 0.25, 0.5) != 1.75) return false;
+	if (Algorithm::ComputeError(2, 0.5) != 1.5
+		|| Algorithm::ComputeError(std::numeric_limits<double>::infinity(), 0) != 0)
+		return false;
+	const Counts counts{ 0, 0, 0, 0, 0, 0 };
+	const Higs disabled{ false, 1, 0 };
+	return !fresh.ApplyParameters(nullptr, 2, 1, counts, disabled, disabled)
+		&& fresh.ParameterErrorCode() == Algorithm::ParameterErrorNonFiniteCoefficient;
+}
+bool Run(const char* name, bool (*test)())
+{
+	if (test()) return true;
+	std::cerr << name << " failed\n";
+	return false;
 }
 } // namespace
 
 int main()
 {
-	if (!VerifyFiniteCharacterization()
-		|| !VerifyRevisionCommitResetsState()
-		|| !VerifyRejectedPayloadPreservesActiveController()
-		|| !VerifyIdentityAndZeroControllers()
-		|| !VerifyInvalidInputDoesNotMutateState()
-		|| !VerifyStateUpdateOverflowResetsAffectedStage()
-		|| !VerifyFinalOutputOverflowPreservesFiniteState()
-		|| !VerifyOverflowFailsSafe()
-		|| !VerifyHigsModes()
-		|| !VerifyHigsSectorAndOddSymmetry()
-		|| !VerifyHigsInsertionAndReset()
-		|| !VerifyHigsRejectedParametersAndOverflow())
+	if (!Run("LinearCascadeAgainstDirectReference", VerifyLinearCascadeAgainstDirectReference)
+		|| !Run("TwoIndependentHigsAndDiagnostics", VerifyTwoIndependentHigsAndDiagnostics)
+		|| !Run("LinearModeDiagnosticsAndReset", VerifyLinearModeDiagnosticsAndReset)
+		|| !Run("RejectedParametersPreserveActiveState", VerifyRejectedParametersPreserveActiveState)
+		|| !Run("RevisionCommitResetsAllStageState", VerifyRevisionCommitResetsAllStageState)
+		|| !Run("OverflowFaultRecovery", VerifyOverflowFaultRecovery)
+		|| !Run("NonfiniteInputDoesNotChangeHigsState", VerifyNonfiniteInputDoesNotChangeHigsState)
+		|| !Run("IdentityDefaultsAndErrors", VerifyIdentityDefaultsAndErrors))
 	{
 		return 1;
 	}
 
-	std::cout << "ControllerAlgorithm SOS and HIGS tests passed\n";
+	std::cout << "ControllerAlgorithm two-HIGS cascade tests passed\n";
 	return 0;
 }

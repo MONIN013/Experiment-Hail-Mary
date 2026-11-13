@@ -61,8 +61,7 @@ else
   sos(1, 1:3) = double(gain) .* sos(1, 1:3);
 end
 
-% Centralize a0 normalization, finite checks, and the ten-section limit.
-normalized = experiment.ControllerConfig.from_struct(struct( ...
-  "sos", sos, "sample_time_s", sample_time_s));
-sos = normalized.sos;
+% Centralize normalization and the packed-bank section limit.
+packed = experiment.ControllerConfig.from_sos(sos, sample_time_s);
+sos = packed.sos(2:1+packed.p_section_count, :);
 end

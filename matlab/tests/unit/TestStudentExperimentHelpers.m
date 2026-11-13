@@ -20,19 +20,21 @@ classdef TestStudentExperimentHelpers < matlab.unittest.TestCase
     function controllerConfigFromDiscreteTfUsesSosBank(testCase)
       discrete_tf = tf([2 -1], [1 -0.5], 0.001);
       cfg = experiment.controller.from_discrete_tf(discrete_tf);
-      testCase.verifySize(cfg.sos, [1, 6]);
+      rows = p_rows(cfg);
+      testCase.verifySize(rows, [1, 6]);
       testCase.verifyEqual(cfg.sample_time_s, 0.001, "AbsTol", 0);
-      testCase.verifyEqual(cfg.sos(1, 1), 2, "AbsTol", 1e-12);
-      testCase.verifyEqual(cfg.sos(1, 2), -1, "AbsTol", 1e-12);
-      testCase.verifyEqual(cfg.sos(1, 5), -0.5, "AbsTol", 1e-12);
+      testCase.verifyEqual(rows(1, 1), 2, "AbsTol", 1e-12);
+      testCase.verifyEqual(rows(1, 2), -1, "AbsTol", 1e-12);
+      testCase.verifyEqual(rows(1, 5), -0.5, "AbsTol", 1e-12);
     end
 
     function controllerConfigFromDiscreteTfSupportsMultipleSections(testCase)
       discrete_tf = tf([1, 0.2, 0.3, 0.1, 0.05], ...
         [1, -0.4, 0.2, -0.1, 0.01], 0.001);
       cfg = experiment.controller.from_discrete_tf(discrete_tf);
-      testCase.verifyEqual(size(cfg.sos, 1), 2);
-      testCase.verifyEqual(cfg.sos(:, 4), ones(2, 1), "AbsTol", 1e-12);
+      rows = p_rows(cfg);
+      testCase.verifyEqual(size(rows, 1), 2);
+      testCase.verifyEqual(rows(:, 4), ones(2, 1), "AbsTol", 1e-12);
     end
 
     function controllerConfigPreservesStrictlyProperDelay(testCase)
@@ -41,16 +43,18 @@ classdef TestStudentExperimentHelpers < matlab.unittest.TestCase
       cfg = experiment.controller.from_discrete_tf(discrete_tf);
       x = [1; zeros(15, 1)];
       expected = lsim(discrete_tf, x, (0:numel(x)-1)' * Ts);
-      actual = sosfilt(cfg.sos, x);
+      rows = p_rows(cfg);
+      actual = sosfilt(rows, x);
 
       testCase.verifyEqual(actual, expected, "AbsTol", 1e-12);
-      testCase.verifyEqual(cfg.sos(1, 1), 0, "AbsTol", 0);
+      testCase.verifyEqual(rows(1, 1), 0, "AbsTol", 0);
     end
 
     function zeroDiscreteControllerRemainsAnExplicitZeroSection(testCase)
       cfg = experiment.controller.from_discrete_tf(tf(0, 1, 0.001));
-      testCase.verifyEqual(size(cfg.sos, 1), 1);
-      testCase.verifyEqual(cfg.sos(1, 1:3), [0, 0, 0], "AbsTol", 0);
+      rows = p_rows(cfg);
+      testCase.verifyEqual(size(rows, 1), 1);
+      testCase.verifyEqual(rows(1, 1:3), [0, 0, 0], "AbsTol", 0);
     end
 
     function controllerConfigFromDiscreteTfRejectsContinuousAndMimo(testCase)
@@ -171,4 +175,10 @@ classdef TestStudentExperimentHelpers < matlab.unittest.TestCase
         "experiment:exp0n:runtimeContractMismatch");
     end
   end
+end
+
+function rows = p_rows(cfg)
+% P-branch rows of the packed bank [lpPre; Hlp; lpPost; P; iPre; Hi; iPost; post].
+first = cfg.lp_pre_section_count + 1 + cfg.lp_post_section_count + 1;
+rows = cfg.sos(first:first + cfg.p_section_count - 1, :);
 end

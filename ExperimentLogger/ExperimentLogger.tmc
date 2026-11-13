@@ -34,7 +34,7 @@
     </DataType>
     <DataType>
       <Name GUID="{b5bb3647-4067-4a21-8892-0f60a144e5b0}">ST_LoggerRecordInputs</Name>
-      <BitSize>704</BitSize>
+      <BitSize>1024</BitSize>
       <SubItem>
         <Name>currentCmd</Name>
         <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
@@ -66,6 +66,30 @@
       <SubItem>
         <Name>load</Name>
         <Type GUID="{f77ccaaa-7889-4b95-9096-6e794fc34b65}">ST_LoggerLoadSignals</Type>
+      </SubItem>
+      <SubItem>
+        <Name>higsLpInput</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>higsLpOutput</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>higsLpMode</Name>
+        <Type GUID="{18071995-0000-0000-0000-000000000008}">UDINT</Type>
+      </SubItem>
+      <SubItem>
+        <Name>higsIInput</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>higsIOutput</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>higsIMode</Name>
+        <Type GUID="{18071995-0000-0000-0000-000000000008}">UDINT</Type>
       </SubItem>
     </DataType>
     <DataType>

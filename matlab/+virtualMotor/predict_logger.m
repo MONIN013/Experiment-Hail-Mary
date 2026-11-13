@@ -25,7 +25,7 @@ cfg = experiment.ExperimentConfig.from_varargin(cfg);
 plant_cfg = virtualMotor.PlantConfig.from_struct(plant_cfg);
 plant = plant_cfg.to_struct();
 controller_cfg = cfg.controller.normalize();
-controller_sos = controller_cfg.sos;
+controller = controller_cfg.segments();
 initial = normalize_initial_state(opts.initial_state);
 
 repeat_count = double(cfg.repeat_count);
@@ -65,7 +65,7 @@ scale_l = encoder_l / (2 * pi);
 offset_m_count = saturating_round(theta_m * scale_m, "int32");
 offset_l_count = saturating_round(theta_l * scale_l, "int32");
 
-sos_state = zeros(size(controller_sos, 1), 2);
+controller_state = controller_initial_state(controller_cfg);
 
 dt_s = 1 / double(cfg.env.task_rate_hz);
 rated_current_A = double(opts.driver_rated_current_A);
@@ -81,7 +81,7 @@ for k = 1:n
   if k > 1
     error_value(k) = ref_value(k - 1) - load_position(k - 1);
     y = error_value(k);
-    [y, sos_state, controller_ok] = apply_sos_bank(y, controller_sos, sos_state);
+    [y, controller_state, controller_ok] = apply_controller(y, controller_cfg, controller, controller_state);
     if controller_ok
       control_input(k) = finite_or_zero(y + ff_value(k - 1));
     else
@@ -200,6 +200,72 @@ out = struct( ...
   "final_state", struct( ...
     "theta_motor", theta_m, "omega_motor", omega_m, ...
     "theta_load", theta_l, "omega_load", omega_l));
+end
+
+function state = controller_initial_state(cfg)
+names = ["lpPre", "lpH", "lpPost", "p", "iPre", "iH", "iPost", "post"];
+counts = [cfg.lp_pre_section_count, 1, cfg.lp_post_section_count, cfg.p_section_count, ...
+  cfg.i_pre_section_count, 1, cfg.i_post_section_count, cfg.post_section_count];
+state = struct();
+for k = 1:numel(names)
+  state.(names(k)) = zeros(counts(k), 2);
+end
+state.higs_lp = struct("input", 0.0, "output", 0.0);
+state.higs_i = struct("input", 0.0, "output", 0.0);
+end
+
+function [u, state, ok] = apply_controller(e, cfg, seg, state)
+% Fig. 8.9: x = LP[e]; u = P[x] + I[x]; each H row is replaced by its HIGS when enabled.
+u = 0.0;
+[x, state.lpPre, ok] = apply_sos_bank(e, seg.lpPre, state.lpPre);
+if ~ok, return; end
+if cfg.higs_lp_enabled
+  [x, state.higs_lp, ok] = apply_higs(x, state.higs_lp, cfg.higs_lp_gain, cfg.higs_lp_omega_ts);
+else
+  [x, state.lpH, ok] = apply_sos_bank(x, seg.lpH, state.lpH);
+end
+if ~ok, return; end
+[x, state.lpPost, ok] = apply_sos_bank(x, seg.lpPost, state.lpPost);
+if ~ok, return; end
+[p, state.p, ok] = apply_sos_bank(x, seg.p, state.p);
+if ~ok, return; end
+[i, state.iPre, ok] = apply_sos_bank(x, seg.iPre, state.iPre);
+if ~ok, return; end
+if cfg.higs_i_enabled
+  [i, state.higs_i, ok] = apply_higs(i, state.higs_i, cfg.higs_i_gain, cfg.higs_i_omega_ts);
+else
+  [i, state.iH, ok] = apply_sos_bank(i, seg.iH, state.iH);
+end
+if ~ok, return; end
+[i, state.iPost, ok] = apply_sos_bank(i, seg.iPost, state.iPost);
+if ~ok, return; end
+[u, state.post, ok] = apply_sos_bank(p + i, seg.post, state.post);
+end
+
+function [y, state, ok] = apply_higs(x, state, gain, omega_ts)
+% Trimodal discrete HIGS (same law as ControllerAlgorithm::TryApplyHigs).
+candidate = state.output + omega_ts * x;
+boundary = gain * x;
+ok = isfinite(candidate) && isfinite(boundary);
+if ~ok
+  state = struct("input", 0.0, "output", 0.0);
+  y = 0.0;
+  return;
+end
+if x >= 0
+  inside = candidate >= 0 && candidate <= boundary;
+else
+  inside = candidate >= boundary && candidate <= 0;
+end
+same_sign = (x >= 0 && state.input >= 0) || (x <= 0 && state.input <= 0);
+if inside
+  y = candidate;
+elseif same_sign
+  y = boundary;
+else
+  y = 0.0;
+end
+state = struct("input", x, "output", y);
 end
 
 function [y, states, ok] = apply_sos_bank(x, sos, states)

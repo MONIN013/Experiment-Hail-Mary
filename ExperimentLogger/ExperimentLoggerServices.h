@@ -48,6 +48,8 @@ const GUID GUID_ST_LoggerLoadSignals = {0xF77CCAAA, 0x7889, 0x4B95, {0x90, 0x96,
 
 #if !defined(_TC_TYPE_B5BB3647_4067_4A21_8892_0F60A144E5B0_INCLUDED_)
 #define _TC_TYPE_B5BB3647_4067_4A21_8892_0F60A144E5B0_INCLUDED_
+
+#pragma pack(push,1)
 typedef struct _ST_LoggerRecordInputs
 {
 	double currentCmd;
@@ -58,7 +60,14 @@ typedef struct _ST_LoggerRecordInputs
 	double error;
 	ST_LoggerMotorSignals motor;
 	ST_LoggerLoadSignals load;
+	double higsLpInput;
+	double higsLpOutput;
+	ULONG higsLpMode;
+	double higsIInput;
+	double higsIOutput;
+	ULONG higsIMode;
 } ST_LoggerRecordInputs, *PST_LoggerRecordInputs;
+#pragma pack(pop)
 const GUID GUID_ST_LoggerRecordInputs = {0xB5BB3647, 0x4067, 0x4A21, {0x88, 0x92, 0x0F, 0x60, 0xA1, 0x44, 0xE5, 0xB0}};
 #endif // !defined(_TC_TYPE_B5BB3647_4067_4A21_8892_0F60A144E5B0_INCLUDED_)
 

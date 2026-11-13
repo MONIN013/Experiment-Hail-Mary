@@ -56,8 +56,10 @@ class Host:
         self.library = ctypes.CDLL(str(library))
         self.function = self.library.simulate_higs
         pointer = np.ctypeslib.ndpointer(dtype=np.float64, flags="C_CONTIGUOUS")
-        self.function.argtypes = [ctypes.c_int] + [pointer] * 6 + [ctypes.c_uint, ctypes.c_int,
-            ctypes.c_double, ctypes.c_double, ctypes.c_uint, ctypes.c_int,
+        counts_pointer = np.ctypeslib.ndpointer(dtype=np.uint32, flags="C_CONTIGUOUS")
+        self.function.argtypes = [ctypes.c_int] + [pointer] * 6 + [ctypes.c_uint, counts_pointer,
+            ctypes.c_int, ctypes.c_double, ctypes.c_double,
+            ctypes.c_int, ctypes.c_double, ctypes.c_double, ctypes.c_int,
             ctypes.c_double, ctypes.c_double, ctypes.c_double, pointer, pointer]
         self.function.restype = ctypes.c_int
 
@@ -68,13 +70,14 @@ class Host:
         a, b = plant_matrices(model or NOMINAL, method=method)
         sos = np.asarray(design["sos"], dtype=float)
         coeff = np.ascontiguousarray(sos[:, [0, 1, 2, 4, 5]])
-        output = np.zeros((n, 11))
+        output = np.zeros((n, 14))
         code = self.function(n, np.ascontiguousarray(reference, dtype=float),
             np.ascontiguousarray(disturbance if disturbance is not None else np.zeros(n), dtype=float),
             np.ascontiguousarray(noise if noise is not None else np.zeros(n), dtype=float),
             np.ascontiguousarray(a), np.ascontiguousarray(b.ravel()), coeff, len(sos),
-            int(design.get("higs_enabled", False)), design.get("higs_gain", 1.),
-            design.get("higs_omega_ts", 0.), design.get("higs_pre_section_count", 0), delay,
+            np.ascontiguousarray(design["section_counts"], dtype=np.uint32),
+            int(design["higs_lp_enabled"]), design["higs_lp_gain"], design["higs_lp_omega_ts"],
+            int(design["higs_i_enabled"]), design["higs_i_gain"], design["higs_i_omega_ts"], delay,
             current_limit, 0.0016 if quantized else 0., 2*np.pi/encoder_counts if quantized else 0.,
             np.ascontiguousarray(initial if initial is not None else np.zeros(4), dtype=float), output)
         if code:
@@ -106,37 +109,47 @@ def section(num, den):
     return np.r_[np.pad(b, (0, 3-len(b))), np.pad(a, (0, 3-len(a)))]
 
 
-def make_design(crossover_hz=8., lowpass_hz=100., shaping_hz=0., gain_scale=1., lead_ratio=3., higs_corner_hz=20.):
-    wi, wz, wp, wl = 2*np.pi*np.array([2., crossover_hz/lead_ratio, crossover_hz*lead_ratio, lowpass_hz])
-    wc = wl if higs_corner_hz is None else 2*np.pi*higs_corner_hz
+def make_design(crossover_hz=8., lowpass_hz=100., gain_scale=1., lead_ratio=3.,
+                higs_lp_corner_hz=100., higs_i_corner_hz=2.,
+                higs_lp_gain=1., higs_i_gain=1., kp=None, integral_hz=2.,
+                lead_zero_hz=None, lead_pole_hz=None):
+    lead_zero_hz = crossover_hz/lead_ratio if lead_zero_hz is None else lead_zero_hz
+    lead_pole_hz = crossover_hz*lead_ratio if lead_pole_hz is None else lead_pole_hz
+    wi, wz, wp, wl = 2*np.pi*np.array([integral_hz, lead_zero_hz, lead_pole_hz, lowpass_hz])
+    wlp, wci = 2*np.pi*np.array([higs_lp_corner_hz, higs_i_corner_hz])
     pi = section([1, wi], [1, 0])
     lead = section([wp/wz, wp], [1, wp])
     lp = section([wl*wl], [1, np.sqrt(2)*wl, wl*wl])
-    v = section([wl*wl/wc, wl*wl], [1, np.sqrt(2)*wl, wl*wl])
-    _, lti = signal.sosfreqz(np.vstack([pi, lead, lp]), worN=[2*np.pi*crossover_hz*TS])
-    f, measured, _, _ = measured_response()
-    magnitude = np.interp(crossover_hz, f, abs(measured))
-    kp = gain_scale / (abs(lti[0])*magnitude)
-    pi[:3] *= kp
-    baseline = {"sos": np.vstack([pi, lead, lp]), "sample_time_s": TS}
-    if shaping_hz > 0:
-        ww = 2*np.pi*shaping_hz
-        w = section([ww], [1, ww])
-        # W^-1 V is proper (the two-pole target LPF supplies the relative degree).
-        v = section(np.convolve([1, ww], [wl*wl/wc, wl*wl])/ww,
-                    [1, np.sqrt(2)*wl, wl*wl])
-        higs_sos = np.vstack([w, v, pi, lead])
-        pre = 1
-    else:
-        higs_sos = np.vstack([v, pi, lead])
-        pre = 0
-    higs = {"sos": higs_sos, "sample_time_s": TS, "higs_enabled": True,
-            "higs_gain": 1., "higs_omega_ts": wc*TS/np.sqrt(1+16/np.pi**2),
-            "higs_pre_section_count": pre}
-    return baseline, higs, dict(kp=kp, integral_hz=2., lead_zero_hz=crossover_hz/lead_ratio,
-                lead_pole_hz=crossover_hz*lead_ratio, lowpass_hz=lowpass_hz,
-                shaping_hz=shaping_hz, higs_corner_hz=wc/(2*np.pi), measured_crossover_target_hz=crossover_hz,
-                gain_basis="Legacy measured load FRF with approximate hold correction")
+    if kp is None:
+        _, lti = signal.sosfreqz(np.vstack([pi, lead, lp]), worN=[2*np.pi*crossover_hz*TS])
+        f, measured, _, _ = measured_response()
+        magnitude = np.interp(crossover_hz, f, abs(measured))
+        kp = gain_scale / (abs(lti[0])*magnitude)
+    direct_pi = pi.copy(); direct_pi[:3] *= kp
+    gain_lead = lead.copy(); gain_lead[:3] *= kp
+    # W=1. Every element retains a Tustin H row even when HIGS is enabled.
+    hlp = section([higs_lp_gain*wlp], [1, wlp])
+    vlp = section([wl*wl/(higs_lp_gain*wlp), wl*wl/higs_lp_gain],
+                  [1, np.sqrt(2)*wl, wl*wl])
+    hi = section([higs_i_gain*wci], [1, wci])
+    # I post-section: kp*lead*Vi, Vi = wi/(kh*wc) (s+wc)/s, as one biquad.
+    ipost = section(kp*(wp/wz)*wi/(higs_i_gain*wci)*np.convolve([1, wz], [1, wci]),
+                    np.convolve([1, wp], [1, 0]))
+    baseline = dict(sos=np.vstack([hlp, vlp, gain_lead, hi, ipost]),
+        section_counts=[0, 1, 1, 0, 1, 0], sample_time_s=TS,
+        linear_sos=np.vstack([direct_pi, lead, lp]),
+        higs_lp_enabled=False, higs_i_enabled=False,
+        higs_lp_gain=higs_lp_gain, higs_i_gain=higs_i_gain,
+        higs_lp_omega_ts=higs_lp_gain*wlp*TS/np.sqrt(1+16/np.pi**2),
+        higs_i_omega_ts=higs_i_gain*wci*TS/np.sqrt(1+16/np.pi**2))
+    both = baseline | dict(higs_lp_enabled=True, higs_i_enabled=True)
+    tuning = dict(kp=kp, integral_hz=integral_hz, lead_zero_hz=lead_zero_hz,
+        lead_pole_hz=lead_pole_hz, lowpass_hz=lowpass_hz,
+        higs_lp_corner_hz=higs_lp_corner_hz, higs_i_corner_hz=higs_i_corner_hz,
+        higs_lp_gain=higs_lp_gain, higs_i_gain=higs_i_gain,
+        measured_crossover_target_hz=crossover_hz,
+        gain_basis="Legacy measured load FRF with approximate hold correction")
+    return baseline, both, tuning
 
 
 def reference_profile(amplitude=.1, move=.1, dwell=.2, settle=.4):
@@ -168,7 +181,8 @@ def metrics(reference, output, disturbance=None):
                 resonance_current_rms_a=band_rms(output[:, 5]),
                 resonance_twist_rms_rad=band_rms(output[:, 0]-output[:, 2]),
                 clipped_samples=int(output[:, 10].sum()),
-                mode_fraction={str(i):float(np.mean(output[:,9] == i)) for i in range(4)})
+                lp_mode_fraction={str(i):float(np.mean(output[:,9] == i)) for i in range(4)},
+                i_mode_fraction={str(i):float(np.mean(output[:,13] == i)) for i in range(4)})
 
 
 def linear_metrics(design, delay=2, model=None, method="zoh"):
@@ -176,9 +190,9 @@ def linear_metrics(design, delay=2, model=None, method="zoh"):
     freq = np.geomspace(.01, 3999, 6000)
     z = np.exp(2j*np.pi*freq*TS)
     plant = np.linalg.solve(z[:, None, None]*np.eye(4)-a, np.broadcast_to(b, (len(freq),4,1)))[:,2,0]
-    _, controller = signal.sosfreqz(np.asarray(design["sos"]), worN=2*np.pi*freq*TS)
+    _, controller = signal.sosfreqz(np.asarray(design["linear_sos"]), worN=2*np.pi*freq*TS)
     loop = plant*controller/z**delay
-    sos = np.asarray(design["sos"])
+    sos = np.asarray(design["linear_sos"])
     # Build the actual DF-II/plant/delay state transition; a small |S| alone
     # does not imply stability (an unstable loop can have a small FRF magnitude).
     size = 4 + 2*len(sos) + delay
@@ -206,7 +220,7 @@ def measured_linear_metrics(design):
     f, response, periods, source_ts = measured_response()
     keep = (f >= 1.) & (f <= 1000.)
     f, response, periods = f[keep], response[keep], periods[:, keep]
-    _, controller = signal.sosfreqz(np.asarray(design["sos"]), worN=2*np.pi*f*TS)
+    _, controller = signal.sosfreqz(np.asarray(design["linear_sos"]), worN=2*np.pi*f*TS)
     sensitivity = abs(1/(1+controller*response))
     # Six additional 8 kHz samples cover an unmeasured increase in new-target
     # timing. This is a design stress case, not a latency identification.
@@ -261,7 +275,7 @@ def plot_results(directory, reference, traces, summary, sweep):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    colors = {"linear":"#667085", "higs":"#147D92"}
+    colors = {"linear":"#667085", "both":"#147D92", "integrator":"#B54708", "lowpass":"#6941C6"}
     plt.rcParams.update({"font.size":10, "axes.spines.top":False, "axes.spines.right":False})
     t = np.arange(len(reference))*TS
     fig, axes = plt.subplots(3, 1, figsize=(9, 8), sharex=True, constrained_layout=True)
@@ -284,7 +298,7 @@ def plot_results(directory, reference, traces, summary, sweep):
         f = [x["hz"] for x in values]
         axes[0].semilogx(f, 20*np.log10([x["fundamental"] for x in values]),
                         color=colors[name],label=name.upper()+" fundamental")
-        if name == "higs":
+        if name == "both":
             axes[0].semilogx(f,20*np.log10([x["total_rms"] for x in values]),
                             "--",color=colors[name],label="HIGS total RMS")
     axes[0].axhline(20*np.log10(2),color="#B54708",ls=":",label="6.02 dB reference")
@@ -293,7 +307,7 @@ def plot_results(directory, reference, traces, summary, sweep):
     axes[0].legend(fontsize=8)
     cases = summary["cases"]
     selected = [x for x in cases if x["kind"] != "uncertainty"]
-    ratios = [100*(1-x["higs"]["rms_rad"]/x["linear"]["rms_rad"]) for x in selected]
+    ratios = [100*(1-x["both"]["rms_rad"]/x["linear"]["rms_rad"]) for x in selected]
     axes[1].barh([x["name"] for x in selected], ratios,
                  color=["#147D92" if x>=0 else "#B54708" for x in ratios])
     axes[1].axvline(0,color="black",lw=.7)
@@ -310,10 +324,10 @@ def main():
     args.output.mkdir(parents=True, exist_ok=True)
     host = Host()
     baseline, higs, tuning = make_design()
-    designs = dict(linear=baseline, higs=higs)
-    design = dict(linear_sos=baseline["sos"],higs_sos=higs["sos"],
-        pre_section_count=higs["higs_pre_section_count"],higs_gain=higs["higs_gain"],
-        higs_omega_ts=higs["higs_omega_ts"],sample_time_s=TS,
+    designs = dict(linear=baseline, both=higs,
+        integrator=baseline | dict(higs_i_enabled=True),
+        lowpass=baseline | dict(higs_lp_enabled=True))
+    design = dict(sample_time_s=TS,
         reference_amplitude_rad=.1,move_time_s=.1,dwell_time_s=.2,settle_time_s=.4,
         sensitivity_limit=2.,max_current_a=.08,max_position_rad=.25,
         max_velocity_rad_s=10.,max_twist_rad=.01,tuning=tuning,
@@ -337,7 +351,7 @@ def main():
             record[key] = metrics(ref,trace,disturbance)
             record[key]["within_envelope"] = within_envelope(record[key])
             if name=="nominal": nominal_traces[key]=trace
-        record["improvement_percent"] = 100*(1-record["higs"]["rms_rad"]/record["linear"]["rms_rad"])
+        record["improvement_percent"] = 100*(1-record["both"]["rms_rad"]/record["linear"]["rms_rad"])
         summary["cases"].append(record)
         return record
 
@@ -397,11 +411,11 @@ def main():
         summary["bandwidth_comparison"].append(dict(crossover_hz=crossover,lead_ratio=ratio,
             worst_model_sensitivity=worst,
             worst_measured_period_with_extra_delay=measured["worst_period_with_extra_delay"]))
-    for corner, shaping in itertools.product([1.,5.,10.,20.,60.],[0.,20.]):
-        _, candidate, _ = make_design(shaping_hz=shaping,higs_corner_hz=corner)
+    for lp_corner, i_corner in itertools.product([20.,60.,100.],[1.,2.,5.]):
+        _, candidate, _ = make_design(higs_lp_corner_hz=lp_corner,higs_i_corner_hz=i_corner)
         trace = host.run(candidate,reference,delay=2)
         metric = metrics(reference,trace)
-        summary["tuning_comparison"].append(dict(corner_hz=corner,shaping_hz=shaping,
+        summary["tuning_comparison"].append(dict(lp_corner_hz=lp_corner,i_corner_hz=i_corner,
             metrics=metric,within_envelope=within_envelope(metric)))
     uncertainties = [x for x in summary["cases"] if x["kind"]=="uncertainty"]
     summary["uncertainty_count"] = len(uncertainties)

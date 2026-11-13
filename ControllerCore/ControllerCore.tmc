@@ -71,27 +71,75 @@
           <ContextId>1</ContextId>
         </Parameter>
         <Parameter CreateSymbol="true">
-          <Name>HigsEnabled</Name>
+          <Name>HigsLpEnabled</Name>
           <BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
           <PTCID>#x00000004</PTCID>
           <ContextId>1</ContextId>
         </Parameter>
         <Parameter CreateSymbol="true">
-          <Name>HigsGain</Name>
+          <Name>HigsLpGain</Name>
           <BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType>
           <PTCID>#x00000005</PTCID>
           <ContextId>1</ContextId>
         </Parameter>
         <Parameter CreateSymbol="true">
-          <Name>HigsOmegaTs</Name>
+          <Name>HigsLpOmegaTs</Name>
           <BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType>
           <PTCID>#x00000006</PTCID>
           <ContextId>1</ContextId>
         </Parameter>
         <Parameter CreateSymbol="true">
-          <Name>HigsPreSectionCount</Name>
-          <BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+          <Name>HigsIEnabled</Name>
+          <BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
           <PTCID>#x00000007</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
+        <Parameter CreateSymbol="true">
+          <Name>HigsIGain</Name>
+          <BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType>
+          <PTCID>#x00000008</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
+        <Parameter CreateSymbol="true">
+          <Name>HigsIOmegaTs</Name>
+          <BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType>
+          <PTCID>#x00000009</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
+        <Parameter CreateSymbol="true">
+          <Name>LpPreSectionCount</Name>
+          <BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+          <PTCID>#x0000000a</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
+        <Parameter CreateSymbol="true">
+          <Name>LpPostSectionCount</Name>
+          <BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+          <PTCID>#x0000000b</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
+        <Parameter CreateSymbol="true">
+          <Name>PSectionCount</Name>
+          <BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+          <PTCID>#x0000000c</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
+        <Parameter CreateSymbol="true">
+          <Name>IPreSectionCount</Name>
+          <BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+          <PTCID>#x0000000d</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
+        <Parameter CreateSymbol="true">
+          <Name>IPostSectionCount</Name>
+          <BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+          <PTCID>#x0000000e</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
+        <Parameter CreateSymbol="true">
+          <Name>PostSectionCount</Name>
+          <BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+          <PTCID>#x0000000f</PTCID>
           <ContextId>1</ContextId>
         </Parameter>
       </Parameters>
@@ -142,15 +190,27 @@
             <BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
           </Symbol>
           <Symbol CreateSymbol="true">
-            <Name>higsInput</Name>
+            <Name>higsLpInput</Name>
             <BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType>
           </Symbol>
           <Symbol CreateSymbol="true">
-            <Name>higsOutput</Name>
+            <Name>higsLpOutput</Name>
             <BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType>
           </Symbol>
           <Symbol CreateSymbol="true">
-            <Name>higsMode</Name>
+            <Name>higsLpMode</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+          </Symbol>
+          <Symbol CreateSymbol="true">
+            <Name>higsIInput</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType>
+          </Symbol>
+          <Symbol CreateSymbol="true">
+            <Name>higsIOutput</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</BaseType>
+          </Symbol>
+          <Symbol CreateSymbol="true">
+            <Name>higsIMode</Name>
             <BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
           </Symbol>
         </DataArea>
