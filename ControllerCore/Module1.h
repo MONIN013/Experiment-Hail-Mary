@@ -47,6 +47,10 @@ protected:
 	double m_SosCoefficients[controllercore::ControllerAlgorithm::kCoefficientCount];
 	ULONG m_SosSectionCount;
 	ULONG m_SosApplyRevision;
+	bool m_HigsEnabled;
+	double m_HigsGain;
+	double m_HigsOmegaTs;
+	ULONG m_HigsPreSectionCount;
 	Module1Inputs m_Inputs;
 	Module1Outputs m_Outputs;
 	ITcCyclicCallerInfoPtr m_spCyclicCaller;

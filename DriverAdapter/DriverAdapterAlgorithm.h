@@ -18,10 +18,19 @@ struct AxisParameters
 	bool enableRelativePosition;
 };
 
+struct SafetyLimits
+{
+	double maxPositionRad;
+	double maxVelocityRadS;
+	double maxTwistRad;
+};
+
 struct Parameters
 {
 	AxisParameters motor;
 	AxisParameters load;
+	SafetyLimits safety;
+	std::uint32_t safetyResetRevision;
 };
 
 struct RawSignals
@@ -63,6 +72,8 @@ struct Outputs
 	std::uint16_t loadControlWordOut;
 	std::uint16_t motorStatusWordOut;
 	std::uint16_t loadStatusWordOut;
+	bool safetyTrip;
+	std::uint32_t safetyCode; // 0: clear, 1: position, 2: speed, 3: twist, 4: settings.
 };
 
 class DriverAdapterAlgorithm final
@@ -79,5 +90,7 @@ private:
 	bool m_prevResetReq;
 	double m_motorPositionOffsetRad;
 	double m_loadPositionOffsetRad;
+	std::uint32_t m_safetyCode;
+	std::uint32_t m_lastSeenSafetyResetRevision;
 };
 } // namespace driveradapter

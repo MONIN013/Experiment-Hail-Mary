@@ -7,6 +7,7 @@ MATLAB 層の現行正本は `experiment.ExperimentConfig + experiment.Connectio
 * [MatlabSpec](../docs/architecture/MatlabSpec.md)
 * [SystemArchitecture](../docs/architecture/SystemArchitecture.md)
 * [TechnicalReference](../docs/architecture/TechnicalReference.md)
+* [HigsExperiment](../docs/operations/HigsExperiment.md): HIGS の設計・比較実験と実機 I/O の準備
 
 ---
 
@@ -191,6 +192,13 @@ R2025bのheadless `executeAndSave` が不安定な場合だけ、原本とtarget
 Test専用E2Eは実行前に、(1)量子化・固定delay・SOS・電流制限・semi-implicit Eulerを含む厳密VM予測、(2)独立な離散 `lsim/freqresp`、(3)実験目的から予見される成果、(4)artifact schema/shape/単位/digestをmanifestへ凍結する。通常の学生入口、demo、controller benchmarkには予測、VM再起動、parameter再設定を持ち込まない。
 
 ---
+
+## HIGS の比較実験
+
+HIGS の比較入口は関数 `exp05_Higs` で、既存の rich Live Script とは独立している。
+`exp05_Higs("preview")` は ADS に接続せず、設計JSONと軌道を確認する。
+`linear` / `higs` は、現行8 kHz条件で取得した `plant.mat` の線形事前検査後に1試行を実行する。
+`target_label` は結果のラベルで、接続先やVM/実機を切り替えない。実機への反映と保護設定は上記手順書を参照する。
 
 ## テスト
 

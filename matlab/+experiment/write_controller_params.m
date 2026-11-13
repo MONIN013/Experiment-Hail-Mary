@@ -1,7 +1,7 @@
 function applied_revision = write_controller_params(transport, controller_param_symbol_prefix, controller)
-% write_controller_params  Commit a fixed ten-section SOS bank to ControllerCore.
+% write_controller_params  Commit SOS and HIGS parameters in one revision.
 %
-% Writes are ordered as coefficients -> sectionCount -> applyRevision.
+% Write the complete payload before applyRevision.
 % ControllerCore keeps the old active bank until applyRevision is accepted.
 
   arguments
@@ -22,6 +22,10 @@ function applied_revision = write_controller_params(transport, controller_param_
 
   transport.write_array(p.coefficients, payload.coefficients, t.double);
   transport.write_scalar(p.sectionCount, payload.section_count, t.u32);
+  transport.write_scalar(p.higsEnabled, payload.higs_enabled, t.bool);
+  transport.write_scalar(p.higsGain, payload.higs_gain, t.double);
+  transport.write_scalar(p.higsOmegaTs, payload.higs_omega_ts, t.double);
+  transport.write_scalar(p.higsPreSectionCount, payload.higs_pre_section_count, t.u32);
   transport.write_scalar(p.applyRevision, requested_revision, t.u32);
 
   applied_revision = wait_for_apply_ack(transport, p, t, requested_revision);
@@ -49,16 +53,16 @@ while true
     end
     if error_code ~= 0
       error("experiment:controller:parameterRejected", ...
-        "ControllerCore rejected SOS revision %u (parameterErrorCode=0x%08X).", ...
+        "ControllerCore rejected controller revision %u (parameterErrorCode=0x%08X).", ...
         requested, error_code);
     end
     error("experiment:controller:invalidApplyStatus", ...
-      "ControllerCore processed SOS revision %u without applying or rejecting it.", requested);
+      "ControllerCore processed controller revision %u without applying or rejecting it.", requested);
   end
   if toc(timer) >= timeout_s
     applied = uint32(transport.read_scalar(symbols.appliedRevision, types.u32));
     error("experiment:controller:applyTimeout", ...
-      "Timed out waiting for ControllerCore SOS revision %u (processed=%u, applied=%u).", ...
+      "Timed out waiting for ControllerCore controller revision %u (processed=%u, applied=%u).", ...
       requested, processed, applied);
   end
   pause(poll_period_s);

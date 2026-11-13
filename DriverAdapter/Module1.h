@@ -46,6 +46,8 @@ protected:
 	TcTraceLevel m_TraceLevelMax;
 	ST_DriverChannelParams m_MotorParams;
 	ST_DriverChannelParams m_LoadParams;
+	ST_DriverSafetyLimits m_SafetyLimits;
+	ULONG m_SafetyResetRevision;
 	Module1Inputs m_Inputs;
 	Module1Outputs m_Outputs;
 	ITcCyclicCallerInfoPtr m_spCyclicCaller;

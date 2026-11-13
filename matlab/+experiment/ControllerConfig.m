@@ -12,6 +12,11 @@ classdef ControllerConfig
     sos = zeros(0, 6)
     % NaN is allowed only for memoryless controllers (identity, zero, gain).
     sample_time_s = NaN
+    % One sampled HIGS, after the first higs_pre_section_count SOS rows.
+    higs_enabled = false
+    higs_gain = 1
+    higs_omega_ts = 0
+    higs_pre_section_count = 0
   end
 
   methods (Static)
@@ -37,7 +42,8 @@ classdef ControllerConfig
       end
 
       actual = string(fieldnames(value));
-      unknown = setdiff(actual, ["sos", "sample_time_s"]);
+      unknown = setdiff(actual, ["sos", "sample_time_s", ...
+        "higs_enabled", "higs_gain", "higs_omega_ts", "higs_pre_section_count"]);
       if ~isempty(unknown)
         error("experiment:controller:invalid", ...
           "Unknown ControllerConfig field(s): %s.", strjoin(unknown, ", "));
@@ -47,8 +53,10 @@ classdef ControllerConfig
       if isfield(value, "sos")
         out.sos = value.sos;
       end
-      if isfield(value, "sample_time_s")
-        out.sample_time_s = value.sample_time_s;
+      names = ["sample_time_s", "higs_enabled", "higs_gain", ...
+        "higs_omega_ts", "higs_pre_section_count"];
+      for name = names
+        if isfield(value, name), out.(name) = value.(name); end
       end
       out = out.normalize();
       out.validate();
@@ -60,17 +68,26 @@ classdef ControllerConfig
       out = obj;
       out.sos = normalize_sos(obj.sos);
       out.sample_time_s = normalize_sample_time(obj.sample_time_s);
+      validate_higs(out);
+      out.higs_enabled = logical(out.higs_enabled);
+      out.higs_gain = double(out.higs_gain);
+      out.higs_omega_ts = double(out.higs_omega_ts);
+      out.higs_pre_section_count = double(out.higs_pre_section_count);
     end
 
     function validate(obj)
       normalize_sos(obj.sos);
       normalize_sample_time(obj.sample_time_s);
+      validate_higs(obj);
     end
 
     function s = to_struct(obj)
       out = obj.normalize();
       out.validate();
-      s = struct("sos", out.sos, "sample_time_s", out.sample_time_s);
+      s = struct("sos", out.sos, "sample_time_s", out.sample_time_s, ...
+        "higs_enabled", out.higs_enabled, "higs_gain", out.higs_gain, ...
+        "higs_omega_ts", out.higs_omega_ts, ...
+        "higs_pre_section_count", out.higs_pre_section_count);
     end
 
     function validate_for_task_rate(obj, task_rate_hz)
@@ -82,11 +99,12 @@ classdef ControllerConfig
           "task_rate_hz must be a finite positive scalar.");
       end
 
-      has_memory = ~isempty(out.sos) && any(any(out.sos(:, [2, 3, 5, 6]) ~= 0));
+      has_memory = out.higs_enabled || ...
+        (~isempty(out.sos) && any(any(out.sos(:, [2, 3, 5, 6]) ~= 0)));
       if isnan(out.sample_time_s)
         if has_memory
           error("experiment:controller:missingSampleTime", ...
-            "A dynamic SOS controller must declare sample_time_s.");
+            "A dynamic controller must declare sample_time_s.");
         end
         return;
       end
@@ -112,7 +130,11 @@ classdef ControllerConfig
 
       payload = struct( ...
         "coefficients", reshape(rows.', [], 1), ...
-        "section_count", uint32(section_count));
+        "section_count", uint32(section_count), ...
+        "higs_enabled", out.higs_enabled, ...
+        "higs_gain", out.higs_gain, ...
+        "higs_omega_ts", out.higs_omega_ts, ...
+        "higs_pre_section_count", uint32(out.higs_pre_section_count));
     end
   end
 end
@@ -166,5 +188,30 @@ value = double(value);
 if ~(isnan(value) || (isfinite(value) && value > 0))
   error("experiment:controller:invalid", ...
     "sample_time_s must be NaN or a finite positive real scalar.");
+end
+end
+
+function validate_higs(cfg)
+if ~((islogical(cfg.higs_enabled) || isnumeric(cfg.higs_enabled)) && ...
+    isreal(cfg.higs_enabled) && isscalar(cfg.higs_enabled) && ...
+    any(double(cfg.higs_enabled) == [0, 1]))
+  error("experiment:controller:invalid", "higs_enabled must be logical scalar.");
+end
+values = {cfg.higs_gain, cfg.higs_omega_ts, cfg.higs_pre_section_count};
+for k = 1:numel(values)
+  v = values{k};
+  if ~(isnumeric(v) && isreal(v) && isscalar(v) && isfinite(double(v)))
+    error("experiment:controller:invalid", "HIGS parameters must be finite real scalars.");
+  end
+end
+if cfg.higs_gain <= 0 || cfg.higs_omega_ts < 0 || ...
+    cfg.higs_pre_section_count < 0 || fix(cfg.higs_pre_section_count) ~= cfg.higs_pre_section_count || ...
+    cfg.higs_pre_section_count > size(cfg.sos, 1)
+  error("experiment:controller:invalid", ...
+    "HIGS requires gain > 0, omega_ts >= 0, and an insertion index within the SOS bank.");
+end
+if cfg.higs_enabled && ~(cfg.higs_omega_ts > 0 && cfg.higs_omega_ts <= cfg.higs_gain)
+  error("experiment:controller:invalid", ...
+    "Enabled HIGS requires 0 < higs_omega_ts <= higs_gain.");
 end
 end

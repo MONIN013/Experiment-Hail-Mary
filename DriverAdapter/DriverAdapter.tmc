@@ -5,6 +5,22 @@
   </Vendor>
   <DataTypes>
     <DataType>
+      <Name GUID="{93636cb0-7708-43a8-90e2-7a8041ef97bd}">ST_DriverSafetyLimits</Name>
+      <BitSize>192</BitSize>
+      <SubItem>
+        <Name>maxPositionRad</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>maxVelocityRadS</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+      <SubItem>
+        <Name>maxTwistRad</Name>
+        <Type GUID="{18071995-0000-0000-0000-00000000000e}">LREAL</Type>
+      </SubItem>
+    </DataType>
+    <DataType>
       <Name GUID="{41fa275b-9129-407e-8a60-478f066fe304}">ST_DriverChannelParams</Name>
       <BitSize>320</BitSize>
       <SubItem>
@@ -133,6 +149,18 @@
           <PTCID>#x00000002</PTCID>
           <ContextId>1</ContextId>
         </Parameter>
+        <Parameter CreateSymbol="true">
+          <Name>SafetyLimits</Name>
+          <BaseType GUID="{93636cb0-7708-43a8-90e2-7a8041ef97bd}">ST_DriverSafetyLimits</BaseType>
+          <PTCID>#x00000003</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
+        <Parameter CreateSymbol="true">
+          <Name>SafetyResetRevision</Name>
+          <BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+          <PTCID>#x00000004</PTCID>
+          <ContextId>1</ContextId>
+        </Parameter>
       </Parameters>
       <DataAreas>
         <DataArea>
@@ -211,6 +239,14 @@
           <Symbol>
             <Name>loadStatusWordOut</Name>
             <BaseType GUID="{18071995-0000-0000-0000-000000000005}">UINT</BaseType>
+          </Symbol>
+          <Symbol CreateSymbol="true">
+            <Name>safetyTrip</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
+          </Symbol>
+          <Symbol CreateSymbol="true">
+            <Name>safetyCode</Name>
+            <BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
           </Symbol>
         </DataArea>
       </DataAreas>

@@ -276,6 +276,102 @@ bool VerifyOverflowFailsSafe()
 		&& controllercore::ControllerAlgorithm::ComputeError(
 			std::numeric_limits<double>::quiet_NaN(), 0.0) == 0.0;
 }
+
+bool VerifyHigsModes()
+{
+	controllercore::ControllerAlgorithm actual;
+	if (!actual.ApplyParameters(nullptr, 0, 1, { true, 2.0, 0.5, 0 })) return false;
+	// Includes the sector boundary, moving boundary, sign change and zero input.
+	const double input[] = { 1, 1, 1, 1, 1, 0.25, -0.25, -0.25, 0 };
+	const double output[] = { 0.5, 1, 1.5, 2, 2, 0.5, 0, -0.125, 0 };
+	const std::uint32_t mode[] = { 1, 1, 1, 1, 2, 2, 3, 1, 2 };
+	for (std::size_t i = 0; i < sizeof(input) / sizeof(input[0]); ++i)
+	{
+		if (actual.Step(input[i], 0, 0) != output[i]
+			|| actual.HigsInput() != input[i] || actual.HigsOutput() != output[i]
+			|| actual.HigsMode() != mode[i]) return false;
+	}
+	actual.ApplyParameters(nullptr, 0, 2, { true, 1.0, 0.5, 0 });
+	// A crossing is still integrator mode if its candidate is inside the sector.
+	return actual.Step(1, 0, 0) == 0.5
+		&& actual.Step(-2, 0, 0) == -0.5 && actual.HigsMode() == 1;
+}
+
+bool VerifyHigsSectorAndOddSymmetry()
+{
+	controllercore::ControllerAlgorithm positive, negative;
+	const double gain = 1.75, omegaTs = 0.0625;
+	positive.ApplyParameters(nullptr, 0, 1, { true, gain, omegaTs, 0 });
+	negative.ApplyParameters(nullptr, 0, 1, { true, gain, omegaTs, 0 });
+	double state = 0, previous = 0;
+	std::uint32_t random = 23;
+	for (unsigned i = 0; i < 20000; ++i)
+	{
+		const double input = i % 17 == 0 ? 0.0 : NextInput(random);
+		const double candidate = state + omegaTs * input;
+		// Independent quadratic form of book Eqs. (2.43)-(2.44).
+		state = candidate * input >= candidate * candidate / gain ? candidate
+			: (input * previous >= 0 ? gain * input : 0);
+		previous = input;
+		const double y = positive.Step(input, 0, 0);
+		if (std::abs(y - state) > 1e-14 || negative.Step(-input, 0, 0) != -y
+			|| y * input + 1e-14 < y * y / gain) return false;
+	}
+	return true;
+}
+
+bool VerifyHigsInsertionAndReset()
+{
+	double coefficients[kCoefficientCount];
+	FillIdentity(coefficients);
+	SetSection(coefficients, 0, 2, 0, 0, 0, 0);
+	SetSection(coefficients, 1, 3, 0, 0, 0, 0);
+	const double expectedInput[] = { 1, 2, 6 };
+	for (std::uint32_t before = 0; before <= 2; ++before)
+	{
+		controllercore::ControllerAlgorithm actual;
+		actual.ApplyParameters(coefficients, 2, 1, { true, 1, 0.5, before });
+		if (actual.Step(1, 7, 0) != 10 || actual.HigsInput() != expectedInput[before]
+			|| actual.HigsOutput() != expectedInput[before] * 0.5) return false;
+		actual.Reset();
+		if (actual.HigsInput() != 0 || actual.HigsOutput() != 0 || actual.HigsMode() != 0
+			|| actual.Step(1, 7, 0) != 10) return false;
+		actual.ApplyParameters(coefficients, 2, 2, { true, 1, 0.5, before });
+		if (actual.HigsOutput() != 0 || actual.Step(1, 7, 0) != 10) return false;
+		actual.ApplyParameters(coefficients, 2, 3);
+		if (actual.Step(1, 7, 0) != 13 || actual.HigsMode() != 0) return false;
+	}
+	return true;
+}
+
+bool VerifyHigsRejectedParametersAndOverflow()
+{
+	using Algorithm = controllercore::ControllerAlgorithm;
+	Algorithm actual;
+	actual.ApplyParameters(nullptr, 0, 1, { true, 1, 0.25, 0 });
+	actual.Step(1, 0, 0);
+	const double nan = std::numeric_limits<double>::quiet_NaN();
+	const Algorithm::HigsParameters invalid[] = {
+		{ true, 0, 0.25, 0 }, { true, -1, 0.25, 0 }, { true, nan, 0.25, 0 },
+		{ true, 1, 0, 0 }, { true, 1, -0.25, 0 }, { true, 1, nan, 0 },
+		{ true, 1, 1.25, 0 }, { true, 1, 0.25, 1 }
+	};
+	for (std::uint32_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); ++i)
+	{
+		if (actual.ApplyParameters(nullptr, 0, i + 2, invalid[i])
+			|| actual.AppliedRevision() != 1 || actual.ProcessedRevision() != i + 2
+			|| actual.ParameterErrorCode() != Algorithm::ParameterErrorHigsParameters
+			|| actual.HigsOutput() != 0.25) return false;
+	}
+	if (actual.Step(nan, 0, 0) != 0 || actual.HigsOutput() != 0.25
+		|| actual.Step(1, 0, 0) != 0.5) return false;
+	actual.ApplyParameters(nullptr, 0, 20, { true, 2, 0.5, 0 });
+	if (actual.Step(std::numeric_limits<double>::max(), 0, 0) != 0
+		|| actual.HigsOutput() != 0 || actual.Step(1, 0, 0) != 0.5) return false;
+	// Equality in Ts <= gain / omega_h is admissible.
+	return actual.ApplyParameters(nullptr, 0, 21, { true, 1, 1, 0 })
+		&& actual.Step(1, 0, 0) == 1 && actual.HigsMode() == 1;
+}
 } // namespace
 
 int main()
@@ -287,11 +383,15 @@ int main()
 		|| !VerifyInvalidInputDoesNotMutateState()
 		|| !VerifyStateUpdateOverflowResetsAffectedStage()
 		|| !VerifyFinalOutputOverflowPreservesFiniteState()
-		|| !VerifyOverflowFailsSafe())
+		|| !VerifyOverflowFailsSafe()
+		|| !VerifyHigsModes()
+		|| !VerifyHigsSectorAndOddSymmetry()
+		|| !VerifyHigsInsertionAndReset()
+		|| !VerifyHigsRejectedParametersAndOverflow())
 	{
 		return 1;
 	}
 
-	std::cout << "ControllerAlgorithm SOS tests passed\n";
+	std::cout << "ControllerAlgorithm SOS and HIGS tests passed\n";
 	return 0;
 }
