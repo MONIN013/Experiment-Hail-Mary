@@ -9,7 +9,9 @@
 
 図8.9のLPブロックとIブロックに、それぞれ独立したHIGSを実装した。`exp05_Higs` は同じ線形設計から `linear`・`integrator`・`lowpass`・`both` を生成する。制御計算は既存の C++ コアを使い、MATLAB は係数設定・実験実行・ログ回収を担当する。HIGS 用に別の実時間フレームワークは作っていない。
 
-§4・§5と保存済みの図・`simulations/results` は、変更前の単一HIGS（Hの折点20 Hz）に対する結果であり、現在の二HIGS構成の性能を示さない。現在の構成ではC++ホストで線形等価性と4モードの離散則を検査した。以下の同定と過去の性能比較は履歴資料として残す。
+§4・§5と保存済みの図・`simulations/results` の `summary.json`・`tracking.png`・`validation.png` は、変更前の単一HIGS（Hの折点20 Hz）に対する結果であり、現在の二HIGS構成の性能を示さない。二HIGS構成を同じロバスト性の制約で再調整した比較は§9、そこから得た設計指針は§10、実機実験の状況は§11に置いた。
+
+**要点（2026-11-14、モデル上の結果）:** 8 Hzの交差周波数は、測定FRFに対する感度制約ではなく、96条件ゲートの「最悪周期＋6 samples遅延」で決まっていた。ただしそのゲートの下でも、線形は25.7 Hzまで上げられる。HIGSの利得は、線形目標を固定してHIGSを入れるだけでは得られず、生じた位相余裕で交差周波数を上げたときに現れる。同じ感度制約で比べると、両HIGSは線形より交差周波数が60〜80%高い。既存の96条件ゲート（G5）では、往復誤差RMSが64%小さい。代わりにピーク電流と200〜400 Hzのねじれが増える。実機ではまだ確認していない（§11）。
 
 添付の旧 `chirp_result.mat` からモデルを求め、そのモデルに対して実際の `ControllerAlgorithm.cpp` を実行した。初回候補は、線形比較器の目標ゲイン交差周波数を 8 Hz とする。通常の往復動作では誤差 RMS が約 5.1% 減ったが、整定区間や初期値応答には悪化もある。実機で確認すべき候補であり、最適な調整値や非線形安定性を保証する値ではない。
 
@@ -20,9 +22,9 @@
 | 旧データの単位調査、FRF、二慣性モデル、設計比較 | 再現コードと結果を保存済み |
 | MATLAB の preview／linear／integrator／lowpass／both 入口 | 実装済み。MATLAB R2025a の unit test を実行（preview は ADS に接続しない）。実機での試行は未実施 |
 | Windows / TwinCAT SDK でのモジュール再ビルド | ControllerCore・ExperimentLogger は VS2019 MSBuild（Release｜TwinCAT RT x64）でビルド済み。有効化・実機は未実施 |
-| 実 EtherCAT I/O、ドライブ設定、実機への反映 | 未実施。`RealMotor.tsproj` の I/O 定義は空 |
+| 実 EtherCAT I/O | `ExperimentHailMary.tsproj` に EK1100＋ELM7211-0011×2 を定義し、DriverAdapter の raw 入力と出力を Term 2（motor）・Term 3（load）へ結線済み。EtherCAT master が INIT から上がらず、PDO・CoE は未確認（§11） |
 
-**現時点で「そのまま実機へ通電できる」とは扱わない。** リポジトリの `ExperimentHailMary.RealMotor.tsproj` は `<Io/>` が空で、`TIID^RealMotorPdo^RealMotorPdo Instance` への 11 個のリンクを持つ雛形である。実際の master/slave/PDO 定義を含む XAE プロジェクトが必要になる。対応させる信号は §7 に記載した。
+**現時点で「そのまま実機へ通電できる」とは扱わない。** `ExperimentHailMary.tsproj` は実 PDO へ結線したが、ドライブの定格・エンコーダ分解能・符号は CoE から読めていない。`ExperimentHailMary.RealMotor.tsproj` は `<Io/>` が空の雛形のままである。
 
 主な入口は以下のとおり。
 
@@ -331,3 +333,102 @@ b = exp05_Higs("both", "target_label", "bench-A", ...
 - S. van den Eijnden, M. Heertjes, M. Heemels, H. Nijmeijer, *Hybrid Integrator-Gain Systems: Analysis, Design and Applications*, Springer, 2026. [DOI](https://doi.org/10.1007/978-3-032-18101-5)。第8章は印刷185〜214頁。今回のLPF整形は印刷195頁/PDF201頁、図8.7・式(8.9)〜(8.11)。離散実装は§2.4、印刷36〜38頁/PDF48〜50頁。
 - B. Sharif, D. Alferink, M. Heertjes, H. Nijmeijer, M. Heemels, “Analysis of sampled-data hybrid integrator-gain systems: A discrete-time approach,” *Automatica*, 167, 111765, 2024. [DOI](https://doi.org/10.1016/j.automatica.2024.111765) / [著者所属機関の公開情報](https://research.tue.nl/en/publications/analysis-of-sampled-data-hybrid-integrator-gain-systems-a-discret/)。離散時間モデルと、仮定を満たす場合の安定性解析の出典。
 - 旧取得形式の単位根拠は§2のcommit固定リンク、数値の出所と計算条件は同梱の `identified_plant.json` と `summary.json`。原データと書籍PDFはリポジトリへコピーしていない。
+
+## 9. 同一ロバスト性での比較（2026-11-14、モデル上の結果）
+
+### 9.1 方法
+
+[higs_fig89_robustness.py](../../simulations/higs_fig89_robustness.py) で、図8.9の4モード（linear、積分ブロックのみHIGS、LPブロックのみHIGS、both）の交差周波数 \(f_c\) を、同じ感度制約 \(\max|S|\le 2\) の下で最大化した。
+
+- 開ループは \(L=k_p C_{\mathrm{DF}}\,G_8\,e^{-j\omega T_s}\) とした。\(G_8\) は旧16 kHz測定FRFを8 kHzのホールドへ換算したもので、これに計算遅れ1 sampleを掛けた。帯域は1〜3990 Hzで、巻き数による安定判定を併用した。
+- HIGS は記述関数（DF）で置き換えた。DF は、実装と同じ離散則（\(T_s=125\,\mu\)s）へ正弦波を入れたときの基本波から数値で求めた。振幅に依存しないことを確認した（差 1e−16）。低域 \(1\angle0^\circ\)、高域 \(1.619\,\omega_h/\omega\angle-38.1^\circ\) の漸近値が解析式と一致する。一方、離散のリセットが1 sample遅れるため、78〜99 Hz以上では解析式との差が2%を超え、500 Hz以下で最大13%になる。以降はすべて数値DFを使った。
+- 2つのHIGSを含む縦続全体のDFは、各DFの積と最大32%異なった。採用した設計は、縦続全体の数値DFでも制約を満たすことを確認した。
+- 設計変数は \(f_c\)、PI折点比 \(r_i\)、lead比、LPF折点、各HIGSの \(\omega_c\) である。\(W=1\) とし、後段フィルタは空にした。
+- 時間応答の評価は、同定二慣性モデル、2 samples遅延、実装と同じ非線形則、80 mAのクランプで行った。FF と量子化は入れていない。
+- 線形目標 \(C^*\) はそのままにしてHIGSだけを入れた「matched」と、モードごとに再調整した「retuned」を分けた。
+
+再現手順は次のとおり。`simulations/requirements.txt` の venv が必要で、所要時間は合計約30分。1段目でG0の最適値を `results/fig89_robustness.json` に書き、2段目はそれを初期値に使う。
+
+```text
+python simulations/higs_fig89_robustness.py
+python simulations/higs_fig89_robustness.py --gate-sweep
+```
+
+ゲートは次の順に厳しくした。
+
+| ゲート | 内容 |
+|---|---|
+| G0 | 名目の測定FRFのみ |
+| G1 | G0＋測定8周期の最悪値（名目遅延） |
+| G2 | G1＋同定モデルの \(J_m,J_\ell,K\) ±10% |
+| G3 | G1＋±20% |
+| G4 | G3＋遅延 1/2/4 samples |
+| G5 | 既存の96条件ゲート（±20%、遅延1/4/8 samples、最悪周期＋6 samples） |
+
+### 9.2 結果
+
+最大交差周波数 [Hz] は次のとおり（結果は [fig89_gate_sweep.json](../../simulations/results/fig89_gate_sweep.json)）。
+
+| ゲート | linear | I | LP | both | both/linear |
+|---|---:|---:|---:|---:|---:|
+| G0 | 46.2 | 54.6 | 62.4 | 74.0 | +60% |
+| G1〜G3 | 37.1 | 43.8 | 59.8 | 63.3 | +71% |
+| G4 | 37.1 | 43.8 | 59.8 | 61.5 | +66% |
+| G5 | 25.7 | 33.7 | 45.3 | 46.2 | +80% |
+
+![ゲート別の最大交差周波数](../../simulations/results/fig89_gate_sweep.png)
+
+G0に要素を1つずつ足したときの \(f_c\) の低下（linear / both）は次のとおり。
+
+| 追加した要素 | linear | both |
+|---|---:|---:|
+| 最悪周期＋6 samples | −33% | −38% |
+| 測定の最悪周期（名目遅延） | −20% | −14% |
+| 名目モデルに遅延 1/4/8 samples | −8% | −17% |
+| \(J_m,J_\ell,K\) ±20% | 0% | 0% |
+| \(C\)・粘性 ×0.5/1.5 | 0% | 0% |
+
+G5で選んだ設計の時間応答は次のとおり。
+
+| 設計 | 往復誤差RMS [mrad] | 整定RMS [µrad] | 負荷ステップIAE [mrad·s] | ピーク電流 [mA] | ねじれ200〜400 Hz [µrad] |
+|---|---:|---:|---:|---:|---:|
+| 既存8 Hz linear | 12.17 | 9275 | 2.29 | 20 | 0.02 |
+| 既存8 Hz both（LP 100 Hz、I 2 Hz） | 11.13 | 6378 | 2.80 | 19 | 0.22 |
+| G5 linear（25.7 Hz） | 1.69 | 638 | 0.045 | 28 | 0.001 |
+| G5 both（46.2 Hz） | 0.61 | 509 | 0.060 | 65 | 59 |
+
+G0で、最良の線形 \(C^*\) にHIGSだけを入れたmatchedと、再調整したretunedを比べた。
+
+| モード | matched RMS [mrad] | retuned RMS [mrad] | matched \(\max|S|\) |
+|---|---:|---:|---:|
+| I | 0.995 | 0.826 | 2.07 |
+| LP | 1.105 | 0.350 | 1.50 |
+| both | 0.965 | 0.273 | 1.58 |
+
+同じ条件のretuned linearは1.04 mradだった。matchedはlinearとほぼ同じで、改善はretunedにだけ現れた。
+
+### 9.3 限界
+
+- FRFは旧16 kHz・0.5 Aのchirpで、8 kHzへのホールド換算は近似である。現在の装置、8 kHz、現在の遅延に対応するFRFではない。
+- 余裕はDF（第1高調波）による近似で、閉ループの非線形安定性を保証しない。
+- 探索のばらつきは \(f_c\) で ±3〜4% ある。G1〜G4がほぼ同じ値になっていることと、利得の割合は、その範囲で不確かである。
+- linear は lead比5、LPF 300 Hz の探索上限に当たっていることが多い。そのため、+60〜80%は上側寄りの見積もりである。
+- both のピーク電流は65〜78 mAで、80 mAの試行上限に近い。電流上限が交差周波数を制約しうる。
+
+## 10. 設計指針
+
+1. **交差周波数を決めている要因を特定してから調整する。** 既存の8 Hzは、96条件ゲートの下でも約3倍の余裕を残していた（linearで25.7 Hz）。このモデルでは、帯域を最も削るのは遅延系の仮定（最悪周期＋6 samples、遅延1/4/8）で、慣性・剛性の±20%はほとんど影響しなかった。測定FRFの周期ばらつきがパラメータ変動を既に含んでいるためと考えられる。実機では8 kHzの現在の遅延を測り、遅延の仮定を実測値と余裕に置き換える。
+2. **HIGSの効果は、得た位相余裕で再調整したときに評価する。** 線形目標を固定して有効にするだけでは、誤差はlinearとほぼ同じだった。比較は同じ \(\max|S|\) の制約で各モードを再調整して行い、「構造変更の効果（matched）」と「再設計の効果（retuned）」を分けて報告する。
+3. **LPブロックのHIGSが利得の大部分を担う。** 交差周波数付近の位相遅れを減らすLP-HIGSは単独で+35〜76%、積分ブロックのHIGSは単独で+18〜31%だった（G0〜G5）。両方を使うと最大になる。ただし、両HIGSを含む縦続のDFは各DFの積で近似できず、最大32%ずれる。設計の確認には縦続全体の数値DFを使う。
+4. **DFは離散実装から数値で求める。** 8 kHzでは、離散リセットの1 sample遅れにより、交差周波数付近から解析DFとの差が数%〜13%になる。
+5. **電流と共振帯域を同時に制約する。** 再調整したboth（G5）は誤差を64%減らす一方、ピーク電流は28→65 mA、200〜400 Hzのねじれは0.001→59 µradになった。採否は、電流上限、整定RMS、負荷外乱IAE、ねじれを、全区間RMSとは別に見て決める。G5 bothの負荷ステップIAEは、G5 linearより悪かった（0.060 vs 0.045 mrad·s）。
+6. **安全上の試行上限と設計制約を分ける。** 80 mA・0.25 rad・10 rad/s・0.01 rad は初回試行の上限で、装置の定格ではない。CoEで定格電流とエンコーダ分解能を確認した後、上限を物理的な根拠から設定し直す。そうしないと、試行上限が性能比較そのものを制約する。
+
+## 11. 実機実験の状況（2026-11-14）
+
+**実機の比較実験はまだ実施していない。** 本文書の性能値はすべてモデル上の結果である。
+
+- 対象は、ブランチ `exp/higs-hardware` の `ExperimentHailMary.tsproj` である。DriverAdapter の raw 入力は ELM7211-0011 の Term 2（motor）と Term 3（load）へ結線した。`targetTorque` は Term 2 の Target torque、`loadControlWordOut` は Term 3 の Controlword に結んだ。Term 3 の Target torque は未結線で、VirtualMotorCore へのリンクは外した。ControllerCore・DriverAdapter・ExperimentLogger は VS2019 でビルドし、有効化後に HIGS と Safety のシンボルを ADS で確認した。二HIGS構成（a47c964）のマージ後はまだ有効化していない。
+- ターゲット（192.168.10.3）で、システム・I/O server・PLCはRunになる。EtherCAT device の AdsState は Invalid で、master と全 slave が INIT のままだった。Config modeで adapter を scan しても、何も見つからなかった。ただし Run mode でも同じく空だったため、この結果だけでは「adapter・RT driver の不在」と「リンク断（ケーブル、EK1100の24 V、非常停止）」を区別できない。デバイスは MAC 7C-83-34-BF-BB-57 の Intel NIC に割り当てられている。
+- 復旧には、ターゲットで次の3点を確認する。(1) 非常停止の解除と EK1100 の 24 V。(2) 上記 NIC が有効で、EK1100 へケーブルがつながっていること。(3) TwinCAT の「Ethernet Adapters」で、その NIC に RT driver が入っていること。
+- 復旧後は次の順に進める。(1) 二HIGS構成を有効化し、DTE で結線を確認する。(2) CoE（0x6075、0x8011、0x8000/0x8008、0x9009/0x9010、0x6061、0x603F）から定格電流・分解能・動作モードを読み、`ratedCurrentA`・`encoderResolution`・`SafetyLimits` を設定する。`SafetyLimits` は有効化時点ですべて0だった。(3) 短い開ループ電流パルスで、位置と電流の符号を確認する。(4) 8 kHz で再同定し、FRF と遅延を測る。(5) §10の手順で linear と both を再調整し、A–B–B–A の順で比較する。

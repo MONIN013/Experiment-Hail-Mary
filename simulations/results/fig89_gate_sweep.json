@@ -1,0 +1,3307 @@
+{
+ "setup": {
+  "S_limit": 2.0,
+  "band_hz": [
+   1.0,
+   3990.0
+  ],
+  "extra_delay_nominal_measured": 1,
+  "nominal_model_delay_samples": 2,
+  "search": "per (gate, mode): starts = designs of neighbouring gates (shrink crossover until the gate passes), 300 log-normal perturbations (sigma 0.3) of each, 2 best distinct starts that pass the time-domain screen refined by coordinate + random two-parameter pattern search on a decimated grid (1332 of 5601 points), then 2 fine steps on the full grid (every accepted design passes the time-domain screen: 80 mA clamp, no divergence, 0.2 s tail <= 50 urad or decaying (td_screen_sweep), round trip and load step); then the numeric DF of the whole cascade must meet the gate (S limit tightened by 0.05 per failure, up to 4 times). Gates are nested (G0 > G1 > ... > G5), so a backward pass G4..G1 restarts each gate from the stricter gates' optima",
+  "gates": {
+   "G0": {
+    "label": "nominal measured FRF"
+   },
+   "G1": {
+    "label": "G0 + worst measured period (nominal delay)",
+    "period1": true
+   },
+   "G2": {
+    "label": "G1 + Jm/Jl/K +-10 %, delay 2",
+    "period1": true,
+    "models": [
+     {
+      "spread": 0.1,
+      "cb": false,
+      "delays": [
+       2
+      ]
+     }
+    ]
+   },
+   "G3": {
+    "label": "G1 + Jm/Jl/K +-20 %, delay 2",
+    "period1": true,
+    "models": [
+     {
+      "spread": 0.2,
+      "cb": false,
+      "delays": [
+       2
+      ]
+     }
+    ]
+   },
+   "G4": {
+    "label": "G3 with delay 1/2/4",
+    "period1": true,
+    "models": [
+     {
+      "spread": 0.2,
+      "cb": false,
+      "delays": [
+       1,
+       2,
+       4
+      ]
+     }
+    ]
+   },
+   "G5": {
+    "label": "repo gate: 96 models x delay 1/4/8 + worst period +6 (plus G4)",
+    "period1": true,
+    "period6": true,
+    "models": [
+     {
+      "spread": 0.2,
+      "cb": false,
+      "delays": [
+       1,
+       2,
+       4
+      ]
+     },
+     {
+      "spread": 0.2,
+      "cb": true,
+      "delays": [
+       1,
+       4,
+       8
+      ]
+     }
+    ]
+   },
+   "X_period6": {
+    "label": "G0 + worst period +6 samples only",
+    "period6": true
+   },
+   "X_params20": {
+    "label": "G0 + Jm/Jl/K +-20 % at delay 2 only",
+    "models": [
+     {
+      "spread": 0.2,
+      "cb": false,
+      "delays": [
+       2
+      ]
+     }
+    ]
+   },
+   "X_delay148": {
+    "label": "G0 + nominal model, delay 1/4/8 only",
+    "models": [
+     {
+      "spread": 0.0,
+      "cb": false,
+      "delays": [
+       1,
+       4,
+       8
+      ]
+     }
+    ]
+   },
+   "X_cb": {
+    "label": "G0 + C and viscous x0.5/1.5 (Jm,Jl,K nominal), delay 2 only",
+    "models": [
+     {
+      "spread": 0.0,
+      "cb": true,
+      "delays": [
+       2
+      ]
+     }
+    ]
+   }
+  },
+  "crossover": "first |L|=1 crossing of the nominal measured loop (G8 + 1 sample, DF controller)",
+  "bounds": {
+   "fc": [
+    1.0,
+    200.0
+   ],
+   "kp_scale": [
+    0.4,
+    2.5
+   ],
+   "r_i": [
+    1.5,
+    12.0
+   ],
+   "lead_ratio": [
+    1.5,
+    5.0
+   ],
+   "lp_hz": [
+    60.0,
+    300.0
+   ],
+   "wc_lp_ratio": [
+    0.03,
+    8.0
+   ],
+   "wc_i_ratio": [
+    0.01,
+    4.0
+   ]
+  },
+  "seed": 1,
+  "G0_reused_fc_hz": {
+   "linear": 42.99570832657923,
+   "I": 48.977440319171414,
+   "LP": 62.39516683161377,
+   "both": 73.97157288665665
+  }
+ },
+ "gates": {
+  "G0": {
+   "linear": {
+    "fc_hz": 46.241174645278484,
+    "S_gate_max": 1.9997621820591327,
+    "S_groups": {
+     "nominal": 1.9997621820591327
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 2.0559296007191272,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": null,
+     "ok": true
+    },
+    "note": "consolidated from X_cb",
+    "final_limit": 2.0,
+    "seconds": 0.23025035858154297,
+    "margins": {
+     "S_max": 1.999762182059133,
+     "S_max_freq_hz": 123.0,
+     "fc_hz": 46.241174645278484,
+     "fc_last_hz": 47.47505284675266,
+     "pm_deg": 67.17970645896253,
+     "pm_min_deg": 64.78577357622828,
+     "gm_up_db": 6.677404529628762,
+     "gm_low_db": null,
+     "T_max": 1.2183587336031025,
+     "nyquist_stable": true,
+     "S_max_worst_period": 2.472174739666154,
+     "old_gate_S_max_96_models": 4.127993624879584,
+     "old_gate_S_max_worst_period_6_extra": 4.405197225068859,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "linear",
+      "fc": 53.01454990728823,
+      "kp_scale": 0.9235561170851225,
+      "r_i": 12.0,
+      "lead_ratio": 4.776595445286629,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": null,
+      "wc_i_ratio": null
+     },
+     "kp": 2.1879998167677925,
+     "corners_hz": {
+      "wz": 11.098815152872337,
+      "wp": 253.22905762107365,
+      "wi": 4.417879158940686,
+      "wl": 300.0,
+      "wc_lp": null,
+      "wc_i": null
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 1.6353709172462352,
+      "peak_error_mrad": 6.005242534896663,
+      "settle_rms_urad": 1304.8442500088906,
+      "peak_current_ma": 26.2045153028385,
+      "twist_200_400hz_rms_urad": 0.0011287316176185355,
+      "tail_rms_urad": 2.0559296007191272,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.08232448491780064,
+      "dist_peak_mrad": 1.2950301589997988,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 6.265726322555682e-11
+     }
+    },
+    "grid_edge_flags": [
+     "r_i at edge",
+     "lp_hz at edge"
+    ],
+    "fc_before_consolidation_hz": 46.20967198218903
+   },
+   "I": {
+    "fc_hz": 54.56453001893596,
+    "S_gate_max": 1.992309844436508,
+    "S_groups": {
+     "nominal": 1.992309844436508
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 50.89092394861643,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9936598084981774,
+     "ok": true
+    },
+    "note": "consolidated from X_cb",
+    "final_limit": 2.0,
+    "seconds": 0.9697871208190918,
+    "margins": {
+     "S_max": 1.9923098444365077,
+     "S_max_freq_hz": 93.10000000000001,
+     "fc_hz": 54.56453001893596,
+     "fc_last_hz": 56.64567649639283,
+     "pm_deg": 49.404923538585365,
+     "pm_min_deg": 48.99218484319121,
+     "gm_up_db": 7.607248398115168,
+     "gm_low_db": null,
+     "T_max": 1.4105686052168003,
+     "nyquist_stable": true,
+     "S_max_worst_period": 2.8037905701080397,
+     "old_gate_S_max_96_models": 4.041760825646346,
+     "old_gate_S_max_worst_period_6_extra": 4.201145688971708,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "I",
+      "fc": 85.96449526482665,
+      "kp_scale": 0.6800684039167616,
+      "r_i": 2.376989050601601,
+      "lead_ratio": 5.0,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": null,
+      "wc_i_ratio": 0.044455160569193644
+     },
+     "kp": 2.375971472105262,
+     "corners_hz": {
+      "wz": 17.19289905296533,
+      "wp": 429.8224763241333,
+      "wi": 36.16528870550311,
+      "wl": 300.0,
+      "wc_lp": null,
+      "wc_i": 3.821565440247555
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.7082511537101578,
+      "peak_error_mrad": 2.9663985578214023,
+      "settle_rms_urad": 755.3814696508157,
+      "peak_current_ma": 77.02192631894944,
+      "twist_200_400hz_rms_urad": 61.54682703417163,
+      "tail_rms_urad": 50.89092394861643,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.06633908931994006,
+      "dist_peak_mrad": 1.0186343339117043,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 1.234422122493259e-05
+     }
+    },
+    "grid_edge_flags": [
+     "lead_ratio at edge",
+     "lp_hz at edge"
+    ],
+    "fc_before_consolidation_hz": 48.977440319171414
+   },
+   "LP": {
+    "fc_hz": 62.39516683161377,
+    "S_gate_max": 1.9970242583923854,
+    "S_groups": {
+     "nominal": 1.9970242583923854
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 3.5305442638610173e-09,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9983383657408615,
+     "ok": true
+    },
+    "note": "reused screened optimum of fig89_robustness.json",
+    "final_limit": 2.0,
+    "seconds": 0.9258787631988525,
+    "margins": {
+     "S_max": 1.9970242583923854,
+     "S_max_freq_hz": 152.0,
+     "fc_hz": 62.39516683161377,
+     "fc_last_hz": 75.91210038374854,
+     "pm_deg": 59.25112404363492,
+     "pm_min_deg": 52.75618931067535,
+     "gm_up_db": 6.620204000288697,
+     "gm_low_db": 50.22692790613913,
+     "T_max": 1.3473927227401767,
+     "nyquist_stable": true,
+     "S_max_worst_period": 2.5576373945160626,
+     "old_gate_S_max_96_models": 3.7606522539685447,
+     "old_gate_S_max_worst_period_6_extra": 5.286892844561206,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "LP",
+      "fc": 50.14427319456318,
+      "kp_scale": 1.4,
+      "r_i": 2.0,
+      "lead_ratio": 3.0,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": 0.8333333333333334,
+      "wc_i_ratio": null
+     },
+     "kp": 4.624024638774422,
+     "corners_hz": {
+      "wz": 16.71475773152106,
+      "wp": 150.43281958368954,
+      "wi": 25.07213659728159,
+      "wl": 300.0,
+      "wc_lp": 41.78689432880265,
+      "wc_i": null
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.3496370205822931,
+      "peak_error_mrad": 1.7299380212164595,
+      "settle_rms_urad": 87.07540474938659,
+      "peak_current_ma": 57.79841825229412,
+      "twist_200_400hz_rms_urad": 44.21887342472158,
+      "tail_rms_urad": 3.5305442638610173e-09,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.012118419185906074,
+      "dist_peak_mrad": 0.6396824389801896,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 4.661202480379285e-12
+     }
+    },
+    "grid_edge_flags": [
+     "lp_hz at edge"
+    ]
+   },
+   "both": {
+    "fc_hz": 73.97157288665665,
+    "S_gate_max": 1.9897709047489602,
+    "S_groups": {
+     "nominal": 1.9897709047489602
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 0.3293108085218756,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9750439927627905,
+     "ok": true
+    },
+    "note": "reused screened optimum of fig89_robustness.json",
+    "final_limit": 2.0,
+    "seconds": 1.05368971824646,
+    "margins": {
+     "S_max": 1.9897709047489602,
+     "S_max_freq_hz": 152.0,
+     "fc_hz": 73.97157288665665,
+     "fc_last_hz": 83.61475373812499,
+     "pm_deg": 49.45824457785653,
+     "pm_min_deg": 41.71443641203962,
+     "gm_up_db": 7.1361029567165595,
+     "gm_low_db": null,
+     "T_max": 1.556362435354754,
+     "nyquist_stable": true,
+     "S_max_worst_period": 2.5967305601762747,
+     "old_gate_S_max_96_models": 5.02050741505886,
+     "old_gate_S_max_worst_period_6_extra": 10.932985022584496,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "both",
+      "fc": 107.07047904947208,
+      "kp_scale": 0.7,
+      "r_i": 1.5,
+      "lead_ratio": 3.8095238095238093,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": 1.0,
+      "wc_i_ratio": 0.08026365607725676
+     },
+     "kp": 4.350337256703526,
+     "corners_hz": {
+      "wz": 28.106000750486423,
+      "wp": 407.88753923608414,
+      "wi": 71.38031936631472,
+      "wl": 300.0,
+      "wc_lp": 107.07047904947208,
+      "wc_i": 8.593868106453954
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.27329449944385936,
+      "peak_error_mrad": 1.492704272381934,
+      "settle_rms_urad": 229.7102409365211,
+      "peak_current_ma": 76.70705834171304,
+      "twist_200_400hz_rms_urad": 46.70088976327123,
+      "tail_rms_urad": 0.3293108085218756,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.016914542035968583,
+      "dist_peak_mrad": 0.4991769461343609,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 7.54886235715673e-13
+     }
+    },
+    "grid_edge_flags": [
+     "r_i at edge",
+     "lp_hz at edge"
+    ]
+   }
+  },
+  "G1": {
+   "linear": {
+    "fc_hz": 37.067819711213765,
+    "S_gate_max": 1.9992158142846963,
+    "S_groups": {
+     "nominal": 1.8051111850258654,
+     "period_plus1": 1.9992158142846963
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 3.254512214171915e-08,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": null,
+     "ok": true
+    },
+    "note": "consolidated from G4",
+    "final_limit": 2.0,
+    "seconds": 0.22973108291625977,
+    "margins": {
+     "S_max": 1.8051111850258656,
+     "S_max_freq_hz": 29.700000000000003,
+     "fc_hz": 37.067819711213765,
+     "fc_last_hz": 37.450468101041295,
+     "pm_deg": 36.46273308198704,
+     "pm_min_deg": 36.46273308198704,
+     "gm_up_db": 9.82139466791776,
+     "gm_low_db": 21.64894067494923,
+     "T_max": 2.299620547675433,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.9992158142846956,
+     "old_gate_S_max_96_models": 3.9431018877590276,
+     "old_gate_S_max_worst_period_6_extra": 2.6333041774516275,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "linear",
+      "fc": 79.31945455933837,
+      "kp_scale": 0.4951075397450048,
+      "r_i": 3.407764617025684,
+      "lead_ratio": 4.999788756433331,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": null,
+      "wc_i_ratio": null
+     },
+     "kp": 1.9934620794570712,
+     "corners_hz": {
+      "wz": 15.864561169164677,
+      "wp": 396.58051707220443,
+      "wi": 23.276095468286428,
+      "wl": 300.0,
+      "wc_lp": null,
+      "wc_i": null
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.7625263320288418,
+      "peak_error_mrad": 2.8088211307242714,
+      "settle_rms_urad": 50.423073615458385,
+      "peak_current_ma": 27.45534430385285,
+      "twist_200_400hz_rms_urad": 0.0008564859659714874,
+      "tail_rms_urad": 3.254512214171915e-08,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.017150312089411784,
+      "dist_peak_mrad": 1.0006957760626802,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 9.695920074507222e-13
+     }
+    },
+    "grid_edge_flags": [
+     "lead_ratio at edge",
+     "lp_hz at edge"
+    ],
+    "fc_before_consolidation_hz": 36.15163324236503
+   },
+   "I": {
+    "fc_hz": 43.84449539060456,
+    "S_gate_max": 1.9926790675211954,
+    "S_groups": {
+     "nominal": 1.6542889734633843,
+     "period_plus1": 1.9926790675211954
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 6.080466901428207,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9931975918003373,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 10.637227296829224,
+    "margins": {
+     "S_max": 1.6542889734633839,
+     "S_max_freq_hz": 83.60000000000001,
+     "fc_hz": 43.84449539060456,
+     "fc_last_hz": 44.11955512704991,
+     "pm_deg": 44.07358711741173,
+     "pm_min_deg": 43.98308960350036,
+     "gm_up_db": 10.966068095428756,
+     "gm_low_db": null,
+     "T_max": 1.7243689002115326,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.9926790675211956,
+     "old_gate_S_max_96_models": 3.5356388911350485,
+     "old_gate_S_max_worst_period_6_extra": 2.568726016608491,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "I",
+      "fc": 93.41961441412815,
+      "kp_scale": 0.41,
+      "r_i": 1.6162644529441406,
+      "lead_ratio": 4.878048780487806,
+      "lp_hz": 292.6829268292683,
+      "wc_lp_ratio": null,
+      "wc_i_ratio": 0.05864103933388447
+     },
+     "kp": 1.5462539094242729,
+     "corners_hz": {
+      "wz": 19.151020954896268,
+      "wp": 455.7054361664789,
+      "wi": 57.79970860830211,
+      "wl": 292.6829268292683,
+      "wc_lp": null,
+      "wc_i": 5.478223283415209
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.7930689216822321,
+      "peak_error_mrad": 2.87286180081367,
+      "settle_rms_urad": 730.5296081991905,
+      "peak_current_ma": 76.46323704648475,
+      "twist_200_400hz_rms_urad": 62.03933285627092,
+      "tail_rms_urad": 6.080466901428207,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.05343367831806853,
+      "dist_peak_mrad": 1.2687141930460966,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 2.8531612539048445e-11
+     }
+    },
+    "grid_edge_flags": [],
+    "fc_forward_pass_hz": 42.67255815060101
+   },
+   "LP": {
+    "fc_hz": 59.78699225681649,
+    "S_gate_max": 1.9832433288449445,
+    "S_groups": {
+     "nominal": 1.7234734239203637,
+     "period_plus1": 1.9832433288449445
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 26.872614930863946,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.97871557637984,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 4.4629600048065186,
+    "margins": {
+     "S_max": 1.7234734239203635,
+     "S_max_freq_hz": 122.0,
+     "fc_hz": 59.78699225681649,
+     "fc_last_hz": 64.50800408652195,
+     "pm_deg": 71.14005252659751,
+     "pm_min_deg": 64.24868551563804,
+     "gm_up_db": 8.873742395984769,
+     "gm_low_db": null,
+     "T_max": 1.0899811670450228,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.9832433288449447,
+     "old_gate_S_max_96_models": 2.8295579844791194,
+     "old_gate_S_max_worst_period_6_extra": 3.8889781832433297,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "LP",
+      "fc": 33.23229210822225,
+      "kp_scale": 1.9428926976568297,
+      "r_i": 12.0,
+      "lead_ratio": 2.859048061697654,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": 1.5826343464521715,
+      "wc_i_ratio": null
+     },
+     "kp": 3.416474312174625,
+     "corners_hz": {
+      "wz": 11.62355140280135,
+      "wp": 95.01272033778308,
+      "wi": 2.7693576756851876,
+      "wl": 300.0,
+      "wc_lp": 52.59456690180398,
+      "wc_i": null
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 1.1831284354606602,
+      "peak_error_mrad": 4.429777317152168,
+      "settle_rms_urad": 965.5683540711799,
+      "peak_current_ma": 29.355970201588573,
+      "twist_200_400hz_rms_urad": 56.88736328526536,
+      "tail_rms_urad": 26.872614930863946,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.08563736817439502,
+      "dist_peak_mrad": 1.0228799666380481,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 2.81179466184727e-08
+     }
+    },
+    "grid_edge_flags": [
+     "r_i at edge",
+     "lp_hz at edge"
+    ],
+    "fc_forward_pass_hz": 55.98026810031655
+   },
+   "both": {
+    "fc_hz": 63.26211705632803,
+    "S_gate_max": 1.9938448664745225,
+    "S_groups": {
+     "nominal": 1.6820310689680091,
+     "period_plus1": 1.9938448664745225
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 0.013632409978140858,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9496359054026193,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 9.465404272079468,
+    "margins": {
+     "S_max": 1.682031068968009,
+     "S_max_freq_hz": 165.0,
+     "fc_hz": 63.26211705632803,
+     "fc_last_hz": 69.82651775829473,
+     "pm_deg": 51.66298092617723,
+     "pm_min_deg": 47.61847954229674,
+     "gm_up_db": 8.314616645971505,
+     "gm_low_db": 30.958032870740585,
+     "T_max": 1.3857855437913107,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.9938448664745223,
+     "old_gate_S_max_96_models": 3.680172703455203,
+     "old_gate_S_max_worst_period_6_extra": 4.539107355663754,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "both",
+      "fc": 131.43683666236637,
+      "kp_scale": 0.43732179614324823,
+      "r_i": 1.6364024402532433,
+      "lead_ratio": 4.56445826765577,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": 0.650363783144128,
+      "wc_i_ratio": 0.10144326825239497
+     },
+     "kp": 3.5353701248989235,
+     "corners_hz": {
+      "wz": 28.795714399174507,
+      "wp": 599.9379557780592,
+      "wi": 80.3206066119198,
+      "wl": 300.0,
+      "wc_lp": 85.48175833623341,
+      "wc_i": 13.333382279786655
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.30949773957277554,
+      "peak_error_mrad": 1.5660253558031187,
+      "settle_rms_urad": 181.70370686245832,
+      "peak_current_ma": 77.67213551806982,
+      "twist_200_400hz_rms_urad": 65.00514531570849,
+      "tail_rms_urad": 0.013632409978140858,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.015876817691132635,
+      "dist_peak_mrad": 0.6214656386602514,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 8.211048494866159e-13
+     }
+    },
+    "grid_edge_flags": [
+     "lp_hz at edge"
+    ],
+    "fc_forward_pass_hz": 62.33333178241112
+   }
+  },
+  "G2": {
+   "linear": {
+    "fc_hz": 37.067819711213765,
+    "S_gate_max": 1.9992158142846963,
+    "S_groups": {
+     "nominal": 1.8051111850258654,
+     "period_plus1": 1.9992158142846963,
+     "models0_spread0.1_cb0_d2": 1.6653907056906412
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 3.254512214171915e-08,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": null,
+     "ok": true
+    },
+    "note": "consolidated from G1",
+    "final_limit": 2.0,
+    "seconds": 0.2264397144317627,
+    "margins": {
+     "S_max": 1.8051111850258656,
+     "S_max_freq_hz": 29.700000000000003,
+     "fc_hz": 37.067819711213765,
+     "fc_last_hz": 37.450468101041295,
+     "pm_deg": 36.46273308198704,
+     "pm_min_deg": 36.46273308198704,
+     "gm_up_db": 9.82139466791776,
+     "gm_low_db": 21.64894067494923,
+     "T_max": 2.299620547675433,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.9992158142846956,
+     "old_gate_S_max_96_models": 3.9431018877590276,
+     "old_gate_S_max_worst_period_6_extra": 2.6333041774516275,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "linear",
+      "fc": 79.31945455933837,
+      "kp_scale": 0.4951075397450048,
+      "r_i": 3.407764617025684,
+      "lead_ratio": 4.999788756433331,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": null,
+      "wc_i_ratio": null
+     },
+     "kp": 1.9934620794570712,
+     "corners_hz": {
+      "wz": 15.864561169164677,
+      "wp": 396.58051707220443,
+      "wi": 23.276095468286428,
+      "wl": 300.0,
+      "wc_lp": null,
+      "wc_i": null
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.7625263320288418,
+      "peak_error_mrad": 2.8088211307242714,
+      "settle_rms_urad": 50.423073615458385,
+      "peak_current_ma": 27.45534430385285,
+      "twist_200_400hz_rms_urad": 0.0008564859659714874,
+      "tail_rms_urad": 3.254512214171915e-08,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.017150312089411784,
+      "dist_peak_mrad": 1.0006957760626802,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 9.695920074507222e-13
+     }
+    },
+    "grid_edge_flags": [
+     "lead_ratio at edge",
+     "lp_hz at edge"
+    ],
+    "fc_before_consolidation_hz": 35.975678117671826
+   },
+   "I": {
+    "fc_hz": 43.84422530515544,
+    "S_gate_max": 1.9946603737043829,
+    "S_groups": {
+     "nominal": 1.6499968695450375,
+     "period_plus1": 1.9946603737043829,
+     "models0_spread0.1_cb0_d2": 1.6638752730741504
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 9.258063777098336,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9947946655018973,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 10.136832237243652,
+    "margins": {
+     "S_max": 1.6499968695450375,
+     "S_max_freq_hz": 83.60000000000001,
+     "fc_hz": 43.84422530515544,
+     "fc_last_hz": 44.11918155400467,
+     "pm_deg": 44.18661122744828,
+     "pm_min_deg": 44.10512725593108,
+     "gm_up_db": 10.936884076831035,
+     "gm_low_db": null,
+     "T_max": 1.724155936230337,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.9946603737043833,
+     "old_gate_S_max_96_models": 3.4921422183076083,
+     "old_gate_S_max_worst_period_6_extra": 2.552135905483776,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "I",
+      "fc": 96.87461496727657,
+      "kp_scale": 0.4,
+      "r_i": 1.7644071815899636,
+      "lead_ratio": 4.878048780487806,
+      "lp_hz": 292.6829268292683,
+      "wc_lp_ratio": null,
+      "wc_i_ratio": 0.05283699945274168
+     },
+     "kp": 1.6362664018753752,
+     "corners_hz": {
+      "wz": 19.859296068291695,
+      "wp": 472.5590974013492,
+      "wi": 54.90490855970093,
+      "wl": 292.6829268292683,
+      "wc_lp": null,
+      "wc_i": 5.118563978010553
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.7969438835584193,
+      "peak_error_mrad": 2.933125194889178,
+      "settle_rms_urad": 760.5949656609741,
+      "peak_current_ma": 79.06520914723545,
+      "twist_200_400hz_rms_urad": 62.88197327320274,
+      "tail_rms_urad": 9.258063777098336,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.05590062862109078,
+      "dist_peak_mrad": 1.2622565180474086,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 3.268511979088907e-10
+     }
+    },
+    "grid_edge_flags": [
+     "kp_scale at edge"
+    ],
+    "fc_forward_pass_hz": 40.66774177827069
+   },
+   "LP": {
+    "fc_hz": 59.78699225681649,
+    "S_gate_max": 1.9832433288449445,
+    "S_groups": {
+     "nominal": 1.7234734239203637,
+     "period_plus1": 1.9832433288449445,
+     "models0_spread0.1_cb0_d2": 1.573577541294551
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 26.872614930863946,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.97871557637984,
+     "ok": true
+    },
+    "note": "consolidated from G1",
+    "final_limit": 2.0,
+    "seconds": 0.94814133644104,
+    "margins": {
+     "S_max": 1.7234734239203635,
+     "S_max_freq_hz": 122.0,
+     "fc_hz": 59.78699225681649,
+     "fc_last_hz": 64.50800408652195,
+     "pm_deg": 71.14005252659751,
+     "pm_min_deg": 64.24868551563804,
+     "gm_up_db": 8.873742395984769,
+     "gm_low_db": null,
+     "T_max": 1.0899811670450228,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.9832433288449447,
+     "old_gate_S_max_96_models": 2.8295579844791194,
+     "old_gate_S_max_worst_period_6_extra": 3.8889781832433297,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "LP",
+      "fc": 33.23229210822225,
+      "kp_scale": 1.9428926976568297,
+      "r_i": 12.0,
+      "lead_ratio": 2.859048061697654,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": 1.5826343464521715,
+      "wc_i_ratio": null
+     },
+     "kp": 3.416474312174625,
+     "corners_hz": {
+      "wz": 11.62355140280135,
+      "wp": 95.01272033778308,
+      "wi": 2.7693576756851876,
+      "wl": 300.0,
+      "wc_lp": 52.59456690180398,
+      "wc_i": null
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 1.1831284354606602,
+      "peak_error_mrad": 4.429777317152168,
+      "settle_rms_urad": 965.5683540711799,
+      "peak_current_ma": 29.355970201588573,
+      "twist_200_400hz_rms_urad": 56.88736328526536,
+      "tail_rms_urad": 26.872614930863946,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.08563736817439502,
+      "dist_peak_mrad": 1.0228799666380481,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 2.81179466184727e-08
+     }
+    },
+    "grid_edge_flags": [
+     "r_i at edge",
+     "lp_hz at edge"
+    ],
+    "fc_before_consolidation_hz": 59.69208762367982
+   },
+   "both": {
+    "fc_hz": 63.28142688447786,
+    "S_gate_max": 1.9978101328960942,
+    "S_groups": {
+     "nominal": 1.698804854223014,
+     "period_plus1": 1.9978101328960942,
+     "models0_spread0.1_cb0_d2": 1.6441991067856878
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 0.01562591001667591,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9499835650562842,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 10.714622259140015,
+    "margins": {
+     "S_max": 1.698804854223014,
+     "S_max_freq_hz": 165.0,
+     "fc_hz": 63.28142688447786,
+     "fc_last_hz": 74.60463815590563,
+     "pm_deg": 51.1794599713966,
+     "pm_min_deg": 49.07043972454221,
+     "gm_up_db": 8.110947315862976,
+     "gm_low_db": 31.354811045305844,
+     "T_max": 1.376945827429945,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.9978101328960942,
+     "old_gate_S_max_96_models": 4.1032407947750436,
+     "old_gate_S_max_worst_period_6_extra": 4.640036431471937,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "both",
+      "fc": 137.27814927491946,
+      "kp_scale": 0.405,
+      "r_i": 1.6853472173662138,
+      "lead_ratio": 4.938271604938272,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": 0.6859997124830463,
+      "wc_i_ratio": 0.09418467833107944
+     },
+     "kp": 3.438354915216131,
+     "corners_hz": {
+      "wz": 27.798825228171186,
+      "wp": 677.9167865428122,
+      "wi": 81.45392703673946,
+      "wl": 300.0,
+      "wc_lp": 94.17277093279945,
+      "wc_i": 12.929498331344195
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.2909720440120133,
+      "peak_error_mrad": 1.6757325273090706,
+      "settle_rms_urad": 168.9417949327498,
+      "peak_current_ma": 68.59364283602747,
+      "twist_200_400hz_rms_urad": 61.57515323695469,
+      "tail_rms_urad": 0.01562591001667591,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.015122135957256873,
+      "dist_peak_mrad": 0.5924873141603209,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 5.883787695694387e-13
+     }
+    },
+    "grid_edge_flags": [
+     "lp_hz at edge"
+    ],
+    "fc_forward_pass_hz": 62.37117929755251
+   }
+  },
+  "G3": {
+   "linear": {
+    "fc_hz": 37.067819711213765,
+    "S_gate_max": 1.9992158142846963,
+    "S_groups": {
+     "nominal": 1.8051111850258654,
+     "period_plus1": 1.9992158142846963,
+     "models0_spread0.2_cb0_d2": 1.7553118902801834
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 3.254512214171915e-08,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": null,
+     "ok": true
+    },
+    "note": "consolidated from G1",
+    "final_limit": 2.0,
+    "seconds": 0.238753080368042,
+    "margins": {
+     "S_max": 1.8051111850258656,
+     "S_max_freq_hz": 29.700000000000003,
+     "fc_hz": 37.067819711213765,
+     "fc_last_hz": 37.450468101041295,
+     "pm_deg": 36.46273308198704,
+     "pm_min_deg": 36.46273308198704,
+     "gm_up_db": 9.82139466791776,
+     "gm_low_db": 21.64894067494923,
+     "T_max": 2.299620547675433,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.9992158142846956,
+     "old_gate_S_max_96_models": 3.9431018877590276,
+     "old_gate_S_max_worst_period_6_extra": 2.6333041774516275,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "linear",
+      "fc": 79.31945455933837,
+      "kp_scale": 0.4951075397450048,
+      "r_i": 3.407764617025684,
+      "lead_ratio": 4.999788756433331,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": null,
+      "wc_i_ratio": null
+     },
+     "kp": 1.9934620794570712,
+     "corners_hz": {
+      "wz": 15.864561169164677,
+      "wp": 396.58051707220443,
+      "wi": 23.276095468286428,
+      "wl": 300.0,
+      "wc_lp": null,
+      "wc_i": null
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.7625263320288418,
+      "peak_error_mrad": 2.8088211307242714,
+      "settle_rms_urad": 50.423073615458385,
+      "peak_current_ma": 27.45534430385285,
+      "twist_200_400hz_rms_urad": 0.0008564859659714874,
+      "tail_rms_urad": 3.254512214171915e-08,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.017150312089411784,
+      "dist_peak_mrad": 1.0006957760626802,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 9.695920074507222e-13
+     }
+    },
+    "grid_edge_flags": [
+     "lead_ratio at edge",
+     "lp_hz at edge"
+    ],
+    "fc_before_consolidation_hz": 36.89540884327377
+   },
+   "I": {
+    "fc_hz": 43.84449539060456,
+    "S_gate_max": 1.9926790675211954,
+    "S_groups": {
+     "nominal": 1.6542889734633843,
+     "period_plus1": 1.9926790675211954,
+     "models0_spread0.2_cb0_d2": 1.7036433132223072
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 6.080466901428207,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9931975918003373,
+     "ok": true
+    },
+    "note": "consolidated from G1",
+    "final_limit": 2.0,
+    "seconds": 0.9832959175109863,
+    "margins": {
+     "S_max": 1.6542889734633839,
+     "S_max_freq_hz": 83.60000000000001,
+     "fc_hz": 43.84449539060456,
+     "fc_last_hz": 44.11955512704991,
+     "pm_deg": 44.07358711741173,
+     "pm_min_deg": 43.98308960350036,
+     "gm_up_db": 10.966068095428756,
+     "gm_low_db": null,
+     "T_max": 1.7243689002115326,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.9926790675211956,
+     "old_gate_S_max_96_models": 3.5356388911350485,
+     "old_gate_S_max_worst_period_6_extra": 2.568726016608491,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "I",
+      "fc": 93.41961441412815,
+      "kp_scale": 0.41,
+      "r_i": 1.6162644529441406,
+      "lead_ratio": 4.878048780487806,
+      "lp_hz": 292.6829268292683,
+      "wc_lp_ratio": null,
+      "wc_i_ratio": 0.05864103933388447
+     },
+     "kp": 1.5462539094242729,
+     "corners_hz": {
+      "wz": 19.151020954896268,
+      "wp": 455.7054361664789,
+      "wi": 57.79970860830211,
+      "wl": 292.6829268292683,
+      "wc_lp": null,
+      "wc_i": 5.478223283415209
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.7930689216822321,
+      "peak_error_mrad": 2.87286180081367,
+      "settle_rms_urad": 730.5296081991905,
+      "peak_current_ma": 76.46323704648475,
+      "twist_200_400hz_rms_urad": 62.03933285627092,
+      "tail_rms_urad": 6.080466901428207,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.05343367831806853,
+      "dist_peak_mrad": 1.2687141930460966,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 2.8531612539048445e-11
+     }
+    },
+    "grid_edge_flags": [],
+    "fc_before_consolidation_hz": 42.99008970326951
+   },
+   "LP": {
+    "fc_hz": 59.78699225681649,
+    "S_gate_max": 1.9832433288449445,
+    "S_groups": {
+     "nominal": 1.7234734239203637,
+     "period_plus1": 1.9832433288449445,
+     "models0_spread0.2_cb0_d2": 1.6604727572033318
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 26.872614930863946,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.97871557637984,
+     "ok": true
+    },
+    "note": "consolidated from G1",
+    "final_limit": 2.0,
+    "seconds": 0.949091911315918,
+    "margins": {
+     "S_max": 1.7234734239203635,
+     "S_max_freq_hz": 122.0,
+     "fc_hz": 59.78699225681649,
+     "fc_last_hz": 64.50800408652195,
+     "pm_deg": 71.14005252659751,
+     "pm_min_deg": 64.24868551563804,
+     "gm_up_db": 8.873742395984769,
+     "gm_low_db": null,
+     "T_max": 1.0899811670450228,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.9832433288449447,
+     "old_gate_S_max_96_models": 2.8295579844791194,
+     "old_gate_S_max_worst_period_6_extra": 3.8889781832433297,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "LP",
+      "fc": 33.23229210822225,
+      "kp_scale": 1.9428926976568297,
+      "r_i": 12.0,
+      "lead_ratio": 2.859048061697654,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": 1.5826343464521715,
+      "wc_i_ratio": null
+     },
+     "kp": 3.416474312174625,
+     "corners_hz": {
+      "wz": 11.62355140280135,
+      "wp": 95.01272033778308,
+      "wi": 2.7693576756851876,
+      "wl": 300.0,
+      "wc_lp": 52.59456690180398,
+      "wc_i": null
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 1.1831284354606602,
+      "peak_error_mrad": 4.429777317152168,
+      "settle_rms_urad": 965.5683540711799,
+      "peak_current_ma": 29.355970201588573,
+      "twist_200_400hz_rms_urad": 56.88736328526536,
+      "tail_rms_urad": 26.872614930863946,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.08563736817439502,
+      "dist_peak_mrad": 1.0228799666380481,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 2.81179466184727e-08
+     }
+    },
+    "grid_edge_flags": [
+     "r_i at edge",
+     "lp_hz at edge"
+    ],
+    "fc_before_consolidation_hz": 59.09649877895891
+   },
+   "both": {
+    "fc_hz": 63.27421319777946,
+    "S_gate_max": 1.9891946490838979,
+    "S_groups": {
+     "nominal": 1.6996520126013628,
+     "period_plus1": 1.9891946490838979,
+     "models0_spread0.2_cb0_d2": 1.9587110064268949
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 0.013907385610837712,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9820516202760892,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 12.48667287826538,
+    "margins": {
+     "S_max": 1.6996520126013632,
+     "S_max_freq_hz": 165.0,
+     "fc_hz": 63.27421319777946,
+     "fc_last_hz": 74.60118356493957,
+     "pm_deg": 51.68090394354178,
+     "pm_min_deg": 49.09298223452396,
+     "gm_up_db": 8.105988767140966,
+     "gm_low_db": 31.14897127830882,
+     "T_max": 1.3725385984707295,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.9891946490838985,
+     "old_gate_S_max_96_models": 4.0681448492216035,
+     "old_gate_S_max_worst_period_6_extra": 4.569508029883153,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "both",
+      "fc": 137.27814927491946,
+      "kp_scale": 0.405,
+      "r_i": 1.727480897800369,
+      "lead_ratio": 5.0,
+      "lp_hz": 298.0252387665335,
+      "wc_lp_ratio": 0.6945747088890843,
+      "wc_i_ratio": 0.09652226008942902
+     },
+     "kp": 3.4277406708726,
+     "corners_hz": {
+      "wz": 27.455629854983894,
+      "wp": 686.3907463745973,
+      "wi": 79.46724588950192,
+      "wl": 298.0252387665335,
+      "wc_lp": 95.34993056945945,
+      "wc_i": 13.250397228909238
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.30652281298325834,
+      "peak_error_mrad": 1.670120416974466,
+      "settle_rms_urad": 179.27135088277285,
+      "peak_current_ma": 71.56880572283187,
+      "twist_200_400hz_rms_urad": 65.65979481407076,
+      "tail_rms_urad": 0.013907385610837712,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.014833054249332926,
+      "dist_peak_mrad": 0.5322259443797915,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 4.887557680332392e-13
+     }
+    },
+    "grid_edge_flags": [
+     "lead_ratio at edge"
+    ]
+   }
+  },
+  "G4": {
+   "linear": {
+    "fc_hz": 37.067819711213765,
+    "S_gate_max": 1.9992158142846963,
+    "S_groups": {
+     "nominal": 1.8051111850258654,
+     "period_plus1": 1.9992158142846963,
+     "models0_spread0.2_cb0_d1-2-4": 1.92548366880852
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 3.254512214171915e-08,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": null,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 7.814044713973999,
+    "margins": {
+     "S_max": 1.8051111850258656,
+     "S_max_freq_hz": 29.700000000000003,
+     "fc_hz": 37.067819711213765,
+     "fc_last_hz": 37.450468101041295,
+     "pm_deg": 36.46273308198704,
+     "pm_min_deg": 36.46273308198704,
+     "gm_up_db": 9.82139466791776,
+     "gm_low_db": 21.64894067494923,
+     "T_max": 2.299620547675433,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.9992158142846956,
+     "old_gate_S_max_96_models": 3.9431018877590276,
+     "old_gate_S_max_worst_period_6_extra": 2.6333041774516275,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "linear",
+      "fc": 79.31945455933837,
+      "kp_scale": 0.4951075397450048,
+      "r_i": 3.407764617025684,
+      "lead_ratio": 4.999788756433331,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": null,
+      "wc_i_ratio": null
+     },
+     "kp": 1.9934620794570712,
+     "corners_hz": {
+      "wz": 15.864561169164677,
+      "wp": 396.58051707220443,
+      "wi": 23.276095468286428,
+      "wl": 300.0,
+      "wc_lp": null,
+      "wc_i": null
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.7625263320288418,
+      "peak_error_mrad": 2.8088211307242714,
+      "settle_rms_urad": 50.423073615458385,
+      "peak_current_ma": 27.45534430385285,
+      "twist_200_400hz_rms_urad": 0.0008564859659714874,
+      "tail_rms_urad": 3.254512214171915e-08,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.017150312089411784,
+      "dist_peak_mrad": 1.0006957760626802,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 9.695920074507222e-13
+     }
+    },
+    "grid_edge_flags": [
+     "lead_ratio at edge",
+     "lp_hz at edge"
+    ]
+   },
+   "I": {
+    "fc_hz": 43.84449539060456,
+    "S_gate_max": 1.9926790675211954,
+    "S_groups": {
+     "nominal": 1.6542889734633843,
+     "period_plus1": 1.9926790675211954,
+     "models0_spread0.2_cb0_d1-2-4": 1.887077297529708
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 6.080466901428207,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9931975918003373,
+     "ok": true
+    },
+    "note": "consolidated from G1",
+    "final_limit": 2.0,
+    "seconds": 0.9899976253509521,
+    "margins": {
+     "S_max": 1.6542889734633839,
+     "S_max_freq_hz": 83.60000000000001,
+     "fc_hz": 43.84449539060456,
+     "fc_last_hz": 44.11955512704991,
+     "pm_deg": 44.07358711741173,
+     "pm_min_deg": 43.98308960350036,
+     "gm_up_db": 10.966068095428756,
+     "gm_low_db": null,
+     "T_max": 1.7243689002115326,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.9926790675211956,
+     "old_gate_S_max_96_models": 3.5356388911350485,
+     "old_gate_S_max_worst_period_6_extra": 2.568726016608491,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "I",
+      "fc": 93.41961441412815,
+      "kp_scale": 0.41,
+      "r_i": 1.6162644529441406,
+      "lead_ratio": 4.878048780487806,
+      "lp_hz": 292.6829268292683,
+      "wc_lp_ratio": null,
+      "wc_i_ratio": 0.05864103933388447
+     },
+     "kp": 1.5462539094242729,
+     "corners_hz": {
+      "wz": 19.151020954896268,
+      "wp": 455.7054361664789,
+      "wi": 57.79970860830211,
+      "wl": 292.6829268292683,
+      "wc_lp": null,
+      "wc_i": 5.478223283415209
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.7930689216822321,
+      "peak_error_mrad": 2.87286180081367,
+      "settle_rms_urad": 730.5296081991905,
+      "peak_current_ma": 76.46323704648475,
+      "twist_200_400hz_rms_urad": 62.03933285627092,
+      "tail_rms_urad": 6.080466901428207,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.05343367831806853,
+      "dist_peak_mrad": 1.2687141930460966,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 2.8531612539048445e-11
+     }
+    },
+    "grid_edge_flags": [],
+    "fc_before_consolidation_hz": 42.67210153490211
+   },
+   "LP": {
+    "fc_hz": 59.78699225681649,
+    "S_gate_max": 1.9832433288449445,
+    "S_groups": {
+     "nominal": 1.7234734239203637,
+     "period_plus1": 1.9832433288449445,
+     "models0_spread0.2_cb0_d1-2-4": 1.86981858500264
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 26.872614930863946,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.97871557637984,
+     "ok": true
+    },
+    "note": "consolidated from G1",
+    "final_limit": 2.0,
+    "seconds": 0.948965311050415,
+    "margins": {
+     "S_max": 1.7234734239203635,
+     "S_max_freq_hz": 122.0,
+     "fc_hz": 59.78699225681649,
+     "fc_last_hz": 64.50800408652195,
+     "pm_deg": 71.14005252659751,
+     "pm_min_deg": 64.24868551563804,
+     "gm_up_db": 8.873742395984769,
+     "gm_low_db": null,
+     "T_max": 1.0899811670450228,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.9832433288449447,
+     "old_gate_S_max_96_models": 2.8295579844791194,
+     "old_gate_S_max_worst_period_6_extra": 3.8889781832433297,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "LP",
+      "fc": 33.23229210822225,
+      "kp_scale": 1.9428926976568297,
+      "r_i": 12.0,
+      "lead_ratio": 2.859048061697654,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": 1.5826343464521715,
+      "wc_i_ratio": null
+     },
+     "kp": 3.416474312174625,
+     "corners_hz": {
+      "wz": 11.62355140280135,
+      "wp": 95.01272033778308,
+      "wi": 2.7693576756851876,
+      "wl": 300.0,
+      "wc_lp": 52.59456690180398,
+      "wc_i": null
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 1.1831284354606602,
+      "peak_error_mrad": 4.429777317152168,
+      "settle_rms_urad": 965.5683540711799,
+      "peak_current_ma": 29.355970201588573,
+      "twist_200_400hz_rms_urad": 56.88736328526536,
+      "tail_rms_urad": 26.872614930863946,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.08563736817439502,
+      "dist_peak_mrad": 1.0228799666380481,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 2.81179466184727e-08
+     }
+    },
+    "grid_edge_flags": [
+     "r_i at edge",
+     "lp_hz at edge"
+    ],
+    "fc_before_consolidation_hz": 58.488808821250004
+   },
+   "both": {
+    "fc_hz": 61.46447462347457,
+    "S_gate_max": 1.9900133969802445,
+    "S_groups": {
+     "nominal": 1.669673672109619,
+     "period_plus1": 1.9900133969802445,
+     "models0_spread0.2_cb0_d1-2-4": 1.747701607471642
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 5.434508753300147,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.964062925133579,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 11.360289573669434,
+    "margins": {
+     "S_max": 1.6696736721096188,
+     "S_max_freq_hz": 98.80000000000001,
+     "fc_hz": 61.46447462347457,
+     "fc_last_hz": 64.53550758774409,
+     "pm_deg": 59.46253041474915,
+     "pm_min_deg": 53.64470106861498,
+     "gm_up_db": 9.363838939709986,
+     "gm_low_db": null,
+     "T_max": 1.3161074865074485,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.9900133969802452,
+     "old_gate_S_max_96_models": 2.8654177939905376,
+     "old_gate_S_max_worst_period_6_extra": 4.175412715089224,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "both",
+      "fc": 80.00361126958894,
+      "kp_scale": 0.7334311505202034,
+      "r_i": 1.5,
+      "lead_ratio": 3.267286949550164,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": 0.9290562510026382,
+      "wc_i_ratio": 0.07938129013120546
+     },
+     "kp": 3.504288475723485,
+     "corners_hz": {
+      "wz": 24.48625189795581,
+      "wp": 261.3947550180124,
+      "wi": 53.335740846392625,
+      "wl": 300.0,
+      "wc_lp": 74.32785515279673,
+      "wc_i": 6.350789877735418
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.427862350604783,
+      "peak_error_mrad": 2.4254242913208794,
+      "settle_rms_urad": 409.4559932832124,
+      "peak_current_ma": 76.75591959666767,
+      "twist_200_400hz_rms_urad": 55.499636597529644,
+      "tail_rms_urad": 5.434508753300147,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.032118976809956366,
+      "dist_peak_mrad": 0.7851934156908698,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 6.01431657909277e-11
+     }
+    },
+    "grid_edge_flags": [
+     "r_i at edge",
+     "lp_hz at edge"
+    ],
+    "fc_forward_pass_hz": 60.29754776661961
+   }
+  },
+  "G5": {
+   "linear": {
+    "fc_hz": 25.678956791425314,
+    "S_gate_max": 1.9985276701967571,
+    "S_groups": {
+     "nominal": 1.4747024960791746,
+     "period_plus1": 1.6917431242915455,
+     "period_plus6": 1.8020552722864027,
+     "models0_spread0.2_cb0_d1-2-4": 1.5224396719813122,
+     "models1_spread0.2_cb1_d1-4-8": 1.9985276701967571
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 7.849730453491823e-07,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": null,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 14.169425010681152,
+    "margins": {
+     "S_max": 1.4747024960791746,
+     "S_max_freq_hz": 93.10000000000001,
+     "fc_hz": 25.678956791425314,
+     "fc_last_hz": 25.84065090890335,
+     "pm_deg": 41.30127714648421,
+     "pm_min_deg": 40.979322036648796,
+     "gm_up_db": 11.906321099224451,
+     "gm_low_db": null,
+     "T_max": 1.7496524429318383,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.6917431242915457,
+     "old_gate_S_max_96_models": 1.998527670196757,
+     "old_gate_S_max_worst_period_6_extra": 1.8020552722864025,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": true,
+     "params": {
+      "mode": "linear",
+      "fc": 51.782617444724245,
+      "kp_scale": 0.5201544491286315,
+      "r_i": 3.358370552318558,
+      "lead_ratio": 5.0,
+      "lp_hz": 299.7221667701923,
+      "wc_lp_ratio": null,
+      "wc_i_ratio": null
+     },
+     "kp": 1.1357742516438996,
+     "corners_hz": {
+      "wz": 10.356523488944848,
+      "wp": 258.91308722362123,
+      "wi": 15.418970788966236,
+      "wl": 299.7221667701923,
+      "wc_lp": null,
+      "wc_i": null
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 1.6922400936753403,
+      "peak_error_mrad": 5.9882950834996285,
+      "settle_rms_urad": 637.6889205736331,
+      "peak_current_ma": 28.488332066407217,
+      "twist_200_400hz_rms_urad": 0.0006162529972998124,
+      "tail_rms_urad": 7.849730453491823e-07,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.045476908983436155,
+      "dist_peak_mrad": 1.5558175214124415,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 2.246665848627655e-11
+     }
+    },
+    "grid_edge_flags": [
+     "lead_ratio at edge",
+     "lp_hz at edge"
+    ]
+   },
+   "I": {
+    "fc_hz": 33.65189780618727,
+    "S_gate_max": 1.999259883682233,
+    "S_groups": {
+     "nominal": 1.434119867765777,
+     "period_plus1": 1.6436098432744721,
+     "period_plus6": 1.7880818450374545,
+     "models0_spread0.2_cb0_d1-2-4": 1.4828976701588112,
+     "models1_spread0.2_cb1_d1-4-8": 1.999259883682233
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 74.43478523538323,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.999975372207601,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 53.25231695175171,
+    "margins": {
+     "S_max": 1.4341198677657767,
+     "S_max_freq_hz": 93.10000000000001,
+     "fc_hz": 33.65189780618727,
+     "fc_last_hz": 34.02690744711042,
+     "pm_deg": 48.56651674367836,
+     "pm_min_deg": 48.56651674367836,
+     "gm_up_db": 12.309884783781335,
+     "gm_low_db": null,
+     "T_max": 1.4689046859617516,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.643609843274472,
+     "old_gate_S_max_96_models": 1.999259883682233,
+     "old_gate_S_max_worst_period_6_extra": 1.788081845037455,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": true,
+     "params": {
+      "mode": "I",
+      "fc": 75.8732825184385,
+      "kp_scale": 0.4204810541448297,
+      "r_i": 3.1658565008831783,
+      "lead_ratio": 4.789633059182005,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": null,
+      "wc_i_ratio": 0.03358094761328529
+     },
+     "kp": 1.3776781794673738,
+     "corners_hz": {
+      "wz": 15.841147240493717,
+      "wp": 363.40518225896915,
+      "wi": 23.96611548794841,
+      "wl": 300.0,
+      "wc_lp": null,
+      "wc_i": 2.547896725499678
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 1.2767371590283736,
+      "peak_error_mrad": 5.542002336462313,
+      "settle_rms_urad": 807.3376470116361,
+      "peak_current_ma": 71.98259361497877,
+      "twist_200_400hz_rms_urad": 42.365449478489786,
+      "tail_rms_urad": 74.43478523538323,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.09723022767753849,
+      "dist_peak_mrad": 1.6464907029147249,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 0.00014121403661105375
+     }
+    },
+    "grid_edge_flags": [
+     "lp_hz at edge"
+    ],
+    "fc_before_polish_hz": 33.2684002142035
+   },
+   "LP": {
+    "fc_hz": 45.30583477972501,
+    "S_gate_max": 1.981212192679953,
+    "S_groups": {
+     "nominal": 1.5443054104166762,
+     "period_plus1": 1.7618328779148547,
+     "period_plus6": 1.981212192679953,
+     "models0_spread0.2_cb0_d1-2-4": 1.550806091798856,
+     "models1_spread0.2_cb1_d1-4-8": 1.8625820172978542
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 73.43775923892069,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9789714627053219,
+     "ok": true
+    },
+    "note": "consolidated from X_period6",
+    "final_limit": 2.0,
+    "seconds": 0.9906191825866699,
+    "margins": {
+     "S_max": 1.5443054104166765,
+     "S_max_freq_hz": 165.0,
+     "fc_hz": 45.30583477972501,
+     "fc_last_hz": 46.11958044086031,
+     "pm_deg": 91.79586152888959,
+     "pm_min_deg": 89.9221911369865,
+     "gm_up_db": 10.141567145844267,
+     "gm_low_db": null,
+     "T_max": 1.0529246081185528,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.7618328779148544,
+     "old_gate_S_max_96_models": 1.8625820172978544,
+     "old_gate_S_max_worst_period_6_extra": 1.9812121926799533,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": true,
+     "params": {
+      "mode": "LP",
+      "fc": 33.39083778736614,
+      "kp_scale": 1.3406031316433111,
+      "r_i": 12.0,
+      "lead_ratio": 4.759071980963713,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": 1.6347510128303349,
+      "wc_i_ratio": null
+     },
+     "kp": 1.4367238727801395,
+     "corners_hz": {
+      "wz": 7.016249790070308,
+      "wp": 158.9094005347586,
+      "wi": 2.782569815613845,
+      "wl": 300.0,
+      "wc_lp": 54.585705892150216,
+      "wc_i": null
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 2.3568331418951596,
+      "peak_error_mrad": 8.606201807016086,
+      "settle_rms_urad": 2129.5420271669054,
+      "peak_current_ma": 70.96755599712235,
+      "twist_200_400hz_rms_urad": 181.34945737801976,
+      "tail_rms_urad": 73.43775923892069,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.20273522806444078,
+      "dist_peak_mrad": 2.1899887485916403,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 7.192952329419471e-11
+     }
+    },
+    "grid_edge_flags": [
+     "r_i at edge",
+     "lp_hz at edge"
+    ],
+    "fc_before_consolidation_hz": 43.83970117441974
+   },
+   "both": {
+    "fc_hz": 46.17331880749099,
+    "S_gate_max": 1.995541209749486,
+    "S_groups": {
+     "nominal": 1.3572351126095423,
+     "period_plus1": 1.5428468129120438,
+     "period_plus6": 1.995541209749486,
+     "models0_spread0.2_cb0_d1-2-4": 1.4105278543030808,
+     "models1_spread0.2_cb1_d1-4-8": 1.854430813796312
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 20.34658891164324,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9509941678621339,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 53.43972897529602,
+    "margins": {
+     "S_max": 1.3572351126095425,
+     "S_max_freq_hz": 98.80000000000001,
+     "fc_hz": 46.17331880749099,
+     "fc_last_hz": 46.17331880749099,
+     "pm_deg": 61.351927649888296,
+     "pm_min_deg": 61.351927649888296,
+     "gm_up_db": 12.885842338002249,
+     "gm_low_db": null,
+     "T_max": 1.3801730617942498,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.5428468129120434,
+     "old_gate_S_max_96_models": 1.8544308137963117,
+     "old_gate_S_max_worst_period_6_extra": 1.9955412097494851,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": true,
+     "params": {
+      "mode": "both",
+      "fc": 76.5066606666604,
+      "kp_scale": 0.5533793164034644,
+      "r_i": 1.5,
+      "lead_ratio": 3.6403133868716613,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": 0.89043754295081,
+      "wc_i_ratio": 0.05719869313856597
+     },
+     "kp": 1.9803387695488552,
+     "corners_hz": {
+      "wz": 21.016503947866735,
+      "wp": 278.5082210096914,
+      "wi": 51.00444044444026,
+      "wl": 300.0,
+      "wc_lp": 68.12440294339245,
+      "wc_i": 4.376081006528703
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.6088798614656229,
+      "peak_error_mrad": 2.303929731710716,
+      "settle_rms_urad": 508.7293515378539,
+      "peak_current_ma": 64.82803959149041,
+      "twist_200_400hz_rms_urad": 59.231212517620534,
+      "tail_rms_urad": 20.34658891164324,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.05984045643273807,
+      "dist_peak_mrad": 0.9191085753588593,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 7.155218052434399e-08
+     }
+    },
+    "grid_edge_flags": [
+     "r_i at edge",
+     "lp_hz at edge"
+    ],
+    "fc_before_polish_hz": 45.34862801132909
+   }
+  },
+  "X_period6": {
+   "linear": {
+    "fc_hz": 31.100607020664345,
+    "S_gate_max": 1.9979322786089042,
+    "S_groups": {
+     "nominal": 1.5545653263507202,
+     "period_plus6": 1.9979322786089042
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 1.6160934719164445e-07,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": null,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 4.409994125366211,
+    "margins": {
+     "S_max": 1.5545653263507202,
+     "S_max_freq_hz": 93.10000000000001,
+     "fc_hz": 31.100607020664345,
+     "fc_last_hz": 31.424616864867147,
+     "pm_deg": 38.93268581776459,
+     "pm_min_deg": 38.93268581776459,
+     "gm_up_db": 10.444120088666619,
+     "gm_low_db": null,
+     "T_max": 1.9121560189390943,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.8357613690879475,
+     "old_gate_S_max_96_models": 2.432479710491903,
+     "old_gate_S_max_worst_period_6_extra": 1.997932278608904,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "linear",
+      "fc": 63.12160832130207,
+      "kp_scale": 0.5002050360339678,
+      "r_i": 3.521561669145002,
+      "lead_ratio": 5.0,
+      "lp_hz": 299.7421455485982,
+      "wc_lp_ratio": null,
+      "wc_i_ratio": null
+     },
+     "kp": 1.5154867143888495,
+     "corners_hz": {
+      "wz": 12.624321664260416,
+      "wp": 315.60804160651037,
+      "wi": 17.924322857769898,
+      "wl": 299.7421455485982,
+      "wc_lp": null,
+      "wc_i": null
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 1.1938906333717696,
+      "peak_error_mrad": 4.327907944453161,
+      "settle_rms_urad": 233.35563265802898,
+      "peak_current_ma": 28.163814546827286,
+      "twist_200_400hz_rms_urad": 0.0007452076670250173,
+      "tail_rms_urad": 1.6160934719164445e-07,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.029295117521901375,
+      "dist_peak_mrad": 1.2513590598720372,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 1.6638212993812598e-11
+     }
+    },
+    "grid_edge_flags": [
+     "lead_ratio at edge",
+     "lp_hz at edge"
+    ],
+    "fc_before_polish_hz": 31.07229562218115
+   },
+   "I": {
+    "fc_hz": 38.33044793318047,
+    "S_gate_max": 1.9935224769742712,
+    "S_groups": {
+     "nominal": 1.513018825916403,
+     "period_plus6": 1.9935224769742712
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 151.43994622645127,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9933404170988824,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 7.1202919483184814,
+    "margins": {
+     "S_max": 1.5130188259164028,
+     "S_max_freq_hz": 93.10000000000001,
+     "fc_hz": 38.33044793318047,
+     "fc_last_hz": 38.72655693159848,
+     "pm_deg": 49.065760386330965,
+     "pm_min_deg": 49.065760386330965,
+     "gm_up_db": 11.373002632709255,
+     "gm_low_db": null,
+     "T_max": 1.5494727364163443,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.7823909368578417,
+     "old_gate_S_max_96_models": 2.286947795126799,
+     "old_gate_S_max_worst_period_6_extra": 1.9935224769742712,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "I",
+      "fc": 86.82242655359804,
+      "kp_scale": 0.41683817400238105,
+      "r_i": 3.267224080105441,
+      "lead_ratio": 4.759071980963713,
+      "lp_hz": 292.6829268292683,
+      "wc_lp_ratio": null,
+      "wc_i_ratio": 0.030697333271703316
+     },
+     "kp": 1.7152615433373284,
+     "corners_hz": {
+      "wz": 18.243562379574783,
+      "wp": 413.19417753050834,
+      "wi": 26.57375938255085,
+      "wl": 292.6829268292683,
+      "wc_lp": null,
+      "wc_i": 2.6652169633737826
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 1.1035221161499738,
+      "peak_error_mrad": 4.249403094900763,
+      "settle_rms_urad": 987.0743838195327,
+      "peak_current_ma": 79.84937807937351,
+      "twist_200_400hz_rms_urad": 46.89340841389976,
+      "tail_rms_urad": 151.43994622645127,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.11484421063361192,
+      "dist_peak_mrad": 1.4014665839160543,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 0.0025050343727112904
+     }
+    },
+    "grid_edge_flags": []
+   },
+   "LP": {
+    "fc_hz": 45.30583477972501,
+    "S_gate_max": 1.981212192679953,
+    "S_groups": {
+     "nominal": 1.5443054104166762,
+     "period_plus6": 1.981212192679953
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 73.43775923892069,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9789714627053219,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 15.490801572799683,
+    "margins": {
+     "S_max": 1.5443054104166765,
+     "S_max_freq_hz": 165.0,
+     "fc_hz": 45.30583477972501,
+     "fc_last_hz": 46.11958044086031,
+     "pm_deg": 91.79586152888959,
+     "pm_min_deg": 89.9221911369865,
+     "gm_up_db": 10.141567145844267,
+     "gm_low_db": null,
+     "T_max": 1.0529246081185528,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.7618328779148544,
+     "old_gate_S_max_96_models": 1.8625820172978544,
+     "old_gate_S_max_worst_period_6_extra": 1.9812121926799533,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": true,
+     "params": {
+      "mode": "LP",
+      "fc": 33.39083778736614,
+      "kp_scale": 1.3406031316433111,
+      "r_i": 12.0,
+      "lead_ratio": 4.759071980963713,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": 1.6347510128303349,
+      "wc_i_ratio": null
+     },
+     "kp": 1.4367238727801395,
+     "corners_hz": {
+      "wz": 7.016249790070308,
+      "wp": 158.9094005347586,
+      "wi": 2.782569815613845,
+      "wl": 300.0,
+      "wc_lp": 54.585705892150216,
+      "wc_i": null
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 2.3568331418951596,
+      "peak_error_mrad": 8.606201807016086,
+      "settle_rms_urad": 2129.5420271669054,
+      "peak_current_ma": 70.96755599712235,
+      "twist_200_400hz_rms_urad": 181.34945737801976,
+      "tail_rms_urad": 73.43775923892069,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.20273522806444078,
+      "dist_peak_mrad": 2.1899887485916403,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 7.192952329419471e-11
+     }
+    },
+    "grid_edge_flags": [
+     "r_i at edge",
+     "lp_hz at edge"
+    ]
+   },
+   "both": {
+    "fc_hz": 46.226871482682185,
+    "S_gate_max": 1.9886626539511807,
+    "S_groups": {
+     "nominal": 1.3748579848972062,
+     "period_plus6": 1.9886626539511807
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 9.536695740812702,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9820490030785747,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 18.973876953125,
+    "margins": {
+     "S_max": 1.374857984897206,
+     "S_max_freq_hz": 88.80000000000001,
+     "fc_hz": 46.226871482682185,
+     "fc_last_hz": 47.02437744301361,
+     "pm_deg": 55.87177941373557,
+     "pm_min_deg": 54.65621484546028,
+     "gm_up_db": 13.48853395374308,
+     "gm_low_db": null,
+     "T_max": 1.4715675288347445,
+     "nyquist_stable": true,
+     "S_max_worst_period": 1.5924112731352007,
+     "old_gate_S_max_96_models": 2.196930692793929,
+     "old_gate_S_max_worst_period_6_extra": 1.9886626539511805,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "both",
+      "fc": 93.42360712438911,
+      "kp_scale": 0.41,
+      "r_i": 1.5,
+      "lead_ratio": 3.5669012553667696,
+      "lp_hz": 276.8237695260338,
+      "wc_lp_ratio": 0.6858470891024631,
+      "wc_i_ratio": 0.05107102316526857
+     },
+     "kp": 2.1454142985739026,
+     "corners_hz": {
+      "wz": 26.19181200595999,
+      "wp": 333.2327815328754,
+      "wi": 62.282404749592736,
+      "wl": 276.8237695260338,
+      "wc_lp": 64.07430899971439,
+      "wc_i": 4.771239203632625
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.5569274861838284,
+      "peak_error_mrad": 2.303257311820253,
+      "settle_rms_urad": 566.7070297763265,
+      "peak_current_ma": 79.19827163842638,
+      "twist_200_400hz_rms_urad": 59.38243699358285,
+      "tail_rms_urad": 9.536695740812702,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.04800353330591486,
+      "dist_peak_mrad": 1.002257977276415,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 1.4360862426385206e-09
+     }
+    },
+    "grid_edge_flags": [
+     "r_i at edge"
+    ]
+   }
+  },
+  "X_params20": {
+   "linear": {
+    "fc_hz": 46.241174645278484,
+    "S_gate_max": 1.9997621820591327,
+    "S_groups": {
+     "nominal": 1.9997621820591327,
+     "models0_spread0.2_cb0_d2": 1.9287682632105227
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 2.0559296007191272,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": null,
+     "ok": true
+    },
+    "note": "consolidated from G0",
+    "final_limit": 2.0,
+    "seconds": 0.22754883766174316,
+    "margins": {
+     "S_max": 1.999762182059133,
+     "S_max_freq_hz": 123.0,
+     "fc_hz": 46.241174645278484,
+     "fc_last_hz": 47.47505284675266,
+     "pm_deg": 67.17970645896253,
+     "pm_min_deg": 64.78577357622828,
+     "gm_up_db": 6.677404529628762,
+     "gm_low_db": null,
+     "T_max": 1.2183587336031025,
+     "nyquist_stable": true,
+     "S_max_worst_period": 2.472174739666154,
+     "old_gate_S_max_96_models": 4.127993624879584,
+     "old_gate_S_max_worst_period_6_extra": 4.405197225068859,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "linear",
+      "fc": 53.01454990728823,
+      "kp_scale": 0.9235561170851225,
+      "r_i": 12.0,
+      "lead_ratio": 4.776595445286629,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": null,
+      "wc_i_ratio": null
+     },
+     "kp": 2.1879998167677925,
+     "corners_hz": {
+      "wz": 11.098815152872337,
+      "wp": 253.22905762107365,
+      "wi": 4.417879158940686,
+      "wl": 300.0,
+      "wc_lp": null,
+      "wc_i": null
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 1.6353709172462352,
+      "peak_error_mrad": 6.005242534896663,
+      "settle_rms_urad": 1304.8442500088906,
+      "peak_current_ma": 26.2045153028385,
+      "twist_200_400hz_rms_urad": 0.0011287316176185355,
+      "tail_rms_urad": 2.0559296007191272,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.08232448491780064,
+      "dist_peak_mrad": 1.2950301589997988,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 6.265726322555682e-11
+     }
+    },
+    "grid_edge_flags": [
+     "r_i at edge",
+     "lp_hz at edge"
+    ],
+    "fc_before_consolidation_hz": 46.20826643656801
+   },
+   "I": {
+    "fc_hz": 54.56453001893596,
+    "S_gate_max": 1.992309844436508,
+    "S_groups": {
+     "nominal": 1.992309844436508,
+     "models0_spread0.2_cb0_d2": 1.8505034056965055
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 50.89092394861643,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9936598084981774,
+     "ok": true
+    },
+    "note": "consolidated from G0",
+    "final_limit": 2.0,
+    "seconds": 0.9769454002380371,
+    "margins": {
+     "S_max": 1.9923098444365077,
+     "S_max_freq_hz": 93.10000000000001,
+     "fc_hz": 54.56453001893596,
+     "fc_last_hz": 56.64567649639283,
+     "pm_deg": 49.404923538585365,
+     "pm_min_deg": 48.99218484319121,
+     "gm_up_db": 7.607248398115168,
+     "gm_low_db": null,
+     "T_max": 1.4105686052168003,
+     "nyquist_stable": true,
+     "S_max_worst_period": 2.8037905701080397,
+     "old_gate_S_max_96_models": 4.041760825646346,
+     "old_gate_S_max_worst_period_6_extra": 4.201145688971708,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "I",
+      "fc": 85.96449526482665,
+      "kp_scale": 0.6800684039167616,
+      "r_i": 2.376989050601601,
+      "lead_ratio": 5.0,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": null,
+      "wc_i_ratio": 0.044455160569193644
+     },
+     "kp": 2.375971472105262,
+     "corners_hz": {
+      "wz": 17.19289905296533,
+      "wp": 429.8224763241333,
+      "wi": 36.16528870550311,
+      "wl": 300.0,
+      "wc_lp": null,
+      "wc_i": 3.821565440247555
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.7082511537101578,
+      "peak_error_mrad": 2.9663985578214023,
+      "settle_rms_urad": 755.3814696508157,
+      "peak_current_ma": 77.02192631894944,
+      "twist_200_400hz_rms_urad": 61.54682703417163,
+      "tail_rms_urad": 50.89092394861643,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.06633908931994006,
+      "dist_peak_mrad": 1.0186343339117043,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 1.234422122493259e-05
+     }
+    },
+    "grid_edge_flags": [
+     "lead_ratio at edge",
+     "lp_hz at edge"
+    ],
+    "fc_before_consolidation_hz": 46.23972035271611
+   },
+   "LP": {
+    "fc_hz": 62.39516683161377,
+    "S_gate_max": 1.9970242583923854,
+    "S_groups": {
+     "nominal": 1.9970242583923854,
+     "models0_spread0.2_cb0_d2": 1.8540570129719232
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 3.5305442638610173e-09,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9983383657408615,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 19.280612230300903,
+    "margins": {
+     "S_max": 1.9970242583923854,
+     "S_max_freq_hz": 152.0,
+     "fc_hz": 62.39516683161377,
+     "fc_last_hz": 75.91210038374854,
+     "pm_deg": 59.25112404363492,
+     "pm_min_deg": 52.75618931067535,
+     "gm_up_db": 6.620204000288697,
+     "gm_low_db": 50.22692790613913,
+     "T_max": 1.3473927227401767,
+     "nyquist_stable": true,
+     "S_max_worst_period": 2.5576373945160626,
+     "old_gate_S_max_96_models": 3.7606522539685447,
+     "old_gate_S_max_worst_period_6_extra": 5.286892844561206,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "LP",
+      "fc": 50.14427319456318,
+      "kp_scale": 1.4,
+      "r_i": 2.0,
+      "lead_ratio": 3.0,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": 0.8333333333333334,
+      "wc_i_ratio": null
+     },
+     "kp": 4.624024638774422,
+     "corners_hz": {
+      "wz": 16.71475773152106,
+      "wp": 150.43281958368954,
+      "wi": 25.07213659728159,
+      "wl": 300.0,
+      "wc_lp": 41.78689432880265,
+      "wc_i": null
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.3496370205822931,
+      "peak_error_mrad": 1.7299380212164595,
+      "settle_rms_urad": 87.07540474938659,
+      "peak_current_ma": 57.79841825229412,
+      "twist_200_400hz_rms_urad": 44.21887342472158,
+      "tail_rms_urad": 3.5305442638610173e-09,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.012118419185906074,
+      "dist_peak_mrad": 0.6396824389801896,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 4.661202480379285e-12
+     }
+    },
+    "grid_edge_flags": [
+     "lp_hz at edge"
+    ]
+   },
+   "both": {
+    "fc_hz": 73.97157288665665,
+    "S_gate_max": 1.9897709047489602,
+    "S_groups": {
+     "nominal": 1.9897709047489602,
+     "models0_spread0.2_cb0_d2": 1.8413551483238604
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 0.3293108085218756,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9750439927627905,
+     "ok": true
+    },
+    "note": "consolidated from G0",
+    "final_limit": 2.0,
+    "seconds": 1.075345516204834,
+    "margins": {
+     "S_max": 1.9897709047489602,
+     "S_max_freq_hz": 152.0,
+     "fc_hz": 73.97157288665665,
+     "fc_last_hz": 83.61475373812499,
+     "pm_deg": 49.45824457785653,
+     "pm_min_deg": 41.71443641203962,
+     "gm_up_db": 7.1361029567165595,
+     "gm_low_db": null,
+     "T_max": 1.556362435354754,
+     "nyquist_stable": true,
+     "S_max_worst_period": 2.5967305601762747,
+     "old_gate_S_max_96_models": 5.02050741505886,
+     "old_gate_S_max_worst_period_6_extra": 10.932985022584496,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "both",
+      "fc": 107.07047904947208,
+      "kp_scale": 0.7,
+      "r_i": 1.5,
+      "lead_ratio": 3.8095238095238093,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": 1.0,
+      "wc_i_ratio": 0.08026365607725676
+     },
+     "kp": 4.350337256703526,
+     "corners_hz": {
+      "wz": 28.106000750486423,
+      "wp": 407.88753923608414,
+      "wi": 71.38031936631472,
+      "wl": 300.0,
+      "wc_lp": 107.07047904947208,
+      "wc_i": 8.593868106453954
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.27329449944385936,
+      "peak_error_mrad": 1.492704272381934,
+      "settle_rms_urad": 229.7102409365211,
+      "peak_current_ma": 76.70705834171304,
+      "twist_200_400hz_rms_urad": 46.70088976327123,
+      "tail_rms_urad": 0.3293108085218756,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.016914542035968583,
+      "dist_peak_mrad": 0.4991769461343609,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 7.54886235715673e-13
+     }
+    },
+    "grid_edge_flags": [
+     "r_i at edge",
+     "lp_hz at edge"
+    ],
+    "fc_before_consolidation_hz": 73.39098036493446
+   }
+  },
+  "X_delay148": {
+   "linear": {
+    "fc_hz": 42.68473651089864,
+    "S_gate_max": 1.9993884964260265,
+    "S_groups": {
+     "nominal": 1.8431085211417684,
+     "models0_spread0_cb0_d1-4-8": 1.9993884964260265
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 24.67135170410251,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": null,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 5.017980575561523,
+    "margins": {
+     "S_max": 1.8431085211417686,
+     "S_max_freq_hz": 98.80000000000001,
+     "fc_hz": 42.68473651089864,
+     "fc_last_hz": 43.23759993692458,
+     "pm_deg": 70.27770518133505,
+     "pm_min_deg": 69.83468738348174,
+     "gm_up_db": 8.16252145782616,
+     "gm_low_db": null,
+     "T_max": 1.083405718325575,
+     "nyquist_stable": true,
+     "S_max_worst_period": 2.380941066641414,
+     "old_gate_S_max_96_models": 3.2048205578954136,
+     "old_gate_S_max_worst_period_6_extra": 3.264842949495312,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "linear",
+      "fc": 39.40142201764349,
+      "kp_scale": 1.0978192236541795,
+      "r_i": 12.0,
+      "lead_ratio": 5.0,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": null,
+      "wc_i_ratio": null
+     },
+     "kp": 1.4452164770875477,
+     "corners_hz": {
+      "wz": 7.880284403528698,
+      "wp": 197.00711008821744,
+      "wi": 3.2834518348036243,
+      "wl": 300.0,
+      "wc_lp": null,
+      "wc_i": null
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 2.392175785914724,
+      "peak_error_mrad": 8.772052251273678,
+      "settle_rms_urad": 2132.8956841940926,
+      "peak_current_ma": 25.291692795811073,
+      "twist_200_400hz_rms_urad": 0.0008891157140217626,
+      "tail_rms_urad": 24.67135170410251,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.16769751249259504,
+      "dist_peak_mrad": 1.8783662759381874,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 4.9596781338812835e-11
+     }
+    },
+    "grid_edge_flags": [
+     "r_i at edge",
+     "lead_ratio at edge",
+     "lp_hz at edge"
+    ],
+    "fc_before_polish_hz": 40.67230076999446
+   },
+   "I": {
+    "fc_hz": 45.39515841502671,
+    "S_gate_max": 1.9906735373771385,
+    "S_groups": {
+     "nominal": 1.7875212348431953,
+     "models0_spread0_cb0_d1-4-8": 1.9906735373771385
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 41.21044393743025,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9937484388303977,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 4.34459662437439,
+    "margins": {
+     "S_max": 1.7875212348431957,
+     "S_max_freq_hz": 98.80000000000001,
+     "fc_hz": 45.39515841502671,
+     "fc_last_hz": 47.01584271251563,
+     "pm_deg": 64.00379549432796,
+     "pm_min_deg": 63.02885025994186,
+     "gm_up_db": 8.031255924436797,
+     "gm_low_db": null,
+     "T_max": 1.2264976922022506,
+     "nyquist_stable": true,
+     "S_max_worst_period": 2.2714957553164745,
+     "old_gate_S_max_96_models": 2.9482515900059814,
+     "old_gate_S_max_worst_period_6_extra": 3.2761985207722595,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "I",
+      "fc": 60.04011288358838,
+      "kp_scale": 0.7602170366674752,
+      "r_i": 4.163901732870093,
+      "lead_ratio": 5.0,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": null,
+      "wc_i_ratio": 0.032719832989129796
+     },
+     "kp": 1.845920038116331,
+     "corners_hz": {
+      "wz": 12.008022576717677,
+      "wp": 300.2005644179419,
+      "wi": 14.41919544105186,
+      "wl": 300.0,
+      "wc_lp": null,
+      "wc_i": 1.964502466199512
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 1.0929140409884912,
+      "peak_error_mrad": 4.990310277646879,
+      "settle_rms_urad": 438.3443994748065,
+      "peak_current_ma": 79.18379244926037,
+      "twist_200_400hz_rms_urad": 37.73487969387934,
+      "tail_rms_urad": 41.21044393743025,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.07642114650293796,
+      "dist_peak_mrad": 1.2493293369056795,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 0.000761452326067899
+     }
+    },
+    "grid_edge_flags": [
+     "lead_ratio at edge",
+     "lp_hz at edge"
+    ]
+   },
+   "LP": {
+    "fc_hz": 59.73754448523914,
+    "S_gate_max": 1.997026114305683,
+    "S_groups": {
+     "nominal": 1.7857400544466557,
+     "models0_spread0_cb0_d1-4-8": 1.997026114305683
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 1.7980999675393975e-05,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9972254777286549,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 26.392220735549927,
+    "margins": {
+     "S_max": 1.785740054446656,
+     "S_max_freq_hz": 152.0,
+     "fc_hz": 59.73754448523914,
+     "fc_last_hz": 64.51112505251153,
+     "pm_deg": 71.3029034747641,
+     "pm_min_deg": 65.88594981367527,
+     "gm_up_db": 7.545711445866355,
+     "gm_low_db": null,
+     "T_max": 1.2439467937983797,
+     "nyquist_stable": true,
+     "S_max_worst_period": 2.1682566931930642,
+     "old_gate_S_max_96_models": 2.69895991580431,
+     "old_gate_S_max_worst_period_6_extra": 3.142249494154507,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "LP",
+      "fc": 43.64533306831561,
+      "kp_scale": 1.4446337527311708,
+      "r_i": 3.0073824268615614,
+      "lead_ratio": 2.9942773335319557,
+      "lp_hz": 298.3525474096083,
+      "wc_lp_ratio": 0.7685845775640905,
+      "wc_i_ratio": null
+     },
+     "kp": 3.8818837565308884,
+     "corners_hz": {
+      "wz": 14.576249360587099,
+      "wp": 130.68623152091016,
+      "wi": 14.512731296984711,
+      "wl": 298.3525474096083,
+      "wc_lp": 33.545129878955386,
+      "wc_i": null
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.6108946455378784,
+      "peak_error_mrad": 2.6848877322053073,
+      "settle_rms_urad": 275.2990086401197,
+      "peak_current_ma": 78.3651819311172,
+      "twist_200_400hz_rms_urad": 68.20538309975407,
+      "tail_rms_urad": 1.7980999675393975e-05,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.023379634917000163,
+      "dist_peak_mrad": 0.824273764204551,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 8.90252081989282e-12
+     }
+    },
+    "grid_edge_flags": []
+   },
+   "both": {
+    "fc_hz": 61.468064194820656,
+    "S_gate_max": 1.9559623900716208,
+    "S_groups": {
+     "nominal": 1.8314994098446578,
+     "models0_spread0_cb0_d1-4-8": 1.9559623900716208
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 58.98686040288555,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9568707285315334,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 6.183372735977173,
+    "margins": {
+     "S_max": 1.8314994098446578,
+     "S_max_freq_hz": 165.0,
+     "fc_hz": 61.468064194820656,
+     "fc_last_hz": 66.60393734523569,
+     "pm_deg": 76.56126614095848,
+     "pm_min_deg": 66.98419546460013,
+     "gm_up_db": 7.971308377088847,
+     "gm_low_db": null,
+     "T_max": 1.125136284557218,
+     "nyquist_stable": true,
+     "S_max_worst_period": 2.260914770466977,
+     "old_gate_S_max_96_models": 2.5996294384129226,
+     "old_gate_S_max_worst_period_6_extra": 2.8363736945872624,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "both",
+      "fc": 49.55291010872772,
+      "kp_scale": 1.2839832858998428,
+      "r_i": 3.188159999999999,
+      "lead_ratio": 3.852915617309886,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": 1.42611185149318,
+      "wc_i_ratio": 0.09373958715530611
+     },
+     "kp": 2.879131578369017,
+     "corners_hz": {
+      "wz": 12.861145955572644,
+      "wp": 190.92318124106995,
+      "wi": 15.542792742123273,
+      "wl": 300.0,
+      "wc_lp": 70.6679923820328,
+      "wc_i": 4.645069335936132
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.7903181043899796,
+      "peak_error_mrad": 3.0532226943130043,
+      "settle_rms_urad": 765.4938209671817,
+      "peak_current_ma": 78.27032277314173,
+      "twist_200_400hz_rms_urad": 83.57551310814496,
+      "tail_rms_urad": 58.98686040288555,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.07524041539374442,
+      "dist_peak_mrad": 0.8128945360268648,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 2.2291423384804508e-05
+     }
+    },
+    "grid_edge_flags": [
+     "lp_hz at edge"
+    ],
+    "fc_before_polish_hz": 60.28385291265372
+   }
+  },
+  "X_cb": {
+   "linear": {
+    "fc_hz": 46.241174645278484,
+    "S_gate_max": 1.9997621820591327,
+    "S_groups": {
+     "nominal": 1.9997621820591327,
+     "models0_spread0_cb1_d2": 1.7302082259529128
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 2.0559296007191272,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": null,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 1.5829663276672363,
+    "margins": {
+     "S_max": 1.999762182059133,
+     "S_max_freq_hz": 123.0,
+     "fc_hz": 46.241174645278484,
+     "fc_last_hz": 47.47505284675266,
+     "pm_deg": 67.17970645896253,
+     "pm_min_deg": 64.78577357622828,
+     "gm_up_db": 6.677404529628762,
+     "gm_low_db": null,
+     "T_max": 1.2183587336031025,
+     "nyquist_stable": true,
+     "S_max_worst_period": 2.472174739666154,
+     "old_gate_S_max_96_models": 4.127993624879584,
+     "old_gate_S_max_worst_period_6_extra": 4.405197225068859,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "linear",
+      "fc": 53.01454990728823,
+      "kp_scale": 0.9235561170851225,
+      "r_i": 12.0,
+      "lead_ratio": 4.776595445286629,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": null,
+      "wc_i_ratio": null
+     },
+     "kp": 2.1879998167677925,
+     "corners_hz": {
+      "wz": 11.098815152872337,
+      "wp": 253.22905762107365,
+      "wi": 4.417879158940686,
+      "wl": 300.0,
+      "wc_lp": null,
+      "wc_i": null
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 1.6353709172462352,
+      "peak_error_mrad": 6.005242534896663,
+      "settle_rms_urad": 1304.8442500088906,
+      "peak_current_ma": 26.2045153028385,
+      "twist_200_400hz_rms_urad": 0.0011287316176185355,
+      "tail_rms_urad": 2.0559296007191272,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.08232448491780064,
+      "dist_peak_mrad": 1.2950301589997988,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 6.265726322555682e-11
+     }
+    },
+    "grid_edge_flags": [
+     "r_i at edge",
+     "lp_hz at edge"
+    ],
+    "fc_before_polish_hz": 45.36529419462286
+   },
+   "I": {
+    "fc_hz": 54.56453001893596,
+    "S_gate_max": 1.992309844436508,
+    "S_groups": {
+     "nominal": 1.992309844436508,
+     "models0_spread0_cb1_d2": 1.8323202499500868
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 50.89092394861643,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9936598084981774,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 3.305224895477295,
+    "margins": {
+     "S_max": 1.9923098444365077,
+     "S_max_freq_hz": 93.10000000000001,
+     "fc_hz": 54.56453001893596,
+     "fc_last_hz": 56.64567649639283,
+     "pm_deg": 49.404923538585365,
+     "pm_min_deg": 48.99218484319121,
+     "gm_up_db": 7.607248398115168,
+     "gm_low_db": null,
+     "T_max": 1.4105686052168003,
+     "nyquist_stable": true,
+     "S_max_worst_period": 2.8037905701080397,
+     "old_gate_S_max_96_models": 4.041760825646346,
+     "old_gate_S_max_worst_period_6_extra": 4.201145688971708,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "I",
+      "fc": 85.96449526482665,
+      "kp_scale": 0.6800684039167616,
+      "r_i": 2.376989050601601,
+      "lead_ratio": 5.0,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": null,
+      "wc_i_ratio": 0.044455160569193644
+     },
+     "kp": 2.375971472105262,
+     "corners_hz": {
+      "wz": 17.19289905296533,
+      "wp": 429.8224763241333,
+      "wi": 36.16528870550311,
+      "wl": 300.0,
+      "wc_lp": null,
+      "wc_i": 3.821565440247555
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.7082511537101578,
+      "peak_error_mrad": 2.9663985578214023,
+      "settle_rms_urad": 755.3814696508157,
+      "peak_current_ma": 77.02192631894944,
+      "twist_200_400hz_rms_urad": 61.54682703417163,
+      "tail_rms_urad": 50.89092394861643,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.06633908931994006,
+      "dist_peak_mrad": 1.0186343339117043,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 1.234422122493259e-05
+     }
+    },
+    "grid_edge_flags": [
+     "lead_ratio at edge",
+     "lp_hz at edge"
+    ]
+   },
+   "LP": {
+    "fc_hz": 62.39516683161377,
+    "S_gate_max": 1.9970242583923854,
+    "S_groups": {
+     "nominal": 1.9970242583923854,
+     "models0_spread0_cb1_d2": 1.6699048320115015
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 3.5305442638610173e-09,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9983383657408615,
+     "ok": true
+    },
+    "note": "",
+    "final_limit": 2.0,
+    "seconds": 6.230410099029541,
+    "margins": {
+     "S_max": 1.9970242583923854,
+     "S_max_freq_hz": 152.0,
+     "fc_hz": 62.39516683161377,
+     "fc_last_hz": 75.91210038374854,
+     "pm_deg": 59.25112404363492,
+     "pm_min_deg": 52.75618931067535,
+     "gm_up_db": 6.620204000288697,
+     "gm_low_db": 50.22692790613913,
+     "T_max": 1.3473927227401767,
+     "nyquist_stable": true,
+     "S_max_worst_period": 2.5576373945160626,
+     "old_gate_S_max_96_models": 3.7606522539685447,
+     "old_gate_S_max_worst_period_6_extra": 5.286892844561206,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "LP",
+      "fc": 50.14427319456318,
+      "kp_scale": 1.4,
+      "r_i": 2.0,
+      "lead_ratio": 3.0,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": 0.8333333333333334,
+      "wc_i_ratio": null
+     },
+     "kp": 4.624024638774422,
+     "corners_hz": {
+      "wz": 16.71475773152106,
+      "wp": 150.43281958368954,
+      "wi": 25.07213659728159,
+      "wl": 300.0,
+      "wc_lp": 41.78689432880265,
+      "wc_i": null
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.3496370205822931,
+      "peak_error_mrad": 1.7299380212164595,
+      "settle_rms_urad": 87.07540474938659,
+      "peak_current_ma": 57.79841825229412,
+      "twist_200_400hz_rms_urad": 44.21887342472158,
+      "tail_rms_urad": 3.5305442638610173e-09,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.012118419185906074,
+      "dist_peak_mrad": 0.6396824389801896,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 4.661202480379285e-12
+     }
+    },
+    "grid_edge_flags": [
+     "lp_hz at edge"
+    ]
+   },
+   "both": {
+    "fc_hz": 73.97157288665665,
+    "S_gate_max": 1.9897709047489602,
+    "S_groups": {
+     "nominal": 1.9897709047489602,
+     "models0_spread0_cb1_d2": 1.7193980962832107
+    },
+    "verify": {
+     "td_ok": true,
+     "td_tail_rms_urad": 0.3293108085218756,
+     "td_clipped": 0,
+     "cascade_ok": true,
+     "cascade_S_gate": 1.9750439927627905,
+     "ok": true
+    },
+    "note": "consolidated from G0",
+    "final_limit": 2.0,
+    "seconds": 1.0778698921203613,
+    "margins": {
+     "S_max": 1.9897709047489602,
+     "S_max_freq_hz": 152.0,
+     "fc_hz": 73.97157288665665,
+     "fc_last_hz": 83.61475373812499,
+     "pm_deg": 49.45824457785653,
+     "pm_min_deg": 41.71443641203962,
+     "gm_up_db": 7.1361029567165595,
+     "gm_low_db": null,
+     "T_max": 1.556362435354754,
+     "nyquist_stable": true,
+     "S_max_worst_period": 2.5967305601762747,
+     "old_gate_S_max_96_models": 5.02050741505886,
+     "old_gate_S_max_worst_period_6_extra": 10.932985022584496,
+     "old_gate_models_nyquist_stable": true,
+     "old_gate_pass": false,
+     "params": {
+      "mode": "both",
+      "fc": 107.07047904947208,
+      "kp_scale": 0.7,
+      "r_i": 1.5,
+      "lead_ratio": 3.8095238095238093,
+      "lp_hz": 300.0,
+      "wc_lp_ratio": 1.0,
+      "wc_i_ratio": 0.08026365607725676
+     },
+     "kp": 4.350337256703526,
+     "corners_hz": {
+      "wz": 28.106000750486423,
+      "wp": 407.88753923608414,
+      "wi": 71.38031936631472,
+      "wl": 300.0,
+      "wc_lp": 107.07047904947208,
+      "wc_i": 8.593868106453954
+     },
+     "time_domain": {
+      "diverged": false,
+      "clipped_samples": 0,
+      "move_rms_mrad": 0.27329449944385936,
+      "peak_error_mrad": 1.492704272381934,
+      "settle_rms_urad": 229.7102409365211,
+      "peak_current_ma": 76.70705834171304,
+      "twist_200_400hz_rms_urad": 46.70088976327123,
+      "tail_rms_urad": 0.3293108085218756,
+      "dist_diverged": false,
+      "dist_iae_mrad_s": 0.016914542035968583,
+      "dist_peak_mrad": 0.4991769461343609,
+      "dist_clipped": 0,
+      "dist_tail_rms_urad": 7.54886235715673e-13
+     }
+    },
+    "grid_edge_flags": [
+     "r_i at edge",
+     "lp_hz at edge"
+    ],
+    "fc_before_consolidation_hz": 63.29291327189462
+   }
+  }
+ },
+ "summary": {
+  "fc_hz": {
+   "G0": {
+    "linear": 46.241174645278484,
+    "I": 54.56453001893596,
+    "LP": 62.39516683161377,
+    "both": 73.97157288665665
+   },
+   "G1": {
+    "linear": 37.067819711213765,
+    "I": 43.84449539060456,
+    "LP": 59.78699225681649,
+    "both": 63.26211705632803
+   },
+   "G2": {
+    "linear": 37.067819711213765,
+    "I": 43.84422530515544,
+    "LP": 59.78699225681649,
+    "both": 63.28142688447786
+   },
+   "G3": {
+    "linear": 37.067819711213765,
+    "I": 43.84449539060456,
+    "LP": 59.78699225681649,
+    "both": 63.27421319777946
+   },
+   "G4": {
+    "linear": 37.067819711213765,
+    "I": 43.84449539060456,
+    "LP": 59.78699225681649,
+    "both": 61.46447462347457
+   },
+   "G5": {
+    "linear": 25.678956791425314,
+    "I": 33.65189780618727,
+    "LP": 45.30583477972501,
+    "both": 46.17331880749099
+   },
+   "X_period6": {
+    "linear": 31.100607020664345,
+    "I": 38.33044793318047,
+    "LP": 45.30583477972501,
+    "both": 46.226871482682185
+   },
+   "X_params20": {
+    "linear": 46.241174645278484,
+    "I": 54.56453001893596,
+    "LP": 62.39516683161377,
+    "both": 73.97157288665665
+   },
+   "X_delay148": {
+    "linear": 42.68473651089864,
+    "I": 45.39515841502671,
+    "LP": 59.73754448523914,
+    "both": 61.468064194820656
+   },
+   "X_cb": {
+    "linear": 46.241174645278484,
+    "I": 54.56453001893596,
+    "LP": 62.39516683161377,
+    "both": 73.97157288665665
+   }
+  },
+  "both_vs_linear_gain_pct": {
+   "G0": 59.9690610242956,
+   "G1": 70.66587015148873,
+   "G2": 70.71796339112426,
+   "G3": 70.6985026115192,
+   "G4": 65.81626624476196,
+   "G5": 79.80994782042366,
+   "X_period6": 48.63655700342895,
+   "X_params20": 59.9690610242956,
+   "X_delay148": 44.00478770467775,
+   "X_cb": 59.9690610242956
+  },
+  "fc_change_per_step_hz": {
+   "G0->G1": {
+    "linear": -9.173354934064719,
+    "I": -10.720034628331405,
+    "LP": -2.6081745747972818,
+    "both": -10.709455830328615
+   },
+   "G1->G2": {
+    "linear": 0.0,
+    "I": -0.00027008544911666377,
+    "LP": 0.0,
+    "both": 0.0193098281498294
+   },
+   "G2->G3": {
+    "linear": 0.0,
+    "I": 0.00027008544911666377,
+    "LP": 0.0,
+    "both": -0.007213686698399613
+   },
+   "G3->G4": {
+    "linear": 0.0,
+    "I": 0.0,
+    "LP": 0.0,
+    "both": -1.8097385743048875
+   },
+   "G4->G5": {
+    "linear": -11.388862919788451,
+    "I": -10.192597584417285,
+    "LP": -14.481157477091479,
+    "both": -15.29115581598358
+   }
+  },
+  "ablation_fc_change_vs_G0_hz": {
+   "X_period6": {
+    "linear": -15.140567624614139,
+    "I": -16.23408208575549,
+    "LP": -17.08933205188876,
+    "both": -27.74470140397446
+   },
+   "X_params20": {
+    "linear": 0.0,
+    "I": 0.0,
+    "LP": 0.0,
+    "both": 0.0
+   },
+   "X_delay148": {
+    "linear": -3.556438134379846,
+    "I": -9.169371603909255,
+    "LP": -2.6576223463746302,
+    "both": -12.50350869183599
+   },
+   "X_cb": {
+    "linear": 0.0,
+    "I": 0.0,
+    "LP": 0.0,
+    "both": 0.0
+   }
+  }
+ },
+ "runtime_s": 1126.966786146164
+}
