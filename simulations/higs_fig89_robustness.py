@@ -18,6 +18,8 @@ Loop used for robustness:  L = kp*C(DF)*G8*exp(-j w Ts*extra)
 Time-domain checks use the identified model (exact ZOH, 2-sample delay) with the real nonlinear law.
 Run:  python simulations/higs_fig89_robustness.py [--output DIR]   (about 12 minutes)
       python simulations/higs_fig89_robustness.py --gate-sweep      (max fc per mode vs gate strictness G0..G5, about 25 minutes)
+      python simulations/higs_fig89_robustness.py --followup all    (old-shape linear limit, error-optimal designs, parameter table
+                                                                     -> fig89_followup.json; needs fig89_gate_sweep.json)
 """
 from __future__ import annotations
 import argparse
@@ -207,6 +209,20 @@ def corners(d):
     return c
 
 
+def tuning_fields(d, kp):
+    """MATLAB exp05_Higs design-JSON `tuning` fields of a design (kh = 1). HIGS corners a mode does not use are filled with
+    higs_design.json's defaults (100 Hz / 2 Hz); they have no effect in that mode and are listed in `unused`."""
+    fc = d["fc"]
+    unused = ([] if d["mode"] in ("LP", "both") else ["higs_lp_corner_hz"]) + ([] if d["mode"] in ("I", "both") else ["higs_i_corner_hz"])
+    if d["mode"] == "linear":
+        unused += ["higs_lp_gain", "higs_i_gain"]
+    return dict(kp=float(kp), integral_hz=fc / d["r_i"], lead_zero_hz=fc / d["lead_ratio"], lead_pole_hz=fc * d["lead_ratio"],
+                lowpass_hz=d["lp_hz"],
+                higs_lp_corner_hz=fc * d["wc_lp_ratio"] if d["wc_lp_ratio"] is not None else 100.,
+                higs_i_corner_hz=fc * d["wc_i_ratio"] if d["wc_i_ratio"] is not None else 2.,
+                higs_lp_gain=1.0, higs_i_gain=1.0, mode=d["mode"], unused=unused)
+
+
 class FreqModel:
     """Frequency-domain evaluation of the loop on a frequency grid with a plant array G."""
 
@@ -360,14 +376,14 @@ def discrete_plant(p=None):
     return e[:4, :4], e[:4, 4], e[:4, 5]
 
 
-def simulate(ctrl, reference, load_torque=None, *, delay=2, quantized=False, current_limit=CURRENT_LIMIT):
+def simulate(ctrl, reference, load_torque=None, *, delay=2, quantized=False, current_limit=CURRENT_LIMIT, angle_counts=8388608):
     ad, bm_, bd_ = (x.tolist() for x in discrete_plant())
     n = len(reference)
     out = np.zeros((n, 6))     # theta_m, w_m, theta_l, w_l, command, applied
     x = [0.0] * 4
     queue = [0.0] * (delay + 1)
     cq = 0.0016 if quantized else 0.0
-    eq = 2 * np.pi / 8388608 if quantized else 0.0
+    eq = 2 * np.pi / angle_counts if quantized else 0.0
     clipped = 0
     r_list = reference.tolist()
     d_list = (load_torque if load_torque is not None else np.zeros(n)).tolist()
@@ -407,10 +423,10 @@ def reference_windows(ref):
     return w1 | w2
 
 
-def td_metrics(make_ctrl, *, quantized=False, disturbance_record=1.6):
+def td_metrics(make_ctrl, *, quantized=False, disturbance_record=1.6, angle_counts=8388608):
     ref = base.reference_profile()
     ctrl = make_ctrl()
-    out, clipped, diverged = simulate(ctrl, ref, quantized=quantized)
+    out, clipped, diverged = simulate(ctrl, ref, quantized=quantized, angle_counts=angle_counts)
     e = ref - out[:, 2]
     win = reference_windows(ref)
     twist = out[:, 0] - out[:, 2]
@@ -427,7 +443,7 @@ def td_metrics(make_ctrl, *, quantized=False, disturbance_record=1.6):
     t = np.arange(n) * TS
     dist = 0.005 * (t >= 0.1)
     ctrl = make_ctrl()
-    out2, clip2, div2 = simulate(ctrl, np.zeros(n), dist, quantized=quantized)
+    out2, clip2, div2 = simulate(ctrl, np.zeros(n), dist, quantized=quantized, angle_counts=angle_counts)
     rec["dist_diverged"] = div2
     traces = dict(t=np.arange(len(ref)) * TS, e=e, t2=t, e2=None)
     if not div2:
@@ -619,6 +635,7 @@ class Context:
         L = fm.loop(d, kp)
         m = loop_metrics(self.f, L)
         out = slim(m)
+        out["tuning"] = tuning_fields(d, kp)
         out["S_max_extra_delay0"] = float(np.max(abs(1 / (1 + self.fm0.loop(d, kp)))))
         out["S_max_extra_delay2"] = float(np.max(abs(1 / (1 + self.fm2.loop(d, kp)))))
         out["S_max_extra_delay6"] = float(np.max(abs(1 / (1 + self.fm6.loop(d, kp)))))
@@ -768,6 +785,9 @@ def main():
     ap.add_argument("--gate-sweep", action="store_true",
                     help="max crossover per mode vs gate strictness G0..G5 (+ ablations) -> fig89_gate_sweep.json/.png; "
                          "needs results/fig89_robustness.json (G0 optima)")
+    ap.add_argument("--followup", choices=("q1", "q2", "all"),
+                    help="q1: max linear crossover with the old design shape under G5; q2: error-optimal designs (G5, G1, quantization); "
+                         "-> fig89_followup.json (needs fig89_gate_sweep.json; fig89_robustness.json for the matched corners)")
     ap.add_argument("--no-ablations", action="store_true", help="with --gate-sweep: skip the single-element ablation gates")
     args = ap.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
@@ -778,6 +798,9 @@ def main():
 
     if args.gate_sweep:
         gate_sweep(args, log)
+        return
+    if args.followup:
+        followup(args, log)
         return
 
     ctx = Context()
@@ -982,9 +1005,9 @@ def make_feasible(ge, d, limit, accept=None, factor=0.97, tries=250):
 
 
 def sweep_refine(ge, d, r, limit, steps=(0.2, 0.1, 0.05, 0.025, 0.0125), pair_tries=120, rng=None, max_evals=2000,
-                 accept=None):
+                 accept=None, keys=None):
     """Coordinate pattern search + random two-parameter moves maximising the nominal crossover under the gate."""
-    keys = sweep_keys(d)
+    keys = keys or sweep_keys(d)
     lo = {k: SWEEP_BOUNDS[k][0] for k in keys}
     hi = {k: SWEEP_BOUNDS[k][1] for k in keys}
     n_eval = 0
@@ -1031,14 +1054,14 @@ def sweep_refine(ge, d, r, limit, steps=(0.2, 0.1, 0.05, 0.025, 0.0125), pair_tr
     return best[1], best[2]
 
 
-def perturb(d, rng, sigma=SIGMA_PERTURB):
+def perturb(d, rng, sigma=SIGMA_PERTURB, keys=None):
     q = dict(d)
-    for k in sweep_keys(d):
+    for k in keys or sweep_keys(d):
         q[k] = float(np.clip(d[k] * np.exp(sigma * rng.normal()), *SWEEP_BOUNDS[k]))
     return q
 
 
-def optimise_gate(ge, ge_full, starts, limit, rng, sigma=SIGMA_PERTURB, n_perturb=N_PERTURB):
+def optimise_gate(ge, ge_full, starts, limit, rng, sigma=SIGMA_PERTURB, n_perturb=N_PERTURB, keys=None):
     """starts: designs (any may be infeasible). Every accepted design also passes the time-domain screen
     (80 mA clamp, no limit cycle; cached). Returns (d, r) evaluated on the full grid `ge_full`."""
     cache = {}
@@ -1057,7 +1080,7 @@ def optimise_gate(ge, ge_full, starts, limit, rng, sigma=SIGMA_PERTURB, n_pertur
         pool.append((r0["fc"], d0, r0))
         base_designs.append((d0, r0))
         for _ in range(n_perturb):
-            q = perturb(d0, rng, sigma)
+            q = perturb(d0, rng, sigma, keys)
             rq = ge.evaluate(q, limit)
             if rq is not None:
                 pool.append((rq["fc"], q, rq))
@@ -1074,12 +1097,12 @@ def optimise_gate(ge, ge_full, starts, limit, rng, sigma=SIGMA_PERTURB, n_pertur
         chosen += sorted(base_designs, key=lambda x: -x[1]["fc"])[:N_REFINE_STARTS - len(chosen)]
     best = None
     for d, r in chosen:
-        d, r = sweep_refine(ge, d, r, limit, rng=rng, accept=td_ok)
+        d, r = sweep_refine(ge, d, r, limit, rng=rng, accept=td_ok, keys=keys)
         if best is None or r["fc"] > best[1]["fc"]:
             best = (d, r)
     d, r = best
     d, r = make_feasible(ge_full, d, limit, td_ok, factor=0.995, tries=300)
-    return sweep_refine(ge_full, d, r, limit, steps=(0.025, 0.0125), pair_tries=30, rng=rng, max_evals=400, accept=td_ok)
+    return sweep_refine(ge_full, d, r, limit, steps=(0.025, 0.0125), pair_tries=30, rng=rng, max_evals=400, accept=td_ok, keys=keys)
 
 
 def td_screen_sweep(d, kp):
@@ -1118,7 +1141,7 @@ def design_report(ctx, d, kp):
     keep = ("S_max", "S_max_freq_hz", "fc_hz", "fc_last_hz", "pm_deg", "pm_min_deg", "gm_up_db", "gm_low_db", "T_max",
             "nyquist_stable", "S_max_worst_period", "old_gate_S_max_96_models", "old_gate_S_max_worst_period_6_extra",
             "old_gate_models_nyquist_stable", "old_gate_pass")
-    return dict({k: a[k] for k in keep}, params=d, kp=kp,
+    return dict({k: a[k] for k in keep}, params=d, kp=kp, tuning=tuning_fields(d, kp),
                 corners_hz={k: (v / (2 * np.pi) if v else None) for k, v in corners(d).items()}, time_domain=td_rec)
 
 
@@ -1314,6 +1337,292 @@ def plot_gate_sweep(out, res):
     ax[1].set(xticks=x, xticklabels=gates, ylabel="gain of both-HIGS over linear [%]", title="Both-HIGS vs linear bandwidth")
     fig.savefig(out / "fig89_gate_sweep.png", dpi=150)
     plt.close(fig)
+
+
+# ------------------------------------------------------------------ follow-up (--followup)
+OLD_SHAPE = dict(lp_hz=100., lead_ratio=3., r_i=4.)       # repo 8 Hz design: LPF 100 Hz, lead 3 centred at fc, PI at fc/4
+
+
+def gate_row(ge, d):
+    """Gate evaluation of design d (kp = kp_scale * unity-gain kp): S per plant group, Nyquist, first crossover."""
+    kp = d["kp_scale"] * ge.fm.kp_for_unity(d)
+    ctrl = kp * ge.fm.controller(d)
+    groups = ge.smax_groups(ctrl)
+    return dict(kp=float(kp), fc_hz=first_crossover(ge.f, ctrl * ge.fm.G), S_gate=max(groups.values()), S_groups=groups,
+                nyquist_stable=ge.stable(ctrl))
+
+
+def repo_gate_numbers(crossover_hz, lead_ratio=3.):
+    """The repo's own computation (higs_two_inertia.main, summary.json bandwidth_comparison) for make_design(crossover_hz, lead_ratio):
+    worst |S| over 96 models x delay 1/4/8 (linear_metrics, 0.01-3999 Hz grid, repo kp) and worst measured period + 6 samples."""
+    n = base.NOMINAL
+    cand, _, tuning = base.make_design(crossover_hz=crossover_hz, lead_ratio=lead_ratio)
+    worst = 0.0
+    for jm, jl, k, c, b, delay in itertools.product([.8, 1.2], [.8, 1.2], [.8, 1.2], [.5, 1.5], [.5, 1.5], [1, 4, 8]):
+        model = n | dict(jm=n["jm"] * jm, jl=n["jl"] * jl, stiffness=n["stiffness"] * k, damping=n["damping"] * c,
+                         bm=n["bm"] * b, bl=n["bl"] * b)
+        worst = max(worst, base.linear_metrics(cand, delay, model)["peak_sensitivity"])
+    return dict(S_96_models_repo_code=worst, S_worst_period_plus6_repo_code=base.measured_linear_metrics(cand)["worst_period_with_extra_delay"],
+                repo_kp=tuning["kp"], repo_integral_hz=tuning["integral_hz"], repo_lead_zero_hz=tuning["lead_zero_hz"],
+                repo_lead_pole_hz=tuning["lead_pole_hz"])
+
+
+def random_starts(ge, base_d, keys, rng, n=15000, n_top=3):
+    """Log-uniform samples over the bounds of `keys`; the n_top best distinct (>0.5 % in fc) gate-feasible designs."""
+    found = []
+    for _ in range(n):
+        q = dict(base_d)
+        for k in keys:
+            lo, hi = SWEEP_BOUNDS[k]
+            q[k] = float(np.exp(rng.uniform(np.log(lo), np.log(hi))))
+        r = ge.evaluate(q)
+        if r is not None:
+            found.append((r["fc"], q))
+    found.sort(key=lambda x: -x[0])
+    out = []
+    for fc, q in found:
+        if all(abs(fc / x - 1) > 5e-3 for x, _ in out):
+            out.append((fc, q))
+        if len(out) >= n_top:
+            break
+    return [q for _, q in out], len(found)
+
+
+def td_summary(d, kp, **kw):
+    rec, _ = td_metrics(lambda: Controller(d, kp), **kw)
+    keep = ("diverged", "clipped_samples", "move_rms_mrad", "settle_rms_urad", "dist_iae_mrad_s", "peak_current_ma",
+            "twist_200_400hz_rms_urad", "tail_rms_urad", "dist_diverged", "dist_clipped", "dist_tail_rms_urad")
+    return {k: rec[k] for k in keep if k in rec}
+
+
+def design_record(name, d, kp, ge, **extra):
+    row = gate_row(ge, d)
+    return dict(name=name, params=d, kp=float(kp), tuning=tuning_fields(d, kp), fc_hz=row["fc_hz"], S_gate=row["S_gate"],
+                edge_flags=[f"{k} at edge" for k in sweep_keys(d) if d[k] <= SWEEP_BOUNDS[k][0] * 1.001 or d[k] >= SWEEP_BOUNDS[k][1] * 0.999],
+                S_groups=row["S_groups"], nyquist_stable=row["nyquist_stable"], time_domain=td_summary(d, kp), **extra)
+
+
+def followup_q1(ctx, ge_s, ge_f, rng, log):
+    out = {}
+    # (a) the repo designs under G5, with the repo's own code path for comparison with summary.json
+    ev = {}
+    for fc, ri, label in ((8., 4., "repo_8Hz"), (10., 5., "repo_10Hz_PI2Hz"), (10., 4., "10Hz_PI_fc_over_4")):
+        d = design_params("linear", fc, 1.0, ri, 3., 100.)
+        row = gate_row(ge_f, d)
+        row["params"] = d
+        row["kp_repo_basis"] = base.make_design(crossover_hz=fc, lead_ratio=3., integral_hz=fc / ri)[2]["kp"]
+        if label.startswith("repo"):
+            row["repo_code"] = repo_gate_numbers(fc)
+        ev[label] = row
+        log(f"  {label}: S_gate {row['S_gate']:.3f}  groups { {k[:9]: round(v, 3) for k, v in row['S_groups'].items()} }  "
+            f"kp {row['kp']:.4f} (repo {row['kp_repo_basis']:.4f})  repo code {row.get('repo_code', {}).get('S_96_models_repo_code')}")
+    out["repo_designs_under_G5"] = ev
+
+    cache = {}
+
+    def td_ok(q, kp):
+        key = tuple(q.values())
+        if key not in cache:
+            cache[key] = td_screen_sweep(q, kp)[0]
+        return cache[key]
+
+    def record(name, d, r, keys):
+        row = design_record(name, d, r["kp"], ge_f, free_keys=keys)
+        row["td_ok"] = bool(td_ok(d, r["kp"]))
+        log(f"  {name}: fc {row['fc_hz']:.2f} Hz  S {row['S_gate']:.3f}  td_ok {row['td_ok']}  "
+            f"fc_design {d['fc']:.2f} kp_scale {d['kp_scale']:.3f} r_i {d['r_i']:.2f} lead {d['lead_ratio']:.2f} lp {d['lp_hz']:.0f}  {row['edge_flags']}")
+        return row
+
+    # (b) shape fixed in ABSOLUTE Hz at the repo 8 Hz design (zero 2.667, pole 24, PI 2, LPF 100): only kp free
+    fixed = design_params("linear", 8., 1.0, 4., 3., 100.)
+    best, feas = None, []
+    for ks in np.geomspace(0.05, 5., 4000):
+        d = dict(fixed, kp_scale=float(ks))
+        r = ge_f.evaluate(d)
+        if r is not None and td_ok(d, r["kp"]):
+            feas.append((ks, r))
+            if best is None or r["fc"] > best[1]["fc"]:
+                best = (d, r)
+    rows = {}
+    if best:
+        rows["kp_only_absolute_8Hz_shape"] = record("kp_only_absolute_8Hz_shape", best[0], best[1], ["kp_scale"])
+        rows["kp_only_absolute_8Hz_shape"]["feasible_kp_range"] = [float(feas[0][1]["kp"]), float(feas[-1][1]["kp"])]
+    else:
+        rows["kp_only_absolute_8Hz_shape"] = None
+        log("  kp_only_absolute_8Hz_shape: no feasible kp")
+
+    # (b2) the repo's family: kp_scale = 1 (lead centred at the crossover), only fc free; PI at fc/4 or fixed at 2 Hz
+    for name, ri_of in (("fc_only_kp1_PI_fc_over_4", lambda fc: 4.), ("fc_only_kp1_PI_2Hz", lambda fc: fc / 2.)):
+        best = None
+        for fc in np.geomspace(2., 60., 600):
+            d = design_params("linear", fc, 1.0, ri_of(fc), 3., 100.)
+            r = ge_f.evaluate(d)
+            if r is not None and td_ok(d, r["kp"]) and (best is None or r["fc"] > best[1]["fc"]):
+                best = (d, r)
+        rows[name] = record(name, best[0], best[1], ["fc"]) if best else None
+        if not best:
+            log(f"  {name}: no feasible fc")
+
+    # (c) ratios fixed (LPF 100, lead 3 centred at fc, PI fc/4): fc and kp free; then one / two / all shape parameters freed
+    plans = [("fc_kp_old_ratios", ["fc", "kp_scale"]),
+             ("free_lp_hz", ["fc", "kp_scale", "lp_hz"]), ("free_lead_ratio", ["fc", "kp_scale", "lead_ratio"]),
+             ("free_r_i", ["fc", "kp_scale", "r_i"]),
+             ("free_lp_hz_lead_ratio", ["fc", "kp_scale", "lp_hz", "lead_ratio"]), ("free_lp_hz_r_i", ["fc", "kp_scale", "lp_hz", "r_i"]),
+             ("free_lead_ratio_r_i", ["fc", "kp_scale", "lead_ratio", "r_i"]),
+             ("free_all_shape", ["fc", "kp_scale", "lp_hz", "lead_ratio", "r_i"])]
+    start_d = design_params("linear", 8., 1.0, 4., 3., 100.)
+    for name, keys in plans:
+        t1 = time.time()
+        starts, n_feas = random_starts(ge_s, start_d, keys, rng, n=3000 if len(keys) < 5 else 8000)
+        if not starts:
+            log(f"  {name}: no feasible random start")
+            rows[name] = None
+            continue
+        d, r = optimise_gate(ge_s, ge_f, starts, S_LIMIT, rng, keys=keys)
+        rows[name] = record(name, d, r, keys)
+        rows[name]["seconds"] = time.time() - t1
+    out["max_crossover_G5"] = rows
+    return out
+
+
+def optimise_rms(ge, starts, rng, limit=S_LIMIT, sigma=0.3, n_perturb=150, n_refine=3, max_evals=1500,
+                 steps=(0.2, 0.1, 0.05, 0.025, 0.0125)):
+    """Minimise the round-trip move RMS error of the time-domain model over the design parameters subject to the gate
+    (|S| <= limit on all gate plants with the DF controller, Nyquist) and the time-domain screen (td_screen_sweep)."""
+    cache = {}
+
+    def cost(q):
+        key = tuple(q.values())
+        if key not in cache:
+            r = ge.evaluate(q, limit)
+            res = None
+            if r is not None:
+                ok, rec = td_screen_sweep(q, r["kp"])
+                if ok:
+                    res = (rec["move_rms_mrad"], r)
+            cache[key] = res
+        return cache[key]
+
+    pool = []
+    for s in starts:
+        d0, _ = make_feasible(ge, s, limit, lambda q, kp: cost(q) is not None)
+        if d0 is None:
+            continue
+        pool.append((cost(d0)[0], d0))
+        for _ in range(n_perturb):
+            q = perturb(d0, rng, sigma)
+            c = cost(q)
+            if c is not None:
+                pool.append((c[0], q))
+    pool.sort(key=lambda x: x[0])
+    chosen = []
+    for c, q in pool:
+        if all(abs(c / x - 1) > 1e-3 for x, _ in chosen):
+            chosen.append((c, q))
+        if len(chosen) >= n_refine:
+            break
+    best = None
+    for _, d in chosen:
+        c, n = cost(d), 0
+        keys = sweep_keys(d)
+        for step in steps:
+            improved = True
+            while improved and n < max_evals:
+                improved = False
+                for k in keys:
+                    for sgn in (1 + step, 1 / (1 + step)):
+                        q = dict(d)
+                        q[k] = float(np.clip(d[k] * sgn, *SWEEP_BOUNDS[k]))
+                        if q[k] == d[k]:
+                            continue
+                        n += 1
+                        cq = cost(q)
+                        if cq is not None and cq[0] < c[0] * (1 - 1e-4):
+                            d, c, improved = q, cq, True
+            if step <= 0.1:
+                for _ in range(60):
+                    a, b = rng.choice(len(keys), 2, replace=False)
+                    q = dict(d)
+                    for i in (a, b):
+                        q[keys[i]] = float(np.clip(d[keys[i]] * (1 + step * rng.uniform(-1.5, 1.5)), *SWEEP_BOUNDS[keys[i]]))
+                    cq = cost(q)
+                    if cq is not None and cq[0] < c[0] * (1 - 1e-4):
+                        d, c = q, cq
+        if best is None or c[0] < best[1][0]:
+            best = (d, c)
+    return best[0], best[1][1], best[1][0]
+
+
+def followup_q2(ctx, gate_json, rng, log):
+    idx_full = np.arange(len(ctx.f))
+    rows, designs = {}, {}
+    for gate in ("G5", "G1"):
+        ge = GateEval(ctx, gate, idx_full)
+        for mode in ("linear", "both"):
+            t1 = time.time()
+            ref = gate_json["gates"][gate][mode]["margins"]
+            fc_d, kp_d = dict(ref["params"]), ref["kp"]
+            starts = [fc_d]
+            if mode == "both":
+                lin = designs[(gate, "linear")]
+                starts.append(dict(lin, mode="both", wc_lp_ratio=fc_d["wc_lp_ratio"], wc_i_ratio=fc_d["wc_i_ratio"]))
+            limit = S_LIMIT
+            for attempt in range(5):
+                d, r, rms = optimise_rms(ge, starts, rng, limit=limit)
+                ver = verify_design(ge, d, r["kp"])
+                if ver["ok"]:
+                    break
+                limit = round(limit - 0.05, 2)
+                starts = [d]
+            designs[(gate, mode)] = d
+            name = f"{gate}_{mode}_error_optimal"
+            rows[name] = design_record(name, d, r["kp"], ge, gate=gate, objective="min move RMS", verify=ver, final_limit=limit,
+                                       seconds=time.time() - t1)
+            name_m = f"{gate}_{mode}_max_fc"
+            rows[name_m] = design_record(name_m, fc_d, kp_d, ge, gate=gate, objective="max crossover (gate_sweep)")
+            log(f"  {name}: fc {rows[name]['fc_hz']:.2f} Hz  move RMS {rms:.4f} mrad (max-fc design: fc {rows[name_m]['fc_hz']:.2f}, "
+                f"RMS {rows[name_m]['time_domain']['move_rms_mrad']:.4f})  S {r['s']:.3f}  ver_ok {ver['ok']}  ({time.time() - t1:.0f}s)")
+            if gate == "G5":     # quantization: 1.6 mA current, 20-bit (as requested) and 23-bit (repo default) angle
+                for nm, dd, kk in ((name, d, r["kp"]), (name_m, fc_d, kp_d)):
+                    rows[nm]["quantized_20bit"] = td_summary(dd, kk, quantized=True, angle_counts=2**20)
+                    rows[nm]["quantized_23bit"] = td_summary(dd, kk, quantized=True, angle_counts=2**23)
+    return rows
+
+
+def followup(args, log):
+    out_path = args.output / "fig89_followup.json"
+    res = json.loads(out_path.read_text()) if out_path.exists() else {}
+    gate_json = json.loads((args.output / "fig89_gate_sweep.json").read_text())
+    ctx = Context(1)
+    idx_sub = sub_index(ctx.f)
+    t0 = time.time()
+    if args.followup in ("q1", "all"):
+        log("Q1: old-shape linear under G5")
+        res["q1"] = followup_q1(ctx, GateEval(ctx, "G5", idx_sub), GateEval(ctx, "G5", np.arange(len(ctx.f))), np.random.default_rng(1), log)
+        out_path.write_text(json.dumps(jsonable(res), indent=1, allow_nan=False) + "\n")
+    if args.followup in ("q2", "all"):
+        log("Q2: error-optimal designs")
+        res["q2"] = followup_q2(ctx, gate_json, np.random.default_rng(2), log)
+        out_path.write_text(json.dumps(jsonable(res), indent=1, allow_nan=False) + "\n")
+    # Q3: parameter table (MATLAB exp05_Higs tuning fields) of every reported design
+    table = {}
+    for gate, modes in gate_json["gates"].items():
+        for mode, rec in modes.items():
+            m = rec["margins"]
+            table[f"{gate}_{mode}_max_fc"] = dict(fc_hz=rec["fc_hz"], params=m["params"], tuning=tuning_fields(m["params"], m["kp"]))
+    for name, row in res.get("q1", {}).get("max_crossover_G5", {}).items():
+        if row:
+            table[f"Q1_{name}"] = dict(fc_hz=row["fc_hz"], params=row["params"], tuning=row["tuning"])
+    for name, row in res.get("q2", {}).items():
+        table[f"Q2_{name}"] = dict(fc_hz=row["fc_hz"], params=row["params"], tuning=row["tuning"])
+    res["parameter_table"] = table
+    rob = args.output / "fig89_robustness.json"
+    if rob.exists():
+        matched = json.loads(rob.read_text())["scenarios"]["nominal_delay1"]["matched_designs"]
+        res["matched_G0"] = {m: dict(corners_hz=v["corners_hz"], tuning=v["tuning"], params=v["params"]) for m, v in matched.items()}
+    res["runtime_s_last_run"] = time.time() - t0
+    out_path.write_text(json.dumps(jsonable(res), indent=1, allow_nan=False) + "\n")
+    log("saved", out_path)
 
 
 # ------------------------------------------------------------------ plots
