@@ -1758,7 +1758,7 @@
 							</Value>
 							<Value>
 								<Name>MotorParams.maxCurrentA</Name>
-								<Value>0.5</Value>
+								<Value>2.71</Value>
 							</Value>
 							<Value>
 								<Name>MotorParams.positionSign</Name>
@@ -1786,7 +1786,7 @@
 							</Value>
 							<Value>
 								<Name>LoadParams.maxCurrentA</Name>
-								<Value>0.5</Value>
+								<Value>1</Value>
 							</Value>
 							<Value>
 								<Name>LoadParams.positionSign</Name>
@@ -1806,11 +1806,11 @@
 							</Value>
 							<Value>
 								<Name>SafetyLimits.maxPositionRad</Name>
-								<Value>3</Value>
+								<Value>40</Value>
 							</Value>
 							<Value>
 								<Name>SafetyLimits.maxVelocityRadS</Name>
-								<Value>5</Value>
+								<Value>107</Value>
 							</Value>
 							<Value>
 								<Name>SafetyLimits.maxTwistRad</Name>
