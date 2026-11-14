@@ -502,10 +502,10 @@
 		<System>
 			<Settings MaxCpus="4" NonWinCpus="2">
 				<Cpu CpuId="2"/>
-				<Cpu CpuId="3" BaseTime="1250"/>
+				<Cpu CpuId="3" BaseTime="625"/>
 			</Settings>
 			<Tasks>
-				<Task Id="4" Priority="1" CycleTime="1250" AmsPort="351" Affinity="#x00000008" AdtTasks="true">
+				<Task Id="4" Priority="1" CycleTime="625" AmsPort="351" Affinity="#x00000008" AdtTasks="true">
 					<Name>VirtualMotorTask</Name>
 				</Task>
 				<Task Id="8" Priority="2" CycleTime="100000" AmsPort="355" AdtTasks="true">
@@ -650,7 +650,7 @@
 								<OTCID>#x02010040</OTCID>
 							</ManualConfig>
 							<Priority>1</Priority>
-							<CycleTime>125000</CycleTime>
+							<CycleTime>62500</CycleTime>
 						</Context>
 					</Contexts>
 					<TaskPouOids>
@@ -679,7 +679,7 @@
 									<OTCID>#x02010040</OTCID>
 								</ManualConfig>
 								<Priority>1</Priority>
-								<CycleTime>125000</CycleTime>
+								<CycleTime>62500</CycleTime>
 							</Context>
 						</Contexts>
 						<Interfaces>
@@ -856,7 +856,7 @@
 									<OTCID>#x02010040</OTCID>
 								</ManualConfig>
 								<Priority>1</Priority>
-								<CycleTime>125000</CycleTime>
+								<CycleTime>62500</CycleTime>
 							</Context>
 						</Contexts>
 						<Interfaces>
@@ -1393,7 +1393,7 @@
 									<OTCID>#x02010040</OTCID>
 								</ManualConfig>
 								<Priority>1</Priority>
-								<CycleTime>125000</CycleTime>
+								<CycleTime>62500</CycleTime>
 							</Context>
 						</Contexts>
 						<Interfaces>
@@ -1512,7 +1512,7 @@
 									<OTCID>#x02010040</OTCID>
 								</ManualConfig>
 								<Priority>1</Priority>
-								<CycleTime>125000</CycleTime>
+								<CycleTime>62500</CycleTime>
 							</Context>
 						</Contexts>
 						<Interfaces>

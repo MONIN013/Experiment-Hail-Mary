@@ -9,7 +9,7 @@ classdef EnvironmentConfig
     DEFAULT_SEQ_PORT = 853
     DEFAULT_CONTROL_PORT = 852
     DEFAULT_MODULE_PORT = 351
-    DEFAULT_TASK_RATE_HZ = 8000
+    DEFAULT_TASK_RATE_HZ = 16000
     DEFAULT_CONTROLLER_PREFIX = "ControllerCore_Obj1 (Module1)."
     DEFAULT_LOGGER_TARGET_FILE_PATH = "C:\ExperimentData\experiment_logger.bin"
     DEFAULT_LOGGER_HOST_FILE_PATH = "C:\ExperimentData\experiment_logger.bin"

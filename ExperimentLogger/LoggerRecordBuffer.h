@@ -13,7 +13,7 @@ class LoggerRecordBuffer final
 {
 public:
 	static constexpr std::uint32_t kBufferCount = 2U;
-	static constexpr std::uint32_t kBufferRecords = 8000U;
+	static constexpr std::uint32_t kBufferRecords = 16000U;
 
 	struct WriteBatch
 	{
