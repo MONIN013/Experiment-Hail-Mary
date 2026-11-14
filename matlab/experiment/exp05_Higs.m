@@ -189,9 +189,22 @@ LPF=tf(wn^2,[1,sqrt(2)*wn,wn^2]);
 lead=tf([1/wz,1],[1/wp,1]);
 Hlp=tf(khLp*wcLp,[1,wcLp]);Hi=tf(khI*wcI,[1,wcI]);
 Vlp=LPF/Hlp;Vi=(wi/(khI*wcI))*tf([1,wcI],[1,0]);
+% Optional eq. 8.8c notch (Post) and eq. 8.14 weighting filter W_i (iPre, with W_i^-1 folded into iPost); absent fields = absent filter.
+[hasNotch,notchValues]=optional_filter(d.tuning,["notch_zero_hz","notch_pole_hz","notch_zero_beta","notch_pole_beta"]);
+[hasWi,wiValues]=optional_filter(d.tuning,["wi_zero_hz","wi_pole_hz","wi_zero_beta","wi_pole_beta"]);
 lpPre=zeros(0,6);lpPost=experiment.controller.tustin_sos(Vlp,Ts);
 p=experiment.controller.tustin_sos(kp*lead,Ts);
 iPre=zeros(0,6);iPost=experiment.controller.tustin_sos(kp*lead*Vi,Ts);post=zeros(0,6);
+if hasNotch
+  wnz=2*pi*notchValues(1);wnp=2*pi*notchValues(2);
+  post=experiment.controller.tustin_sos(tf([1,2*notchValues(3)*wnz,wnz^2],[1,2*notchValues(4)*wnp,wnp^2]),Ts);
+end
+if hasWi
+  wwz=2*pi*wiValues(1);wwp=2*pi*wiValues(2);
+  Wi=(wwp^2/wwz^2)*tf([1,2*wiValues(3)*wwz,wwz^2],[1,2*wiValues(4)*wwp,wwp^2]);
+  iPre=experiment.controller.tustin_sos(Wi,Ts);
+  iPost=experiment.controller.tustin_sos(kp*lead*Vi*inv(Wi),Ts);
+end
 hlpSos=experiment.controller.tustin_sos(Hlp,Ts);hiSos=experiment.controller.tustin_sos(Hi,Ts);
 packed=[lpPre;hlpSos;lpPost;p;iPre;hiSos;iPost;post];
 counts=struct("lp_pre_section_count",size(lpPre,1),"lp_post_section_count",size(lpPost,1), ...
@@ -210,6 +223,24 @@ t=(0:round(end_time/Ts))'*Ts;
 u_forward=min(1,max(0,(t-d.settle_time_s)/d.move_time_s));
 u_return=min(1,max(0,(t-d.settle_time_s-d.move_time_s-d.dwell_time_s)/d.move_time_s));
 r=d.reference_amplitude_rad*(smoothstep7(u_forward)-smoothstep7(u_return));
+end
+
+function [present,values]=optional_filter(tuning,names)
+% All four fields of a filter or none; every value finite, real and positive.
+have=isfield(tuning,names);
+if ~any(have),present=false;values=zeros(1,4);return;end
+if ~all(have)
+  error("experiment:higs:invalidDesign","Filter tuning needs all of %s.",strjoin(names,", "));
+end
+values=zeros(1,4);
+for k=1:4
+  v=tuning.(names(k));
+  if ~(isnumeric(v)&&isreal(v)&&isscalar(v)&&isfinite(v)&&v>0)
+    error("experiment:higs:invalidDesign","tuning.%s must be a finite positive scalar.",names(k));
+  end
+  values(k)=v;
+end
+present=true;
 end
 
 function y = smoothstep7(u)

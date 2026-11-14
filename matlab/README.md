@@ -200,6 +200,7 @@ HIGS の比較入口は関数 `exp05_Higs` で、既存の rich Live Script と�
 `exp05_Higs("preview")` は ADS に接続せず、設計JSONと軌道を確認する。
 `linear` / `integrator` / `lowpass` / `both` は、現行16 kHz条件で取得した `plant.mat` の線形事前検査後に1試行を実行する。
 `target_label` は結果のラベルで、接続先やVM/実機を切り替えない。実機への反映と保護設定は上記手順書を参照する。
+設計JSONの `tuning` は、`notch_{zero,pole}_{hz,beta}`（式8.8c のノッチ、`post`）と `wi_{zero,pole}_{hz,beta}`（式8.14 の前置フィルタ \(W_i\)、`iPre` と `iPost`）を4つ揃えたときだけそのフィルタを加える。無ければフィルタ無しで、一部だけ書くと拒否する。
 
 ## テスト
 

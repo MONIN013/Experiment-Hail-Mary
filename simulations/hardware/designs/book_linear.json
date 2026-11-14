@@ -1,0 +1,31 @@
+{
+  "sample_time_s": 6.25e-05,
+  "reference_amplitude_rad": 0.1,
+  "move_time_s": 0.1,
+  "dwell_time_s": 0.2,
+  "settle_time_s": 0.4,
+  "sensitivity_limit": 2,
+  "max_current_a": 2.71,
+  "max_position_rad": 0.5,
+  "max_velocity_rad_s": 5,
+  "max_twist_rad": 0.05,
+  "tuning": {
+    "kp": 6.983396655165068,
+    "integral_hz": 29.222315469673383,
+    "lead_zero_hz": 19.66050342238731,
+    "lead_pole_hz": 379.5434593499068,
+    "lowpass_hz": 1120.4547478773286,
+    "higs_lp_corner_hz": 100.0,
+    "higs_i_corner_hz": 2.0,
+    "higs_lp_gain": 1.0,
+    "higs_i_gain": 1.0,
+    "notch_zero_hz": 302.90642319321904,
+    "notch_pole_hz": 364.4053237412517,
+    "notch_zero_beta": 0.15406647324411699,
+    "notch_pole_beta": 0.2820115186900199,
+    "measured_crossover_target_hz": 77.44657518727956,
+    "gain_basis": "Load FRF frf_ms060.mat (Hl) spliced with the frictionless two-inertia fit below 168 Hz; kp = 1 / |C(j2 pi fc) G(j2 pi fc)| at the design crossover fc (delay 0 samples, the FRF contains the delay)"
+  },
+  "provenance": "simulations/higs_book_design.py linear: error-optimal under eq. 8.13 (lambda = 0) with notch and W_i, book ratios, frf_ms060.mat (primary), frf_ms030.mat; peak command <= 0.5 A on the frictionless model, delay 3 samples",
+  "source_sha256": "74334d7edb03b6e6e3b08fcc3a3c9af3b8def60b2c8ded540f1e0f7ff5c3e9fd"
+}

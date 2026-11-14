@@ -27,6 +27,35 @@ classdef TestHigsExperiment < matlab.unittest.TestCase
       w=2*pi*logspace(1,log10(2000),200);
       testCase.verifyEqual(squeeze(freqresp(K,w)),squeeze(freqresp(Cd,w)),"RelTol",1e-9);
     end
+    function notchAndWeightingFilterLeaveTheLinearCounterpartUnchanged(testCase)
+      % Notch in Post, W_i in iPre and W_i^-1 in iPost: linear C* = Cn*kp*lead*(1+wi/s)*LPF, W_i cancels.
+      extra=struct("notch_zero_hz",300,"notch_pole_hz",330,"notch_zero_beta",.02,"notch_pole_beta",.3, ...
+        "wi_zero_hz",2000,"wi_pole_hz",104,"wi_zero_beta",1,"wi_pole_beta",1);
+      path=write_design(extra);clean=onCleanup(@()delete(path));
+      a=exp05_Higs("preview","design_path",path,"plot",false);
+      testCase.verifyEqual([a.both.lp_pre_section_count,a.both.lp_post_section_count,a.both.p_section_count, ...
+        a.both.i_pre_section_count,a.both.i_post_section_count,a.both.post_section_count],[0,1,1,1,2,1]);
+      testCase.verifyEqual(size(a.both.sos,1),8);
+      Ts=1/16000;wi=2*pi*2;wz=2*pi*2.6666666667;wp=2*pi*24;wl=2*pi*100;wnz=2*pi*300;wnp=2*pi*330;
+      C=.1*tf([1/wz,1],[1/wp,1])*tf([1,wi],[1,0])*tf(wl^2,[1,sqrt(2)*wl,wl^2]) ...
+        *tf([1,2*.02*wnz,wnz^2],[1,2*.3*wnp,wnp^2]);
+      Cd=c2d(zpk(C),Ts,"tustin");
+      w=2*pi*logspace(1,log10(2000),200);
+      Kb=experiment.ControllerConfig.from_struct(a.both).linear_system();
+      testCase.verifyEqual(squeeze(freqresp(Kb,w)),squeeze(freqresp(Cd,w)),"RelTol",1e-7);
+      path2=write_design(struct("notch_zero_hz",300,"notch_pole_hz",330,"notch_zero_beta",.02,"notch_pole_beta",.3));
+      clean2=onCleanup(@()delete(path2));
+      plain=exp05_Higs("preview","design_path",path2,"plot",false);
+      Kp=experiment.ControllerConfig.from_struct(plain.both).linear_system();
+      testCase.verifyEqual(squeeze(freqresp(Kb,w)),squeeze(freqresp(Kp,w)),"RelTol",1e-7);
+      testCase.verifyEqual([plain.both.i_pre_section_count,plain.both.i_post_section_count,plain.both.post_section_count],[0,1,1]);
+    end
+    function incompleteFilterFieldsAreRejected(testCase)
+      path=write_design(struct("notch_zero_hz",300));clean=onCleanup(@()delete(path));
+      testCase.verifyError(@()exp05_Higs("preview","design_path",path,"plot",false),"experiment:higs:invalidDesign");
+      path2=write_design(struct("wi_zero_hz",2000,"wi_pole_hz",104,"wi_zero_beta",1,"wi_pole_beta",-1));clean2=onCleanup(@()delete(path2));
+      testCase.verifyError(@()exp05_Higs("preview","design_path",path2,"plot",false),"experiment:higs:invalidDesign");
+    end
     function labelDoesNotSelectConnection(testCase)
       path=write_design();clean=onCleanup(@()delete(path));
       a=exp05_Higs("preview","design_path",path,"plot",false,"target_label","bench-A");
@@ -61,13 +90,15 @@ classdef TestHigsExperiment < matlab.unittest.TestCase
     end
   end
 end
-function path=write_design()
+function path=write_design(extra)
+if nargin<1,extra=struct();end
 d=struct("sample_time_s",1/16000,"reference_amplitude_rad",.1,"move_time_s",.1, ...
   "dwell_time_s",.2,"settle_time_s",.4,"sensitivity_limit",2,"max_current_a",.08, ...
   "max_position_rad",.25,"max_velocity_rad_s",10,"max_twist_rad",.01, ...
   "tuning",struct("kp",.1,"integral_hz",2,"lead_zero_hz",2.6666666667, ...
   "lead_pole_hz",24,"lowpass_hz",100,"higs_lp_corner_hz",100,"higs_i_corner_hz",2, ...
   "higs_lp_gain",1,"higs_i_gain",1));
+for name=string(fieldnames(extra)).',d.tuning.(name)=extra.(name);end
 path=string(tempname())+".json";fid=fopen(path,"w");clean=onCleanup(@()fclose(fid));fprintf(fid,"%s",jsonencode(d));
 end
 function [plant,controller]=example_plant()
