@@ -218,9 +218,14 @@ ExperimentLogger ◄─ Inputs.control.playbackActive
 | `VirtualMotorTask` | `62,500 ns` | `351` | ControllerCore / DriverAdapter / VirtualMotorCore / ExperimentLogger / ExperimentSequencer |
 | `PlcTask1` | `10,000,000 ns` | `852` | StateMachineControl |
 
-### 3.1.1 EtherCAT DC の SYNC0 シフト
+### 3.1.1 ELM7211 の同期モード（SM-Synchron）
 
-`ExperimentHailMary.tsproj` の ELM7211-0011 ×2 は、タスク周期 62.5 us では SYNC0 シフト 0 のままだと SAFEOP から OP へ遷移できず、AL status code `0x0032`（DC PLL sync error）で拒否される。2 台とも SYNC0 をユーザー定義の 20 us シフトにすると OP へ遷移する。`<DcData>` の値は 2 台共通で `0007000024f40000204e0000000000000000ffff000000000000000000000000` である（`204e0000` が 20000 ns）。タスク周期を変えるときは、この値で OP へ遷移するかを再確認する。`ExperimentHailMary.RealMotor.tsproj` は EtherCAT 構成を持たないため対象外である。
+`ExperimentHailMary.tsproj` の ELM7211-0011 ×2 は SM-Synchron で動かす（tsproj では両ターミナルの `<DcData>` を持たない）。タスク周期 62.5 us で ESI 既定の DC-Synchron（SYNC0 62.5 us、SYNC1 = Sync Unit Cycle）を使うと、次のように動かない。
+
+- SYNC0 シフト 0 では SAFEOP→OP が AL status code `0x0032`（DC PLL sync error）で拒否される。
+- スレーブの SYNC0 シフト 20 us、またはマスターの UserShiftTime 20 us で OP にはなるが、通電中に数〜十数秒ごとに AL `0x002C`（SYNC0 or SYNC1 failed）で SAFEOP に落ち、ドライブ側は `0x8105 PD-Watchdog` を記録する。長い試行（14 s）の半数以上がこれで中断した。
+
+SM-Synchron では 14 s の試行 8 回すべてが中断なく完了した（2026-11-14）。タスク周期を変えるときは、長い試行で同期エラーが出ないことを再確認する。`ExperimentHailMary.RealMotor.tsproj` は EtherCAT 構成を持たないため対象外である。
 
 ### 3.2 現行 ADS アクセス面
 
