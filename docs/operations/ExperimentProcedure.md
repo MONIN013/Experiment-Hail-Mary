@@ -15,11 +15,11 @@
 | モジュール | 実装 | Task | 役割 |
 |---|---|---|---|
 | **StateMachineControl** (ModeManager) | PLC ST | PlcTask1 (10 ms) | CiA 402 状態遷移 + フラグ管理 + 実験開始/停止制御 |
-| **ExperimentSequencer** | PLC ST | VirtualMotorTask (125 us / 8 kHz) | テーブルリプレイ |
-| **ControllerCore** | C++ TcCOM | VirtualMotorTask (125 us / 8 kHz) | 誤差計算 + 最大 10 段の汎用 SOS cascade + FF 付加 |
-| **DriverAdapter** | C++ TcCOM | VirtualMotorTask (125 us / 8 kHz) | Raw/工学単位変換 + 相対位置化 + 外乱加算 + CW/SW 中継 + 電流ゲート |
-| **VirtualMotorCore** | C++ TcCOM | VirtualMotorTask (125 us / 8 kHz) | 仮想モーター物理シミュレーション (CiA 402 内蔵) |
-| **ExperimentLogger** | C++ TcCOM | VirtualMotorTask (125 us / 8 kHz) | バイナリファイルロギング (8kHz × 100s 対応、非同期 I/O) |
+| **ExperimentSequencer** | PLC ST | VirtualMotorTask (62.5 us / 16 kHz) | テーブルリプレイ |
+| **ControllerCore** | C++ TcCOM | VirtualMotorTask (62.5 us / 16 kHz) | 誤差計算 + 最大 10 段の汎用 SOS cascade + FF 付加 |
+| **DriverAdapter** | C++ TcCOM | VirtualMotorTask (62.5 us / 16 kHz) | Raw/工学単位変換 + 相対位置化 + 外乱加算 + CW/SW 中継 + 電流ゲート |
+| **VirtualMotorCore** | C++ TcCOM | VirtualMotorTask (62.5 us / 16 kHz) | 仮想モーター物理シミュレーション (CiA 402 内蔵) |
+| **ExperimentLogger** | C++ TcCOM | VirtualMotorTask (62.5 us / 16 kHz) | バイナリファイルロギング (16kHz × 50s 対応、非同期 I/O) |
 
 ---
 
@@ -218,7 +218,7 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 │    (SERVO + EXPERIMENT_START)     ExperimentSequencer: 再生開始        │
 │                                   modeState = RUNNING (30)             │
 │                                                                       │
-│     毎スキャン (125 us / 8 kHz):                                       │
+│     毎スキャン (62.5 us / 16 kHz):                                       │
 │       ExperimentSequencer → ref/ff/dist → ControllerCore              │
 │       ControllerCore → controlInput → DriverAdapter                   │
 │       DriverAdapter → targetTorque (Drive 境界, ‰ rated, INT) → selected endpoint │
@@ -324,7 +324,7 @@ run('matlab/setup_matlab_environment.m')
 run('matlab/tools/run_exp01_exp04_preflight.m')
 ```
 
-`run_exp01_exp04_preflight.m` はMapping種別に依存せず、MATLAB path、必須 toolbox 関数、ADS 接続、共通active contract symbol、`plant.mat`、tracked 8 kHz 軌道を確認する。VM symbolの検査・parameter writeや実験開始は行わない。
+`run_exp01_exp04_preflight.m` はMapping種別に依存せず、MATLAB path、必須 toolbox 関数、ADS 接続、共通active contract symbol、`plant.mat`、tracked 16 kHz 軌道を確認する。VM symbolの検査・parameter writeや実験開始は行わない。
 
 ### 7.2 標準実行順
 
@@ -346,7 +346,7 @@ run('matlab/experiment/exp04_ILC.m')
 
 ### 7.3 exp01: chirp SI と plant.mat
 
-exp01 は open-loop logarithmic chirp を FF 入力として注入する。既定値は `Tend=100`、`Tcycle=10`、`f0=0.5 Hz`、`f1=4000 Hz`、`A=0.25 A`、`trans=2`、`Ndelay=4 samples` である。各cycleは平均0へ補正してから最大絶対値を0.25 Aへ正規化し、DC driftを持ち込まない。
+exp01 は open-loop logarithmic chirp を FF 入力として注入する。既定値は `Tend=50`、`Tcycle=5`（1 cycle 80000 sample、PLC テーブル上限 100000 sample に収める）、`f0=0.5 Hz`、`f1=4000 Hz`、`A=0.25 A`、`trans=2`、`Ndelay=4 samples` である。各cycleは平均0へ補正してから最大絶対値を0.25 Aへ正規化し、DC driftを持ち込まない。
 
 過渡 2 周期を除去し、loggerの `ff_value` から実測速度への `tfestimate` / `mscohere` を計算する。位置 FRD は連続近似を使わず、semi-implicit Eulerの恒等式 `theta(k)=theta(k-1)+Ts*omega(k)` に対応する厳密な離散積分器 `Ts*z/(z-1)` で構成する。初期値は VirtualMotor preset の電流入力換算から `Jn=7.1e-5`、`Dn=5.325e-4`、`Ndelay=4` とし、学生は bode overlay が測定 FRF に合うように手動調整する。
 
@@ -354,13 +354,13 @@ exp01 は open-loop logarithmic chirp を FF 入力として注入する。既�
 
 ### 7.4 exp02〜exp04: 標準軌道と制御設計
 
-`matlab/resources/trajectory_8khz.mat` は標準軌道の tracked resource で、SHA-256 は `11C4E587D2E413707C09CA0875779269E1F6F7ECFD1CEC1C50030C18A62B5CB0` である。`load_trajectory` が `ref1_struct` の field・件数・有限性・8 kHz 時間刻みを検証し、deg 系の 720 deg / 1 s 往復軌道を rad 系に変換する。`experiment.waveform.point_to_point_trajectory` は任意軌道生成ツールとして残るが、この標準手順の既定軌道ではない。
+`matlab/resources/trajectory_16khz.mat` は標準軌道の tracked resource で、SHA-256 は `48FE7CE1AC2EA22D53575905BC6ADD15A6730D838F4B8B5B977190AD1D8082F2` である。`load_trajectory` が `ref1_struct` の field・件数・有限性・16 kHz 時間刻みを検証し、deg 系の 720 deg / 1 s 往復軌道を rad 系に変換する。`experiment.waveform.point_to_point_trajectory` は任意軌道生成ツールとして残るが、この標準手順の既定軌道ではない。
 
 exp02 は `designpid(Dn/Jn,0,1/Jn,omega)` を `omega=15 rad/s` で設計し、`c2d(...,"tustin")` で離散化する。実験前に nominal / FRD の Nyquist と `Smax=2` の感度上限を数値確認し、`feedback_result.mat` に `t,r,y,e,u,Kd` を保存する。
 
 exp03 は exp02 と同じ FB 設計に、`f=Kfa*a+Kfv*v+Kfc*sign(v)` の FF を加える。`Kfa=[]` / `Kfv=[]` / `Kfc=[]` の既定では、`plant.mat` の `Jn` / `Dn` を使って `Kfa=Jn`、`Kfv=Dn`、`Kfc=0` とし、`Ndelay` 分の先読み補償を行う。保存変数は `t,r,y,e,u,f,Kd` である。
 
-exp04 は Temp 参照実装と同じ `Linv=feedback(Pdn,Kd)`、`J=feedback(Pd,Kd)` と2次 low-pass Qを使い、`|Q|^2|1-alpha*J/Linv| < 1` を実験前に数値確認する。学習更新は `f_{j+1}=filtfilt_clean(Qnum,Qden,f_j+alpha*srinv(Linv,e_j,Npad),Npad)` で、200 sample transient splice を行う。既定は `Ntrial=10`、`alpha=0.6`、`q_cutoff_hz=120`、`maxInput=1.6 A` である。720 deg往復の後ろへ6秒のゼロreference整定tailを付け、学習は元の往復軌道だけへ適用し、tailのFFは全trialで厳密に0へ固定する。manifest生成時に全trialの終端速度量子値0・motor/load位置差2 count以内を確認する。各trialの実測直後、学習更新前に位置、誤差、logger上で整列したFF/FB入力の同一dashboardを更新する。次trialのFFが1.6 Aを超える場合、または実測error normが増加した場合は、完了済み数値history、`trialSummary`、停止理由を `ilc_result.mat` へcheckpointしてから例外化する。trial別画像は保存しない。
+exp04 は Temp 参照実装と同じ `Linv=feedback(Pdn,Kd)`、`J=feedback(Pd,Kd)` と2次 low-pass Qを使い、`|Q|^2|1-alpha*J/Linv| < 1` を実験前に数値確認する。学習更新は `f_{j+1}=filtfilt_clean(Qnum,Qden,f_j+alpha*srinv(Linv,e_j,Npad),Npad)` で、400 sample（25 ms）transient splice を行う。既定は `Ntrial=10`、`alpha=0.6`、`q_cutoff_hz=120`、`maxInput=1.6 A` である。720 deg往復の後ろへ5秒のゼロreference整定tailを付け、学習は元の往復軌道だけへ適用し、tailのFFは全trialで厳密に0へ固定する。manifest生成時に全trialの終端速度量子値0・motor/load位置差2 count以内を確認する。各trialの実測直後、学習更新前に位置、誤差、logger上で整列したFF/FB入力の同一dashboardを更新する。次trialのFFが1.6 Aを超える場合、または実測error normが増加した場合は、完了済み数値history、`trialSummary`、停止理由を `ilc_result.mat` へcheckpointしてから例外化する。trial別画像は保存しない。
 VirtualMotor予測は `testoracle.simulate_ilc_campaign` / `predict_ilc_campaign` に集約し、Test専用とする。実験中のILCは実測errorから次FFを計算し、予測・VM再起動・parameter設定を行わない。
 
 ### 7.5 VirtualMotor での目安

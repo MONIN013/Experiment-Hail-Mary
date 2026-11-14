@@ -8,7 +8,7 @@ title Next-Gen Experiment Platform — Module Architecture
 ' ============================================================
 '  TwinCAT Real-Time Layer
 ' ============================================================
-package "TwinCAT Real-Time (Phase 1-3: 1 ms / Phase 4: 125 µs = 8 kHz)" {
+package "TwinCAT Real-Time (Phase 1-3: 1 ms / Phase 4: 62.5 µs = 16 kHz)" {
 
   ' ---- Drive / Plant ----
   package "VirtualMotorCore\n(C++ TcCOM — Phase 1-3)\nor EtherCAT Drive\n(Phase 4)" as Drive {
@@ -151,7 +151,7 @@ end note
 
 note bottom of Log
   C++ TcCOM ファイルライタ方式。
-  8kHz × 100s = 800,000 サンプル ≈ 67 MB。
+  16kHz × 50s = 800,000 サンプル ≈ 67 MB。
   Motor/Load 両方の信号を記録。
   内部バッファ付きバイナリファイル出力。
   実験後に MATLAB から読み出し。

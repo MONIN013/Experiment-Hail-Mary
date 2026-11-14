@@ -11,7 +11,7 @@
 
 DriverAdapter は **ドライバ差異吸収層** である。現行の active 実装は TwinCAT の **C++ TcCOM** (`DriverAdapter_Obj1 (Module1)`) であり、Drive 境界の raw 信号を工学単位へ変換し、上流制御へ統一 I/F を提供する。
 
-`DriverAdapterAlgorithm` が raw 変換、reset edge と Motor/Load 位置 offset、current clamp/gate/量子化、ControlWord/StatusWord relay、位置・速度・ねじれの保護を固定メモリの純粋 C++ として所有する。TcCOM `Module1` は generated ADS 型との field-by-field 変換と 8 kHz cyclic 呼出しを担当する。
+`DriverAdapterAlgorithm` が raw 変換、reset edge と Motor/Load 位置 offset、current clamp/gate/量子化、ControlWord/StatusWord relay、位置・速度・ねじれの保護を固定メモリの純粋 C++ として所有する。TcCOM `Module1` は generated ADS 型との field-by-field 変換と 16 kHz cyclic 呼出しを担当する。
 
 本モジュールは **Motor + Load の 2 チャネル専用** とし、外部契約は current ベース `[A]` を維持する。Drive 境界では `targetTorque` / `torqueActualValue` を **`‰ rated`** 整数値で扱う。
 

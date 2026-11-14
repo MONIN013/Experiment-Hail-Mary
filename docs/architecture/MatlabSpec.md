@@ -134,11 +134,11 @@ ControllerCore への payload は、SOS 行列から `a0` を除いた段優先 
 | `seq_port` | `853` | ExperimentSequencer |
 | `control_port` | `852` | ModeManager |
 | `module_port` | `351` | C++ TcCOM 群 |
-| `task_rate_hz` | `8000` | `VirtualMotorTask` 周波数 |
+| `task_rate_hz` | `16000` | `VirtualMotorTask` 周波数 |
 | `controller_prefix` | `"ControllerCore_Obj1 (Module1)."` | Controller parameter prefix |
 | `logger_target_file_path` | `"C:\\ExperimentData\\experiment_logger.bin"` | TwinCAT 側 logger 保存先 |
 | `logger_host_file_path` | `"\\\\sunnyday\\ExperimentData\\experiment_logger.bin"` | MATLAB 側 logger 読み取り先 |
-| `table_max_n` | `100000` | テーブル長上限 |
+| `table_max_n` | `100000` | テーブル長上限（16 kHz で 6.25 s） |
 | `logger_release_timeout_s` | `5.0` | logger close 待ち既定値 |
 
 `GVL_MODE.*` などの fixed symbol contract は `experiment.RuntimeSymbols` / `experiment.ModeManagerControl` が正本であり、environment config には置かない。
@@ -210,7 +210,7 @@ active contract は `351/852/853` のみを使う。`851` は discovery 用に�
 * `metrics.torque_sum` は `control_input + dist_value == target_current` の整合性を返す
 * `metrics.position_diag` は位置ログの利用可否と速度推定を返す
 
-8 kHz task 内の正常な pipeline delay は `waveform_diag_max_shift_samples` (既定 1 sample) の範囲で整列して判定する。zero-shift 値と `best_shift_samples` は診断用に両方保持し、件数不一致や許容範囲外の遅延は合格扱いにしない。
+16 kHz task 内の正常な pipeline delay は `waveform_diag_max_shift_samples` (既定 1 sample) の範囲で整列して判定する。zero-shift 値と `best_shift_samples` は診断用に両方保持し、件数不一致や許容範囲外の遅延は合格扱いにしない。
 
 `preload_eval` は snake_case raw schema と `cfg.env.task_rate_hz` を直接受け、廃止済み `log*` field や top-level `task_rate_hz` は扱わない。
 
@@ -233,17 +233,17 @@ run('matlab/tools/run_position_command_demo.m')
 
 ### 9.1 exp01〜exp04 のデータ契約
 
-`exp01_SysId.m` は logarithmic chirp SI を rad 系 logger 信号で実行する。既定 chirp は `Tend=100`、`Tcycle=10`、`f0=0.5 Hz`、`f1=4000 Hz`、`A=0.25 A`、`trans=2` であり、cycle平均を0へ補正して最大絶対値を0.25 Aへ正規化する。`ff_value` からlogger実測速度を直接同定し、位置FRDはsemi-implicit Eulerと同じ厳密離散積分器 `Ts*z/(z-1)` で構成する。manual fit の初期値は VirtualMotor preset の電流入力換算から `Jn=(Jmotor+Jload)/(ratedTorque/ratedCurrent)=7.1e-5`、`Dn=(Dmotor+Dload)/(ratedTorque/ratedCurrent)=5.325e-4`、`Ndelay=4` とする。
+`exp01_SysId.m` は logarithmic chirp SI を rad 系 logger 信号で実行する。既定 chirp は `Tend=50`、`Tcycle=5`（1 cycle 80000 sample、PLC テーブル上限 100000 sample に収める）、`f0=0.5 Hz`、`f1=4000 Hz`、`A=0.25 A`、`trans=2` であり、cycle平均を0へ補正して最大絶対値を0.25 Aへ正規化する。`ff_value` からlogger実測速度を直接同定し、位置FRDはsemi-implicit Eulerと同じ厳密離散積分器 `Ts*z/(z-1)` で構成する。manual fit の初期値は VirtualMotor preset の電流入力換算から `Jn=(Jmotor+Jload)/(ratedTorque/ratedCurrent)=7.1e-5`、`Dn=(Dmotor+Dload)/(ratedTorque/ratedCurrent)=5.325e-4`、`Ndelay=4` とする。
 
 `matlab/experiment/data/plant.mat` の契約は `Pd` / `Pd_motor` / `Pd_load` / `Pd_vel_load` / `Pd_vel_motor` / `Pdn` / `Jn` / `Dn` / `Ndelay` / `Ts` である。`Pd` は load 側 position FRD、`Pdn` は `c2d(1/(Jn*s+Dn)/s,Ts,"zoh")/z^Ndelay` の離散 nominal plant である。Mapping種別やVM parameterのprovenanceは保存しない。
 
-`matlab/resources/trajectory_8khz.mat` は標準軌道の tracked resource で、SHA-256 は `11C4E587D2E413707C09CA0875779269E1F6F7ECFD1CEC1C50030C18A62B5CB0` である。`ref1_struct` は deg 系の 720 deg / 1 s 往復軌道を保持し、`experiment.exp0n.load_trajectory` が field、件数、有限性、8 kHz 時間刻みを検証して rad 系へ変換する。`experiment.waveform.point_to_point_trajectory` は TrajectTools 非依存の任意軌道生成ツールとして残すが、現行 exp02〜exp04 の既定軌道ではない。
+`matlab/resources/trajectory_16khz.mat` は標準軌道の tracked resource で、SHA-256 は `48FE7CE1AC2EA22D53575905BC6ADD15A6730D838F4B8B5B977190AD1D8082F2` である。`ref1_struct` は deg 系の 720 deg / 1 s 往復軌道を保持し、`experiment.exp0n.load_trajectory` が field、件数、有限性、16 kHz 時間刻みを検証して rad 系へ変換する。軌道は連続時間の snap 区分一定プロファイル（ramp `sqrt(amax/smax)`、定加速 `vmax/amax-2*ramp`、巡航は 720 deg に合わせて決定）を 16 kHz で標本化した値で、旧 8 kHz 版の偶数標本と位置で 1e-10 deg 以内に一致する。`ref2_struct`（600 deg）も同じ方法で保持する。`experiment.waveform.point_to_point_trajectory` は TrajectTools 非依存の任意軌道生成ツールとして残すが、現行 exp02〜exp04 の既定軌道ではない。
 
 結果 MAT の変数集合は、`feedback_result.mat` が `t,r,y,e,u,Kd`、`feedforward_result.mat` が `t,r,y,e,u,f,Kd`、`ilc_result.mat` が `t,history,Kd,stability,learning_filters` である。exp04 は各trial直後に確定loggerを `trialXX_logger.bin` へコピーして再parse照合し、そのpathとrecord countを `history` に保存する。各値は実験入口で rad 系へ変換した信号を正とする。
 
 exp02 は `experiment.exp02.designpid(Dn/Jn,0,1/Jn,omega)` を `omega=15 rad/s` で設計し、`c2d(...,"tustin")` 後に Nyquist と `Smax=2` の感度上限を数値確認する。exp03 の FF は `Kfa=Jn`、`Kfv=Dn`、`Kfc=0` を既定にし、`f=Kfa*a+Kfv*v+Kfc*sign(v)` へ `Ndelay` の先読み補償を加える。
 
-exp04 は Temp 参照実装と同じ `Linv=feedback(Pdn,Kd)`、`J=feedback(Pd,Kd)` と2次 low-pass Qを使い、`|Q|^2|1-alpha*J/Linv| < 1` を数値 gate と bode で確認する。更新則は `f_{j+1}=filtfilt_clean(Qnum,Qden,f_j+alpha*srinv(Linv,e_j,Npad),Npad)` で、200 sample transient splice を行う。既定は `Ntrial=10`、`alpha=0.6`、`q_cutoff_hz=120`、`maxInput=1.6 A` とし、720 deg往復後へ6秒のゼロreference整定tailを付ける。学習対象は元の往復軌道だけとし、整定tailのFFは全trialで厳密に0へ固定する。各trialの実測完了直後、学習更新前に位置、誤差、logger上で整列したFF/FB入力の3段dashboardを更新する。次trialのFF超過または実測error norm増加では、完了済み数値history、`trialSummary`、停止理由をcheckpointしてから例外化する。trial別画像は保存しない。
+exp04 は Temp 参照実装と同じ `Linv=feedback(Pdn,Kd)`、`J=feedback(Pd,Kd)` と2次 low-pass Qを使い、`|Q|^2|1-alpha*J/Linv| < 1` を数値 gate と bode で確認する。更新則は `f_{j+1}=filtfilt_clean(Qnum,Qden,f_j+alpha*srinv(Linv,e_j,Npad),Npad)` で、400 sample（25 ms）transient splice を行う。既定は `Ntrial=10`、`alpha=0.6`、`q_cutoff_hz=120`、`maxInput=1.6 A` とし、720 deg往復後へ5秒のゼロreference整定tailを付ける。学習対象は元の往復軌道だけとし、整定tailのFFは全trialで厳密に0へ固定する。各trialの実測完了直後、学習更新前に位置、誤差、logger上で整列したFF/FB入力の3段dashboardを更新する。次trialのFF超過または実測error norm増加では、完了済み数値history、`trialSummary`、停止理由をcheckpointしてから例外化する。trial別画像は保存しない。
 
 | スクリプト | 位置づけ |
 |---|---|

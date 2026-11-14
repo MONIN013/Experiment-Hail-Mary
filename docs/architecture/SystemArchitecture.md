@@ -10,7 +10,7 @@
 ## 0. 現行構成の要点
 
 * checked-in TwinCAT project は `ExperimentHailMary.tsproj` (VM variant) と `ExperimentHailMary.RealMotor.tsproj` (real-motor mapping scaffold) の 2 本を持つ。共通XMLの論理差分はDriverAdapter末端11 LinkのOwnerだけである。
-* どちらの project でも **`VirtualMotorTask = 125 us (8 kHz)`** を正とする。
+* どちらの project でも **`VirtualMotorTask = 62.5 us (16 kHz)`** を正とする。
 * `ExperimentSequencer`, `ControllerCore`, `DriverAdapter`, `VirtualMotorCore`, `ExperimentLogger` は同一 RT タスク上で動作する。
 * RealMotor variant は現在 `<Io/>` で、`RealMotorPdo` ownerを定義するI/O treeを持たないため非deployableなscaffoldである。PDO確定後にI/O treeを追加する。
 * Mapping選択はproject選択とActivate/Restartで行い、MATLABのExperimentConfig/Runner/exp01〜04は同一のまま使用する。
@@ -215,8 +215,12 @@ ExperimentLogger ◄─ Inputs.control.playbackActive
 
 | Task | CycleTime | AmsPort | バインド対象 |
 |---|---|---|---|
-| `VirtualMotorTask` | `125,000 ns` | `351` | ControllerCore / DriverAdapter / VirtualMotorCore / ExperimentLogger / ExperimentSequencer |
+| `VirtualMotorTask` | `62,500 ns` | `351` | ControllerCore / DriverAdapter / VirtualMotorCore / ExperimentLogger / ExperimentSequencer |
 | `PlcTask1` | `10,000,000 ns` | `852` | StateMachineControl |
+
+### 3.1.1 EtherCAT DC の SYNC0 シフト
+
+`ExperimentHailMary.tsproj` の ELM7211-0011 ×2 は、タスク周期 62.5 us では SYNC0 シフト 0 のままだと SAFEOP から OP へ遷移できず、AL status code `0x0032`（DC PLL sync error）で拒否される。2 台とも SYNC0 をユーザー定義の 20 us シフトにすると OP へ遷移する。`<DcData>` の値は 2 台共通で `0007000024f40000204e0000000000000000ffff000000000000000000000000` である（`204e0000` が 20000 ns）。タスク周期を変えるときは、この値で OP へ遷移するかを再確認する。`ExperimentHailMary.RealMotor.tsproj` は EtherCAT 構成を持たないため対象外である。
 
 ### 3.2 現行 ADS アクセス面
 
@@ -260,5 +264,5 @@ ExperimentLogger ◄─ Inputs.control.playbackActive
 
 ## 6. 実装正本
 
-* 現行構成は 8 kHz TcCOM、ExperimentLogger、ADS 852/853 の PLC 契約を正本とする。
+* 現行構成は 16 kHz TcCOM、ExperimentLogger、ADS 852/853 の PLC 契約を正本とする。
 * DriverAdapter は C++ TcCOM の単一実装であり、PLC 版の互換実装は持たない。

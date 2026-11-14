@@ -83,7 +83,7 @@ FAULT 遷移条件:
 | `ffTable` | `ARRAY[0..N_FF_MAX-1] OF LREAL` | `N_FF_MAX=100000` |
 | `distTable` | `ARRAY[0..N_DIST_MAX-1] OF LREAL` | `N_DIST_MAX=100000` |
 
-`tableLenClamped = min(tableLen, N_REF_MAX, N_FF_MAX, N_DIST_MAX)` として運用する。
+`tableLenClamped = min(tableLen, N_REF_MAX, N_FF_MAX, N_DIST_MAX)` として運用する。各上限は 100000 sample で、16 kHz では 6.25 s である。
 
 ---
 

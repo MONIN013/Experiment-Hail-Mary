@@ -137,8 +137,8 @@ bool VerifyPingPongBufferLifecycle()
 		|| buffer->CurrentBufferIndex() != 0U
 		|| buffer->RecordsAppended() != experimentlogger::LoggerRecordBuffer::kBufferRecords
 		|| buffer->NextSequence() != experimentlogger::LoggerRecordBuffer::kBufferRecords
-		|| buffer->RecordAt(0U, 7999U).seq != 7999U
-		|| buffer->RecordAt(0U, 7999U).tNs != (7999ULL * 125000ULL)
+		|| buffer->RecordAt(0U, experimentlogger::LoggerRecordBuffer::kBufferRecords - 1U).seq != experimentlogger::LoggerRecordBuffer::kBufferRecords - 1U
+		|| buffer->RecordAt(0U, experimentlogger::LoggerRecordBuffer::kBufferRecords - 1U).tNs != ((experimentlogger::LoggerRecordBuffer::kBufferRecords - 1ULL) * 125000ULL)
 		|| buffer->Append(MakeSample(0.0), 125000U))
 	{
 		return false;
@@ -176,7 +176,7 @@ bool VerifyPingPongBufferLifecycle()
 	if (buffer->HasPendingWrite()
 		|| buffer->BufferRecordCount(0U) != 0U
 		|| buffer->CurrentRecordCount() != 3U
-		|| buffer->RecordsAppended() != 8003U)
+		|| buffer->RecordsAppended() != experimentlogger::LoggerRecordBuffer::kBufferRecords + 3U)
 	{
 		return false;
 	}
@@ -201,8 +201,8 @@ bool VerifyPingPongBufferLifecycle()
 	buffer->CommitWrite();
 	return !buffer->HasBufferedRecords()
 		&& !buffer->HasPendingWrite()
-		&& buffer->RecordsAppended() == 8003U
-		&& buffer->NextSequence() == 8003U;
+		&& buffer->RecordsAppended() == experimentlogger::LoggerRecordBuffer::kBufferRecords + 3U
+		&& buffer->NextSequence() == experimentlogger::LoggerRecordBuffer::kBufferRecords + 3U;
 }
 
 bool VerifyClearAndResetSemantics()

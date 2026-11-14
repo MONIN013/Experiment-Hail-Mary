@@ -59,7 +59,7 @@ ExperimentLogger は実験データをバイナリ形式で保存する C++ TcCO
 10. `control.loggingReq` 立下り時は `Write -> Write -> ... -> Close` の順でバッファを drain し、`WRITE_WAIT` 中に捕捉したレコードを落とさない。
 11. `status.fileReleased` は reset と新規 pre-arm でクリアされ、close 経路がエラーなく `IDLE` へ戻ったときだけ `TRUE` になる。
 
-`LoggerRecord.h` を schema version 3 の 144-byte binary schema の C++ 正本とし、`LoggerRecordBuffer` が sequence・timestamp・2面bufferのactive/pending切替を所有する。`recordsWritten` は `LoggerRecordBuffer::RecordsAppended()` を公開した受理件数であり、file commit 件数ではない。field offset・schema version・8000件境界・write commit/rollbackはTwinCAT非依存のhost testで固定する。
+`LoggerRecord.h` を schema version 3 の 144-byte binary schema の C++ 正本とし、`LoggerRecordBuffer` が sequence・timestamp・2面bufferのactive/pending切替を所有する。`recordsWritten` は `LoggerRecordBuffer::RecordsAppended()` を公開した受理件数であり、file commit 件数ではない。field offset・schema version・16000件境界・write commit/rollbackはTwinCAT非依存のhost testで固定する。
 
 ## マッピング (SIL)
 - `record.motor.position <- DriverAdapter.motor.positionRel`

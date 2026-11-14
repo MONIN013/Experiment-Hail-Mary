@@ -10,13 +10,13 @@
 ## プロジェクト設計仕様
 
 本プロジェクトの最終目標は、
-**MATLAB + TwinCAT を用いた 8kHz トルク制御実験環境において、Build 回数を極限まで削減しつつ、再現性と同期性を保証する実験基盤を確立すること**である。
+**MATLAB + TwinCAT を用いた 16kHz トルク制御実験環境において、Build 回数を極限まで削減しつつ、再現性と同期性を保証する実験基盤を確立すること**である。
 
 ---
 
 ## 実装ステータス (2026-03-26)
 
-* 現行の checked-in 構成は **125 us / 8 kHz の `VirtualMotorTask` を前提とした統合系** である。
+* 現行の checked-in 構成は **62.5 us / 16 kHz の `VirtualMotorTask` を前提とした統合系** である。
 * `ExperimentSequencer`, `ControllerCore`, `DriverAdapter`, `VirtualMotorCore`, `ExperimentLogger` は `VirtualMotorTask` 上に配置されている。
 * `StateMachineControl` (ModeManager) は `PlcTask1` (10 ms) で動作し、reset handshake / heartbeat watchdog / logger handshake を担う。
 * MATLAB 側の主実行面は `experiment.ExperimentConfig + experiment.ConnectionManager + experiment.ExperimentRunner` に一本化されている。
@@ -32,7 +32,7 @@
 
 ### 1.1 周期同期性の保証
 
-* 8kHz 制御周期で完結するリアルタイム構造を確立する
+* 16kHz 制御周期で完結するリアルタイム構造を確立する
 * 異時刻信号混在を排除する
 * EtherCAT DC とタスク構成を整合させる
 
@@ -74,7 +74,7 @@
 
 ## 3. 設計上の制約条件
 
-* 制御周期: 8kHz 固定
+* 制御周期: 16kHz 固定
 * リアルタイム層は MATLAB に依存しない
 * ADS 通信は非同期補助のみ
 * 実験用途であり、構成変更を素早く回せることを優先する

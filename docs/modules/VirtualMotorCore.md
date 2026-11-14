@@ -12,7 +12,7 @@
 VirtualMotorCore は SIL (Software-in-the-Loop) 検証用の仮想モーター物理シミュレータである。
 現行実装は **Motor/Load を 1:1 ねじり結合した 2 慣性モデル** として動作し、Motor/Load それぞれに CiA 402 状態機械を持つ。
 
-`VirtualMotorAlgorithm` が CiA 402 状態、2慣性plant、fault判定、raw量子化を固定メモリの純粋C++として所有する。TcCOM `Module1` はADS公開型と純粋型の変換、および8 kHz cyclic呼出しだけを担当する。scan順序は `drive state -> command fault -> plant integration -> output quantization` で固定し、host testで保護する。
+`VirtualMotorAlgorithm` が CiA 402 状態、2慣性plant、fault判定、raw量子化を固定メモリの純粋C++として所有する。TcCOM `Module1` はADS公開型と純粋型の変換、および16 kHz cyclic呼出しだけを担当する。scan順序は `drive state -> command fault -> plant integration -> output quantization` で固定し、host testで保護する。
 
 **設計方針 (D11/D13):**  
 VirtualMotorCore の外部 I/O を CiA 402 EtherCAT PDO 準拠の **整数型** に変更する。

@@ -866,7 +866,7 @@
 							</Value>
 							<Value>
 								<Name>PlantParameter.taskDtNs</Name>
-								<Value>125000</Value>
+								<Value>62500</Value>
 							</Value>
 						</ParameterValues>
 						<InterfacePointerValues>

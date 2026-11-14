@@ -39,7 +39,7 @@
 
 * `resetReq` は **立ち上がりエッジ**で扱う。
 * `startEdge := experimentActive AND NOT cmdActivePrev`
-* `tableLenLocal = min(tableLen, N_REF_MAX, N_FF_MAX, N_DIST_MAX)`
+* `tableLenLocal = min(tableLen, N_REF_MAX, N_FF_MAX, N_DIST_MAX)`（各上限は 100000 sample で、16 kHz では 6.25 s）
 * `tableLenLocal = 0` または `repeatCount = 0` の場合は `FAULT`
 * `PLAYING` 中は `idx` を 1 サンプルずつ進める。
 * trial 途中の終端では `idx := 0`, `trialIndex++`
@@ -108,7 +108,7 @@ MATLAB 側の公開形式は標準 SOS 行列と同じ `N x 6` の `[b0 b1 b2 a0
 
 既定値は、`SosSectionCount=3` の係数（先頭が恒等、2 段目が零、3 段目が恒等）で、P 枝が恒等、I 枝が零の制御器になる。
 
-MATLAB は SOS と HIGS の全 staging 値を書いた後、`SosApplyRevision` を最後に書く。ControllerCore は revision の変化時だけ設定を検証し、成功時に全設定を active copy へ反映して SOS と両 HIGS の内部状態をリセットする。6 区間の段数の和 + 2 が `SosSectionCount` と一致し 10 以下であること、両 HIGS の `Gain` が有限かつ正、`OmegaTs` が有限かつ表の範囲内であることも検証する。現行タスクの `Ts` は `125 us`（8 kHz）である。
+MATLAB は SOS と HIGS の全 staging 値を書いた後、`SosApplyRevision` を最後に書く。ControllerCore は revision の変化時だけ設定を検証し、成功時に全設定を active copy へ反映して SOS と両 HIGS の内部状態をリセットする。6 区間の段数の和 + 2 が `SosSectionCount` と一致し 10 以下であること、両 HIGS の `Gain` が有限かつ正、`OmegaTs` が有限かつ表の範囲内であることも検証する。現行タスクの `Ts` は `62.5 us`（16 kHz）である。
 
 検証完了時は成否にかかわらず `Outputs.processedRevision` を更新する。成功時は `Outputs.appliedRevision` も更新し、失敗時は従来の active copy と内部状態を維持する。MATLAB は要求した revision と両出力を照合し、以前の reject status を今回の結果と取り違えないようにする。
 
