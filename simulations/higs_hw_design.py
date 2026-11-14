@@ -11,7 +11,7 @@ is computed in the same cycle from the same logged position, hence nominal extra
 
 Models (4-state two-inertia of higs_two_inertia.plant_matrices, Kt = 1)
   Sampled response Gd(e^jwT) = (1 - e^-jwT)/T * sum_k P(s_k)/s_k, s_k = j(w + k ws), P = two-inertia * exp(-s tau)
-  [/(1 + s/wcl)] (aliased 8 kHz ZOH sum).
+  [/(1 + s/wcl)] (aliased ZOH sum at 1/TS).
   free fit (task 1): jm, jl, bm, bl, k, c, tau (+ wcl) free, Hm and Hl together on 70..1500 Hz, per amplitude. Its bm, bl
     absorb Coulomb friction and differ between amplitudes, so it is not a sliding model.
   design model: bm = bl = 0, tau held at the free fit, jm, jl, k, c fitted on 100..700 Hz (Hm and Hl), per amplitude.
@@ -28,9 +28,18 @@ Gate "HW" (every member: max|S| <= 2 with the describing-function controller)
   Crossover fc of a design = first |L| = 1 crossing of the nominal member (ms030 spliced, delay 0); kp = kp_scale /
   |C G| at the design fc (as in higs_fig89_robustness).
 
-Time domain (secondary to the gate): design model of ms030, integer delay = round(tau), current limit 0.5 A, encoder
-quantisation 2^20 counts/rev in the quantised column only (no current quantisation), reference, load step and metrics
-as in higs_fig89_robustness.td_metrics (its 0.2 s tail windows are fixed at 1600 samples). Friction columns (approximate,
+Gate "measured" (--gate measured): members = measured Hl of ms030 and ms015 for 70 Hz <= f <= 3000 Hz (the multisine data is
+  noisy above ~3.2 kHz) spliced with the frictionless design model of that amplitude on 0.5..70 Hz (dense) and on
+  3000 Hz..F_MAX; extra delay 0 only, no model variants. Requirement: max|S| <= 2 on each member (|S| only, sparse lines). One
+  Nyquist winding check on the dense nominal design model (ms030, delay 0). Nominal member of the crossover: ms030 spliced.
+  The numeric two-HIGS cascade (cascade_ok) replaces the product of DFs on both grids for HIGS modes in both gates.
+
+Peak-current screen (--peak-current-a, default 0.25 A): a design is accepted only if the command in the round trip stays
+  <= that value on the frictionless design model (the hard limit in the model remains 0.5 A).
+
+Time domain (secondary to the gate): design model of ms030, integer delay = round(tau in samples at 1/TS), current limit 0.5 A,
+encoder quantisation 2^20 counts/rev in the quantised column only (no current quantisation), reference, load step and metrics
+as in higs_fig89_robustness.td_metrics (0.2 s tail windows = round(0.2 / TS) samples). Friction columns (approximate,
 not used for the optimisation): motor-side friction F(v) = (Fc + (Fs - Fc) exp(-(v/0.02)^2)) tanh(v/0.005), Fc = 0.10 A,
 Fs = 0.13 A, linearised-implicit sub-stepping, with the trial feedforward u += Fc*tanh(v_ref/0.05) + 1e-4*a_ref (Fc = 0.10 A)
 and without it.
@@ -68,6 +77,13 @@ FIT_BAND = (70., 1500.)
 SPLICE_HZ = 70.
 KEYS = list(base.NOMINAL)          # jm jl bm bl stiffness damping torque_constant
 AMPS = {"ms030": 0.30, "ms015": 0.15}
+BOOK_RATIOS = dict(lp=(1.0, 2.5), i=(0.3, 0.7))   # mode "both_book": omega_h / crossover (van den Eijnden et al., Fig. 8.9, Table 8.2)
+HIGS_BOUNDS = dict(lead_ratio=(1.5, 5.), lp_hz=(60., 600.))
+LINEAR_BOUNDS = dict(lead_ratio=(1.5, 12.), lp_hz=(60., 3000.))      # wider: the linear baseline must not sit on a bound
+MEAS_MAX_HZ = 3000.                 # gate "measured": highest measured line used
+PEAK_LIMIT_MA = 250.                # --peak-current-a: round-trip peak command accepted by the time-domain screen
+GATE_KIND = "hw"                    # --gate
+MODEL_S = False                     # --model-s: gate "measured" also requires max|S| <= 2 on the design model (f <= MEAS_MAX_HZ)
 
 
 # ------------------------------------------------------------------ data and model frequency response
@@ -147,7 +163,7 @@ def free_fit(D, use_lag, tau0s=(1., 2., 3.)):
     best = None
     for tau0, wcl0 in itertools.product(tau0s, (2 * np.pi * 700, 2 * np.pi * 2000) if use_lag else (None,)):
         jl0 = 4e-5
-        x0 = np.r_[np.log([4e-5, jl0, 3e-3, 3e-3, jl0 * (2 * np.pi * 235)**2, 1e-3]), tau0]
+        x0 = np.r_[np.log([4e-5, jl0, 3e-3, 3e-3, jl0 * (2 * np.pi * 235)**2, 1e-3]), tau0 * FS / 8000]       # tau0: 1..3 samples at 8 kHz
         x0 = np.r_[x0, np.log(wcl0)] if use_lag else x0
         r = least_squares(res, x0, max_nfev=400)
         if best is None or r.cost < best.cost:
@@ -198,9 +214,9 @@ def fit_all(log):
             fr["band_errors_Hl"] = band_errors(D["f"], l, D["Hl"])
             fr["band_errors_Hm"] = band_errors(D["f"], m, D["Hm"])
             rec["free_lag" if lag else "free"] = fr
-        # the first-order lag is kept only if it lowers the cost by > 3 % and has a corner below 4 kHz
+        # the first-order lag is kept only if it lowers the cost by > 3 % and has a corner below Nyquist
         lagfit = rec["free_lag"]
-        rec["lag_used"] = bool(lagfit["wcl_hz"] and lagfit["wcl_hz"] < 4000 and lagfit["cost"] < 0.97 * rec["free"]["cost"])
+        rec["lag_used"] = bool(lagfit["wcl_hz"] and lagfit["wcl_hz"] < FS / 2 and lagfit["cost"] < 0.97 * rec["free"]["cost"])
         fd = frictionless_fit(D, rec["free"]["tau_samples"])
         m, l = plant_frf(D["f"], fd["params"], fd["tau_samples"] * TS, None)
         fd["band_errors_Hl"] = band_errors(D["f"], l, D["Hl"])
@@ -214,11 +230,17 @@ def fit_all(log):
 
 
 # ------------------------------------------------------------------ plant set and gate
+def meas_top(D):
+    """Highest measured line used by the gate."""
+    return min(MEAS_MAX_HZ, D["f"][-1]) if GATE_KIND == "measured" else D["f"][-1]
+
+
 def freq_grids(D):
-    """S grid: dense 0.5..70 Hz | measured lines 70 Hz..last line | dense above the last line up to F_MAX.  M grid: dense 0.5..F_MAX."""
+    """S grid: dense 0.5..70 Hz | measured lines 70 Hz..meas_top | dense above meas_top up to F_MAX.  M grid: dense 0.5..F_MAX."""
+    top = meas_top(D)
     lo = np.geomspace(0.5, SPLICE_HZ, 100, endpoint=False)
-    lines = D["f"][D["f"] >= SPLICE_HZ]
-    hi = np.geomspace(D["f"][-1] * 1.001, F_MAX, 40) if D["f"][-1] * 1.001 < F_MAX else np.array([])
+    lines = D["f"][(D["f"] >= SPLICE_HZ) & (D["f"] <= top)]
+    hi = np.geomspace(top * 1.001, F_MAX, 40) if top * 1.001 < F_MAX else np.array([])
     fs = np.concatenate([lo, lines, hi])
     fm = np.unique(np.concatenate([np.geomspace(0.5, F_MAX, 450), np.linspace(100., 700., 240)]))
     return fs, fm
@@ -228,9 +250,10 @@ def delayed(f, G, n):
     return G * np.exp(-2j * np.pi * f * TS * n)
 
 
-def cascade_df(d, kp, n_max=1000, n_pts=36, periods=5, keep=2):
+def cascade_df(d, kp, f_min=8., n_pts=36, periods=5, keep=2):
     """First harmonic of the whole nonlinear controller (as R.controller_df_numeric, fewer points/periods for speed) on
-    n = 4..n_max samples per period, i.e. f >= FS/n_max (8 Hz at 8 kHz); below that the product of DFs is used."""
+    n = 4..FS/f_min samples per period, i.e. f >= f_min (8 Hz); below that the product of DFs is used."""
+    n_max = round(FS / f_min)
     n_list = np.unique(np.round(np.geomspace(4, n_max, n_pts)).astype(int))
     vals = []
     for n in n_list:
@@ -245,21 +268,37 @@ def cascade_df(d, kp, n_max=1000, n_pts=36, periods=5, keep=2):
     return fg[order], np.array(vals)[order]
 
 
+def higs_ratios(d, fc_hz):
+    """omega_h / crossover of the HIGS elements (omega_h = omega_c / sqrt(1 + 16/pi^2) for kh = 1); None for elements a mode does not use."""
+    c = R.corners(d)
+    return {k: (None if c[f"wc_{k}"] is None else c[f"wc_{k}"] / R.SQ / (2 * np.pi * fc_hz)) for k in ("lp", "i")}
+
+
+def book_ok(d, fc_hz):
+    r = higs_ratios(d, fc_hz)
+    return all(BOOK_RATIOS[k][0] <= r[k] <= BOOK_RATIOS[k][1] for k in ("lp", "i"))
+
+
 class HwGate:
     """Gate HW. Two frequency grids: `S` (measured lines spliced with the design model; |S| only) and `M` (dense model
     members; |S| and winding). Row 0 of S is the nominal plant (ms030, delay 0). evaluate() returns dict(kp, fc, s) like
     R.GateEval.evaluate."""
 
-    def __init__(self, S, M, idx_s=None, idx_m=None):
+    def __init__(self, S, M, idx_s=None, idx_m=None, s_on_m=True, book=False):
         self.full = (S, M)
+        self.book = book              # True: designs must also satisfy BOOK_RATIOS at the nominal crossover
+        self.s_on_m = s_on_m          # False: the M members are only winding-checked, |S| is gated on S alone
         self.grids = {}
         for key, (f, P), idx in (("S", S, idx_s), ("M", M, idx_m)):
             idx = np.arange(len(f)) if idx is None else idx
-            self.grids[key] = dict(f=f[idx], P=P[:, idx], fm=R.FreqModel(f[idx], P[0][idx], extra_delay=0), check=(key == "M"))
+            fi = f[idx]
+            sm = (fi <= MEAS_MAX_HZ) if (key == "M" and GATE_KIND == "measured") else np.ones(len(fi), bool)   # model |S| gated up to 3 kHz
+            self.grids[key] = dict(f=fi, P=P[:, idx], fm=R.FreqModel(fi, P[0][idx], extra_delay=0), check=(key == "M"),
+                                   s_gate=(key == "S" or s_on_m), sm=sm)
         self.nominal = self.grids["S"]
 
     def subset(self, idx_s, idx_m):
-        return HwGate(*self.full, idx_s, idx_m)
+        return HwGate(*self.full, idx_s, idx_m, self.s_on_m, self.book)
 
     def controllers(self, d, kp):
         out = {}
@@ -275,13 +314,16 @@ class HwGate:
         ctrl = self.controllers(d, kp)
         s = 0.
         for k, g in self.grids.items():
-            s = max(s, float(1 / np.min(np.abs(1 + ctrl[k][None, :] * g["P"]))))
-            if s > limit:
-                return None
+            if g["s_gate"]:
+                s = max(s, float(1 / np.min(np.abs(1 + ctrl[k][None, g["sm"]] * g["P"][:, g["sm"]]))))
+                if s > limit:
+                    return None
         if not bool(np.all(R.nyquist_stable_many(ctrl["M"][None, :] * self.grids["M"]["P"]))):
             return None
         fc = R.first_crossover(self.nominal["f"], ctrl["S"] * self.nominal["P"][0])
-        return None if fc is None else dict(kp=kp, fc=fc, s=s)
+        if fc is None or (self.book and not book_ok(d, fc)):
+            return None
+        return dict(kp=kp, fc=fc, s=s)
 
     def report(self, d, kp, names_s, names_m):
         """|S| per member, stability of the model members, crossover and phase margin of the nominal member."""
@@ -290,8 +332,8 @@ class HwGate:
         for k, names in (("S", names_s), ("M", names_m)):
             g = self.grids[k]
             L = ctrl[k][None, :] * g["P"]
-            sm = 1 / np.min(np.abs(1 + L), axis=1)
-            fpk = g["f"][np.argmin(np.abs(1 + L), axis=1)]
+            sm = 1 / np.min(np.abs(1 + L[:, g["sm"]]), axis=1)
+            fpk = g["f"][g["sm"]][np.argmin(np.abs(1 + L[:, g["sm"]]), axis=1)]
             for i, n in enumerate(names):
                 rep[n] = dict(S_max=float(sm[i]), S_max_freq_hz=float(fpk[i]))
                 if g["check"]:
@@ -309,10 +351,26 @@ class HwGate:
             prod = kp * g["fm"].controller(d)
             ctrl = np.where((g["f"] <= FS / 4) & (g["f"] >= fg[0]), cn, prod)
             L = ctrl[None, :] * g["P"]
-            smax = max(smax, float(1 / np.min(np.abs(1 + L))))
+            if g["s_gate"]:
+                smax = max(smax, float(1 / np.min(np.abs(1 + L[:, g["sm"]]))))
             if g["check"]:
                 ok = ok and bool(np.all(R.nyquist_stable_many(L)))
         return bool(ok and smax <= limit), smax
+
+
+def build_gate_measured(fits, Ds):
+    """S rows: [ms030, ms015] measured Hl (70..MEAS_MAX_HZ) spliced with the design model, delay 0. M row: ms030 design model."""
+    fs, fm_grid = freq_grids(Ds["ms030"])
+    rows_s, names_s = [], []
+    for amp in AMPS:
+        D, fd = Ds[amp], fits[amp]["design"]
+        mdl = plant_frf(fs, fd["params"], fd["tau_samples"] * TS)[1]
+        meas = np.interp(fs, D["f"], D["Hl"].real) + 1j * np.interp(fs, D["f"], D["Hl"].imag)     # used only on the lines
+        rows_s.append(np.where((fs >= SPLICE_HZ) & (fs <= meas_top(D)), meas, mdl))
+        names_s.append(f"{amp}_measured_spliced")
+    fd = fits["ms030"]["design"]
+    g = plant_frf(fm_grid, fd["params"], fd["tau_samples"] * TS)[1]
+    return (fs, np.array(rows_s)), (fm_grid, g[None, :]), names_s, ["ms030_design_model_nominal"]
 
 
 def build_gate(fits, Ds):
@@ -323,7 +381,7 @@ def build_gate(fits, Ds):
         D, fd = Ds[amp], fits[amp]["design"]
         mdl = plant_frf(fs, fd["params"], fd["tau_samples"] * TS)[1]
         meas = np.interp(fs, D["f"], D["Hl"].real) + 1j * np.interp(fs, D["f"], D["Hl"].imag)     # used only on the lines
-        G = np.where((fs >= SPLICE_HZ) & (fs <= D["f"][-1]), meas, mdl)
+        G = np.where((fs >= SPLICE_HZ) & (fs <= meas_top(D)), meas, mdl)
         for n in (0, 1):
             rows_s.append(delayed(fs, G, n))
             names_s.append(f"{amp}_measured_spliced_d{n}")
@@ -461,9 +519,11 @@ _SCREEN = dict(orig=R.td_screen_sweep, gate=None, cache={})
 
 
 def screen_with_cascade(d, kp):
-    """R.td_screen_sweep plus, for HIGS modes, the numeric-cascade gate (the product of DFs misjudges the two-HIGS cascade
-    by up to 40 % / 18 deg at 10..60 Hz when the HIGS corners are far below the frequency). Cached per design."""
+    """R.td_screen_sweep plus the round-trip peak command <= PEAK_LIMIT_MA and, for HIGS modes, the numeric-cascade gate (the
+    product of DFs misjudges the two-HIGS cascade by up to 40 % / 18 deg at 10..60 Hz when the HIGS corners are far below the
+    frequency). Cached per design."""
     ok, rec = _SCREEN["orig"](d, kp)
+    ok = ok and rec["peak_current_ma"] <= PEAK_LIMIT_MA
     if ok and d["mode"] != "linear":
         key = tuple(d.values())
         if key not in _SCREEN["cache"]:
@@ -475,7 +535,8 @@ def screen_with_cascade(d, kp):
 def verify(ge, d, kp, limit):
     """Time-domain screen (no divergence/clipping/limit cycle) and, for HIGS modes, the numeric DF of the whole cascade."""
     ok_td, rec = R.td_screen_sweep(d, kp)
-    out = dict(td_ok=bool(ok_td), td_tail_rms_urad=rec["tail_rms_urad"], cascade_ok=True, cascade_S=None)
+    out = dict(td_ok=bool(ok_td), td_tail_rms_urad=rec["tail_rms_urad"], td_peak_current_ma=rec["peak_current_ma"],
+               cascade_ok=True, cascade_S=None)
     if d["mode"] != "linear":
         out["cascade_ok"], out["cascade_S"] = ge.cascade_ok(d, kp, R.S_LIMIT)
     out["ok"] = bool(out["td_ok"] and out["cascade_ok"])
@@ -518,7 +579,7 @@ def solve(ge_s, ge_f, mode, rng, extra_starts, objective, log, n_random, n_top, 
 def design_record(name, d, kp, ge, names_s, names_m, **extra):
     rep, mt = ge.report(d, kp, names_s, names_m)
     return dict(name=name, design=d, kp=float(kp), crossover_hz=mt["fc_hz"], margins_nominal=mt,
-                S_max_worst_member=max(v["S_max"] for v in rep.values()), S_max_members=rep,
+                S_max_worst_member=max(v["S_max"] for n, v in rep.items() if GATE_KIND == "hw" or MODEL_S or n in names_s), S_max_members=rep,
                 all_model_members_nyquist_stable=all(v.get("nyquist_stable", True) for v in rep.values()),
                 edge_flags=[f"{k} at edge" for k in R.sweep_keys(d)
                             if d[k] <= R.SWEEP_BOUNDS[k][0] * 1.001 or d[k] >= R.SWEEP_BOUNDS[k][1] * 0.999],
@@ -526,6 +587,7 @@ def design_record(name, d, kp, ge, names_s, names_m, **extra):
                 time_domain_friction_FF_approx=td_record(d, kp, friction=FRICTION_A, stiction=STICTION_A, ff=FRICTION_A),
                 time_domain_friction_noFF_approx=td_record(d, kp, friction=FRICTION_A, stiction=STICTION_A),
                 tuning=R.tuning_fields(d, kp),
+                higs_omega_h_over_crossover=higs_ratios(d, mt["fc_hz"]) if d["mode"] != "linear" else None,
                 corners_hz={k: (v / (2 * np.pi) if v else None) for k, v in R.corners(d).items()}, **extra)
 
 
@@ -544,7 +606,7 @@ def exp05_design(rec, kind):
     for k in ("higs_lp_corner_hz", "higs_i_corner_hz", "higs_lp_gain", "higs_i_gain"):
         tuning[k] = t[k]
     d["tuning"] = tuning
-    d["provenance"] = (f"simulations/higs_hw_design.py, error-optimal {kind} design under gate HW from hardware FRF "
+    d["provenance"] = (f"simulations/higs_hw_design.py, error-optimal {kind} design under gate {GATE_KIND}{" + model S" if MODEL_S else ""}, peak current <= {PEAK_LIMIT_MA:g} mA, from hardware FRF "
                        f"{DATA.relative_to(ROOT).as_posix() if DATA.is_relative_to(ROOT) else DATA.as_posix()}/frf_ms030.mat and frf_ms015.mat "
                        f"(random-odd multisine 0.30 / 0.15 A, {FS / 1000:g} kHz, open loop)")
     h = hashlib.sha256()
@@ -581,7 +643,7 @@ def plot(path, fits, Ds, recs, ge, ges_names):
         kp = rec["kp"]
         ctrl = kp * g["fm"].controller(d)
         L = ctrl * g["P"][0]
-        col = R.COLOR[d["mode"]]
+        col = "#7a3fb0" if name.startswith("both_book") else R.COLOR[d["mode"]]
         ls = "-" if name.endswith("error_opt") else "--"
         ax[0, 1].semilogx(f, np.abs(1 / (1 + L)), ls, color=col, lw=1.1, label=name)
         ax[1, 1].loglog(f, np.abs(L), ls, color=col, lw=1.1)
@@ -599,11 +661,22 @@ def plot(path, fits, Ds, recs, ge, ges_names):
     fig.savefig(path, dpi=110)
 
 
+GATE_DESCRIPTION = dict(
+    hw="max|S| <= 2 on every member with the DF controller; model members also Nyquist stable. Measured members: "
+       "Hl for f >= 70 Hz (lines up to the last measured line, design model above), frictionless design model on a dense log grid "
+       "0.5..70 Hz; extra delay 0 and +1 sample. Model members: design model (both amplitudes' fits) and the "
+       "ms030 model with jl x{{0.8,1.2}} and k x{{0.8,1.2}}, dense grid 0.5..{fmax:.0f} Hz, extra delay 0 and +1.",
+    measured="max|S| <= 2 on each measured member with the DF controller. Members: Hl of ms030 and ms015 for 70 Hz <= f <= {top:.0f} Hz "
+             "spliced with the frictionless design model of that amplitude (dense log grid 0.5..70 Hz, dense {top:.0f}..{fmax:.0f} Hz); "
+             "extra delay 0 only. One Nyquist winding check on the dense nominal design model (ms030, delay 0).")
+
+
 # ------------------------------------------------------------------ main
 def main():
-    global DATA
+    global DATA, GATE_KIND, PEAK_LIMIT_MA, MODEL_S
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--modes", default="linear,both,I,LP")
+    ap.add_argument("--modes", default="linear,both,both_book,I,LP",
+                    help="both_book: mode both with omega_h,lp/fc in 1..2.5 and omega_h,i/fc in 0.3..0.7")
     ap.add_argument("--n-random", type=int, default=20000)
     ap.add_argument("--n-top", type=int, default=4)
     ap.add_argument("--restarts", type=int, default=3)
@@ -611,9 +684,15 @@ def main():
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--frf-dir", type=Path, default=DATA, help="directory with frf_ms030.mat and frf_ms015.mat")
     ap.add_argument("--ts", type=float, default=None, help="sample time [s]; default: scalar Ts of the FRF file, else 1/8000")
+    ap.add_argument("--gate", choices=("hw", "measured"), default="hw")
+    ap.add_argument("--peak-current-a", type=float, default=PEAK_LIMIT_MA / 1000, help="round-trip peak command accepted by the time-domain screen [A]")
+    ap.add_argument("--model-s", action="store_true", help="gate measured: also max|S| <= 2 on the nominal frictionless design model, 0.5..3000 Hz")
     args = ap.parse_args()
     t0 = time.time()
+    MODEL_S = args.model_s
     DATA = args.frf_dir
+    GATE_KIND = args.gate
+    PEAK_LIMIT_MA = 1000 * args.peak_current_a
 
     def log(*a):
         print(f"[{time.time() - t0:6.0f}s]", *a, flush=True)
@@ -630,33 +709,49 @@ def main():
     delay = int(round(fits["ms030"]["free"]["tau_samples"]))
     set_td_model(fits["ms030"]["design"]["params"], delay)
     R.simulate = simulate_hw                                  # td_metrics/td_screen_sweep use this module global
-    R.SWEEP_BOUNDS.update(lp_hz=(60., 600.))                  # fc stays (1, 200); lead ratio, r_i, kp_scale, HIGS ratios as in R
-    S, M, names_s, names_m = build_gate(fits, Ds)
-    ge_f = HwGate(S, M)
-    ge_s = ge_f.subset(sub_idx(S[0]), sub_idx(M[0]))
-    _SCREEN["gate"] = ge_f
+    R.SWEEP_BOUNDS.update(HIGS_BOUNDS)                        # per mode below; fc stays (1, 200); r_i, kp_scale, HIGS ratios as in R
+    S, M, names_s, names_m = (build_gate_measured if GATE_KIND == "measured" else build_gate)(fits, Ds)
+    s_on_m = GATE_KIND == "hw" or MODEL_S
+    ge_f0 = HwGate(S, M, s_on_m=s_on_m)
+    ge_s0 = ge_f0.subset(sub_idx(S[0]), sub_idx(M[0]))
+    ge_fb = HwGate(S, M, s_on_m=s_on_m, book=True)
+    ge_sb = ge_fb.subset(sub_idx(S[0]), sub_idx(M[0]))
+    _SCREEN["gate"] = ge_f0
     R.td_screen_sweep = screen_with_cascade                   # used by optimise_gate / optimise_rms as accept test
-    log(f"gate HW: {len(names_s)} measured + {len(names_m)} model members; grid S {len(S[0])} (search {len(ge_s.grids['S']['f'])}), "
-        f"M {len(M[0])} (search {len(ge_s.grids['M']['f'])}); TD delay {delay} samples, design model {fmt_p(fits['ms030']['design']['params'])}")
+    log(f"gate {GATE_KIND}: {len(names_s)} measured + {len(names_m)} model members; grid S {len(S[0])} (search {len(ge_s0.grids['S']['f'])}), "
+        f"M {len(M[0])} (search {len(ge_s0.grids['M']['f'])}); TD delay {delay} samples, design model {fmt_p(fits['ms030']['design']['params'])}")
     R.df_table()
     log("DF table ready")
 
     recs, best_lin = {}, None
     for mode in modes:
         t1 = time.time()
+        book = mode == "both_book"
+        kind = "both" if book else mode
+        R.SWEEP_BOUNDS.update(LINEAR_BOUNDS if kind == "linear" else HIGS_BOUNDS)
+        ge_s, ge_f = (ge_sb, ge_fb) if book else (ge_s0, ge_f0)
         extra = []
-        if best_lin is not None and mode != "linear":
-            extra.append(dict(best_lin, mode=mode, **{k: v for k, v in HIGS_START[mode].items()}))
+        if best_lin is not None and kind != "linear":
+            q = dict(best_lin, mode=kind, **HIGS_START[kind])
+            for k in ("lead_ratio", "lp_hz"):
+                q[k] = float(np.clip(q[k], *R.SWEEP_BOUNDS[k]))
+            extra.append(q)
+            if book:                    # start with omega_h in the middle of the book ranges (ratio to the crossover of the start)
+                r0 = ge_f0.evaluate(q)
+                if r0 is not None:
+                    extra.append(dict(q, wc_lp_ratio=R.SQ * 1.5 * r0["fc"] / q["fc"], wc_i_ratio=R.SQ * 0.5 * r0["fc"] / q["fc"]))
         log(f"mode {mode}: max-crossover search")
-        d, r, ver, lim, fc = solve(ge_s, ge_f, mode, rng, extra, "fc", log, args.n_random, args.n_top, args.restarts)
+        d, r, ver, lim, fc = solve(ge_s, ge_f, kind, rng, extra, "fc", log, args.n_random, args.n_top, args.restarts)
         recs[f"{mode}_max_fc"] = design_record(f"{mode}_max_fc", d, r["kp"], ge_f, names_s, names_m, objective="max crossover",
                                                verify=ver, final_limit=lim, seconds=time.time() - t1)
         log(f"  {mode} max-fc: fc {fc:.2f} Hz  S {r['s']:.3f}  limit {lim}  verify {ver['ok']}  {d}")
         if mode == "linear":
             best_lin = d
+        if recs[f"{mode}_max_fc"]["edge_flags"]:
+            log(f"  {mode} max-fc on bounds: {recs[f'{mode}_max_fc']['edge_flags']}")
         t1 = time.time()
         log(f"mode {mode}: error-optimal search")
-        d2, r2, ver2, lim2, rms = solve(ge_s, ge_f, mode, rng, [d] + extra, "rms", log, args.n_random // 2, args.n_top, args.restarts)
+        d2, r2, ver2, lim2, rms = solve(ge_s, ge_f, kind, rng, [d] + extra, "rms", log, args.n_random // 2, args.n_top, args.restarts)
         recs[f"{mode}_error_opt"] = design_record(f"{mode}_error_opt", d2, r2["kp"], ge_f, names_s, names_m,
                                                   objective="min round-trip RMS", verify=ver2, final_limit=lim2, seconds=time.time() - t1)
         log(f"  {mode} error-opt: fc {r2['fc']:.2f} Hz  RMS {rms:.4f} mrad  S {r2['s']:.3f}  limit {lim2}  verify {ver2['ok']}  {d2}")
@@ -676,25 +771,23 @@ def main():
         for n in AMPS}
     res = dict(
         fits=fit_json,
-        gate=dict(name="HW", S_limit=R.S_LIMIT, nominal="ms030_measured_spliced_d0 (crossover measured on it)",
-                  measured_members=names_s, model_members=names_m,
-                  description="max|S| <= 2 on every member with the DF controller; model members also Nyquist stable. Measured members: "
-                              "Hl for f >= 70 Hz (lines up to 2499 Hz, design model above), frictionless design model on a dense log grid "
-                              "0.5..70 Hz; extra delay 0 and +1 sample. Model members: design model (both amplitudes' fits) and the "
-                              "ms030 model with jl x{0.8,1.2} and k x{0.8,1.2}, dense grid 0.5..3990 Hz, extra delay 0 and +1.",
+        gate=dict(name=GATE_KIND, S_limit=R.S_LIMIT, nominal=f"{names_s[0]} (crossover measured on it)",
+                  measured_members=names_s, model_members=names_m, peak_current_limit_ma=PEAK_LIMIT_MA,
+                  description=GATE_DESCRIPTION[GATE_KIND].format(top=MEAS_MAX_HZ, fmax=F_MAX) + (" Also max|S| <= 2 on the nominal design model, 0.5..%g Hz (--model-s)." % MEAS_MAX_HZ if MODEL_S else ""),
                   grid_points=dict(S=len(S[0]), M=len(M[0]))),
         time_domain=dict(model="design model of ms030 (frictionless)", delay_samples=delay, current_limit_a=CURRENT_LIMIT,
                          encoder_counts_per_rev=ENC_COUNTS, friction_coulomb_a=FRICTION_A, friction_static_a=STICTION_A, friction_tanh_rad_s=FRICTION_V0,
                          stribeck_velocity_rad_s=STRIBECK_V, feedforward="u += Fc*tanh(v_ref/0.05) + 1e-4*a_ref, Fc = 0.10 A",
                          sample_time_s=TS),
-        bounds={k: list(v) for k, v in R.SWEEP_BOUNDS.items()}, seed=args.seed, designs=recs, runtime_s=time.time() - t0)
+        bounds=dict(higs={k: list(v) for k, v in dict(R.SWEEP_BOUNDS, **HIGS_BOUNDS).items()},
+                    linear={k: list(v) for k, v in dict(R.SWEEP_BOUNDS, **LINEAR_BOUNDS).items()}, book_omega_h_over_crossover=BOOK_RATIOS), seed=args.seed, designs=recs, runtime_s=time.time() - t0)
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / "hw_design.json").write_text(json.dumps(R.jsonable(res), indent=1, allow_nan=False) + "\n")
-    for mode in ("linear", "both"):
+    for mode in ("linear", "both", "both_book"):
         if f"{mode}_error_opt" in recs:
             (args.output / f"hw_design_{mode}.json").write_text(
                 json.dumps(R.jsonable(exp05_design(recs[f"{mode}_error_opt"], mode)), indent=2, allow_nan=False) + "\n")
-    plot(args.output / "hw_design.png", fits, Ds, recs, ge_f, names_s)
+    plot(args.output / "hw_design.png", fits, Ds, recs, ge_f0, names_s)
     log("saved", args.output)
 
 

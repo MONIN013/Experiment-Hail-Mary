@@ -46,6 +46,11 @@ MODES = ("linear", "I", "LP", "both")
 TWIST_BAND_HZ = (200., 400.)
 TAIL_LIMIT_URAD = 50.0
 OUT_DIR = ROOT / "simulations/results"
+TAIL_S = 0.2                                   # error-tail window [s] of the time-domain metrics and screens
+
+
+def TAIL_N():
+    return round(TAIL_S / TS)
 
 
 # ------------------------------------------------------------------ HIGS law and DF
@@ -437,7 +442,7 @@ def td_metrics(make_ctrl, *, quantized=False, disturbance_record=1.6, angle_coun
                settle_rms_urad=1e6 * float(np.sqrt(np.mean(e[win]**2))),
                peak_current_ma=1e3 * float(np.max(abs(out[:, 4]))),
                twist_200_400hz_rms_urad=1e6 * band_rms(twist, *TWIST_BAND_HZ),
-               tail_rms_urad=1e6 * float(np.sqrt(np.mean(e[-1600:]**2))))
+               tail_rms_urad=1e6 * float(np.sqrt(np.mean(e[-TAIL_N():]**2))))
     # step load-torque disturbance (0.005 in Kt=1 current units) at t=0.1 s on the load, 1.6 s record
     n = round(disturbance_record / TS)
     t = np.arange(n) * TS
@@ -450,7 +455,7 @@ def td_metrics(make_ctrl, *, quantized=False, disturbance_record=1.6, angle_coun
         e2 = -out2[:, 2]
         traces["e2"] = e2
         rec.update(dist_iae_mrad_s=1e3 * float(np.sum(abs(e2)) * TS), dist_peak_mrad=1e3 * float(np.max(abs(e2))),
-                   dist_clipped=clip2, dist_tail_rms_urad=1e6 * float(np.sqrt(np.mean(e2[-1600:]**2))))
+                   dist_clipped=clip2, dist_tail_rms_urad=1e6 * float(np.sqrt(np.mean(e2[-TAIL_N():]**2))))
     return rec, traces
 
 
@@ -1114,7 +1119,8 @@ def td_screen_sweep(d, kp):
         return False, rec
 
     def settled(e):
-        tail, prev = np.sqrt(np.mean(e[-1600:]**2)), np.sqrt(np.mean(e[-3200:-1600]**2))
+        n_t = TAIL_N()
+        tail, prev = np.sqrt(np.mean(e[-n_t:]**2)), np.sqrt(np.mean(e[-2 * n_t:-n_t]**2))
         return bool(tail <= TAIL_LIMIT_URAD * 1e-6 or tail <= 0.9 * prev)
     return settled(tr["e"]) and settled(tr["e2"]), rec
 
