@@ -192,7 +192,7 @@ def fig1_frf(ctx, w=None):
         ax.axvspan(1, ctx.splice, color="#e8a33a", alpha=0.16, lw=0)
         ax.axvline(ctx.splice, color="k", ls="-.", lw=1.0)
     axs[0].text(1.25, 0.04, "friction region", transform=axs[0].get_xaxis_transform(), va="bottom", color="#8a5a00")
-    axs[0].text(ctx.splice * 0.93, 0.04, f"splice {ctx.splice:.0f} Hz", transform=axs[0].get_xaxis_transform(), va="bottom", ha="right", rotation=90)
+    axs[0].text(ctx.splice * 0.93, 0.04, f"splice {ctx.splice:.0f} Hz", transform=axs[0].get_xaxis_transform(), va="bottom", ha="right", rotation=90, fontsize=0.8 * plt.rcParams["font.size"])
     axs[0].set_ylabel("|Hl| [dB re rad/A]")
     axs[1].set_ylabel("phase [deg]")
     axs[1].set_xlabel("frequency [Hz]")
@@ -323,7 +323,7 @@ def fig3_filters(ctx, w=None, only=("wi", "vi", "vlp", "notch")):
 # ------------------------------------------------------------------ fig 4: block diagram
 def fig4_diagram(ctx, figw=12.0):
     t = ctx.des["both"]["tuning"]
-    fs = 7.0 * figw / 7.1                     # 7 pt at the report width of 7.1 in
+    fs = 7.6 * figw / 7.1                     # 7.6 pt at the report width of 7.1 in
     fig = plt.figure(figsize=(figw, figw * 0.47))
     ax = fig.add_axes([0, 0, 1, 1])
     ax.set_xlim(0, 20)
@@ -359,14 +359,14 @@ def fig4_diagram(ctx, figw=12.0):
     ax.text(0.15, ytop + 0.15, "$r$", ha="center", va="bottom", fontsize=fs * 1.2)
     arrow((0.15, ytop), (1.1, ytop))
     node(1.4, ytop, [(-0.55, 0.45, "+"), (0.45, -0.55, "$-$")])
-    arrow((1.7, ytop), (2.85, ytop))
+    arrow((1.7, ytop), (2.75, ytop))
     ax.text(2.3, ytop + 0.15, "$e$", ha="center", va="bottom", fontsize=fs * 1.1)
     l, r = box(3.8, ytop, r"HIGS$_{lp}$", "higs")
     arrow((r, ytop), (5.7, ytop))
     l, r = box(6.8, ytop, r"$V_{lp}$", "lin")
     line((r, ytop), (8.3, ytop))
     ax.plot(8.3, ytop, "ko", ms=4 * figw / 12 + 1.5, zorder=4)
-    note(3.8, ytop - 0.7, f"nonlinear LPF\n$\\omega_h$ = {t['higs_lp_corner_hz'] / SQ:.0f} Hz")
+    note(3.8, ytop - 0.7, f"nonlinear LPF\n$W_{{lp}}=1$\n$\\omega_h$ = {t['higs_lp_corner_hz'] / SQ:.0f} Hz")
     note(6.8, ytop - 0.7, "restores $C_{lp}$\n(2nd-order LPF)")
     # P branch
     arrow((8.3, ytop), (9.9, ytop))
