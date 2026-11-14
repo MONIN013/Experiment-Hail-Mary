@@ -3,7 +3,7 @@ function out = predict_logger(cfg, plant_cfg, varargin)
 %
 % The recurrence mirrors the checked-in ControllerCore, DriverAdapter, and
 % VirtualMotorCore implementations. Fixed one-cycle process-image delays are
-% part of the deployed 8 kHz contract and are intentionally not estimated
+% part of the deployed 16 kHz contract and are intentionally not estimated
 % from the measured log.
 
 arguments

@@ -14,14 +14,14 @@ classdef TestExperimentWorkflows < matlab.unittest.TestCase
       required_fields = ["scenario", "run", "logger", "signals", ...
         "metrics", "artifacts", "plant", "startup_timing"];
       testCase.verifyTrue(all(isfield(result, required_fields)));
-      testCase.verifyEqual(result.metrics.sample_count, 480);
+      testCase.verifyEqual(result.metrics.sample_count, 960);
       testCase.verifyTrue(result.metrics.nonzero_motion);
-      testCase.verifySize(result.signals.input, [480 1]);
+      testCase.verifySize(result.signals.input, [960 1]);
       testCase.verifyEqual(result.signals.input, result.logger.raw.ff_value);
       testCase.verifyNotEqual(result.signals.input, ...
         result.logger.raw.control_input);
       testCase.verifyClass(result.plant.Pd, "frd");
-      testCase.verifyEqual(result.plant.Ts, 1 / 8000, "AbsTol", eps);
+      testCase.verifyEqual(result.plant.Ts, 1/16000, "AbsTol", eps);
       z = tf("z", result.plant.Ts);
       integrator = result.plant.Ts*z/(z-1);
       frequency_rad_s = 2*pi*result.plant.Pd_vel_load.Frequency;
@@ -103,7 +103,7 @@ classdef TestExperimentWorkflows < matlab.unittest.TestCase
 
     function ilcSettlingTailRemainsStrictlyZeroFeedforward(testCase)
       [plant, trajectory, controller] = testCase.syntheticInputs();
-      Ts = 1 / 8000;
+      Ts = 1/16000;
       tail_count = 8;
       scenario = experiment.scenario.exp04(plant, trajectory, ...
         "Kd", controller, "trial_count", 3, "alpha", 0.6, ...
@@ -287,7 +287,7 @@ classdef TestExperimentWorkflows < matlab.unittest.TestCase
     end
 
     function [plant, trajectory, controller] = syntheticInputs()
-      Ts = 1 / 8000;
+      Ts = 1/16000;
       sample_count = 64;
       t = (0:sample_count - 1)' * Ts;
       frequency_hz = 125;

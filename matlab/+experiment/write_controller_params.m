@@ -48,7 +48,7 @@ function applied = wait_for_apply_ack(transport, symbols, types, requested)
 timeout_s = 0.5;
 poll_period_s = 0.005;
 timer = tic;
-% Allow at least one 8 kHz ControllerCore cycle to process the new revision.
+% Allow at least one ControllerCore cycle to process the new revision.
 % This also prevents a previous rejected revision's error code from being
 % mistaken for the result of the payload that was just committed.
 pause(poll_period_s);

@@ -40,7 +40,7 @@ config.MatlabEnvironment.setup("Reconfigure", true)
 | `experiment.ExperimentConfig` | 実験実行の主 runtime config (`cfg.env` に環境 snapshot を内包) |
 | `experiment.ControllerConfig` | 固定 Hlp/Hi 行を含む最大10段の packed SOS controller と6 segment count (`N x 6`) |
 | `experiment.exp0n.run_and_collect` | 学生実験入口の接続、実行、logger bin 回収 |
-| `experiment.exp0n.load_plant_data` / `load_trajectory` | plant と tracked 8 kHz 軌道の strict loader |
+| `experiment.exp0n.load_plant_data` / `load_trajectory` | plant と tracked 16 kHz 軌道の strict loader |
 | `experiment.exp0n.assert_run_contract` | 学生実験の受入判定 |
 | `experiment.scenario.exp01`〜`exp04` | 副作用なしの実験条件・設計構築 |
 | `experiment.workflow.run_exp01`〜`run_exp04` | 実測、信号抽出、metrics、artifact 保存 |
@@ -60,7 +60,7 @@ config.MatlabEnvironment.setup("Reconfigure", true)
 | `virtualMotor.PlantConfig` | VirtualMotorCore パラメータ |
 | `virtualMotor.configure` / `readParams` | IDLE 安全確認付きの VM parameter 設定 / readback |
 | `virtualMotor.writeParams` | VM tool 内部で使う低レベル parameter write |
-| `virtualMotor.predict_logger` / `compare_prediction` | Test 専用の 8 kHz logger 予測 / 照合 oracle |
+| `virtualMotor.predict_logger` / `compare_prediction` | Test 専用の 16 kHz logger 予測 / 照合 oracle |
 | `virtualMotor.restart_runtime` | Test/E2E 専用の VM lifecycle reset と hidden state zero 化 |
 | `twincat_ads.AdsSession` | transport キャッシュ |
 | `twincat_ads.AdsTransport` | ADS 実装 |
@@ -160,10 +160,10 @@ run('matlab/experiment/exp04_ILC.m')
 `run_exp01_exp04_preflight.m` は mapping 種別に依存せず、ADS 接続、共通 active contract symbol、MATLAB toolbox、`plant.mat`、tracked 軌道を読み取り専用で確認する。
 学生入口は internal heartbeat を無効化し、`cfg.ads_assembly` を使う external heartbeat だけを有効化する。同一実行で internal/external を同時に有効化することはできない。
 `exp01_SysId.m` は cycle平均0・最大絶対値0.25 Aへ正規化した logarithmic chirp SI を行う。loggerの `ff_value` から実測速度を直接同定し、semi-implicit Eulerと一致する `Ts*z/(z-1)` で位置FRDを構成して、`matlab/experiment/data/plant.mat` に `Pd` / `Pd_motor` / `Pd_load` / `Pd_vel_load` / `Pd_vel_motor` / `Pdn` / `Jn` / `Dn` / `Ndelay` / `Ts` を保存する。VM/実機の target metadata は保存せず、Mapping変更後も exp01→exp04 の標準順序を操作者が守る。
-`matlab/resources/trajectory_8khz.mat` は標準軌道の tracked resource で、SHA-256 は `11C4E587D2E413707C09CA0875779269E1F6F7ECFD1CEC1C50030C18A62B5CB0` である。`load_trajectory` が field・件数・有限性・8 kHz 刻みを検証し、deg 系を rad 系へ一元変換する。
+`matlab/resources/trajectory_16khz.mat` は標準軌道の tracked resource で、SHA-256 は `48FE7CE1AC2EA22D53575905BC6ADD15A6730D838F4B8B5B977190AD1D8082F2` である。`load_trajectory` が field・件数・有限性・16 kHz 刻みを検証し、deg 系を rad 系へ一元変換する。
 `exp02_FeedBack.m` は `designpid(Dn/Jn,0,1/Jn,omega)`、`omega=15 rad/s`、`Smax=2` を既定にして、Nyquist と感度上限を数値確認してから `feedback_result.mat` に `t,r,y,e,u,Kd` を保存する。
 `exp03_FeedForward.m` は同じ 720 deg / 1 s 往復軌道を使い、FF gain が空なら `Kfa=Jn`、`Kfv=Dn`、`Kfc=0` として `f=Kfa*a+Kfv*v+Kfc*sign(v)` と `Ndelay` 先読み補償を行う。保存変数は `t,r,y,e,u,f,Kd` である。
-`exp04_ILC.m` は Temp 参照実装と同じ `Linv=feedback(Pdn,Kd)`、`J=feedback(Pd,Kd)`、`srinv`、零位相 `Q^2`、200 sample splice を使い、`|Q|^2|1-alpha*J/Linv| < 1` を実験前に確認する。既定は `Ntrial=10`、`alpha=0.6`、`q_cutoff_hz=120`、`maxInput=1.6 A` である。720 deg往復の後ろへ6秒のゼロreference整定tailを付ける。学習更新は元の往復軌道だけを対象とし、整定tailのFFは全trialで厳密に0へ固定して、各trial終端を速度量子値0・motor/load位置差2 count以内に戻す。各trialの実測直後、学習更新前に位置、誤差、logger上で整列したFF/FB入力の同一dashboardを更新する。次trialのFF超過または実測error norm増加では、完了済み数値history、`trialSummary`、停止理由を `ilc_result.mat` へcheckpointしてから例外化する。trial別画像は保存しない。trial runner MAT、再parse確認済みの `trialXX_logger.bin`、最終結果は `data/exp04_runs/<timestamp>/` へ追記し、過去結果を削除しない。
+`exp04_ILC.m` は Temp 参照実装と同じ `Linv=feedback(Pdn,Kd)`、`J=feedback(Pd,Kd)`、`srinv`、零位相 `Q^2`、400 sample（25 ms）splice を使い、`|Q|^2|1-alpha*J/Linv| < 1` を実験前に確認する。既定は `Ntrial=10`、`alpha=0.6`、`q_cutoff_hz=120`、`maxInput=1.6 A` である。720 deg往復の後ろへ5秒のゼロreference整定tailを付ける。学習更新は元の往復軌道だけを対象とし、整定tailのFFは全trialで厳密に0へ固定して、各trial終端を速度量子値0・motor/load位置差2 count以内に戻す。各trialの実測直後、学習更新前に位置、誤差、logger上で整列したFF/FB入力の同一dashboardを更新する。次trialのFF超過または実測error norm増加では、完了済み数値history、`trialSummary`、停止理由を `ilc_result.mat` へcheckpointしてから例外化する。trial別画像は保存しない。trial runner MAT、再parse確認済みの `trialXX_logger.bin`、最終結果は `data/exp04_runs/<timestamp>/` へ追記し、過去結果を削除しない。
 VirtualMotor の予測・照合は `matlab/tests/` と Test 専用 `run_virtual_motor_prediction_e2e.m` だけで行う。学生実験と demo は予測を開始前に計算せず、実測 logger、run contract、安定性、入力上限、実測 error norm を判定に使う。
 
 | スクリプト | 用途 |
@@ -173,7 +173,7 @@ VirtualMotor の予測・照合は `matlab/tests/` と Test 専用 `run_virtual_
 | `matlab/tools/run_verify_xar.m` | active contract の検証 |
 | `matlab/tools/run_verify_virtual_motor.m` | VirtualMotorCore parameter symbol の確認 |
 | `matlab/tools/run_configure_virtual_motor.m` | IDLE 中の VM parameter 設定と全field readback |
-| `matlab/tools/run_virtual_motor_prediction_e2e.m` | Test 専用。VM runtime を再起動し、driver量子の30 countに一致する `±0.048 A` 入力で8 kHz prediction と logger を全信号比較 |
+| `matlab/tools/run_virtual_motor_prediction_e2e.m` | Test 専用。VM runtime を再起動し、driver量子の30 countに一致する `±0.048 A` 入力で16 kHz prediction と logger を全信号比較 |
 | `matlab/tools/run_controller_benchmark.m` | 同一軌道・同一条件で7方式のSISO controllerを実測し、各run直後に確定loggerを方式別binへ退避・再parse確認する |
 | `matlab/tools/run_full_vm_manifest_e2e.m` | Test 専用。事前凍結manifestに対する全入口・4層照合 |
 | `matlab/tools/refresh_live_script.m` | rich `.m` Live Scriptを構造保護しながら実行・保存 |
@@ -197,7 +197,7 @@ Test専用E2Eは実行前に、(1)量子化・固定delay・SOS・電流制限�
 
 HIGS の比較入口は関数 `exp05_Higs` で、既存の rich Live Script とは独立している。
 `exp05_Higs("preview")` は ADS に接続せず、設計JSONと軌道を確認する。
-`linear` / `integrator` / `lowpass` / `both` は、現行8 kHz条件で取得した `plant.mat` の線形事前検査後に1試行を実行する。
+`linear` / `integrator` / `lowpass` / `both` は、現行16 kHz条件で取得した `plant.mat` の線形事前検査後に1試行を実行する。
 `target_label` は結果のラベルで、接続先やVM/実機を切り替えない。実機への反映と保護設定は上記手順書を参照する。
 
 ## テスト

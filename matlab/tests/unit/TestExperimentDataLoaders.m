@@ -3,21 +3,21 @@ classdef TestExperimentDataLoaders < matlab.unittest.TestCase
     function trackedTrajectoryHasCanonicalHashAndUnits(testCase)
       trajectory = experiment.exp0n.load_trajectory();
 
-      testCase.verifyEqual(trajectory.sample_count, 8000);
-      testCase.verifyEqual(median(diff(trajectory.t)), 1.25e-4, "AbsTol", 1e-15);
+      testCase.verifyEqual(trajectory.sample_count, 16000);
+      testCase.verifyEqual(median(diff(trajectory.t)), 1/16000, "AbsTol", 1e-15);
       testCase.verifyEqual(max(trajectory.p), deg2rad(720), "AbsTol", 1e-10);
       testCase.verifyEqual(trajectory.units, "rad");
       testCase.verifyEqual(file_sha256(trajectory.file_path), ...
-        "11c4e587d2e413707c09ca0875779269e1f6f7ecfd1cec1c50030c18a62b5cb0");
+        "48fe7ce1ac2ea22d53575905bc6add15a6730d838f4b8b5b977190ad1d8082f2");
     end
 
     function plantLoaderAcceptsCanonicalContract(testCase)
       file_path = [tempname '.mat'];
       testCase.addTeardown(@() delete_if_exists(file_path));
-      create_plant_fixture(file_path, 1.25e-4);
+      create_plant_fixture(file_path, 1/16000);
 
       data = experiment.exp0n.load_plant_data( ...
-        file_path, "expected_sample_time_s", 1.25e-4);
+        file_path, "expected_sample_time_s", 1/16000);
 
       testCase.verifyEqual(data.Jn, 7.1e-5);
       testCase.verifyEqual(data.Ndelay, 2);
@@ -30,7 +30,7 @@ classdef TestExperimentDataLoaders < matlab.unittest.TestCase
       create_plant_fixture(file_path, 1e-3);
 
       testCase.verifyError(@() experiment.exp0n.load_plant_data( ...
-        file_path, "expected_sample_time_s", 1.25e-4), ...
+        file_path, "expected_sample_time_s", 1/16000), ...
         "experiment:exp0n:sampleTimeMismatch");
     end
   end

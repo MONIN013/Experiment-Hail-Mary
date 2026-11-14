@@ -2,7 +2,7 @@ classdef TestWriteControllerParams < matlab.unittest.TestCase
   methods (Test)
     function writesPackedPayloadAndAllCountsBeforeRevision(testCase)
       transport=MockAdsTransport();prefix="Controller.";seed_status(transport,prefix,uint32(7));
-      cfg=experiment.ControllerConfig.from_sos([2,3,4,1,5,6;7,8,9,1,10,11],1/8000);
+      cfg=experiment.ControllerConfig.from_sos([2,3,4,1,5,6;7,8,9,1,10,11],1/16000);
       applied=experiment.write_controller_params(transport,prefix,cfg);
       testCase.verifyEqual(applied,uint32(8));
       writes=transport.operations(startsWith(transport.operations,"write_"));
@@ -29,7 +29,7 @@ classdef TestWriteControllerParams < matlab.unittest.TestCase
     end
     function higsParametersCommitTogetherAndFailedPayloadDoesNotCommit(testCase)
       transport=MockAdsTransport();seed_status(transport,"Controller.",uint32(1));
-      cfg=experiment.ControllerConfig();cfg.higs_lp_enabled=true;cfg.higs_lp_omega_ts=.01;cfg.sample_time_s=1/8000;
+      cfg=experiment.ControllerConfig();cfg.higs_lp_enabled=true;cfg.higs_lp_omega_ts=.01;cfg.sample_time_s=1/16000;
       experiment.write_controller_params(transport,"Controller.",cfg);
       testCase.verifyTrue(transport.scalarMap("Controller.HigsLpEnabled"));
       testCase.verifyEqual(transport.scalarMap("Controller.HigsLpOmegaTs"),.01);

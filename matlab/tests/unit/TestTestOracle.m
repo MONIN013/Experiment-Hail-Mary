@@ -153,9 +153,9 @@ classdef TestTestOracle < matlab.unittest.TestCase
     end
 
     function independentLsimIsAlignedWithExactPrediction(testCase)
-      cfg = short_config(8000, 0.1);
+      cfg = short_config(16000, 0.1);
       Ts = 1/cfg.env.task_rate_hz;
-      cfg.ff_profile = 0.1*sin(2*pi*10*(0:7999)'*Ts);
+      cfg.ff_profile = 0.1*sin(2*pi*10*(0:15999)'*Ts);
       prediction = virtualMotor.predict_logger(cfg, virtualMotor.PlantConfig());
       independent = testoracle.independent_lsim( ...
         cfg, virtualMotor.PlantConfig(), "frequency_hz", [10; 200]);
@@ -202,7 +202,7 @@ classdef TestTestOracle < matlab.unittest.TestCase
 
     function parameterAndControllerReadbacksAreStrict(testCase)
       plant = virtualMotor.PlantConfig();
-      expected = struct("plant", plant.to_struct(), "taskDtNs", uint64(125000));
+      expected = struct("plant", plant.to_struct(), "taskDtNs", uint64(62500));
       report = testoracle.compare_parameter_readback(expected, expected);
       testCase.verifyTrue(report.pass);
       changed = expected;
@@ -227,7 +227,7 @@ classdef TestTestOracle < matlab.unittest.TestCase
       outcomes = testoracle.expected_outcomes();
       gate = outcomes(string({outcomes.name}) == entry.name).gate;
       frozen = struct("plant", virtualMotor.PlantConfig().to_struct(), ...
-        "taskDtNs", uint64(125000));
+        "taskDtNs", uint64(62500));
       artifact_value = "no new artifact";
       units = testoracle.artifact_unit_map("none", artifact_value);
       expected = struct( ...
@@ -441,7 +441,7 @@ classdef TestTestOracle < matlab.unittest.TestCase
       write_logger_record(fullfile(directory, "loggers", ...
         "experiment_exp02", "run.bin"));
       raw = struct("error", [0.1; 0.2; 0.3], ...
-        "t_s", [0; 1/8000; 2/8000], "current_cmd", [0.2; 0.1; 0]);
+        "t_s", [0; 1/16000; 2/16000], "current_cmd", [0.2; 0.1; 0]);
       capture = struct("logger", struct("raw", raw), ...
         "artifact_source", struct("f", [2; 3; 3]));
       outcomes = testoracle.expected_outcomes();
@@ -467,7 +467,7 @@ classdef TestTestOracle < matlab.unittest.TestCase
     function frozenCommonFieldsControlRawLsimAndReadbackGates(testCase)
       outcomes = testoracle.expected_outcomes();
       common = outcomes(1).gate.common;
-      cfg = short_config(8000, 0.048);
+      cfg = short_config(16000, 0.048);
       prediction = virtualMotor.predict_logger(cfg, virtualMotor.PlantConfig());
       tables = command_tables(cfg);
       contract = raw_contract_for_test(prediction, common);
@@ -502,7 +502,7 @@ classdef TestTestOracle < matlab.unittest.TestCase
         "required_lag_samples", 1).pass);
 
       expected_parameter = struct("plant", virtualMotor.PlantConfig().to_struct(), ...
-        "taskDtNs", uint64(125000));
+        "taskDtNs", uint64(62500));
       actual_parameter = expected_parameter;
       actual_parameter.plant.load.inertia = ...
         actual_parameter.plant.load.inertia + 8*eps(1);
@@ -526,7 +526,7 @@ classdef TestTestOracle < matlab.unittest.TestCase
     function purposeGateFieldsAreAuthoritative(testCase)
       outcomes = testoracle.expected_outcomes();
       exp01 = outcomes(string({outcomes.name}) == "experiment.exp01").gate;
-      actual01 = struct("Ts_s", 1/8000, "Jn", 7.1e-5, ...
+      actual01 = struct("Ts_s", 1/16000, "Jn", 7.1e-5, ...
         "Dn", 5.325e-4, "delay_samples", 4, ...
         "nonzero_motion", true, "feature_hz", 200, "fft_bin_hz", 0.1, ...
         "predicted_feature_hz", 200, ...
@@ -550,10 +550,10 @@ classdef TestTestOracle < matlab.unittest.TestCase
         "tools.run_si_demo").gate;
       actual_si = struct("sample_count", 800000, ...
         "feature_hz", 200, "predicted_feature_hz", 200, ...
-        "fft_bin_hz", 0.1, ...
+        "fft_bin_hz", 0.2, ...
         "same_phase_cycle_drift_max_rad", 0, "no_saturation", true, ...
         "frequency_hz", [0.1; 1; 200; 1000], ...
-        "nyquist_hz", 4000, "input_psd_db", zeros(4, 1), ...
+        "nyquist_hz", 8000, "input_psd_db", zeros(4, 1), ...
         "coherence", ones(4, 1), "magnitude_error_db", zeros(4, 1), ...
         "phase_error_deg", zeros(4, 1));
       testCase.verifyTrue(testoracle.evaluate_outcome( ...

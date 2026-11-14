@@ -89,8 +89,8 @@ classdef TestTsprojMapping < matlab.unittest.TestCase
       testCase.verifyEmpty(extract_owner_links(real_source, vm_owner));
     end
 
-    function variantsPinSharedEightKilohertzTaskAndRealScaffoldIsNondeployable(testCase)
-      expected_task = '<Task Id="4" Priority="1" CycleTime="1250" AmsPort="351"';
+    function variantsPinSharedSixteenKilohertzTaskAndRealScaffoldIsNondeployable(testCase)
+      expected_task = '<Task Id="4" Priority="1" CycleTime="625" AmsPort="351"';
       for source = [testCase.read_vm_tsproj(), testCase.read_real_motor_tsproj()]
         testCase.verifyThat(source, ...
           matlab.unittest.constraints.ContainsSubstring(expected_task));
@@ -142,7 +142,7 @@ classdef TestTsprojMapping < matlab.unittest.TestCase
         testCase.verifyEqual(str2double(read_parameter_value(source, "PlantParameter.load.inertia")), 7.1e-6, "RelTol", 1e-14);
         testCase.verifyEqual(str2double(read_parameter_value(source, "PlantParameter.coupling.stiffness")), 5.6059352998187553, "RelTol", 1e-14);
         testCase.verifyEqual(str2double(read_parameter_value(source, "PlantParameter.coupling.damping")), 0.0004194811568097506, "RelTol", 1e-14);
-        testCase.verifyEqual(str2double(read_parameter_value(source, "PlantParameter.taskDtNs")), 125000);
+        testCase.verifyEqual(str2double(read_parameter_value(source, "PlantParameter.taskDtNs")), 62500);
         testCase.verifyEqual(str2double(read_parameter_value(source, "MotorParams.ratedCurrentA")), 1.6, "RelTol", 1e-14);
         testCase.verifyEqual(str2double(read_parameter_value(source, "MotorParams.maxCurrentA")), 1.6, "RelTol", 1e-14);
         testCase.verifyEqual(str2double(read_parameter_value(source, "LoadParams.ratedCurrentA")), 1.6, "RelTol", 1e-14);

@@ -13,7 +13,7 @@ arguments (Repeating)
 end
 
 p = inputParser;
-p.addParameter("Ts", 1/8000, @is_positive_scalar);
+p.addParameter("Ts", 1/16000, @is_positive_scalar);
 p.addParameter("sample_delay", 0, @is_nonnegative_scalar);
 p.addParameter("rated_current_A", 1.6, @is_positive_scalar);
 p.addParameter("axis", "load", @(x) ischar(x) || (isstring(x) && isscalar(x)));

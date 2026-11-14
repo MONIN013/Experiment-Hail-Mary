@@ -65,7 +65,7 @@ matlab/+config/LocalEnvironmentConfig.m
 matlab/experiment/data/
 matlab/**/*.mat
 !matlab/resources/
-!matlab/resources/trajectory_8khz.mat
+!matlab/resources/trajectory_16khz.mat
 
 # TwinCAT Scope local state and captures
 tools/TwinCATScope/VSSettings/

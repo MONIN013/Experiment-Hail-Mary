@@ -5,12 +5,12 @@ classdef TestVirtualMotorConfigure < matlab.unittest.TestCase
       plant = virtualMotor.PlantConfig();
 
       out = virtualMotor.configure(conn, plant, ...
-        "taskDtNs", uint64(125000), "timeout_s", 0.02);
+        "taskDtNs", uint64(62500), "timeout_s", 0.02);
 
       testCase.verifyTrue(out.verified);
       testCase.verifyEqual(out.requested.plant, plant.to_struct());
       testCase.verifyEqual(out.readback.plant, plant.to_struct());
-      testCase.verifyEqual(out.readback.taskDtNs, uint64(125000));
+      testCase.verifyEqual(out.readback.taskDtNs, uint64(62500));
       testCase.verifyEqual(seq.scalarMap("GVL_SEQ.tableLen"), uint32(0));
       testCase.verifyEqual(ctrl.scalarMap("GVL_MODE.modeFlags"), uint16(0));
       testCase.verifyTrue(any(contains(module.operations, ...
@@ -108,6 +108,6 @@ module.scalarMap(char(prefix + "motor.velocityActualValue")) = int32(0);
 module.scalarMap(char(prefix + "load.positionActualValue")) = int32(0);
 module.scalarMap(char(prefix + "load.velocityActualValue")) = int32(0);
 
-env = config.EnvironmentConfig.from_struct(struct("task_rate_hz", 8000));
+env = config.EnvironmentConfig.from_struct(struct("task_rate_hz", 16000));
 conn = experiment.ConnectionManager.from_transports(seq, ctrl, module, env);
 end

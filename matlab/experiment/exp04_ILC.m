@@ -42,8 +42,8 @@ q_cutoff_hz = 120; % below the 200 Hz VM torsional mode; short enough for the 25
 noQ = false; % option of not using the robustness (Q) filter
 maxInput = 1.6; % maximum control input [A]
 Npad = 100; % padding samples used by srinv/filtfilt_clean
-transient_samples = 200; % 25 ms transient splice length at 8 kHz
-settling_tail_s = 9.0; % leaves the VM at an exact zero-velocity trial boundary
+transient_samples = 400; % 25 ms transient splice length at 16 kHz
+settling_tail_s = 5.0; % leaves the VM at an exact zero-velocity trial boundary
 
 hold_margin_s = 1.0;
 save_results = true;

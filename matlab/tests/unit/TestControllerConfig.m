@@ -10,12 +10,12 @@ classdef TestControllerConfig < matlab.unittest.TestCase
       testCase.verifyEqual(p.to_ads_payload().section_count,uint32(4));
     end
     function fromSosMapsGenericCascadeToP(testCase)
-      cfg=experiment.ControllerConfig.from_sos([2,4,6,2,8,10],1/8000);
-      testCase.verifyError(@()experiment.ControllerConfig.from_struct(struct("sos",[2,4,6,2,8,10],"sample_time_s",1/8000)), ...
+      cfg=experiment.ControllerConfig.from_sos([2,4,6,2,8,10],1/16000);
+      testCase.verifyError(@()experiment.ControllerConfig.from_struct(struct("sos",[2,4,6,2,8,10],"sample_time_s",1/16000)), ...
         "experiment:controller:invalid");
       testCase.verifyEqual(cfg.sos(2,:),[1,2,3,1,4,5]);
       testCase.verifyEqual(cfg.to_ads_payload().section_counts,uint32([0,0,1,1,0,0]));
-      cfg.validate_for_task_rate(8000);
+      cfg.validate_for_task_rate(16000);
       restored=experiment.ControllerConfig.from_struct(cfg.to_struct());
       testCase.verifyEqual(restored.to_struct(),cfg.to_struct());
     end
@@ -23,7 +23,7 @@ classdef TestControllerConfig < matlab.unittest.TestCase
       counts=struct("lp_pre_section_count",1,"lp_post_section_count",1,"p_section_count",2, ...
         "i_pre_section_count",0,"i_post_section_count",1,"post_section_count",1);
       s=ones(8,6);s(:,2:3)=0;s(:,5:6)=0;
-      fields=counts;fields.sos=s;fields.sample_time_s=1/8000;
+      fields=counts;fields.sos=s;fields.sample_time_s=1/16000;
       fields.higs_lp_enabled=true;fields.higs_lp_gain=1;fields.higs_lp_omega_ts=.01;
       fields.higs_i_gain=1;fields.higs_i_omega_ts=.02;
       cfg=experiment.ControllerConfig.from_struct(fields);
@@ -40,8 +40,8 @@ classdef TestControllerConfig < matlab.unittest.TestCase
     function rejectsInvalidFieldsAndTiming(testCase)
       testCase.verifyError(@()experiment.ControllerConfig.from_struct(struct("sos",zeros(0,6),"higs_enabled",true)), ...
         "experiment:controller:invalid");
-      testCase.verifyError(@()experiment.ControllerConfig.from_sos(ones(8,6),1/8000),"experiment:controller:tooManySections");
-      cfg=experiment.ControllerConfig.from_sos([1,0.5,0,1,-0.25,0],1/8000);
+      testCase.verifyError(@()experiment.ControllerConfig.from_sos(ones(8,6),1/16000),"experiment:controller:tooManySections");
+      cfg=experiment.ControllerConfig.from_sos([1,0.5,0,1,-0.25,0],1/16000);
       testCase.verifyError(@()cfg.validate_for_task_rate(4000),"experiment:controller:sampleTimeMismatch");
       testCase.verifyError(@()experiment.ControllerConfig.from_struct(struct("sos",[1,0,0,0,0,0])), ...
         "experiment:controller:invalid");

@@ -1,5 +1,5 @@
 function catalog = controller_catalog(plant, varargin)
-% controller_catalog  Build the supported 8 kHz SISO feedback controllers.
+% controller_catalog  Build the supported SISO feedback controllers.
 %
 %   catalog = experiment.exp02.controller_catalog(plant)
 %   catalog = experiment.exp02.controller_catalog(plant, "Smax", 2)

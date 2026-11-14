@@ -3,8 +3,8 @@ function out = exp01(varargin)
 p = inputParser;
 p.addParameter("cfg", experiment.ExperimentConfig.defaults(), ...
   @(x) isa(x, "experiment.ExperimentConfig"));
-p.addParameter("Tend", 100, @is_positive_scalar);
-p.addParameter("Tcycle", 10, @is_positive_scalar);
+p.addParameter("Tend", 50, @is_positive_scalar);
+p.addParameter("Tcycle", 5, @is_positive_scalar);
 p.addParameter("initial_phase", 0, @is_finite_scalar);
 p.addParameter("f0", 0.5, @is_positive_scalar);
 p.addParameter("f1", 4000, @is_positive_scalar);

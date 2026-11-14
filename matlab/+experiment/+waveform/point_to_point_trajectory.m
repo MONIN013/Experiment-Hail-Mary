@@ -5,7 +5,7 @@ function traj = point_to_point_trajectory(varargin)
 % checked against the requested velocity, acceleration, jerk, and snap limits.
 
 p = inputParser;
-p.addParameter("Ts", 1.25e-4, @is_positive_scalar);
+p.addParameter("Ts", 1/16000, @is_positive_scalar);
 p.addParameter("target_position_rad", deg2rad(720), @is_finite_scalar);
 p.addParameter("vmax", deg2rad(9e3), @is_positive_scalar);
 p.addParameter("amax", deg2rad(3e5), @is_positive_scalar);

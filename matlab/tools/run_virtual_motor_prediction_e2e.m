@@ -2,7 +2,7 @@
 %
 % Test-only oracle entrypoint. It intentionally restarts the VM TwinCAT
 % runtime to establish a zero hidden state, then compares every logger signal
-% against the fixed 8 kHz discrete prediction. Do not use on RealMotor.
+% against the fixed 16 kHz discrete prediction. Do not use on RealMotor.
 
 run_virtual_motor_prediction_e2e_result = run_virtual_motor_prediction_e2e_main();
 

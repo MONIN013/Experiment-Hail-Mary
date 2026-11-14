@@ -684,7 +684,7 @@ switch string(entry_name)
     tolerance.(prefix + "tracking_error_peak") = position_tolerance;
     tolerance.(prefix + "final_error") = position_tolerance;
     tolerance.(prefix + "integral_absolute_error") = ...
-      position_tolerance*prediction.sample_count/8000;
+      position_tolerance*prediction.sample_count*task_period_s();
     tolerance.(prefix + "max_abs_current_cmd") = 1e-5;
     if string(entry_name) == "experiment.exp03"
       tolerance.(prefix + "max_abs_feedforward") = 0;
@@ -827,9 +827,9 @@ for name = names(:)'
   if contains(normalized, "l2") || contains(normalized, "errornorm")
     width = max(width, 2*double(quantum)*sqrt(double(sample_count)));
   elseif contains(normalized, "iae") || contains(normalized, "integralabsolute")
-    width = max(width, 2*double(quantum)*double(sample_count)/8000);
+    width = max(width, 2*double(quantum)*double(sample_count)*task_period_s());
   elseif contains(normalized, "settlingtime") || contains(normalized, "risetime")
-    width = max(width, 1/8000);
+    width = max(width, task_period_s());
   elseif contains(normalized, "inputa") || contains(normalized, "current")
     width = max(width, 1e-5);
   elseif contains(normalized, "error") || contains(normalized, "overshoot") || ...
@@ -932,7 +932,7 @@ cfg.ref_profile = zeros(chirp.sample_count, 1);
 cfg.ff_profile = signal;
 cfg.dist_profile = zeros(chirp.sample_count, 1);
 cfg.repeat_count = 10; cfg.wait_for_done = true;
-cfg.hold_seconds = 11; cfg.done_timeout_s = 106;
+cfg.hold_seconds = gate.cycle_s + 1; cfg.done_timeout_s = 10*gate.cycle_s + 6;
 cfg.logger_release_timeout_s = 10;
 cfg.host_heartbeat_enable = false; cfg.external_host_heartbeat_enable = true;
 cfg.controller = experiment.ControllerConfig.p_only(0);
@@ -993,4 +993,8 @@ cfg.done_timeout_s = 6; cfg.host_heartbeat_enable = false;
 cfg.external_host_heartbeat_enable = true;
 cfg.controller = experiment.ControllerConfig.p_only(0);
 cfg = cfg.normalize();
+end
+
+function Ts = task_period_s()
+Ts = 1/double(experiment.ExperimentConfig.defaults().env.task_rate_hz);
 end

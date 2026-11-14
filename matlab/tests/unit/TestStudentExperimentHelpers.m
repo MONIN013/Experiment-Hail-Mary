@@ -83,7 +83,7 @@ classdef TestStudentExperimentHelpers < matlab.unittest.TestCase
     function discreteVirtualMotorFrfUsesCanonicalPlantAndDelay(testCase)
       plant = virtualMotor.PlantConfig();
       plant = virtualMotor.PlantConfig.from_struct(plant.to_struct());
-      Ts = 1 / 8000;
+      Ts = 1/16000;
       omega = 2*pi*[1; 200];
       frf = virtualMotor.discrete_velocity_frf( ...
         plant, omega, "Ts", Ts, "sample_delay", 4, "axis", "load");

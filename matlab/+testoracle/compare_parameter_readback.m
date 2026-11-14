@@ -19,7 +19,7 @@ end
 
 function value = normalize_readback(value)
 if isa(value, "virtualMotor.PlantConfig")
-  value = struct("plant", value.to_struct(), "taskDtNs", uint64(125000));
+  value = struct("plant", value.to_struct(), "taskDtNs", experiment.ExperimentConfig.defaults().env.task_dt_ns());
 elseif isstruct(value) && isfield(value, "requested")
   value = value.requested;
 end

@@ -4,8 +4,8 @@
 %[text] load settings for the experiment
 clear; close all;
 
-Tend = 100; % experiment length [s]
-Tcycle = 10; % cycle time of chirp signal [s]
+Tend = 50; % experiment length [s]
+Tcycle = 5; % cycle time of chirp signal [s]
 p = 0; % initial phase of chirp [rad]
 f0 = 0.5; % min freq of chirp [Hz]
 f1 = 4000; % max freq of chirp [Hz]

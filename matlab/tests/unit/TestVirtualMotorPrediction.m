@@ -64,7 +64,7 @@ classdef TestVirtualMotorPrediction < matlab.unittest.TestCase
       cfg = experiment.ExperimentConfig.defaults();
       Ts = 1 / cfg.env.task_rate_hz;
       chirp = experiment.waveform.periodic_chirp( ...
-        "Ts", Ts, "Tend", 10, "Tcycle", 10, ...
+        "Ts", Ts, "Tend", 5, "Tcycle", 5, ...
         "f0", 0.1, "f1", 4000, "A", 1);
       cfg.ref_profile = zeros(chirp.sample_count, 1);
       cfg.ff_profile = chirp.signal;
@@ -99,7 +99,7 @@ classdef TestVirtualMotorPrediction < matlab.unittest.TestCase
       frequency_hz = 200;
       time_s = (0:n-1)' * Ts;
       cfg.ref_profile = zeros(n, 1);
-      cfg.ff_profile = 0.1 * sin(2*pi*frequency_hz*time_s);
+      cfg.ff_profile = 0.4 * sin(2*pi*frequency_hz*time_s);
       cfg.dist_profile = zeros(n, 1);
       cfg.controller = experiment.ControllerConfig.p_only(0);
       plant = virtualMotor.PlantConfig();

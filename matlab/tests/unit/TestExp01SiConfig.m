@@ -6,8 +6,8 @@ classdef TestExp01SiConfig < matlab.unittest.TestCase
         "%[text] ### STEP 1: CHIRP EXCITATION"
         "%[text] ### STEP 2: TIME TREATMENT"
         "%[text] ### STEP 3: NON-PARAMETRIC ESTIMATION"
-        "Tend = 100;"
-        "Tcycle = 10;"];
+        "Tend = 50;"
+        "Tcycle = 5;"];
       for value = required'
         testCase.verifyTrue(contains(source, value));
       end

@@ -16,8 +16,8 @@ cfg = experiment.ExperimentConfig.defaults();
 
 %% SI parameters (mirrors old temp.md flow)
 Ts = 1 / cfg.env.task_rate_hz;
-Tend = 10;
-Tcycle = 10;
+Tend = 5;
+Tcycle = 5;
 repeat_count = 10;
 f0 = 0.1;
 f1 = 4000;

@@ -10,7 +10,7 @@ classdef TestExp04IlcExperimentConfig < matlab.unittest.TestCase
         "alpha = 0.6;"
         "q_cutoff_hz = 120;"
         "maxInput = 1.6;"
-        "settling_tail_s = 9.0;"];
+        "settling_tail_s = 5.0;"];
       for value = required'
         testCase.verifyTrue(contains(source, value));
       end

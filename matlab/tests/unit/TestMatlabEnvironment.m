@@ -144,7 +144,7 @@ classdef TestMatlabEnvironment < matlab.unittest.TestCase
         "    seq_port = 853"
         "    control_port = 852"
         "    module_port = 351"
-        "    task_rate_hz = 8000"
+        "    task_rate_hz = 16000"
         "    controller_prefix = ""ControllerCore_Obj1 (Module1)."""
         "    logger_host_file_path = ""\\sunnyday\ExperimentData\experiment_logger.bin"""
         "  end"

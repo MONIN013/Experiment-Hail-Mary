@@ -10,14 +10,14 @@ classdef TestExperimentScenarios < matlab.unittest.TestCase
         "result_dir", temporary_folder.Folder);
 
       testCase.verifyEqual(scenario.name, "exp01");
-      testCase.verifyEqual(scenario.Ts, 1 / 8000, "AbsTol", eps);
-      testCase.verifyEqual(scenario.expected_sample_count, 480);
-      testCase.verifyNumElements(scenario.cfg.ref_profile, 160);
-      testCase.verifyNumElements(scenario.cfg.ff_profile, 160);
+      testCase.verifyEqual(scenario.Ts, 1/16000, "AbsTol", eps);
+      testCase.verifyEqual(scenario.expected_sample_count, 960);
+      testCase.verifyNumElements(scenario.cfg.ref_profile, 320);
+      testCase.verifyNumElements(scenario.cfg.ff_profile, 320);
       testCase.verifyEqual(scenario.cfg.repeat_count, 3);
-      testCase.verifyEqual(scenario.cfg.ref_profile, zeros(160, 1));
+      testCase.verifyEqual(scenario.cfg.ref_profile, zeros(320, 1));
       testCase.verifyEqual(scenario.cfg.ff_profile, ...
-        scenario.chirp.signal(1:160));
+        scenario.chirp.signal(1:320));
       testCase.verifyEqual(mean(scenario.cfg.ff_profile), 0, ...
         "AbsTol", 32 * eps);
       testCase.verifyEqual(max(abs(scenario.cfg.ff_profile)), 0.25, ...
@@ -74,14 +74,14 @@ classdef TestExperimentScenarios < matlab.unittest.TestCase
 
       testCase.verifyEqual(scenario.name, "exp04");
       testCase.verifyEqual(scenario.trial_count, 3);
-      tail_count = 9 * 8000;
+      tail_count = 5 * 16000;
       testCase.verifyEqual(scenario.expected_sample_count, ...
         numel(trajectory.p) + tail_count);
       testCase.verifyEqual(scenario.cfg.ref_profile, ...
         [trajectory.p; zeros(tail_count, 1)]);
       testCase.verifyEqual(scenario.cfg.ff_profile, ...
         zeros(numel(trajectory.p) + tail_count, 1));
-      testCase.verifyEqual(scenario.settling_tail_s, 9);
+      testCase.verifyEqual(scenario.settling_tail_s, 5);
       testCase.verifyEqual(scenario.settling_tail_samples, tail_count);
       testCase.verifyEqual(scenario.learning_sample_count, ...
         numel(trajectory.p));
@@ -122,7 +122,7 @@ classdef TestExperimentScenarios < matlab.unittest.TestCase
 
   methods (Static, Access = private)
     function [plant, trajectory, controller] = syntheticInputs()
-      Ts = 1 / 8000;
+      Ts = 1/16000;
       sample_count = 64;
       t = (0:sample_count - 1)' * Ts;
       frequency_hz = 125;

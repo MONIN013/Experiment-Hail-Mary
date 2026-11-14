@@ -13,9 +13,9 @@ classdef TestEnvironmentConfig < matlab.unittest.TestCase
       testCase.verifyEqual(env.logger_host_file_path, config.EnvironmentConfig.DEFAULT_LOGGER_HOST_FILE_PATH);
     end
 
-    function taskDtNsReturnsOneEighthMsInNanoseconds(testCase)
+    function taskDtNsReturnsTaskPeriodInNanoseconds(testCase)
       env = config.EnvironmentConfig.defaults();
-      testCase.verifyEqual(env.task_dt_ns(), uint64(125000));
+      testCase.verifyEqual(env.task_dt_ns(), uint64(62500));
     end
 
     function currentFallsBackToRepositoryDefaults(testCase)

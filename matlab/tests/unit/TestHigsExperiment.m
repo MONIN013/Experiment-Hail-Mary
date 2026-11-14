@@ -6,7 +6,7 @@ classdef TestHigsExperiment < matlab.unittest.TestCase
       b=exp05_Higs("preview","design_path",path,"plot",false);
       testCase.verifyEqual(a.reference,b.reference);testCase.verifyEqual(a.reference(1),0,"AbsTol",1e-14);
       testCase.verifyEqual(a.reference(end),0,"AbsTol",1e-14);testCase.verifyEqual(max(a.reference),.1,"AbsTol",1e-14);
-      testCase.verifyEqual(diff(a.t),repmat(1/8000,numel(a.t)-1,1),"AbsTol",1e-15);
+      testCase.verifyEqual(diff(a.t),repmat(1/16000,numel(a.t)-1,1),"AbsTol",1e-15);
       testCase.verifyFalse(a.linear.higs_lp_enabled);testCase.verifyFalse(a.linear.higs_i_enabled);
       testCase.verifyTrue(a.integrator.higs_i_enabled);testCase.verifyFalse(a.integrator.higs_lp_enabled);
       testCase.verifyTrue(a.lowpass.higs_lp_enabled);testCase.verifyFalse(a.lowpass.higs_i_enabled);
@@ -21,9 +21,9 @@ classdef TestHigsExperiment < matlab.unittest.TestCase
       path=write_design();clean=onCleanup(@()delete(path));
       a=exp05_Higs("preview","design_path",path,"plot",false);
       K=experiment.ControllerConfig.from_struct(a.linear).linear_system();
-      Ts=1/8000;wi=2*pi*2;wz=2*pi*2.6666666667;wp=2*pi*24;wl=2*pi*100;
+      Ts=1/16000;wi=2*pi*2;wz=2*pi*2.6666666667;wp=2*pi*24;wl=2*pi*100;
       C=.1*tf([1/wz,1],[1/wp,1])*tf([1,wi],[1,0])*tf(wl^2,[1,sqrt(2)*wl,wl^2]);
-      Cd=c2d(C,Ts,"tustin");
+      Cd=c2d(zpk(C),Ts,"tustin");
       w=2*pi*logspace(1,log10(2000),200);
       testCase.verifyEqual(squeeze(freqresp(K,w)),squeeze(freqresp(Cd,w)),"RelTol",1e-9);
     end
@@ -62,7 +62,7 @@ classdef TestHigsExperiment < matlab.unittest.TestCase
   end
 end
 function path=write_design()
-d=struct("sample_time_s",1/8000,"reference_amplitude_rad",.1,"move_time_s",.1, ...
+d=struct("sample_time_s",1/16000,"reference_amplitude_rad",.1,"move_time_s",.1, ...
   "dwell_time_s",.2,"settle_time_s",.4,"sensitivity_limit",2,"max_current_a",.08, ...
   "max_position_rad",.25,"max_velocity_rad_s",10,"max_twist_rad",.01, ...
   "tuning",struct("kp",.1,"integral_hz",2,"lead_zero_hz",2.6666666667, ...
@@ -71,7 +71,7 @@ d=struct("sample_time_s",1/8000,"reference_amplitude_rad",.1,"move_time_s",.1, .
 path=string(tempname())+".json";fid=fopen(path,"w");clean=onCleanup(@()fclose(fid));fprintf(fid,"%s",jsonencode(d));
 end
 function [plant,controller]=example_plant()
-Ts=1/8000;Pdn=c2d(tf(1,[.01,1]),Ts);f=[0;1;10;200;500;1000];
+Ts=1/16000;Pdn=c2d(tf(1,[.01,1]),Ts);f=[0;1;10;200;500;1000];
 Pd=frd(squeeze(freqresp(Pdn,2*pi*f)),f,Ts,"FrequencyUnit","Hz");
 plant=struct("Pd",Pd,"Pdn",Pdn,"Ts",Ts);
 controller=experiment.ControllerConfig.from_sos([.1,0,0,1,0,0],Ts);

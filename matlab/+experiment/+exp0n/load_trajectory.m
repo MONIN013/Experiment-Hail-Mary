@@ -1,5 +1,5 @@
 function out = load_trajectory(varargin)
-% load_trajectory  標準 8 kHz trajectory を検証し rad 単位で返す。
+% load_trajectory  標準 16 kHz trajectory を検証し rad 単位で返す。
 
   file_path = default_trajectory_path();
   if ~isempty(varargin) && is_trajectory_path_argument(varargin{1})
@@ -19,7 +19,7 @@ function out = load_trajectory(varargin)
   file_path = string(file_path);
   if strlength(file_path) == 0 || ~isfile(char(file_path))
     error("experiment:exp0n:trajectoryRequired", ...
-      "The tracked 8 kHz trajectory is required: %s", file_path);
+      "The tracked 16 kHz trajectory is required: %s", file_path);
   end
 
   loaded = load(char(file_path), "ref1_struct");
@@ -56,7 +56,7 @@ function out = load_trajectory(varargin)
   Ts = double(p.Results.expected_sample_time_s);
   if any(dt <= 0) || max(abs(dt - Ts)) > 1e-12
     error("experiment:exp0n:invalidTrajectoryData", ...
-      "trajectory time spacing must be %.12g s (8 kHz).", Ts);
+      "trajectory time spacing must be %.12g s (16 kHz).", Ts);
   end
 
   p_rad = deg2rad(values{2});
@@ -85,5 +85,5 @@ end
 function path_value = default_trajectory_path()
 package_dir = fileparts(mfilename("fullpath"));
 matlab_root = fileparts(fileparts(package_dir));
-path_value = string(fullfile(matlab_root, "resources", "trajectory_8khz.mat"));
+path_value = string(fullfile(matlab_root, "resources", "trajectory_16khz.mat"));
 end

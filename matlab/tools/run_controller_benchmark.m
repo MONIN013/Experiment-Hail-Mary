@@ -1,4 +1,4 @@
-%% Controller benchmark on a common 8 kHz trajectory
+%% Controller benchmark on a common 16 kHz trajectory
 %
 % Seven SISO controllers are loaded through the ControllerCore SOS contract
 % and measured sequentially. This normal tool deliberately contains no VM

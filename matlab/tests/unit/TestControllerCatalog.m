@@ -49,7 +49,7 @@ classdef TestControllerCatalog < matlab.unittest.TestCase
 end
 
 function plant = nominal_plant()
-Ts = 1/8000;
+Ts = 1/16000;
 Jn = 7.1e-5;
 Dn = 5.325e-4;
 s = tf("s");
