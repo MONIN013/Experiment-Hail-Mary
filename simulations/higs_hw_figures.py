@@ -38,6 +38,7 @@ DPI = 150
 SQ = R.SQ
 
 W = 7.0                       # width of a one-axis figure [in]
+BODE_ASPECT = 0.95            # height / width of a magnitude / phase pair
 C_LIN, C_HIGS, C_MEAS, C_GRAY, C_RED = "#1f5fbf", "#d4561a", "#222222", "#9a9a9a", "#b01e1e"
 COLOR = {"linear": C_LIN, "both": C_HIGS}
 LABEL = {"linear": "linear", "both": "HIGS (both)"}
@@ -82,8 +83,9 @@ def fig_ax(aspect=0.62, w=None):
     return fig, ax
 
 
-def bode(aspect=0.95, w=None):
+def bode(aspect=None, w=None):
     w = w or W
+    aspect = aspect or BODE_ASPECT
     fig, axs = plt.subplots(2, 1, figsize=(w, w * aspect), sharex=True, gridspec_kw=dict(height_ratios=[1.15, 1]))
     return fig, axs
 
@@ -174,7 +176,7 @@ def fig1_frf(ctx, w=None):
     model = ctx.gate.M.P[0]
     ph = np.degrees(np.unwrap(np.angle(model)))
     ph -= 360 * np.round((ph[0] + 180) / 360)
-    fig, axs = bode(0.95, w)
+    fig, axs = bode(None, w)
     for amp, color, label, ms in (("ms030", "#8fb5ea", "measured, 0.3 A", 3), ("ms060", C_LIN, "measured, 0.6 A (sliding)", 3)):
         D = ctx.Ds[amp]
         sel = (D["f"] >= 1) & (D["f"] <= 3000)
@@ -190,7 +192,7 @@ def fig1_frf(ctx, w=None):
         ax.axvspan(1, ctx.splice, color="#e8a33a", alpha=0.16, lw=0)
         ax.axvline(ctx.splice, color="k", ls="-.", lw=1.0)
     axs[0].text(1.25, 0.04, "friction region", transform=axs[0].get_xaxis_transform(), va="bottom", color="#8a5a00")
-    axs[0].text(ctx.splice * 0.93, 0.97, f"splice {ctx.splice:.0f} Hz", transform=axs[0].get_xaxis_transform(), va="top", ha="right", rotation=90)
+    axs[0].text(ctx.splice * 0.93, 0.04, f"splice {ctx.splice:.0f} Hz", transform=axs[0].get_xaxis_transform(), va="bottom", ha="right", rotation=90)
     axs[0].set_ylabel("|Hl| [dB re rad/A]")
     axs[1].set_ylabel("phase [deg]")
     axs[1].set_xlabel("frequency [Hz]")
@@ -219,11 +221,11 @@ def hw_blocks(ctx, mode, f):
     return dict(i=(i_lin, i_h, c["wc_i"] / SQ / (2 * np.pi)), lp=(lpb, lp_h, c["wc_lp"] / SQ / (2 * np.pi)))
 
 
-def fig2_block_df(ctx, w=None):
+def fig2_block_df(ctx, w=None, aspect=0.66):
     f = np.geomspace(0.5, 3000., 700)
     blk = hw_blocks(ctx, "both", f)
     w = w or 1.55 * W
-    fig, axs = plt.subplots(2, 2, figsize=(w, 0.66 * w), sharex=True)
+    fig, axs = plt.subplots(2, 2, figsize=(w, aspect * w), sharex=True)
     for col, (key, title, lin_lab) in enumerate((("i", "integrator block", r"linear $C^*$"), ("lp", "low-pass block", r"linear $C^*$"))):
         lin, hg, fh = blk[key]
         axs[0, col].plot(f, db(lin), color=C_GRAY, label=lin_lab)
@@ -252,7 +254,7 @@ def fig3_element(ctx, which, w=None):
     w_rad = 2 * np.pi * f
     n = R.df_analytic(w_rad, wh)
     h = SQ * wh / (1j * w_rad + SQ * wh)
-    fig, axs = bode(0.95, w)
+    fig, axs = bode(None, w)
     axs[0].plot(f, db(h), color=C_GRAY, label=r"linear $H=\omega_c/(s+\omega_c)$")
     axs[0].plot(f, db(n), color=C_HIGS, label=r"HIGS DF $N$")
     axs[1].plot(f, np.degrees(np.unwrap(np.angle(h))), color=C_GRAY)
@@ -274,7 +276,7 @@ def fig3_element(ctx, which, w=None):
 
 def small_bode(f, curves, name, ylab, w=None, marks=(), legend="best"):
     """curves: [(complex response, label, color, linestyle)]."""
-    fig, axs = bode(0.95, w)
+    fig, axs = bode(None, w)
     for r, lab, col, ls in curves:
         axs[0].plot(f, db(r), color=col, ls=ls, label=lab)
         axs[1].plot(f, np.degrees(np.unwrap(np.angle(r))), color=col, ls=ls)
@@ -291,7 +293,7 @@ def small_bode(f, curves, name, ylab, w=None, marks=(), legend="best"):
     return save(fig, name)
 
 
-def fig3_filters(ctx, w=None):
+def fig3_filters(ctx, w=None, only=("wi", "vi", "vlp", "notch")):
     d = ctx.des["both"]["design"]
     c = B.corners(d)
     f = np.geomspace(1., 3000., 600)
@@ -303,14 +305,18 @@ def fig3_filters(ctx, w=None):
     v_i = (sw + c["wc_i"]) / c["wc_i"] * c["wi"] / sw
     v_lp = (sw + c["wc_lp"]) / c["wc_lp"] * lpb
     names = []
-    names.append(small_bode(f, [(wi_f, r"$W_i$", C_HIGS, "-"), (1 / wi_f, r"$W_i^{-1}$", C_GRAY, "--")], "fig3c_wi", "magnitude [dB]", w,
-                            marks=(wp / (2 * np.pi), wz / (2 * np.pi)), legend="center left"))
-    names.append(small_bode(f, [(v_i, r"$V_i=H_i^{-1}\,\omega_i/s$", C_HIGS, "-")], "fig3d_vi", "magnitude [dB]", w,
-                            marks=(c["wc_i"] / (2 * np.pi),), legend="upper right"))
-    names.append(small_bode(f, [(v_lp, r"$V_{lp}=H_{lp}^{-1}C_{lp}$", C_HIGS, "-")], "fig3e_vlp", "magnitude [dB]", w,
-                            marks=(c["wc_lp"] / (2 * np.pi), wl / (2 * np.pi)), legend="lower left"))
-    names.append(small_bode(f, [(B.notch_fr(sw, c["notch"]), r"notch $C_n$", C_HIGS, "-")], "fig3f_notch", "magnitude [dB]", w,
-                            marks=(c["notch"][0] / (2 * np.pi), c["notch"][2] / (2 * np.pi)), legend="lower left"))
+    if "wi" in only:
+        names.append(small_bode(f, [(wi_f, r"$W_i$", C_HIGS, "-"), (1 / wi_f, r"$W_i^{-1}$", C_GRAY, "--")], "fig3c_wi", "magnitude [dB]", w,
+                    marks=(wp / (2 * np.pi), wz / (2 * np.pi)), legend="center left"))
+    if "vi" in only:
+        names.append(small_bode(f, [(v_i, r"$V_i=H_i^{-1}\,\omega_i/s$", C_HIGS, "-")], "fig3d_vi", "magnitude [dB]", w,
+                    marks=(c["wc_i"] / (2 * np.pi),), legend="upper right"))
+    if "vlp" in only:
+        names.append(small_bode(f, [(v_lp, r"$V_{lp}=H_{lp}^{-1}C_{lp}$", C_HIGS, "-")], "fig3e_vlp", "magnitude [dB]", w,
+                    marks=(c["wc_lp"] / (2 * np.pi), wl / (2 * np.pi)), legend="lower left"))
+    if "notch" in only:
+        names.append(small_bode(f, [(B.notch_fr(sw, c["notch"]), r"notch $C_n$", C_HIGS, "-")], "fig3f_notch", "magnitude [dB]", w,
+                    marks=(c["notch"][0] / (2 * np.pi), c["notch"][2] / (2 * np.pi)), legend="lower left"))
     return names
 
 
@@ -428,7 +434,7 @@ def fig5_sensitivity(ctx, mode, w=None):
     ax.text(5.5, 1.95, r"$|S|=2$", color=C_RED, va="top")
     ax.set_xlabel("frequency [Hz]")
     ax.set_ylabel(r"$|S|$")
-    ax.set_ylim(0, 4.0 if mode == "both" else 2.6)
+    ax.set_ylim(0, 4.0 if mode == "both" else 3.0)
     ax.set_title(LABEL[mode], loc="left", color=COLOR[mode])
     ax.legend(loc="upper left")
     logx(ax, 5, 1000)
@@ -484,7 +490,7 @@ def fig7_spectra(case, w=None):
         ax.set_xlim(1, FS / 2)
         ax.set_xlabel("frequency [Hz]")
         ax.set_ylabel(f"{ylab} [{unit}]")
-        ax.set_title(f"{case}: {CASES[case]}", loc="left")
+        ax.set_title(CASES[case], loc="left")
         ax.legend(loc="upper right")
         fig.tight_layout()
         names.append(save(fig, f"fig7{'a' if tag == 'err_spec' else 'b'}_{tag}_{case}"))
@@ -499,8 +505,8 @@ def fig7_spectra(case, w=None):
     ax.set_ylim(0, None)
     ax.set_xlabel("frequency [Hz]")
     ax.set_ylabel("cumulative RMS error [mrad]")
-    ax.set_title(f"{case}: {CASES[case]}", loc="left")
-    ax.legend(loc="upper left")
+    ax.set_title(CASES[case], loc="left")
+    ax.legend(loc="lower right")
     fig.tight_layout()
     names.append(save(fig, f"fig7c_cumrms_{case}"))
     return names
@@ -516,9 +522,9 @@ def fig8_modes(w=None, case="a10m010", win_ms=(-10.0, 30.0)):
         ax.step(t[s], getattr(r, ch)[s].astype(float) + off, where="post", color=C_HIGS if off == 0 else C_LIN, lw=1.5)
         ax.text(win_ms[1] + 0.01 * (win_ms[1] - win_ms[0]), off + 2, lab, va="center", color=C_HIGS if off == 0 else C_LIN)
     ax.axvline(0, color="k", ls=":", lw=1.2)
-    ax.text(0.8, 7.45, "move start", va="top")
+    ax.text(0.8, 0.25, "move start", va="bottom")
     ax.set_yticks([1, 2, 3, 5, 6, 7], ["integrator", "gain", "zero", "integrator", "gain", "zero"])
-    ax.set_ylim(0.5, 7.5)
+    ax.set_ylim(0.0, 7.5)
     ax.set_xlim(*win_ms)
     ax.set_xlabel("time from move start [ms]")
     ax.grid(axis="x", alpha=0.0)
