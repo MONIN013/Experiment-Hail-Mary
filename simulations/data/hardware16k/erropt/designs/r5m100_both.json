@@ -1,0 +1,27 @@
+{
+ "sample_time_s": 6.25e-05,
+ "reference_amplitude_rad": 31.41592653589793,
+ "move_time_s": 1.0,
+ "dwell_time_s": 0.2,
+ "settle_time_s": 0.4,
+ "sensitivity_limit": 2,
+ "max_current_a": 2.71,
+ "max_position_rad": 40,
+ "max_velocity_rad_s": 1000,
+ "max_twist_rad": 0.05,
+ "tuning": {
+  "kp": 5.594539811013132,
+  "integral_hz": 47.98516663315164,
+  "lead_zero_hz": 29.891716548085988,
+  "lead_pole_hz": 576.3532771244005,
+  "lowpass_hz": 330.42962539645794,
+  "measured_crossover_target_hz": 131.25619524945492,
+  "gain_basis": "Hardware load FRF frf_ms030.mat (Hl, f >= 70 Hz) spliced with the frictionless two-inertia fit below 70 Hz; kp = kp_scale * 1/|C(j2 pi fc) G(j2 pi fc)| at the design crossover fc (delay 0 samples)",
+  "higs_lp_corner_hz": 183.63386035702774,
+  "higs_i_corner_hz": 72.59571210429708,
+  "higs_lp_gain": 1.0,
+  "higs_i_gain": 1.0
+ },
+ "provenance": "simulations/higs_hw_design.py, error-optimal both_book design under gate measured + model S, peak current <= 250 mA, from hardware FRF simulations/data/hardware16k/frf_ms030.mat and frf_ms015.mat (random-odd multisine 0.30 / 0.15 A, 16 kHz, open loop)",
+ "source_sha256": "0c0810ea1daeb64fc2b2872d43cfdc25e7227b938992216b123902a265d13c06"
+}
