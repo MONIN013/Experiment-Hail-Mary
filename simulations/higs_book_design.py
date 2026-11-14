@@ -7,7 +7,7 @@ Controller (eq. 8.7, 8.8, Fig. 8.9; kh = 1):  C = kp * Cpid{H_i} * Clp{H_lp} * C
   Cpid{H}: lead * (1 + HIGS_i -> V_i), V_i = H_i^-1 (wi / s)  (the PID differentiator is a lead, as in the existing exp05 packing)
   W_i (eq. 8.14, Fig. 8.7): skew notch in front of HIGS_i, W_i^-1 behind it (folded into iPost). Pole (denominator) corner low,
       zero (numerator) corner high, W_i(0) = 1; W_lp = 1.  W_i cancels in the describing function and in the linear counterpart.
-  Cn: one notch (eq. 8.8c) on the load-position resonance, Post segment.
+  Cn: one true notch (eq. 8.8c) on the load-position resonance (290-330 Hz, |wp/wz - 1| <= 5 %, beta_p >= 0.3, beta_z/beta_p in 0.07..0.9), Post segment.
 Section packing (as exp05_Higs prepare_design): lpPost = V_lp, Hlp, p = kp*lead, iPre = W_i, Hi, iPost = W_i^-1 kp lead V_i, post = Cn.
 
 Design criterion (eq. 8.13, p. 201): maximise the open-loop crossover subject to
@@ -53,6 +53,10 @@ PEAK_CMD_A = 0.5
 ENC_COUNTS = 2**20
 TD_DELAY = 3                                  # samples, round(tau of the free fit)
 AMPS = {"ms060": 0.6, "ms030": 0.3, "ms100": 1.0}
+S_MEMBERS = ("ms060", "ms030", "ms100")        # measured (spliced) S members, row 0 nominal
+MEMBER_NAMES = tuple(f"{n}_spliced" for n in S_MEMBERS)
+STIFFNESS_SCALE = (0.9, 1.1)                  # model members: resonance frequency about -5 % / +5 %
+UNC_MAX_HZ = 2000.                            # perturbed model members are checked up to this frequency (winding on the full grid)
 MEAS_MAX_HZ = 3000.                           # highest measured line used (above it |L| << 1)
 F_MIN_HZ, F_START_HZ = 30., 200.              # w_min and start of the DF-uncertainty band
 LAMBDAS = (0.0, 0.4)
@@ -62,7 +66,7 @@ HF_GAIN_HZ = 1000.
 WI_BOOK = dict(wi_p_hz=104., wi_ratio=2000. / 104.)   # Table 8.2: 104 Hz and 2000 Hz, beta = 1 (low corner = pole, see docstring)
 BOUNDS = dict(fc=(10., 200.), r_i=(1.5, 6.), lz_ratio=(1.2, 6.), lpole_ratio=(1.5, 12.), lp_hz=(60., 3000.),
               wc_lp_ratio=(0.8 * SQ, 3.0 * SQ), wc_i_ratio=(0.25 * SQ, 0.8 * SQ),
-              nz_hz=(150., 600.), np_ratio=(0.5, 5.), depth=(0.005, 1.), np_beta=(0.05, 1.),
+              nz_hz=(290., 330.), np_ratio=(0.95, 1.05), depth=(0.07, 0.9), np_beta=(0.3, 1.0),
               wi_p_hz=(20., 400.), wi_ratio=(2., 40.))
 FD_KEYS = ("fc", "r_i", "lz_ratio", "lpole_ratio", "lp_hz", "nz_hz", "np_ratio", "depth", "np_beta")
 HIGS_KEYS = ("wc_lp_ratio", "wc_i_ratio")
@@ -229,10 +233,6 @@ def corners(d):
     return c
 
 
-def notch_is_identity(d):
-    return abs(d["np_ratio"] - 1) < 1e-3 and d["depth"] > 0.999
-
-
 def _quad(w, b):
     return [1.0, 2 * b * w, w * w]
 
@@ -276,7 +276,7 @@ def sections(d, kp):
         i_pre = np.zeros((0, 6))
         i_post = sos(vi[1] + zlead, vi[2] + plead, vi[0] * klead)
     wz_n, bz_n, wp_n, bp_n = c["notch"]
-    post = np.zeros((0, 6)) if notch_is_identity(d) else sos(_zpk_quad(wz_n, bz_n), _zpk_quad(wp_n, bp_n), 1.0)
+    post = sos(_zpk_quad(wz_n, bz_n), _zpk_quad(wp_n, bp_n), 1.0)
     packed = np.vstack([np.zeros((0, 6)), hlp, lp_post, p, i_pre, hi, i_post, post])
     counts = np.array([0, len(lp_post), len(p), len(i_pre), len(i_post), len(post)], dtype=np.int64)
     omega = (wc_lp * TS / SQ if higs else 0.0, wc_i * TS / SQ if higs else 0.0)
@@ -314,7 +314,7 @@ def ctrl_parts(g, d, tab):
     wl = c["wl"]
     lpb = wl**2 / (sw**2 + np.sqrt(2) * wl * sw + wl**2)
     lead = (1 + sw / c["wz"]) / (1 + sw / c["wp"])
-    cn = np.ones_like(sw) if notch_is_identity(d) else notch_fr(sw, c["notch"])
+    cn = notch_fr(sw, c["notch"])
     if d["mode"] == "linear":
         return lpb * lead * (1 + c["wi"] / sw) * cn, None, None
     vlp = (sw + c["wc_lp"]) / c["wc_lp"] * lpb
@@ -360,16 +360,19 @@ class Gate:
             out["term_normsum"] = np.max(s / S_LIMIT, axis=1) + lam * np.max(wasp, axis=1)
         cm, _, _ = ctrl_parts(self.M, d, self.tab)
         Lm = kp * cm[None, :] * self.M.P
-        out["S_model"] = float((1 / np.abs(1 + Lm)).max())
-        out["S_model_hz"] = float(self.M.f[np.argmax(1 / np.abs(1 + Lm[0]))])
+        sm = 1 / np.abs(1 + Lm)
+        out["S_model"] = float(sm[0].max())
+        out["S_model_hz"] = float(self.M.f[np.argmax(sm[0])])
+        out["S_model_unc"] = [float(sm[i, self.M.f <= UNC_MAX_HZ].max()) for i in range(1, len(sm))]
         out["winding_ok"] = bool(np.all(R.nyquist_stable_many(Lm)))
         return out
 
     def evaluate(self, d, lam):
-        """None if infeasible, else dict(kp, fc, ...). Constraint: term <= 1 on S members, |S_model| <= 2, winding, HIGS ratios."""
+        """None if infeasible, else dict(kp, fc, ...). Constraint: term <= 1 on the three measured S members (ms060, ms030, ms100),
+        |S| <= 2 on the model and its stiffness -10 % / +10 % members (<= 2 kHz), winding on all model members, HIGS ratios."""
         kp = self.kp_for_unity(d)
         t = self.terms(d, kp, lam)
-        if t["fc"] is None or np.max(t["term"]) > 1.0 or t["S_model"] > S_LIMIT or not t["winding_ok"] or hf_gain(self.S, d, kp) > HF_GAIN_MAX:
+        if t["fc"] is None or np.max(t["term"]) > 1.0 or t["S_model"] > S_LIMIT or max(t["S_model_unc"]) > S_LIMIT or not t["winding_ok"] or hf_gain(self.S, d, kp) > HF_GAIN_MAX:
             return None
         if d["mode"] != "linear":
             r = higs_ratios(d, t["fc"])
@@ -393,8 +396,10 @@ class Gate:
             cn = np.interp(np.log(g.f), np.log(fg), vals.real) + 1j * np.interp(np.log(g.f), np.log(fg), vals.imag)
             ctrl = np.where((g.f <= FS / 4) & (g.f >= fg[0]), cn, kp * cs)
             L = ctrl[None, :] * g.P
-            smax = max(smax, float((1 / np.abs(1 + L)).max()))
+            sg = 1 / np.abs(1 + L)
+            smax = max(smax, float(sg[0].max()) if check else float(sg.max()))
             if check:
+                smax = max(smax, float(sg[1:, g.f <= UNC_MAX_HZ].max()))
                 ok = ok and bool(np.all(R.nyquist_stable_many(L)))
         return bool(ok and smax <= limit), smax
 
@@ -406,8 +411,7 @@ def hf_gain(g, d, kp):
     c = corners(d)
     wl = c["wl"]
     cstar = wl**2 / (sw**2 + np.sqrt(2) * wl * sw + wl**2) * (1 + sw / c["wz"]) / (1 + sw / c["wp"]) * (1 + c["wi"] / sw)
-    if not notch_is_identity(d):
-        cstar = cstar * notch_fr(sw, c["notch"])
+    cstar = cstar * notch_fr(sw, c["notch"])
     return float(np.max(kp * np.abs(cstar)))
 
 
@@ -562,20 +566,22 @@ def build_setup(log=print):
     fs_grid = np.concatenate([np.geomspace(0.5, f_splice, 80, endpoint=False), f[(f >= f_splice) & (f <= MEAS_MAX_HZ)],
                               np.geomspace(MEAS_MAX_HZ * 1.001, fmax, 40)])
     rows = []
-    for amp in ("ms060", "ms030"):
+    for amp in S_MEMBERS:
         D, fd = Ds[amp], fits[amp]["design"]
         mdl = H.plant_frf(fs_grid, fd["params"], fd["tau_samples"] * TS)[1]
         meas = np.interp(fs_grid, D["f"], D["Hl"].real) + 1j * np.interp(fs_grid, D["f"], D["Hl"].imag)
         rows.append(np.where((fs_grid >= f_splice) & (fs_grid <= MEAS_MAX_HZ), meas, mdl))
     fm_grid = np.unique(np.concatenate([np.geomspace(0.5, fmax, 450), np.linspace(100., 700., 240)]))
     fd = fits["ms060"]["design"]
-    model = H.plant_frf(fm_grid, fd["params"], fd["tau_samples"] * TS)[1]
+    model = np.array([H.plant_frf(fm_grid, dict(fd["params"], stiffness=fd["params"]["stiffness"] * sc), fd["tau_samples"] * TS)[1]
+                      for sc in (1.0,) + STIFFNESS_SCALE])
     set_td_model(fd["params"])
     tab = DFTab()
-    gate = Gate(Grid(fs_grid, np.array(rows)), Grid(fm_grid, model[None, :]), tab)
+    gate = Gate(Grid(fs_grid, np.array(rows)), Grid(fm_grid, model), tab)
+    gate.splice_hz = f_splice
     info = dict(splice_hz=f_splice, splice_table=table, fits={n: dict(free_params=H.fmt_p(v["free"]["params"]), tau_samples=v["free"]["tau_samples"],
                 design_params=H.fmt_p(v["design"]["params"]), design_band_hz=v["design"]["band_hz"]) for n, v in fits.items()},
-                members=["ms060_spliced (nominal)", "ms030_spliced"], model_member="ms060_frictionless_model", Ds=Ds)
+                members=[f"{n}_spliced" for n in S_MEMBERS], model_member="ms060_frictionless_model", Ds=Ds)
     return gate, info
 
 
@@ -587,7 +593,7 @@ def sub_gate(gate):
 
 # ------------------------------------------------------------------ search
 def start_design(mode):
-    d = dict(mode=mode, fc=60., r_i=3., lz_ratio=2., lpole_ratio=4., lp_hz=600., nz_hz=320., np_ratio=1., depth=1., np_beta=0.3,
+    d = dict(mode=mode, fc=60., r_i=3., lz_ratio=2., lpole_ratio=4., lp_hz=600., nz_hz=310., np_ratio=1., depth=0.3, np_beta=0.5,
              wc_lp_ratio=1.5 * SQ, wc_i_ratio=0.5 * SQ)
     if mode != "linear":
         d.update(WI_BOOK)
@@ -608,15 +614,13 @@ def clip(d):
 
 
 def random_designs(mode, n, rng, fd_keys):
-    """Log-uniform samples; half of them with the identity notch (the notch is then released by the refinement)."""
+    """Log-uniform samples."""
     out = []
     for i in range(n):
         d = start_design(mode)
         for k in fd_keys:
             lo, hi = BOUNDS[k]
             d[k] = float(np.exp(rng.uniform(np.log(lo), np.log(hi))))
-        if i % 2 == 0:
-            d["np_ratio"], d["depth"] = 1., 1.
         out.append(d)
     return out
 
@@ -731,9 +735,8 @@ def tuning_fields(d, kp):
     t = dict(kp=float(kp), integral_hz=d["fc"] / d["r_i"], lead_zero_hz=d["fc"] / d["lz_ratio"], lead_pole_hz=d["fc"] * d["lpole_ratio"],
              lowpass_hz=d["lp_hz"], higs_lp_corner_hz=d["fc"] * d["wc_lp_ratio"] if d["mode"] != "linear" else 100.,
              higs_i_corner_hz=d["fc"] * d["wc_i_ratio"] if d["mode"] != "linear" else 2., higs_lp_gain=1.0, higs_i_gain=1.0)
-    if not notch_is_identity(d):
-        wz, bz, wp, bp = c["notch"]
-        t.update(notch_zero_hz=wz / (2 * np.pi), notch_pole_hz=wp / (2 * np.pi), notch_zero_beta=bz, notch_pole_beta=bp)
+    wz, bz, wp, bp = c["notch"]
+    t.update(notch_zero_hz=wz / (2 * np.pi), notch_pole_hz=wp / (2 * np.pi), notch_zero_beta=bz, notch_pole_beta=bp)
     if d["mode"] != "linear":
         wz, bz, wp, bp = c["wi_filter"]
         t.update(wi_zero_hz=wz / (2 * np.pi), wi_pole_hz=wp / (2 * np.pi), wi_zero_beta=bz, wi_pole_beta=bp)
@@ -745,8 +748,8 @@ def describe(gate, d, lam_list=LAMBDAS):
     out = dict(design=d, kp=float(kp), tuning=tuning_fields(d, kp))
     t0 = gate.terms(d, kp, 0.0)
     out["crossover_hz"] = t0["fc"]
-    out["S_max_measured"] = dict(zip(("ms060_spliced", "ms030_spliced"), map(float, t0["S_members"])))
-    out["S_max_peak_hz"] = dict(zip(("ms060_spliced", "ms030_spliced"), map(float, t0["S_peak_hz"])))
+    out["S_max_measured"] = dict(zip(MEMBER_NAMES, map(float, t0["S_members"])))
+    out["S_max_peak_hz"] = dict(zip(MEMBER_NAMES, map(float, t0["S_peak_hz"])))
     out["hf_gain_a_per_rad"] = hf_gain(gate.S, d, kp)
     out["edge_flags"] = [k for k in keys_for(d["mode"], "error") if d[k] <= BOUNDS[k][0] * 1.005 or d[k] >= BOUNDS[k][1] * 0.995]
     flags = []
@@ -757,17 +760,21 @@ def describe(gate, d, lam_list=LAMBDAS):
         flags += [f"book_ratio_{k}_{'low' if r[k] <= 1.01 * b[0] else 'high'}" for k, b in (("lp", BOOK_LP), ("i", BOOK_I)) if r[k] <= 1.01 * b[0] or r[k] >= 0.99 * b[1]]
     out["binding_constraints"] = flags
     out["S_max_model"] = t0["S_model"]
+    out["S_max_model_stiffness_pm10pct_upto2kHz"] = dict(zip(("x0.9", "x1.1"), t0["S_model_unc"]))
+    ab = gate.S.f >= gate.splice_hz
+    cs, _, _ = ctrl_parts(gate.S, d, gate.tab)
+    out["S_max_measured_above_splice"] = dict(zip(MEMBER_NAMES, map(float, (1 / np.abs(1 + kp * cs[None, :] * gate.S.P))[:, ab].max(axis=1))))
     out["S_max_model_hz"] = t0["S_model_hz"]
     out["winding_ok_model"] = t0["winding_ok"]
     for lam in lam_list:
         t = gate.terms(d, kp, lam)
-        out[f"eq813_term_lambda{lam:g}"] = dict(zip(("ms060_spliced", "ms030_spliced"), map(float, t["term"])))
-        out[f"eq813_normsum_lambda{lam:g}"] = dict(zip(("ms060_spliced", "ms030_spliced"), map(float, t["term_normsum"])))
+        out[f"eq813_term_lambda{lam:g}"] = dict(zip(MEMBER_NAMES, map(float, t["term"])))
+        out[f"eq813_normsum_lambda{lam:g}"] = dict(zip(MEMBER_NAMES, map(float, t["term_normsum"])))
     if d["mode"] != "linear":
         t = gate.terms(d, kp, 0.4, f_min=10.)
-        out["eq813_term_lambda0.4_wmin10Hz"] = dict(zip(("ms060_spliced", "ms030_spliced"), map(float, t["term"])))
+        out["eq813_term_lambda0.4_wmin10Hz"] = dict(zip(MEMBER_NAMES, map(float, t["term"])))
     wz_n, _, wp_n, _ = corners(d)["notch"]
-    out["kp_times_notch_dc_gain"] = float(kp * (1.0 if notch_is_identity(d) else (wz_n / wp_n) ** 2))
+    out["kp_times_notch_dc_gain"] = float(kp * (wz_n / wp_n) ** 2)
     if d["mode"] != "linear":
         out["higs_omega_h_over_crossover"] = higs_ratios(d, t0["fc"])
         out["higs_corner_hz"] = dict(lp=d["fc"] * d["wc_lp_ratio"] / SQ, i=d["fc"] * d["wc_i_ratio"] / SQ, note="omega_h; DF corner omega_c = SQ * omega_h")
@@ -798,10 +805,9 @@ def linear_counterpart_s(gate, d, kp):
         c = corners(d)
         wl = c["wl"]
         cs = wl**2 / (sw**2 + np.sqrt(2) * wl * sw + wl**2) * (1 + sw / c["wz"]) / (1 + sw / c["wp"]) * (1 + c["wi"] / sw)
-        if not notch_is_identity(d):
-            cs = cs * notch_fr(sw, c["notch"])
+        cs = cs * notch_fr(sw, c["notch"])
         out += list((1 / np.abs(1 + kp * cs[None, :] * g.P)).max(axis=1))
-    return dict(ms060_spliced=float(out[0]), ms030_spliced=float(out[1]), model=float(out[2]))
+    return dict(zip(MEMBER_NAMES + ("model", "model_x0.9", "model_x1.1"), map(float, out)))
 
 
 def python_port_check(d, kp):
@@ -893,9 +899,9 @@ def exp05_design(rec, label):
                          "at the design crossover fc (delay 0 samples, the FRF contains the delay)" % rec["splice_hz"])
     d["tuning"] = tun
     d["provenance"] = (f"simulations/higs_book_design.py {label}: error-optimal under eq. 8.13 (lambda = {rec['lam']:g}) with notch and W_i, "
-                       f"book ratios, frf_ms060.mat (primary), frf_ms030.mat; peak command <= {PEAK_CMD_A} A on the frictionless model, delay {TD_DELAY} samples")
+                       f"book ratios, frf_ms060.mat (primary), frf_ms030.mat, frf_ms100.mat, model stiffness x0.9/x1.1 members; peak command <= {PEAK_CMD_A} A on the frictionless model, delay {TD_DELAY} samples")
     h = hashlib.sha256()
-    for n in ("frf_ms060.mat", "frf_ms030.mat"):
+    for n in ("frf_ms060.mat", "frf_ms030.mat", "frf_ms100.mat"):
         h.update((H.DATA / n).read_bytes())
     d["source_sha256"] = h.hexdigest()
     return d
@@ -954,7 +960,7 @@ def main():
                                                                        peak_command_limit_a=PEAK_CMD_A)),
         eq813=dict(W_S=f"1/{S_LIMIT:g} (|S| <= {S_LIMIT:g})", Delta="|D(j w_min) - D(j w)|, D = DF of the low-pass HIGS (numeric, discrete), eq. 7.48",
                    w_min_hz=F_MIN_HZ, w_start_hz=F_START_HZ, W_a="W_Delta |kp lead (1 + D_i V_i) V_lp Cn| (W_Delta = 0 below w_start)",
-                   constraint="max_f (|W_S S| + lambda |W_a S P|) <= 1 on ms060 and ms030 spliced members; |S| <= 2 and winding on the frictionless model",
+                   constraint="max_f (|W_S S| + lambda |W_a S P|) <= 1 on the ms060, ms030 and ms100 spliced members; |S| <= 2 (<= 2 kHz for the stiffness x0.9 / x1.1 members) and winding on the frictionless model and its two perturbed members",
                    lambdas=lambdas, book_ratios=dict(lp=BOOK_LP, i=BOOK_I), bounds={k: list(v) for k, v in BOUNDS.items()}),
         hf_gain_max_a_per_rad=args.hf_gain_max, seed_candidates=candidates, designs=designs, runtime_s=time.time() - t0)
     args.output.mkdir(parents=True, exist_ok=True)
