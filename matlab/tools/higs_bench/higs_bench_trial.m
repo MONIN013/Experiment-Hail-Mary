@@ -1,10 +1,13 @@
 function res = higs_bench_trial(design_path, mode, out_dir, name, opts)
 % higs_bench_trial  One closed-loop trial of an exp05 design on the bench; prints error / current / twist figures.
 %   res = higs_bench_trial("simulations/hardware/designs/hw_design_linear.json", "linear", out_dir, "a10m010_1_linear", ...
-%           amplitude_rad=1, move_time_s=0.1, coulomb_a=0.10)
+%           amplitude_rad=1, move_time_s=0.1, inertia=1.134e-4, coulomb_a=0.068, coulomb_slow_a=0.0625, viscous=3.45e-4, quadratic=5.41e-5)
 % mode: linear | integrator | lowpass | both (selects the controller of the design file).
 % amplitude_rad / move_time_s replace the design's trajectory; reference (column) replaces the trajectory altogether.
-% Feedforward: coulomb_a*tanh(v_ref/0.05) + inertia*a_ref (none when coulomb_a = 0). Retries up to attempts times.
+% Recommended identified coefficients are shown above (not defaults).
+% Feedforward: inertia*a_ref + coulomb_a*tanh(v_ref/0.05) + coulomb_slow_a*tanh(v_ref/3)
+%              + viscous*v_ref + quadratic*v_ref*abs(v_ref) (none when all coefficients are zero).
+% Coefficient units: A/(rad/s^2), A, A, A/(rad/s), A/(rad/s)^2, respectively. Retries up to attempts times.
 % max_position_rad / max_velocity_rad_s only relax the preview check of the trajectory; the active protection is
 % the DriverAdapter limit set with higs_bench_limits.
 % Needs addpath('matlab', 'matlab/experiment'). res: see higs_bench_run, plus metrics (higs_bench_metrics).
@@ -17,7 +20,10 @@ arguments
   opts.move_time_s double = []
   opts.reference double = []
   opts.coulomb_a (1,1) double {mustBeNonnegative} = 0
-  opts.inertia (1,1) double = 1e-4
+  opts.coulomb_slow_a (1,1) double {mustBeNonnegative} = 0
+  opts.viscous (1,1) double {mustBeNonnegative} = 0
+  opts.quadratic (1,1) double {mustBeNonnegative} = 0
+  opts.inertia (1,1) double = 0
   opts.disturbance double = []
   opts.repeat (1,1) double = 1
   opts.attempts (1,1) double = 3
@@ -45,10 +51,11 @@ ctrl = experiment.ControllerConfig.from_struct(pv.(mode));
 ref = pv.reference(:);
 if ~isempty(opts.reference), ref = opts.reference(:); end
 ff = zeros(size(ref));
-if opts.coulomb_a > 0
+if any([opts.inertia, opts.coulomb_a, opts.coulomb_slow_a, opts.viscous, opts.quadratic] ~= 0)
   vr = gradient(ref) / ts;
   ar = gradient(vr) / ts;
-  ff = opts.coulomb_a * tanh(vr / 0.05) + opts.inertia * ar;
+  ff = opts.inertia * ar + opts.coulomb_a * tanh(vr / 0.05) ...
+    + opts.coulomb_slow_a * tanh(vr / 3) + opts.viscous * vr + opts.quadratic * vr .* abs(vr);
   fprintf("FF peak %.3f A\n", max(abs(ff)));
 end
 
