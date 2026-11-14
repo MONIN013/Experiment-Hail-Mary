@@ -1750,15 +1750,15 @@
 							</Value>
 							<Value>
 								<Name>MotorParams.encoderResolution</Name>
-								<Value>8388608</Value>
+								<Value>1048576</Value>
 							</Value>
 							<Value>
 								<Name>MotorParams.ratedCurrentA</Name>
-								<Value>1.6</Value>
+								<Value>2.71</Value>
 							</Value>
 							<Value>
 								<Name>MotorParams.maxCurrentA</Name>
-								<Value>1.6</Value>
+								<Value>0.5</Value>
 							</Value>
 							<Value>
 								<Name>MotorParams.positionSign</Name>
@@ -1778,23 +1778,23 @@
 							</Value>
 							<Value>
 								<Name>LoadParams.encoderResolution</Name>
-								<Value>8388608</Value>
+								<Value>1048576</Value>
 							</Value>
 							<Value>
 								<Name>LoadParams.ratedCurrentA</Name>
-								<Value>1.6</Value>
+								<Value>1</Value>
 							</Value>
 							<Value>
 								<Name>LoadParams.maxCurrentA</Name>
-								<Value>1.6</Value>
+								<Value>0.5</Value>
 							</Value>
 							<Value>
 								<Name>LoadParams.positionSign</Name>
-								<Value>1</Value>
+								<Value>-1</Value>
 							</Value>
 							<Value>
 								<Name>LoadParams.velocitySign</Name>
-								<Value>1</Value>
+								<Value>-1</Value>
 							</Value>
 							<Value>
 								<Name>LoadParams.currentSign</Name>
@@ -1806,15 +1806,15 @@
 							</Value>
 							<Value>
 								<Name>SafetyLimits.maxPositionRad</Name>
-								<Value>0</Value>
+								<Value>3</Value>
 							</Value>
 							<Value>
 								<Name>SafetyLimits.maxVelocityRadS</Name>
-								<Value>0</Value>
+								<Value>5</Value>
 							</Value>
 							<Value>
 								<Name>SafetyLimits.maxTwistRad</Name>
-								<Value>0</Value>
+								<Value>0.05</Value>
 							</Value>
 							<Value>
 								<Name>SafetyResetRevision</Name>
