@@ -22,6 +22,7 @@ VAR_GLOBAL
     resetReq : BOOL := FALSE;
     experimentActive : BOOL := FALSE;
     playbackDone : BOOL := FALSE;
+    playbackActive : BOOL := FALSE;
     seqError : BOOL := FALSE;
     seqState : E_SeqState := E_SeqState.IDLE;
     tableLenClamped : UDINT := 0;

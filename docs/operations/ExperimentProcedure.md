@@ -235,9 +235,9 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
 │     クロスタスク(1ms→10ms→1ms)のため最大~11ms遅延。                   │
 │     DriverAdapter は playbackDone を同一タスク内で直接受け、          │
 │     targetTorque を即時 0 にクランプする。                            │
-│     ただし ExperimentLogger は playbackDone を同一タスク内で           │
-│     直接受け、レコード追記を即時停止する。                             │
-│     そのため 8kHz運用時の余剰ゼロ記録は H6 fast-path で抑止される。     │
+│     ExperimentLogger は playbackActive（sample 出力スキャンだけ TRUE） │
+│     を同一タスク内で直接受け、そのスキャンだけ記録する。              │
+│     記録件数は tableLen × repeatCount に一致する。                     │
 │                                                                       │
 │  ⑨ modeFlags = 0x0000            ModeManager: サーボ無効化            │
 │                                   → SWITCH_ON_DISABLED                │
@@ -294,7 +294,7 @@ enableCurrentOut は MAIN の CASE modeState で状態ごとに制御:
      ADS Read: status.recordsWritten / fileSizeKb / errorCode
 
 ⑤ ロギング停止
-     `playbackDone` でレコード追記を即時停止し、
+     `playbackActive` が FALSE になった時点でレコード追記が止まり、
      その後 `experimentActiveOut` FALSE で flush + close
 
 ⑥ ファイル読み出し (実験後)

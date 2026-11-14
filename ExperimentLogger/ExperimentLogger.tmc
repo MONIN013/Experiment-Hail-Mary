@@ -108,7 +108,7 @@
         <Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
       </SubItem>
       <SubItem>
-        <Name>playbackDone</Name>
+        <Name>playbackActive</Name>
         <Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
       </SubItem>
     </DataType>

@@ -36,6 +36,9 @@ VAR_GLOBAL
     playbackDone AT %Q* : BOOL := FALSE;
 
     {attribute 'linkalways'}
+    playbackActive AT %Q* : BOOL := FALSE;
+
+    {attribute 'linkalways'}
     seqError AT %Q* : BOOL := FALSE;
 
     seqState : E_SeqState := E_SeqState.IDLE;

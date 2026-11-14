@@ -26,9 +26,9 @@ ExperimentLogger は実験データをバイナリ形式で保存する C++ TcCO
 | `record.load.position` | `LREAL` | DriverAdapter `load.positionRel` (D12) | zero-based per run |
 | `record.load.velocity` | `LREAL` | DriverAdapter `load.velocityAct` (D11) | SIL load velocity |
 | `control.resetReq` | `BOOL` | ModeManager | reset edge |
-| `control.loggingReq` | `BOOL` | ModeManager `experimentActiveOut` | append gate and session close trigger |
+| `control.loggingReq` | `BOOL` | ModeManager `experimentActiveOut` | append gate (`playbackActive` と AND) and session close trigger |
 | `control.preArmReq` | `BOOL` | ModeManager `preArmOut` | pre-open trigger in `SERVO_READY` |
-| `control.playbackDone` | `BOOL` | ExperimentSequencer `GVL_SEQ.playbackDone` | same-task write-stop fast path |
+| `control.playbackActive` | `BOOL` | ExperimentSequencer `GVL_SEQ.playbackActive` | 記録窓。sequencer が table sample を出力したスキャンだけ `TRUE`。`record.refValue / ffValue / distValue` と同じ sequencer スキャンで同時に公開される |
 
 ## 出力
 | 項目 | 型 | 備考 |
@@ -44,13 +44,13 @@ ExperimentLogger は実験データをバイナリ形式で保存する C++ TcCO
 |---|---|---|
 | `ExperimentLogger_Obj1 (Module1).LogControl.filePath` | `STRING(255)` | output path; parent directory must already exist |
 
-`Inputs.control.preArmReq` だけが file open を開始できる。`Inputs.control.loggingReq` は file open を兼務せず、logger がすでに `ACTIVE` でなければ不正要求として扱う。`Inputs.control.playbackDone` は ModeManager から close 責務を奪わず、新規レコード追記だけを即時停止する。
+`Inputs.control.preArmReq` だけが file open を開始できる。`Inputs.control.loggingReq` は file open を兼務せず、logger がすでに `ACTIVE` でなければ不正要求として扱う。`Inputs.control.playbackActive` は記録窓だけを決め、ModeManager から close 責務を奪わない。
 
 ## 実行時動作
 1. `control.preArmReq` 立上りでセッション実行状態を初期化し、非同期 file open を開始する。open 完了後に pre-armed な `ACTIVE` 状態へ入る。
 2. `control.loggingReq` 立上りでは file FSM がすでに `ACTIVE` であることを要求し、満たさなければエラーとしてセッション失敗扱いにする。
-3. `control.loggingReq` 立上りスキャンは記録を arm するだけで追記しない。次スキャンから、`loggingReq = TRUE` かつ `playbackDone = FALSE` かつセッション未失敗の間、1 スキャンにつき 1 件を追記する。これにより logger record 0 と sequencer table index 0 が一致する。`WRITE_WAIT` 中も別バッファへ蓄積を継続する。
-4. `control.playbackDone = TRUE` になったスキャンでは、新規レコード追記を即時停止する。
+3. `loggingReq = TRUE` かつ `playbackActive = TRUE` かつセッション未失敗かつ reset 保留なしのスキャンごとに 1 件を追記する。`playbackActive` は sequencer が table sample を出力したスキャン（最終 repeat の最終 sample を含む）だけ `TRUE` なので、記録件数は `tableLen × repeatCount` に一致し、logger record 0 が table index 0 に対応する。窓の開始と終了は sequencer 側で決まり、10 ms の PlcTask から届く `loggingReq` の到着スキャンに依存しない。`WRITE_WAIT` 中も別バッファへ蓄積を継続する。
+4. `playbackActive = FALSE` のスキャン（開始要求立上りスキャン、最終 sample の次スキャン以降）では追記しない。
 5. `control.loggingReq` 立下りで残バッファを flush し、file close を開始する。
 6. `control.loggingReq = FALSE` のまま `control.preArmReq` が立下る場合、実行に入らなかった pre-open 済み file を close する。
 7. `control.resetReq` 立上りでは安全にセッション停止へ入り、保留中の非同期 close 完了後に実行状態を初期化する。
@@ -68,4 +68,4 @@ ExperimentLogger は実験データをバイナリ形式で保存する C++ TcCO
 - `record.load.position <- DriverAdapter.load.positionRel` (D12: ControllerCore.positionRel から変更)
 - `record.load.velocity <- DriverAdapter.load.velocityAct` (D11: VirtualMotorCore.velocityOut から変更)
 - `control.preArmReq <- ModeManager.preArmOut` (Issue #12: pre-open in `SERVO_READY`)
-- `control.playbackDone <- ExperimentSequencer.GVL_SEQ.playbackDone` (H6: same-task fast-path stop)
+- `control.playbackActive <- ExperimentSequencer.GVL_SEQ.playbackActive` (same-task 記録窓)

@@ -333,7 +333,7 @@
 				<BitOffs>16</BitOffs>
 			</SubItem>
 			<SubItem>
-				<Name>playbackDone</Name>
+				<Name>playbackActive</Name>
 				<Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
 				<BitSize>8</BitSize>
 				<BitOffs>24</BitOffs>
@@ -608,6 +608,10 @@
 						<Name>VirtualMotorTask Outputs</Name>
 						<Var>
 							<Name>GVL_SEQ.playbackDone</Name>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_SEQ.playbackActive</Name>
 							<Type>BOOL</Type>
 						</Var>
 						<Var>
@@ -1818,7 +1822,7 @@
 			<OwnerB Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.distValue" VarB="Inputs^record^distValue"/>
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.ffValue" VarB="Inputs^record^ffValue"/>
-				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.playbackDone" VarB="Inputs^control^playbackDone"/>
+				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.playbackActive" VarB="Inputs^control^playbackActive"/>
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.refValue" VarB="Inputs^record^refValue"/>
 			</OwnerB>
 		</OwnerA>

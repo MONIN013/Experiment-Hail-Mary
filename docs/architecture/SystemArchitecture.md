@@ -54,7 +54,7 @@ ModeManager ◄─ motorStatusWordOut / loadStatusWordOut / loggerReady / logger
 ExperimentLogger ◄─ Inputs.record.(refValue / ffValue / controlInput / error /
                     currentCmd / load.position / load.velocity /
                     motor.currentAct)
-ExperimentLogger ◄─ Inputs.control.playbackDone
+ExperimentLogger ◄─ Inputs.control.playbackActive
 ```
 
 ---
@@ -109,6 +109,7 @@ ExperimentLogger ◄─ Inputs.control.playbackDone
 | `idx` | `UDINT` | 現 trial 内インデックス |
 | `refValue`, `ffValue`, `distValue` | `LREAL` | 現在出力 |
 | `playbackDone` | `BOOL` | 全 trial 完了 |
+| `playbackActive` | `BOOL` | sample 出力スキャンだけ `TRUE`（logger の記録窓） |
 | `seqError` | `BOOL` | `FAULT` 状態 |
 | `seqState` | `E_SeqState` | `IDLE / PLAYING / COMPLETE / FAULT` |
 
@@ -183,7 +184,7 @@ ExperimentLogger ◄─ Inputs.control.playbackDone
 
 * file pre-open: `Inputs.control.preArmReq`
 * record append / close: `Inputs.control.loggingReq`
-* same-task 停止短縮: `Inputs.control.playbackDone`
+* 記録窓: `Inputs.control.playbackActive`
 
 **主要入力**
 
@@ -194,7 +195,7 @@ ExperimentLogger ◄─ Inputs.control.playbackDone
 | `Inputs.record.controlInput`, `Inputs.record.error` | ControllerCore 出力 |
 | `Inputs.record.motor.position`, `Inputs.record.motor.velocity`, `Inputs.record.motor.currentAct` | DriverAdapter 変換済み Motor 信号 |
 | `Inputs.record.load.position`, `Inputs.record.load.velocity` | DriverAdapter 変換済み Load 信号 |
-| `Inputs.control.preArmReq`, `Inputs.control.loggingReq`, `Inputs.control.playbackDone` | logger 制御入力 |
+| `Inputs.control.preArmReq`, `Inputs.control.loggingReq`, `Inputs.control.playbackActive` | logger 制御入力 |
 
 **記録スキーマ**
 

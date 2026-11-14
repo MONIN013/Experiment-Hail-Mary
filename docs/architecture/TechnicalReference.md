@@ -29,6 +29,7 @@
 | `resetReq` | `BOOL` | 入力 | ModeManager からの reset pulse |
 | `experimentActive` | `BOOL` | 入力 | ModeManager 実験実行中 |
 | `playbackDone` | `BOOL` | 出力 | 最終 trial 完了 |
+| `playbackActive` | `BOOL` | 出力 | table sample を出力したスキャンだけ `TRUE`（最終 sample を含む）。logger の記録窓 |
 | `seqError` | `BOOL` | 出力 | `seqState = FAULT` |
 | `seqState` | `E_SeqState` | ADS Read | `IDLE / PLAYING / COMPLETE / FAULT` |
 
@@ -43,6 +44,7 @@
 * `PLAYING` 中は `idx` を 1 サンプルずつ進める。
 * trial 途中の終端では `idx := 0`, `trialIndex++`
 * 最終 trial 完了で `playbackDone := TRUE`, `seqState := COMPLETE`
+* sample を出力したスキャンだけ `playbackActive := TRUE`。`playbackDone` は最終 sample のスキャンで同時に立つため、`playbackActive` が最終 sample を含む
 * `IDLE` / `FAULT` では `refValue`, `ffValue`, `distValue` をゼロへ戻す
 
 > 現行コードには `GVL_SEQ.modeFlags`、`rearmRequired`、最終値保持ベースの旧 single-pass 実装は存在しない。
@@ -256,8 +258,8 @@ ADS の接頭辞は `DriverAdapter_Obj1 (Module1).` とする。
 | `Inputs.record.load.position`, `Inputs.record.load.velocity` | DriverAdapter load 側信号 |
 | `Inputs.control.resetReq` | ModeManager reset |
 | `Inputs.control.preArmReq` | file pre-open |
-| `Inputs.control.loggingReq` | 記録 / close |
-| `Inputs.control.playbackDone` | same-task 追記停止 fast-path |
+| `Inputs.control.loggingReq` | 記録許可 / close |
+| `Inputs.control.playbackActive` | 記録窓（`loggingReq` と AND で追記。件数 = `tableLen × repeatCount`） |
 
 ### 5.2 出力
 
@@ -286,6 +288,7 @@ schema version 2（104 bytes）は読まない。MATLAB reader は schema 3 の�
 * `MAIN.experimentActiveOut -> GVL_SEQ.experimentActive`
 * `MAIN.resetOut -> GVL_SEQ.resetReq`
 * `GVL_SEQ.playbackDone -> MAIN.seqPlaybackDone`
+* `GVL_SEQ.playbackActive -> ExperimentLogger.Inputs.control.playbackActive`
 
 ### 6.2 Sequencer / Controller / Driver
 

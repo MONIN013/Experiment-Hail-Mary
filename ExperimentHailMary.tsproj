@@ -333,7 +333,7 @@
 				<BitOffs>16</BitOffs>
 			</SubItem>
 			<SubItem>
-				<Name>playbackDone</Name>
+				<Name>playbackActive</Name>
 				<Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
 				<BitSize>8</BitSize>
 				<BitOffs>24</BitOffs>
@@ -642,13 +642,17 @@
 				</Instance>
 			</Project>
 			<Project GUID="{54AD89C8-6B39-47E6-B85F-F4753C89F02E}" Name="ExperimentSequencer" PrjFilePath="ExperimentSequencer\ExperimentSequencer.plcproj" TmcFilePath="ExperimentSequencer\ExperimentSequencer.tmc" ReloadTmc="true" AmsPort="853" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{D68A2312-6C6B-0841-913D-3A6113087434}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
+				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" AutoReloadTmc="true" TmcHash="{7BC85F79-4498-68A5-DF99-72EC64DB6770}" TmcPath="ExperimentSequencer\ExperimentSequencer.tmc">
 					<Name>ExperimentSequencer Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
 						<Name>VirtualMotorTask Outputs</Name>
 						<Var>
 							<Name>GVL_SEQ.playbackDone</Name>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_SEQ.playbackActive</Name>
 							<Type>BOOL</Type>
 						</Var>
 						<Var>
@@ -2507,7 +2511,7 @@ Bit 8 - 15 : reserved]]></Comment>
 			<OwnerB Name="TIXC^ExperimentLogger^ExperimentLogger_Obj1 (Module1)">
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.distValue" VarB="Inputs^record^distValue"/>
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.ffValue" VarB="Inputs^record^ffValue"/>
-				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.playbackDone" VarB="Inputs^control^playbackDone"/>
+				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.playbackActive" VarB="Inputs^control^playbackActive"/>
 				<Link VarA="VirtualMotorTask Outputs^GVL_SEQ.refValue" VarB="Inputs^record^refValue"/>
 			</OwnerB>
 		</OwnerA>

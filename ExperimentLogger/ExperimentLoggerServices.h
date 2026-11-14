@@ -78,7 +78,7 @@ typedef struct _ST_LoggerControlInputs
 	bool resetReq;
 	bool loggingReq;
 	bool preArmReq;
-	bool playbackDone;
+	bool playbackActive;
 } ST_LoggerControlInputs, *PST_LoggerControlInputs;
 const GUID GUID_ST_LoggerControlInputs = {0x2CA6D7A5, 0xF578, 0x481C, {0xAC, 0xE6, 0xCA, 0x11, 0x4A, 0x3E, 0x5E, 0x88}};
 #endif // !defined(_TC_TYPE_2CA6D7A5_F578_481C_ACE6_CA114A3E5E88_INCLUDED_)

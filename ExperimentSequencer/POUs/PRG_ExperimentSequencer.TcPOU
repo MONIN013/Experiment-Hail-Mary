@@ -51,6 +51,7 @@ GVL_SEQ.refValue := fbSequencerCore.refValue;
 GVL_SEQ.ffValue := fbSequencerCore.ffValue;
 GVL_SEQ.distValue := fbSequencerCore.distValue;
 GVL_SEQ.playbackDone := fbSequencerCore.playbackDone;
+GVL_SEQ.playbackActive := fbSequencerCore.playbackActive;
 GVL_SEQ.seqError := fbSequencerCore.seqError;
 GVL_SEQ.seqState := fbSequencerCore.seqState;
 GVL_SEQ.idx := fbSequencerCore.idx;

@@ -40,7 +40,7 @@ END_VAR
         2:
             IF (GVL_SEQ.seqState <> E_SeqState.PLAYING)
                 OR (GVL_SEQ.idx <> 0) OR (GVL_SEQ.trialIndex <> 0)
-                OR GVL_SEQ.playbackDone OR (GVL_SEQ.refValue <> 0.0) THEN
+                OR GVL_SEQ.playbackDone OR GVL_SEQ.playbackActive OR (GVL_SEQ.refValue <> 0.0) THEN
                 failureCount := failureCount + 1;
             END_IF
             stage := 3;
@@ -48,34 +48,38 @@ END_VAR
         3:
             IF (GVL_SEQ.idx <> 1) OR (GVL_SEQ.trialIndex <> 0)
                 OR (GVL_SEQ.refValue <> 1.0) OR (GVL_SEQ.ffValue <> 10.0)
-                OR (GVL_SEQ.distValue <> 100.0) OR GVL_SEQ.playbackDone THEN
+                OR (GVL_SEQ.distValue <> 100.0) OR GVL_SEQ.playbackDone
+                OR NOT GVL_SEQ.playbackActive THEN
                 failureCount := failureCount + 1;
             END_IF
             stage := 4;
 
         4:
             IF (GVL_SEQ.idx <> 2) OR (GVL_SEQ.refValue <> 2.0)
-                OR (GVL_SEQ.ffValue <> 20.0) OR (GVL_SEQ.distValue <> 200.0) THEN
+                OR (GVL_SEQ.ffValue <> 20.0) OR (GVL_SEQ.distValue <> 200.0)
+                OR NOT GVL_SEQ.playbackActive THEN
                 failureCount := failureCount + 1;
             END_IF
             stage := 5;
 
         5:
             IF (GVL_SEQ.idx <> 0) OR (GVL_SEQ.trialIndex <> 1)
-                OR (GVL_SEQ.refValue <> 3.0) OR GVL_SEQ.playbackDone THEN
+                OR (GVL_SEQ.refValue <> 3.0) OR GVL_SEQ.playbackDone
+                OR NOT GVL_SEQ.playbackActive THEN
                 failureCount := failureCount + 1;
             END_IF
             stage := 6;
 
         6:
             IF (GVL_SEQ.idx <> 1) OR (GVL_SEQ.trialIndex <> 1)
-                OR (GVL_SEQ.refValue <> 1.0) THEN
+                OR (GVL_SEQ.refValue <> 1.0) OR NOT GVL_SEQ.playbackActive THEN
                 failureCount := failureCount + 1;
             END_IF
             stage := 7;
 
         7:
-            IF (GVL_SEQ.idx <> 2) OR (GVL_SEQ.refValue <> 2.0) THEN
+            IF (GVL_SEQ.idx <> 2) OR (GVL_SEQ.refValue <> 2.0)
+                OR NOT GVL_SEQ.playbackActive THEN
                 failureCount := failureCount + 1;
             END_IF
             stage := 8;
@@ -83,7 +87,8 @@ END_VAR
         8:
             IF (GVL_SEQ.seqState <> E_SeqState.COMPLETE)
                 OR (GVL_SEQ.idx <> 3) OR (GVL_SEQ.trialIndex <> 1)
-                OR NOT GVL_SEQ.playbackDone OR (GVL_SEQ.refValue <> 3.0) THEN
+                OR NOT GVL_SEQ.playbackDone OR NOT GVL_SEQ.playbackActive
+                OR (GVL_SEQ.refValue <> 3.0) THEN
                 failureCount := failureCount + 1;
             END_IF
             GVL_SEQ.experimentActive := FALSE;
@@ -92,7 +97,7 @@ END_VAR
         9:
             IF (GVL_SEQ.seqState <> E_SeqState.IDLE)
                 OR (GVL_SEQ.idx <> 0) OR (GVL_SEQ.trialIndex <> 0)
-                OR GVL_SEQ.playbackDone OR (GVL_SEQ.refValue <> 0.0)
+                OR GVL_SEQ.playbackDone OR GVL_SEQ.playbackActive OR (GVL_SEQ.refValue <> 0.0)
                 OR (GVL_SEQ.ffValue <> 0.0) OR (GVL_SEQ.distValue <> 0.0) THEN
                 failureCount := failureCount + 1;
             END_IF

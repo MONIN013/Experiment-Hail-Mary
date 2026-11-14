@@ -59,6 +59,7 @@ FAULT 遷移条件:
 | `ffValue` | `LREAL` | FF 値 (`ffTable[idx]`) |
 | `distValue` | `LREAL` | 外乱値 (`distTable[idx]`) |
 | `playbackDone` | `BOOL` | 全 trial 再生完了 |
+| `playbackActive` | `BOOL` | そのスキャンで table sample を出力したとき `TRUE`（最終 sample のスキャンを含み、`playbackDone` と同じスキャンで立つ）。ExperimentLogger の記録窓。`refValue / ffValue / distValue` と同じスキャン末尾で公開される |
 | `seqError` | `BOOL` | `seqState=FAULT` のとき TRUE |
 
 ### 3.3 内部管理変数
@@ -90,7 +91,7 @@ FAULT 遷移条件:
 
 1. `resetReq` 立上りで `idx` / `trialIndex` / `playbackDone` を初期化し `IDLE` に戻る。
 2. `IDLE` で `experimentActive` 立上り時、`tableLenClamped` と `repeatCount` を検証。
-3. 正常時 `PLAYING` へ遷移し、1 スキャンあたり 1 サンプルを出力。
+3. 正常時 `PLAYING` へ遷移し、1 スキャンあたり 1 サンプルを出力。サンプルを出力したスキャンだけ `playbackActive := TRUE`（開始要求立上りスキャンでは出力せず `FALSE`）。
 4. `idx` が trial 終端に到達:
 - 最終 trial なら `playbackDone := TRUE` かつ `COMPLETE`。
 - 途中 trial なら `idx := 0`、`trialIndex++` で継続。
@@ -109,5 +110,6 @@ FAULT 遷移条件:
 | `GVL_SEQ.repeatCount` | `UDINT` | W |
 | `GVL_SEQ.experimentActive` | `BOOL` | I/O Mapping |
 | `GVL_SEQ.playbackDone` | `BOOL` | R |
+| `GVL_SEQ.playbackActive` | `BOOL` | R |
 | `GVL_SEQ.seqError` | `BOOL` | R |
 | `GVL_SEQ.seqState` | `E_SeqState` | R |

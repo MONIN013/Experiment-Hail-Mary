@@ -16,6 +16,7 @@ VAR_OUTPUT
     ffValue : LREAL := 0.0;
     distValue : LREAL := 0.0;
     playbackDone : BOOL := FALSE;
+    playbackActive : BOOL := FALSE;
     seqError : BOOL := FALSE;
     seqState : E_SeqState := E_SeqState.IDLE;
     idx : UDINT := 0;
@@ -33,6 +34,7 @@ END_VAR
     <Implementation>
       <ST><![CDATA[zeroOutputsThisScan := FALSE;
 resetProgressThisScan := FALSE;
+playbackActive := FALSE;
 resetEdge := resetRequest AND NOT resetRequestPrev;
 startEdge := experimentActive AND NOT experimentActivePrev;
 
@@ -64,6 +66,7 @@ ELSE
                 refValue := refSample;
                 ffValue := ffSample;
                 distValue := distSample;
+                playbackActive := TRUE;
                 idx := idx + 1;
 
                 IF idx >= tableLen THEN

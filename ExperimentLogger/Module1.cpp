@@ -282,7 +282,7 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 	const bool resetCmd = (m_Inputs.control.resetReq != false);
 	const bool preArmCmd = (m_Inputs.control.preArmReq != false);
 	const bool loggingCmd = (m_Inputs.control.loggingReq != false);
-	const bool playbackDone = (m_Inputs.control.playbackDone != false);
+	const bool playbackActive = (m_Inputs.control.playbackActive != false);
 	const bool resetEdge = resetCmd && !m_prevResetReq;
 	bool preArmRisingEdge = preArmCmd && !m_prevPreArmReq;
 	bool preArmFallingEdge = !preArmCmd && m_prevPreArmReq;
@@ -475,7 +475,7 @@ HRESULT CModule1::CycleUpdate(ITcTask* ipTask, ITcUnknown* ipCaller, ULONG_PTR c
 		}
 	}
 
-	const bool allowAppend = loggingCmd && !loggingRisingEdge && !playbackDone && !m_resetPending;
+	const bool allowAppend = loggingCmd && playbackActive && !m_resetPending;
 	if (allowAppend && !m_sessionFailed)
 	{
 		if (!AppendCurrentInputsAsRecord())
