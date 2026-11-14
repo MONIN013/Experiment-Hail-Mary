@@ -41,7 +41,7 @@
 | [ControllerAlgorithm.cpp](../../ControllerCore/ControllerAlgorithm.cpp) | 既存 SOS と離散時間 HIGS の実計算 |
 | [higs_design.json](../../simulations/higs_design.json) | 8 kHz 用の設計値、軌道、試行上限 |
 | [higs_hw_design.py](../../simulations/higs_hw_design.py)、[higs_hw_figures.py](../../simulations/higs_hw_figures.py) | 実機FRFからの設計（16 kHz）と §11 の図 |
-| [simulations/hardware/](../../simulations/hardware/) | 実機の生ログ（`frf/` 多重正弦と FRF、`trials/` A–B–B–A と感度）と設計（`designs/`） |
+| [simulations/hardware/](../../simulations/hardware/) | 実機の生ログ（`frf/` マルチサインと FRF、`trials/` A–B–B–A と感度）と設計（`designs/`） |
 | [matlab/tools/higs_bench/](../../matlab/tools/higs_bench/README.md) | 実機試行・同定・感度測定の MATLAB 関数 |
 | [identify_chirp.py](../../simulations/identify_chirp.py) | 添付形式の旧 MAT から FRF とモデルを再生成 |
 | [higs_two_inertia.py](../../simulations/higs_two_inertia.py) | 実 C++ コアによる閉ループ比較、調整値の検討 |
@@ -483,9 +483,9 @@ bothのクリップは \(J_m,J_\ell\)＋20%、\(K\)−20%、遅延1 sampleで、
 
 ## 11. 実機実験（2026-11-14、16 kHz）
 
-データは `simulations/hardware/`（`frf/`：SM-Synchron の多重正弦ログと FRF、`trials/`：A–B–B–A の誤差最小設計と感度測定の生ログ、`designs/`：`higs_hw_design.py` の出力）、図は `simulations/higs_hw_figures.py` で再生成する（`docs/operations/figures/higs16k/`）。実機試行は `matlab/tools/higs_bench/` の関数で行う（`higs_bench_limits` で上限を書き、`higs_bench_trial` で再試行付きの1試行、`higs_bench_multisine` で同定、`higs_bench_sensitivity` で閉ループ感度）。`exp05_Higs` の実機一括実行は、事前ゲートが HIGS 設計の線形対応物（DF上の余裕を含まない）で判定するため both 設計を拒否し、FF 入力も持たないので、比較には使っていない。
+データは `simulations/hardware/`（`frf/`：SM-Synchron のマルチサインログと FRF、`trials/`：A–B–B–A の誤差最小設計と感度測定の生ログ、`designs/`：`higs_hw_design.py` の出力）、図は `simulations/higs_hw_figures.py` で再生成する（`docs/operations/figures/higs16k/`）。実機試行は `matlab/tools/higs_bench/` の関数で行う（`higs_bench_limits` で上限を書き、`higs_bench_trial` で再試行付きの1試行、`higs_bench_multisine` で同定、`higs_bench_sensitivity` で閉ループ感度）。`exp05_Higs` の実機一括実行は、事前ゲートが HIGS 設計の線形対応物（DF上の余裕を含まない）で判定するため both 設計を拒否し、FF 入力も持たないので、比較には使っていない。
 
-保存していない生データ：§11.1 の DC-Synchron の FRF とログ、§11.3 の設計に使った DC 同期時の FRF、§11.4 の参考比較（交差最大、8 kHz 設計の再離散化）、8 kHz の実機ログは、コミット `1fc7843` の `simulations/data/hardware/` と `simulations/data/hardware16k/` にある（`git show 1fc7843:<path>`）。`designs/*.json` の `provenance` に残る `simulations/data/hardware16k/frf_ms030.mat` などのパスはこの旧配置を指す。
+保存していない生データ：§11.1 の DC-Synchron の FRF とログ、§11.3 の設計に使った DC 同期時の FRF、§11.4 の参考比較（交差最大、8 kHz 設計の再離散化）、8 kHz の実機ログと設計（`simulations/results/hw_design*.json`）は、コミット `1fc7843` の `simulations/data/hardware/`、`simulations/data/hardware16k/`、`simulations/results/` にある（`git show 1fc7843:<path>`）。`designs/*.json` の `provenance` に残る `simulations/data/hardware16k/frf_ms030.mat` などのパスはこの旧配置を指す。
 
 ![図1 実測FRF（0.30 A・0.15 A）と摩擦なし設計モデル](./figures/higs16k/fig1_frf.png)
 
