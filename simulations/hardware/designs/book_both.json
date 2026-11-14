@@ -4563,7 +4563,7 @@
   "provenance": "E4 fixed-bound independent bandwidth maximisation on coherence-qualified moving composite plant; separate sup norms; Wi tuned on case-b low-frequency error",
   "df_method": "Search: log-interpolated sampled HIGS DF; final: direct sampled law at every measured line. LS sine/cosine/DC, phase=.317rad, n=max(768,ceil(16fs/f)), skip=max(256,ceil(6fs/f)); loaded unwarped-Tustin SOS for every LTI factor",
   "source_sha256": {
-    "simulations\\higs_book_design.py": "8613b5ad6d9be2493a22f57e14296c2f65c2db877ca63a1802324167c7ae0b50",
+    "simulations\\higs_book_design.py": "9e85d4beca1100322342b6ed6120c373c94eecf636123fec2aa908e35012b355",
     "ControllerCore\\ControllerAlgorithm.cpp": "63ead63b2eb40523c1ba292546021f91f2e55b43fa59c605b5606215e8b6f054",
     "ControllerCore\\ControllerAlgorithm.h": "96a02d2b521b0a6f07a4a5296ad4454f62b973b47f086e58349720a960ba6f89",
     "simulations\\higs_host.cpp": "a5a0cd53baabaddaa3396d7aa531e467117638dd5920aac1c1aaf3647ca870cf"
@@ -4952,8 +4952,8 @@
     "rule": "Largest coherence-qualified in-motion load-position peak in150..400Hz; one notch per limiting elastic resonance"
   },
   "design_plant": {
-    "source": ".codex_work/J/inmotion_frf.npz",
-    "source_sha256": "515e6387521c2f477eb27ba204fd207e77eb6557787b55444f090164353ce28a",
+    "source": "simulations/hardware/frf/inmotion_ramp.npz",
+    "source_sha256": "762fa9b5738fa9a7466c8451998bde8f1f04396699cd11dd2d67dccbdc40ecde",
     "definition": "Below20Hz FF rigid body; 20..400Hz linear ramp FRF at coherence>=.8 only; above400Hz standstill ms100",
     "accepted_inmotion_lines": 185,
     "accepted_inmotion_range_hz": [
@@ -5057,7 +5057,7 @@
   },
   "measured_frf_sources": {
     "design": {
-      "source_sha256": "515e6387521c2f477eb27ba204fd207e77eb6557787b55444f090164353ce28a",
+      "source_sha256": "762fa9b5738fa9a7466c8451998bde8f1f04396699cd11dd2d67dccbdc40ecde",
       "points": 1839,
       "band_hz": [
         0.1,

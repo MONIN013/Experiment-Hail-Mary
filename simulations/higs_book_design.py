@@ -17,12 +17,13 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import time
 from concurrent.futures import ProcessPoolExecutor
 
 ROOT = Path(__file__).resolve().parents[1]
-WORK = ROOT / ".codex_work/E4"
-WORK.mkdir(parents=True, exist_ok=True)
+_WORK = tempfile.TemporaryDirectory(prefix="higs_book_design_", ignore_cleanup_errors=True)
+WORK = Path(_WORK.name)
 os.environ.setdefault("NUMBA_CACHE_DIR", str(WORK / "numba"))
 os.environ["TEMP"] = os.environ["TMP"] = str(WORK)
 import numba as nb
@@ -82,7 +83,7 @@ def sampled_two_inertia_response(f,model,delay_samples):
 def load_frfs():
     """One design plant; ms100 is retained strictly for informational checks."""
     global MODEL,DELAY,PLANT,MS100
-    source=ROOT/".codex_work/J/inmotion_frf.npz"
+    source=ROOT/"simulations/hardware/frf/inmotion_ramp.npz"
     d=np.load(source);f=d["f"];p=d["linear_P"];coh=d["linear_coherence"]
     if np.any(np.diff(f)<=0) or not np.all(np.isfinite(p)) or not np.all(np.isfinite(coh)):
         raise ValueError("Invalid in-motion FRF")

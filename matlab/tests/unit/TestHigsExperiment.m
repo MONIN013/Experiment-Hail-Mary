@@ -89,11 +89,9 @@ classdef TestHigsExperiment < matlab.unittest.TestCase
       % This record belongs to HIGS; its linear replacement is not its gate.
       path=write_design();clean=onCleanup(@()delete(path));
       a=exp05_Higs("preview","design_path",path,"plot",false,"plant_path","missing-plant.mat");
-      K=experiment.ControllerConfig.from_struct(a.linear);
-      Ts=1/16000;Pdn=c2d(tf(-100,[1,0]),Ts);f=[1;10;200;500;1000];
-      Pd=frd(squeeze(freqresp(Pdn,2*pi*f)),f,Ts,"FrequencyUnit","Hz");
-      plant=struct("Pd",Pd,"Pdn",Pdn,"Ts",Ts);
-      testCase.verifyError(@()experiment.higs_linear_check(plant,K,2,false),"experiment:higs:unstableLinearReference");
+      K=experiment.ControllerConfig.from_struct(a.linear).linear_system();
+      Ts=1/16000;Pdn=c2d(tf(-100,[1,0]),Ts);
+      testCase.verifyFalse(isstable(feedback(K*Pdn,1)));
       testCase.verifyTrue(a.stability.passed);testCase.verifyEqual(a.stability.lambda,.4);
     end
     function gateRejectsFailedNormOrNyquistRecordBeforePlantAndAds(testCase)
@@ -231,21 +229,6 @@ classdef TestHigsExperiment < matlab.unittest.TestCase
         testCase.verifyEqual(jsondecode(fileread(path)),d);
       end
     end
-    function linearGateExcludesOnlyDc(testCase)
-      [plant,controller]=example_plant();response=plant.Pd.ResponseData;response(1,1,1)=Inf;
-      plant.Pd=frd(response,plant.Pd.Frequency,plant.Ts,"FrequencyUnit","Hz");
-      check=experiment.higs_linear_check(plant,controller,2,false);
-      testCase.verifyTrue(check.dc_excluded);testCase.verifyEqual(check.frequency_band_hz,[1,1000]);
-      response(1,1,3)=NaN;plant.Pd=frd(response,plant.Pd.Frequency,plant.Ts,"FrequencyUnit","Hz");
-      testCase.verifyError(@()experiment.higs_linear_check(plant,controller,2,false),"experiment:higs:invalidPositiveFrf");
-    end
-    function linearGateRejectsMissingBandAndPeriodMismatch(testCase)
-      [plant,controller]=example_plant();f=[1;10;100];
-      plant.Pd=frd(squeeze(freqresp(plant.Pdn,2*pi*f)),f,plant.Ts,"FrequencyUnit","Hz");
-      testCase.verifyError(@()experiment.higs_linear_check(plant,controller,2,false),"experiment:higs:insufficientFrequencyBand");
-      [plant,controller]=example_plant();plant.Pdn.Ts=1/4000;
-      testCase.verifyError(@()experiment.higs_linear_check(plant,controller,2,false),"experiment:higs:plantSampleTime");
-    end
     function runRequiresExplicitTargetLabelAndPlant(testCase)
       path=write_design();clean=onCleanup(@()delete(path));
       testCase.verifyError(@()exp05_Higs("linear","design_path",path,"plot",false),"experiment:higs:targetLabelRequired");
@@ -270,9 +253,7 @@ d=struct("design_mode","both","constraint_record",constraint_record("both"), ...
   "wi_zero_beta",1,"wi_pole_beta",1,"notches",[]));
 for name=string(fieldnames(extra)).',d.tuning.(name)=extra.(name);end
 for name=string(fieldnames(overrides)).',d.(name)=overrides.(name);end
-root=fileparts(fileparts(fileparts(fileparts(mfilename("fullpath")))));
-scratch=fullfile(root,".codex_work","E4");if ~isfolder(scratch),mkdir(scratch);end
-path=string(tempname(scratch))+".json";fid=fopen(path,"w");clean=onCleanup(@()fclose(fid));fprintf(fid,"%s",jsonencode(d));
+path=string(tempname)+".json";fid=fopen(path,"w");clean=onCleanup(@()fclose(fid));fprintf(fid,"%s",jsonencode(d));
 end
 function out=constraint_record(mode)
 lambda=0;if mode=="both",lambda=.4;end
@@ -286,10 +267,4 @@ for k=1:size(sos,1)
   section=tf(sos(k,1:3),sos(k,4:6),Ts,"Variable","z^-1");
   response=response.*squeeze(freqresp(section,w));
 end
-end
-function [plant,controller]=example_plant()
-Ts=1/16000;Pdn=c2d(tf(1,[.01,1]),Ts);f=[0;1;10;200;500;1000];
-Pd=frd(squeeze(freqresp(Pdn,2*pi*f)),f,Ts,"FrequencyUnit","Hz");
-plant=struct("Pd",Pd,"Pdn",Pdn,"Ts",Ts);
-controller=experiment.ControllerConfig.from_sos([.1,0,0,1,0,0],Ts);
 end

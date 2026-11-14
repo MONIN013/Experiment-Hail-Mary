@@ -1,6 +1,6 @@
 function res = higs_bench_trial(design_path, mode, out_dir, name, opts)
 % higs_bench_trial  One closed-loop trial of an exp05 design on the bench; prints error / current / twist figures.
-%   res = higs_bench_trial("simulations/hardware/designs/hw_design_linear.json", "linear", out_dir, "a10m010_1_linear", ...
+%   res = higs_bench_trial("simulations/hardware/designs/book_linear.json", "linear", out_dir, "a10m010_1_linear", ...
 %           amplitude_rad=1, move_time_s=0.1, inertia=1.134e-4, coulomb_a=0.068, coulomb_slow_a=0.0625, viscous=3.45e-4, quadratic=5.41e-5)
 % mode: linear | integrator | lowpass | both (selects the controller of the design file).
 % amplitude_rad / move_time_s replace the design's trajectory; reference (column) replaces the trajectory altogether.
