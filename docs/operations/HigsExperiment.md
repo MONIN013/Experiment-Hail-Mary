@@ -27,7 +27,7 @@
 | HIGS、係数反映、既存 SOS との切替 | 実装済み。C++ host tests 通過 |
 | 毎周期の位置・速度・相対ねじれ保護、停止ラッチ | 実装済み。C++ host tests 通過 |
 | 旧データの単位調査、FRF、二慣性モデル、設計比較 | 再現コードと結果を保存済み |
-| MATLAB の preview／linear／integrator／lowpass／both 入口 | 実装済み。実機比較は `exp05_Higs` の preview で制御器を作り、試行は `simulations/data/hardware/hw_trial.m` 相当の手順で回した。`exp05_Higs` の実機一括実行（`plant.mat` を含む）は16 kHzで未実施 |
+| MATLAB の preview／linear／integrator／lowpass／both 入口 | 実装済み。実機比較は `exp05_Higs` の preview で制御器を作り、試行は `matlab/tools/higs_bench/` の `higs_bench_trial` で回した。`exp05_Higs` の実機一括実行（`plant.mat` を含む）は16 kHzで未実施 |
 | Windows / TwinCAT SDK でのモジュール再ビルド | 16 kHz（62.5 µs）で全モジュールをビルドし、ターゲットへ有効化済み |
 | 実 EtherCAT I/O | `ExperimentHailMary.tsproj` に EK1100＋ELM7211-0011×2（SM-Synchron）を定義。CoE で定格・分解能・符号を確認し、DriverAdapter の値を tsproj に保存済み（§11.1） |
 
@@ -40,6 +40,9 @@
 | [exp05_Higs.m](../../matlab/experiment/exp05_Higs.m) | preview と4モードの単一試行 |
 | [ControllerAlgorithm.cpp](../../ControllerCore/ControllerAlgorithm.cpp) | 既存 SOS と離散時間 HIGS の実計算 |
 | [higs_design.json](../../simulations/higs_design.json) | 8 kHz 用の設計値、軌道、試行上限 |
+| [higs_hw_design.py](../../simulations/higs_hw_design.py)、[higs_hw_figures.py](../../simulations/higs_hw_figures.py) | 実機FRFからの設計（16 kHz）と §11 の図 |
+| [simulations/hardware/](../../simulations/hardware/) | 実機の生ログ（`frf/` 多重正弦と FRF、`trials/` A–B–B–A と感度）と設計（`designs/`） |
+| [matlab/tools/higs_bench/](../../matlab/tools/higs_bench/README.md) | 実機試行・同定・感度測定の MATLAB 関数 |
 | [identify_chirp.py](../../simulations/identify_chirp.py) | 添付形式の旧 MAT から FRF とモデルを再生成 |
 | [higs_two_inertia.py](../../simulations/higs_two_inertia.py) | 実 C++ コアによる閉ループ比較、調整値の検討 |
 | [identified_plant.json](../../simulations/data/identified_plant.json) | データの出所、単位、同定値、適合誤差 |
@@ -480,7 +483,9 @@ bothのクリップは \(J_m,J_\ell\)＋20%、\(K\)−20%、遅延1 sampleで、
 
 ## 11. 実機実験（2026-11-14、16 kHz）
 
-データは `simulations/data/hardware16k/`、設計は `simulations/results/hw16b/`、図は `simulations/higs_hw_figures.py` で再生成する（`docs/operations/figures/higs16k/`）。実機試行のスクリプトは `simulations/data/hardware16k/scripts/` にある（`lim_write.m` で上限を書き、`hw_trial.m` で1試行、`eo16_one.sh` で再試行付きの1セル、`sens_run.m`／`sens_an.m` で閉ループ感度）。`exp05_Higs` の実機一括実行は、事前ゲートが HIGS 設計の線形対応物（DF上の余裕を含まない）で判定するため both 設計を拒否し、FF 入力も持たないので、比較には使っていない。
+データは `simulations/hardware/`（`frf/`：SM-Synchron の多重正弦ログと FRF、`trials/`：A–B–B–A の誤差最小設計と感度測定の生ログ、`designs/`：`higs_hw_design.py` の出力）、図は `simulations/higs_hw_figures.py` で再生成する（`docs/operations/figures/higs16k/`）。実機試行は `matlab/tools/higs_bench/` の関数で行う（`higs_bench_limits` で上限を書き、`higs_bench_trial` で再試行付きの1試行、`higs_bench_multisine` で同定、`higs_bench_sensitivity` で閉ループ感度）。`exp05_Higs` の実機一括実行は、事前ゲートが HIGS 設計の線形対応物（DF上の余裕を含まない）で判定するため both 設計を拒否し、FF 入力も持たないので、比較には使っていない。
+
+保存していない生データ：§11.1 の DC-Synchron の FRF とログ、§11.3 の設計に使った DC 同期時の FRF、§11.4 の参考比較（交差最大、8 kHz 設計の再離散化）、8 kHz の実機ログは、コミット `1fc7843` の `simulations/data/hardware/` と `simulations/data/hardware16k/` にある（`git show 1fc7843:<path>`）。`designs/*.json` の `provenance` に残る `simulations/data/hardware16k/frf_ms030.mat` などのパスはこの旧配置を指す。
 
 ![図1 実測FRF（0.30 A・0.15 A）と摩擦なし設計モデル](./figures/higs16k/fig1_frf.png)
 

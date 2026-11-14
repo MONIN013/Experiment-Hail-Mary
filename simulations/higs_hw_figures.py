@@ -3,11 +3,12 @@
 
 Python only (numpy, scipy, matplotlib); reads files, touches no hardware.
 Frequency-domain figures reuse higs_hw_design / higs_fig89_robustness (gate "measured", Ts = 62.5 us, extra delay 0):
-  fits and designs : simulations/results/hw16b/hw_design.json (frictionless design model, tuning of both error-optimal designs)
-  measured member  : Hl of smsync/frf_ms030 / frf_ms015 (the stored designs were computed on the older hardware16k/frf_*.mat; the
-                     script first reproduces their numbers on that file, then uses the SM-sync FRF for all plots) for 70 Hz <= f <= 3000 Hz spliced with the design model below 70 Hz and above 3000 Hz
+  fits and designs : simulations/hardware/designs/hw_design.json (frictionless design model, tuning of both error-optimal designs)
+  measured member  : Hl of hardware/frf/frf_ms030 / frf_ms015 (SM-synchronous drives; the stored designs were computed on the earlier
+                     DC-synchronous FRF) for 70 Hz <= f <= 3000 Hz spliced with the design model below 70 Hz and above 3000 Hz
   loop             : L = kp * C(jw) * G, C = describing-function controller R.FreqModel.controller (product of the HIGS DFs)
-Time-domain figures read simulations/data/hardware16k/erropt/eo_<case>_<k>_<mode>.mat (A-B-B-A, field `error` is the tracking error).
+Time-domain figures read simulations/hardware/trials/<case>_<k>_<mode>.mat (A-B-B-A, field `error` is the tracking error);
+fig 9 computes |S| from trials/sens_<mode>.mat and sens_<mode>_dist.mat.
 """
 from __future__ import annotations
 import json
@@ -27,10 +28,10 @@ import higs_fig89_robustness as R   # noqa: E402
 
 ROOT = H.ROOT
 TS = 6.25e-5
-FRF_DIR = ROOT / "simulations/data/hardware16k/smsync"          # drives SM-synchronous: FRF of the rig during the A-B-B-A trials
-DESIGN_FRF_DIR = ROOT / "simulations/data/hardware16k"          # FRF the designs in hw_design.json were computed on (used for the check only)
-DESIGN_JSON = ROOT / "simulations/results/hw16b/hw_design.json"
-TRIAL_DIR = ROOT / "simulations/data/hardware16k/erropt"
+HW_DIR = ROOT / "simulations/hardware"
+FRF_DIR = HW_DIR / "frf"                    # FRF of the rig with SM-synchronous drives, as during the A-B-B-A trials
+DESIGN_JSON = HW_DIR / "designs/hw_design.json"
+TRIAL_DIR = HW_DIR / "trials"
 OUT = ROOT / "docs/operations/figures/higs16k"
 F_PLOT_MAX = 3000.
 FRICTION_HZ = (0.5, 70.)
@@ -85,21 +86,6 @@ class Setup:
         rec = self.designs[key]
         fm = self.fm_m if member == "model" else self.fm_s[member]
         return fm.f, rec["kp"] * fm.controller(rec["design"]) * fm.G
-
-    def check(self):
-        """The reproduced loops must match the numbers stored in hw_design.json."""
-        for key, rec in self.designs.items():
-            for member, name, tol_hz in (("ms030", "ms030_measured_spliced", 0.05), ("ms015", "ms015_measured_spliced", 0.05),
-                                         ("model", "ms030_design_model_nominal", 0.05)):
-                f, L = self.loop(key, member)
-                sel = f <= H.MEAS_MAX_HZ if member == "model" else slice(None)
-                s = float(np.max(np.abs(1 / (1 + L[sel]))))
-                ref = rec["S_max_members"][name]["S_max"]
-                assert abs(s - ref) < 0.01 * ref, (key, member, s, ref)
-            f, L = self.loop(key, "ms030")
-            fc = R.loop_metrics(f, L)["fc_hz"]
-            assert abs(fc - rec["crossover_hz"]) < 0.01 * fc, (key, fc, rec["crossover_hz"])
-        print("design numbers reproduced from hw_design.json")
 
 
 # ------------------------------------------------------------------ fig 1
@@ -275,7 +261,7 @@ def fig4(su):
 
 # ------------------------------------------------------------------ time-domain data
 def trial(case, k, mode):
-    raw = sio.loadmat(TRIAL_DIR / f"eo_{case}_{k}_{mode}.mat", squeeze_me=True, struct_as_record=False)["raw"]
+    raw = sio.loadmat(TRIAL_DIR / f"{case}_{k}_{mode}.mat", squeeze_me=True, struct_as_record=False)["raw"]
     return raw
 
 
@@ -413,14 +399,23 @@ def fig8():
     save(fig, "fig8_summary.png")
 
 
+def measured_sensitivity(mode):
+    """S = mean over periods 2.. of FFT(current_cmd) / FFT(dist_value) on the excited lines (higs_bench_sensitivity)."""
+    raw = sio.loadmat(TRIAL_DIR / f"sens_{mode}.mat", squeeze_me=True, struct_as_record=False)["raw"]
+    dist = sio.loadmat(TRIAL_DIR / f"sens_{mode}_dist.mat", squeeze_me=True)
+    P, k = int(dist["P"]), dist["k"].astype(int)
+    n = len(raw.current_cmd) // P
+    cmd, d = (np.fft.fft(np.asarray(x, float)[:n * P].reshape(n, P), axis=1)[1:, k] for x in (raw.current_cmd, raw.dist_value))
+    return k * (1 / (P * TS)), cmd.mean(axis=0) / d.mean(axis=0)
+
+
 # ------------------------------------------------------------------ fig 9
 def fig9(su):
     """Closed-loop |S| measured on hardware (multisine disturbance on dist_value, 2 rad/s ramp) vs the DF prediction."""
-    d = H.ROOT / "simulations/data/hardware16k/sensitivity"
     fig, ax = plt.subplots(figsize=(7.2, 4.2))
     for key, name in (("linear", "linear"), ("both", "both")):
-        m = sio.loadmat(d / f"S_sens_{name}.mat", squeeze_me=True)
-        ax.plot(m["f"], db(np.abs(m["Sx"])), "o", ms=2.5, color=COLOR[key], alpha=0.7, label=LABEL[key] + " measured")
+        f_meas, S_meas = measured_sensitivity(name)
+        ax.plot(f_meas, db(np.abs(S_meas)), "o", ms=2.5, color=COLOR[key], alpha=0.7, label=LABEL[key] + " measured")
         f, L = su.loop(key, "ms030")
         sel = (f >= 5) & (f <= 1000)
         ax.plot(f[sel], db(1 / (1 + L[sel])), color=COLOR[key], lw=1.4, label=LABEL[key] + " DF prediction (0.30 A FRF)")
@@ -436,7 +431,6 @@ def fig9(su):
 
 
 def main():
-    Setup(DESIGN_FRF_DIR).check()
     su = Setup(FRF_DIR)
     fig1(su)
     fig2(su)

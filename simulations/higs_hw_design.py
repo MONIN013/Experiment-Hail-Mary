@@ -4,7 +4,7 @@
 Python: numpy, scipy, matplotlib. No MATLAB, TwinCAT or ADS. Reuses higs_fig89_robustness (HIGS law, describing
 function, FreqModel, optimisers) with a new plant set, gate and time-domain plant.
 
-Data: simulations/data/hardware/frf_ms030.mat, frf_ms015.mat (random-odd multisine, peak 0.30 / 0.15 A, 8 kHz, open
+Data: simulations/hardware/frf/frf_ms030.mat, frf_ms015.mat (random-odd multisine, peak 0.30 / 0.15 A, 16 kHz, open
 loop). Hl = load position / commanded current is the loop plant G. The FRF runs from the logged command at sample k to
 the logged position at sample k, so it already contains ZOH, EtherCAT and the drive current loop; the controller output
 is computed in the same cycle from the same logged position, hence nominal extra delay = 0 samples.
@@ -65,9 +65,9 @@ import higs_fig89_robustness as R
 base = R.base
 ROOT = R.ROOT
 TS, FS = R.TS, R.FS                  # reset by set_sample_time() before anything is evaluated
-DATA = ROOT / "simulations/data/hardware"   # --frf-dir
+DATA = ROOT / "simulations/hardware/frf"   # --frf-dir
 F_MAX = 3990.                        # highest evaluated frequency: 0.9975 * Nyquist
-OUT = ROOT / "simulations/results"
+OUT = ROOT / "simulations/hardware/designs"
 CURRENT_LIMIT = 0.5
 ENC_COUNTS = 2**20
 FRICTION_A, STICTION_A = 0.10, 0.13       # Coulomb and static (peak) friction, motor side
