@@ -1,978 +1,1055 @@
 #!/usr/bin/env python3
-"""Book-conform linear and two-HIGS controllers for the 16 kHz two-inertia bench
-(van den Eijnden, Heertjes, Heemels, Nijmeijer: Hybrid Integrator-Gain Systems, ch. 7 and 8).
+"""Chapter-8 bandwidth design and offline evaluation; no hardware.
 
-Controller (eq. 8.7, 8.8, Fig. 8.9; kh = 1):  C = kp * Cpid{H_i} * Clp{H_lp} * Cn
-  Clp{H}: HIGS_lp -> V_lp = H_lp^-1 C_lp (C_lp: 2nd-order Butterworth low-pass); H = wc/(s + wc), wc = SQ * wh   (eq. 8.9, 8.11)
-  Cpid{H}: lead * (1 + HIGS_i -> V_i), V_i = H_i^-1 (wi / s)  (the PID differentiator is a lead, as in the existing exp05 packing)
-  W_i (eq. 8.14, Fig. 8.7): skew notch in front of HIGS_i, W_i^-1 behind it (folded into iPost). Pole (denominator) corner low,
-      zero (numerator) corner high, W_i(0) = 1; W_lp = 1.  W_i cancels in the describing function and in the linear counterpart.
-  Cn: one true notch (eq. 8.8c) on the load-position resonance (290-330 Hz, |wp/wz - 1| <= 5 %, beta_p >= 0.3, beta_z/beta_p in 0.07..0.9), Post segment.
-Section packing (as exp05_Higs prepare_design): lpPost = V_lp, Hlp, p = kp*lead, iPre = W_i, Hi, iPost = W_i^-1 kp lead V_i, post = Cn.
-
-Design criterion (eq. 8.13, p. 201): maximise the open-loop crossover subject to
-    |W_S S| + lambda |W_a S P| <= 1 for all frequencies (pointwise; for lambda = 1 this is |S|/(1 - |W_a S P|) <= 1/|W_S|, the
-    worst-case sensitivity statement on p. 201),   W_S = 1/2 (|S| <= 2, 6 dB),
-    W_a = W_Delta * |kp lead (1 + D_i V_i) V_lp Cn|    (book: W_a = W_Delta D_pid V_lp; Cn, the linear filter behind the HIGS, is kept),
-    W_Delta(w) = |D(j w_min) - D(j w)| for w >= w_start, else 0                    (eq. 7.48, p. 201; D = DF of the low-pass HIGS)
-with w_min = F_MIN_HZ = 30 Hz, w_start = F_START_HZ = 200 Hz, fixed in Hz during the optimisation. Book: 100 Hz / 600 Hz at a 293 Hz
-bandwidth (error content around 0.3-0.9 x bandwidth, structural content from 2 x bandwidth). Here the bandwidth is ~90 Hz: w_min is
-~0.3 x bandwidth (the move/stiction error content is 10-40 Hz, see also the w_min = 10 Hz check stored per design) and w_start = 200 Hz
-is the antiresonance / resonance region (200-350 Hz) of the load FRF.
-Noise limit (not in the book, same for every family): max |kp C*| above 1 kHz <= HF_GAIN_MAX, anchored at about 2x the hardware-tested linear design.
-The term is evaluated on the measured members (ms060 primary, ms030) spliced with the frictionless model below the splice
-frequency; the frictionless model member must satisfy |S| <= 2 and the Nyquist winding check. HIGS ratios stay in the book ranges
-(omega_h,lp / fc in 1..2.5, omega_h,i / fc in 0.3..0.7, Table 8.2).
-Two objectives: 'maxbw' (maximum first crossover of the nominal member) and 'error' (minimum round-trip RMS on the frictionless
-model, 3-sample delay, current limit 2.71 A, encoder 2^20 counts/rev, peak command <= 0.5 A). Every accepted design also passes the
-time-domain screen with the real HIGS law (no divergence, no limit cycle) and, for HIGS designs, the numeric cascade DF gate.
-Run: python simulations/higs_book_design.py     (three processes; needs numba)
+Uses the coherence-qualified in-motion composite plant and separate sup norms in (8.13), finite-band
+DF Nyquist, p198 separation and measured standstill command noise <=10mA.
+Wi is tuned in case-b closed-loop replay for <=20Hz error with no saturation.
+Run: python simulations/higs_book_design.py --iterations 90 --starts 8 --workers 4
+Re-evaluate saved designs: python simulations/higs_book_design.py --evaluate
+Dependencies: numpy, scipy, numba; Windows MSVC for the unmodified host.
 """
 from __future__ import annotations
 import argparse
+import ctypes
 import hashlib
 import json
+import os
+from pathlib import Path
+import subprocess
+import sys
 import time
 from concurrent.futures import ProcessPoolExecutor
-from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[1]
+WORK = ROOT / ".codex_work/E4"
+WORK.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault("NUMBA_CACHE_DIR", str(WORK / "numba"))
+os.environ["TEMP"] = os.environ["TMP"] = str(WORK)
 import numba as nb
 import numpy as np
+import scipy
 from scipy import signal
+from scipy.io import loadmat
+from scipy.optimize import differential_evolution, minimize, least_squares
 
-import higs_fig89_robustness as R
-import higs_hw_design as H
-
-base = R.base
-ROOT = R.ROOT
+TS = 62.5e-6
+FS = 1 / TS
+SQ = np.sqrt(1 + 16 / np.pi**2)
+TRAJECTORIES = ("a002m005", "a01m010", "a10m010", "r5m100", "r5m050")
 OUT = ROOT / "simulations/hardware/designs"
-SQ = R.SQ
-S_LIMIT = 2.0
-CURRENT_LIMIT_A = 2.71
-PEAK_CMD_A = 0.5
-ENC_COUNTS = 2**20
-TD_DELAY = 3                                  # samples, round(tau of the free fit)
-AMPS = {"ms060": 0.6, "ms030": 0.3, "ms100": 1.0}
-S_MEMBERS = ("ms060", "ms030", "ms100")        # measured (spliced) S members, row 0 nominal
-MEMBER_NAMES = tuple(f"{n}_spliced" for n in S_MEMBERS)
-STIFFNESS_SCALE = (0.9, 1.1)                  # model members: resonance frequency about -5 % / +5 %
-UNC_MAX_HZ = 2000.                            # perturbed model members are checked up to this frequency (winding on the full grid)
-MEAS_MAX_HZ = 3000.                           # highest measured line used (above it |L| << 1)
-F_MIN_HZ, F_START_HZ = 30., 200.              # w_min and start of the DF-uncertainty band
-LAMBDAS = (0.0, 0.4)
-SPLICE_PHASE_DEG, SPLICE_MAG, SPLICE_RUN = 10., 0.25, 3
-HF_GAIN_MAX = 100.        # A/rad: max |kp C*(j 2 pi f)|, f >= HF_GAIN_HZ (hardware-tested linear design: ~50 A/rad), same for every family
-HF_GAIN_HZ = 1000.
-WI_BOOK = dict(wi_p_hz=104., wi_ratio=2000. / 104.)   # Table 8.2: 104 Hz and 2000 Hz, beta = 1 (low corner = pole, see docstring)
-BOUNDS = dict(fc=(10., 200.), r_i=(1.5, 6.), lz_ratio=(1.2, 6.), lpole_ratio=(1.5, 12.), lp_hz=(60., 3000.),
-              wc_lp_ratio=(0.8 * SQ, 3.0 * SQ), wc_i_ratio=(0.25 * SQ, 0.8 * SQ),
-              nz_hz=(290., 330.), np_ratio=(0.95, 1.05), depth=(0.07, 0.9), np_beta=(0.3, 1.0),
-              wi_p_hz=(20., 400.), wi_ratio=(2., 40.))
-FD_KEYS = ("fc", "r_i", "lz_ratio", "lpole_ratio", "lp_hz", "nz_hz", "np_ratio", "depth", "np_beta")
-HIGS_KEYS = ("wc_lp_ratio", "wc_i_ratio")
-TD_KEYS = ("wi_p_hz", "wi_ratio")
-TS = FS = None                                # set by build_setup
+MODEL = {}
+DELAY = 0
+MODEL_SOURCE = "E4: fixed FF rigid body plus measured in-motion resonance fit"
+PLANT = {}
+MS100 = {}
 
 
-# ------------------------------------------------------------------ numba kernels (port of ControllerAlgorithm::Step)
+def encode(v):
+    if isinstance(v,np.ndarray): return v.tolist()
+    if isinstance(v,np.generic): return v.item()
+    raise TypeError(type(v).__name__)
+
+def save(path,value):
+    Path(path).write_text(json.dumps(value,default=encode,indent=2,allow_nan=False)+"\n",encoding="utf-8")
+
+def mismatch(predicted, measured):
+    ratio = predicted / measured
+    db, phase = 20*np.log10(abs(ratio)), np.degrees(np.angle(ratio))
+    return dict(lines=len(ratio), median_db=float(np.median(db)), max_abs_db=float(np.max(abs(db))),
+                median_phase_deg=float(np.median(phase)), max_abs_phase_deg=float(np.max(abs(phase))))
+
+
+def rigid_response(f, j, b, delay=0.):
+    s=2j*np.pi*np.asarray(f)
+    return np.exp(-s*delay)/(j*s*s+b*s)
+
+
+def two_inertia_response(f, model, delay=0.):
+    s=2j*np.pi*np.asarray(f);jm,jl,b,k,c=[model[x] for x in ("jm","jl","bm","stiffness","damping")]
+    return (c*s+k)/(jm*jl*s**4+((jm+jl)*c+jl*b)*s**3+((jm+jl)*k+b*c)*s*s+b*k*s)*np.exp(-s*delay)
+
+
+def sampled_two_inertia_response(f,model,delay_samples):
+    jm,jl,k,c,b=[model[x] for x in ("jm","jl","stiffness","damping","bm")]
+    a=np.array([[0,1,0,0],[-k/jm,-(c+b)/jm,k/jm,c/jm],
+                [0,0,0,1],[k/jl,c/jl,-k/jl,-c/jl]])
+    bd=np.array([[0.],[1/jm],[0.],[0.]])
+    ad,bd,*_=signal.cont2discrete((a,bd,np.eye(4),np.zeros((4,1))),TS)
+    z=np.exp(2j*np.pi*np.asarray(f)*TS)
+    return np.array([np.linalg.solve(zz*np.eye(4)-ad,bd[:,0])[2]*zz**(-delay_samples) for zz in z])
+
+
+def load_frfs():
+    """One design plant; ms100 is retained strictly for informational checks."""
+    global MODEL,DELAY,PLANT,MS100
+    source=ROOT/".codex_work/J/inmotion_frf.npz"
+    d=np.load(source);f=d["f"];p=d["linear_P"];coh=d["linear_coherence"]
+    if np.any(np.diff(f)<=0) or not np.all(np.isfinite(p)) or not np.all(np.isfinite(coh)):
+        raise ValueError("Invalid in-motion FRF")
+    accepted=(f>=20)&(f<=400)&(coh>=.8)
+    low=(f>=20)&(f<=50)&(coh>=.8)
+    j,b,delay=1.134e-4,3.45e-4,0.
+    original=mismatch(rigid_response(f[low],j,b),p[low]);fit=None
+    if original["max_abs_db"]>3 or original["max_abs_phase_deg"]>20:
+        use=(f>=20)&(f<=100)&(coh>=.8)
+        def residual(q):
+            ratio=rigid_response(f[use],np.exp(q[0]),np.exp(q[1]),q[2])/p[use]
+            return np.r_[np.log(abs(ratio)),np.angle(ratio)]
+        result=least_squares(residual,[np.log(j),np.log(b),0.],bounds=([np.log(1e-6),np.log(1e-8),0.],[np.log(.01),np.log(.1),.01]))
+        j,b,delay=np.exp(result.x[0]),np.exp(result.x[1]),result.x[2]
+        fit=dict(J=j,B=b,delay_s=delay,fit_band_hz=[20,100],mismatch=mismatch(rigid_response(f[use],j,b,delay),p[use]),
+                 jacobian_condition_number=float(np.linalg.cond(result.jac)))
+    low_f=np.geomspace(.1,19.999,120)
+    high_f,high_p=d["ms100_f"],d["ms100_P"];high=high_f>400
+    ff=np.r_[low_f,f[accepted],high_f[high]]
+    pp=np.r_[rigid_response(low_f,j,b,delay),p[accepted],high_p[high]]
+    MS100=dict(f=high_f,p=high_p,source_sha256=hashlib.sha256((ROOT/"simulations/hardware/frf/frf_ms100.mat").read_bytes()).hexdigest())
+    # Preserve the FF rigid body and existing inertia split; fit only the
+    # measured elastic mode and positive transport delay at100..400Hz.
+    use=accepted&(f>=100)
+    def physical(q):
+        fr,zeta,tau=q;split=5.066/(5.066+3.982);jm,jl=j*split,j*(1-split);w=2*np.pi*fr
+        return dict(jm=jm,jl=jl,bm=b,bl=0.,stiffness=w*w*jm*jl/j,damping=2*zeta*w*jm*jl/j,torque_constant=1.),tau
+    def residual(q):
+        model,tau=physical(q);ratio=two_inertia_response(f[use],model,tau)/p[use]
+        return np.r_[np.log(abs(ratio)),np.angle(ratio)]
+    fit_result=least_squares(residual,[313.,.015,.0002],bounds=([290.,.001,0.],[340.,.2,.001]),ftol=1e-11,xtol=1e-11,gtol=1e-11)
+    MODEL,tau=physical(fit_result.x);DELAY=int(round(tau/TS))
+    model_record=dict(parameters=MODEL,fit_band_hz=[100,400],delay_fit_s=tau,delay_samples=DELAY,
+        delay_rounded_s=DELAY*TS,delay_rounding_error_s=DELAY*TS-tau,
+        delay_rounding_max_phase_error_deg=float(360*400*abs(DELAY*TS-tau)),
+        mass_split_identifiable=False,mass_split_source="Existing ms060 fit jm=5.066e-5,jl=3.982e-5; preserve ratio and scale total to FF J",jacobian_condition_number=float(np.linalg.cond(fit_result.jac)),
+        note="Load-position FRF does not identify mass split; existing split is fixed and total J/B retained. Twist prediction depends on this split.",
+        mismatch_100_400=mismatch(two_inertia_response(f[use],MODEL,DELAY*TS),p[use]),
+        mismatch_100_400_unrounded_delay=mismatch(two_inertia_response(f[use],MODEL,tau),p[use]),
+        mismatch_280_340=mismatch(two_inertia_response(f[accepted&(f>=280)&(f<=340)],MODEL,DELAY*TS),p[accepted&(f>=280)&(f<=340)]),
+        mismatch_20_100=mismatch(two_inertia_response(f[accepted&(f<=100)],MODEL,DELAY*TS),p[accepted&(f<=100)]))
+    model_record["sampled_response_definition"]="C(zI-Ad)^-1 Bd z^-DELAY, exact ZOH atTs; C=[0,0,1,0]; moving Coulomb increment zero; includes sample/hold phase"
+    for lo,hi,label in ((20,100,"20_100"),(100,400,"100_400"),(280,340,"280_340")):
+        selected=accepted&(f>=lo)&(f<=hi)
+        model_record["sampled_mismatch_"+label]=mismatch(sampled_two_inertia_response(f[selected],MODEL,DELAY),p[selected])
+    PLANT=dict(source=str(source.relative_to(ROOT)).replace("\\","/"),source_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
+        definition="Below20Hz FF rigid body; 20..400Hz linear ramp FRF at coherence>=.8 only; above400Hz standstill ms100",
+        accepted_inmotion_lines=int(accepted.sum()),accepted_inmotion_range_hz=[float(f[accepted][0]),float(f[accepted][-1])],
+        excluded_inmotion_lines=int(((f>=20)&(f<=400)&~accepted).sum()),coherence_min=.8,
+        low_frequency_model=dict(J=j,B=b,delay_s=delay,original_ff_mismatch_20_50=original,refit=fit,
+            mismatch_sign="model / measured; phase wrapped to [-180,180] degrees",threshold_rule="maximum absolute mismatch over coherence-qualified 20..50Hz lines: >3dB or >20deg"),
+        transition="No accepted lines at20..29Hz; first accepted31Hz; constraints use only stated lines and log-frequency crossover interpolation between adjacent samples, including19.999..31Hz gap",
+        constraint_grid_min_hz=.1,constraint_grid_max_hz=float(ff[-1]),simulation_fit=model_record)
+    # Windows spawn copies the main-module dictionary; keep the host module view in sync.
+    module=sys.modules[__name__];module.MODEL=MODEL;module.DELAY=DELAY
+    return {"design":dict(f=ff,p=pp,source_sha256=PLANT["source_sha256"])}
+
+
+def load_trials():
+    result=[]
+    for path in sorted((ROOT/"simulations/hardware/trials_book").glob("*.mat")):
+        if not any(path.name.startswith(x+"_") for x in TRAJECTORIES): continue
+        d=loadmat(path,simplify_cells=True)
+        r,ff=np.asarray(d["REF"],float),np.asarray(d["FF"],float)
+        v=np.gradient(r)/TS; a=np.gradient(v)/TS
+        formula=.1*np.tanh(v/.05)+1e-4*a
+        residual=float(np.max(abs(formula-ff)))
+        e=np.asarray(d["raw"]["error"],float)
+        if residual>1e-9 or not np.all(np.isfinite(np.r_[r,ff,e])):
+            raise ValueError(f"Invalid trial / mismatched logged FF: {path}, {residual}")
+        result.append(dict(name=path.stem,trajectory=path.stem.split("_")[0],reference=r,ff=formula,error=e,
+                           motion=abs(v)>max(1e-8,.01*np.max(abs(v))),ff_residual_a=residual,
+                           source_sha256=hashlib.sha256(path.read_bytes()).hexdigest()))
+    if set(t["trajectory"] for t in result)!=set(TRAJECTORIES): raise ValueError("Missing logged reference")
+    return result
+
 @nb.njit(cache=True)
-def _higs(x, hs, k, wts):
-    cand = hs[2 * k] + wts * x
-    inside = (cand >= 0.0 and cand <= x) if x >= 0.0 else (cand >= x and cand <= 0.0)
-    same = (x >= 0.0 and hs[2 * k + 1] >= 0.0) or (x <= 0.0 and hs[2 * k + 1] <= 0.0)
-    out = cand if inside else (x if same else 0.0)
-    hs[2 * k] = out
-    hs[2 * k + 1] = x
+def discrete_df(ff,hh):
+    """Sampled HIGS fundamental, LS sine/cosine/DC including noninteger periods.
+
+    >=768 samples above fs/4 resolve sample-phase effects without 1/f HF
+    extrapolation. This is (2.43-44), kh=1, not the continuous-time DF.
+    """
+    out=np.empty((len(hh),len(ff)),np.complex128)
+    for j in range(len(ff)):
+        n=max(768,int(np.ceil(16*FS/ff[j])))
+        skip=max(256,int(np.ceil(6*FS/ff[j])))
+        gram=np.zeros((3,3));rhs=np.zeros((len(hh),3));state=np.zeros(len(hh));prev=0.
+        for k in range(n):
+            th=2*np.pi*ff[j]*k/FS+.317
+            x=np.sin(th);v=np.array([x,np.cos(th),1.])
+            if k>=skip: gram+=np.outer(v,v)
+            for i in range(len(hh)):
+                cand=state[i]+2*np.pi*hh[i]*TS*x
+                inside=(0<=cand<=x) if x>=0 else (x<=cand<=0)
+                same=(x>=0 and prev>=0) or (x<=0 and prev<=0)
+                y=cand if inside else (x if same else 0.)
+                state[i]=y
+                if k>=skip: rhs[i]+=y*v
+            prev=x
+        for i in range(len(hh)):
+            b=np.linalg.solve(gram,rhs[i]);out[i,j]=b[0]+1j*b[1]
     return out
 
 
-@nb.njit(cache=True)
-def _bq(coef, st, i, x):
-    y = coef[i, 0] * x + st[i, 0]
-    st[i, 0] = coef[i, 1] * x - coef[i, 3] * y + st[i, 1]
-    st[i, 1] = coef[i, 2] * x - coef[i, 4] * y
-    return y
-
-
-@nb.njit(cache=True)
-def _ctrl(e, coef, cnt, st, hs, hl_on, hl_wts, hi_on, hi_wts):
-    """cnt = [lpPre, lpPost, p, iPre, iPost, post]; packed rows lpPre, Hlp, lpPost, p, iPre, Hi, iPost, post."""
-    o = 0
-    x = e
-    for i in range(cnt[0]):
-        x = _bq(coef, st, o + i, x)
-    o += cnt[0]
-    x = _higs(x, hs, 0, hl_wts) if hl_on else _bq(coef, st, o, x)
-    o += 1
-    for i in range(cnt[1]):
-        x = _bq(coef, st, o + i, x)
-    o += cnt[1]
-    p = x
-    for i in range(cnt[2]):
-        p = _bq(coef, st, o + i, p)
-    o += cnt[2]
-    v = x
-    for i in range(cnt[3]):
-        v = _bq(coef, st, o + i, v)
-    o += cnt[3]
-    v = _higs(v, hs, 1, hi_wts) if hi_on else _bq(coef, st, o, v)
-    o += 1
-    for i in range(cnt[4]):
-        v = _bq(coef, st, o + i, v)
-    o += cnt[4]
-    y = p + v
-    for i in range(cnt[5]):
-        y = _bq(coef, st, o + i, y)
-    return y
-
-
-@nb.njit(cache=True)
-def _td(ref, dist, du, coef, cnt, hl_on, hl_wts, hi_on, hi_wts, ad, bm, bd, delay, ilim, eq, th_m, th_l, cmd_out):
-    n = len(ref)
-    st = np.zeros((coef.shape[0], 2))
-    hs = np.zeros(4)
-    x = np.zeros(4)
-    q = np.zeros(delay + 1)
-    clipped = 0
-    for k in range(n):
-        y = x[2]
-        if eq > 0.0:
-            y = np.floor(y / eq + 0.5) * eq
-        c = _ctrl(ref[k] - y, coef, cnt, st, hs, hl_on, hl_wts, hi_on, hi_wts)
-        a = min(ilim, max(-ilim, c + du[k]))
-        if abs(c + du[k]) > ilim:
-            clipped += 1
-        q[k % (delay + 1)] = a
-        dl = q[(k - delay) % (delay + 1)] if k >= delay else 0.0
-        th_m[k] = x[0]
-        th_l[k] = x[2]
-        cmd_out[k] = c + du[k]
-        xn = np.empty(4)
-        for i in range(4):
-            xn[i] = ad[i, 0] * x[0] + ad[i, 1] * x[1] + ad[i, 2] * x[2] + ad[i, 3] * x[3] + bm[i] * dl + bd[i] * dist[k]
-        x = xn
-        if abs(x[0]) > 1e3 or not np.isfinite(x[0]):
-            for j in range(k + 1, n):
-                th_m[j] = np.nan
-                th_l[j] = np.nan
-                cmd_out[j] = np.nan
-            return -1
-    return clipped
-
-
-@nb.njit(cache=True)
-def _ctrl_df(n, coef, cnt, hl_on, hl_wts, hi_on, hi_wts, periods, keep):
-    st = np.zeros((coef.shape[0], 2))
-    hs = np.zeros(4)
-    s = 0.0
-    c = 0.0
-    for k in range(periods * n):
-        th = 2 * np.pi * k / n + 0.3
-        y = _ctrl(np.sin(th), coef, cnt, st, hs, hl_on, hl_wts, hi_on, hi_wts)
-        if k >= (periods - keep) * n:
-            thk = th % (2 * np.pi)
-            s += y * np.sin(thk)
-            c += y * np.cos(thk)
-    return 2.0 / (keep * n) * (s + 1j * c)
-
-
-@nb.njit(cache=True)
-def _df_table(ns, wts_arr, periods, keep):
-    out = np.zeros((len(wts_arr), len(ns)), dtype=np.complex128)
-    coef = np.zeros((0, 5))
-    cnt = np.zeros(6, dtype=np.int64)
-    for i in range(len(wts_arr)):
-        for j in range(len(ns)):
-            n = ns[j]
-            hs = np.zeros(2)
-            s = 0.0
-            c = 0.0
-            for k in range(periods * n):
-                th = 2 * np.pi * k / n + 0.3
-                y = _higs(np.sin(th), hs, 0, wts_arr[i])
-                if k >= (periods - keep) * n:
-                    thk = th % (2 * np.pi)
-                    s += y * np.sin(thk)
-                    c += y * np.cos(thk)
-            out[i, j] = 2.0 / (keep * n) * (s + 1j * c)
-    return out
-
-
-class DFTab:
-    """Numeric DF of the discrete HIGS (kh = 1, wh = wc / SQ) tabulated over wc and samples per period; bilinear in
-    (log wc, log f); above FS / 4 the magnitude is continued with 1 / f (as R.DFTable)."""
-
-    def __init__(self, wc_hz=np.geomspace(0.2, 1500., 90), n_points=130):
-        n = np.unique(np.round(np.geomspace(4, FS / 0.5, n_points)).astype(np.int64))
-        self.f = FS / n[::-1]
-        self.wc_hz = wc_hz
-        self.v = _df_table(n[::-1].copy(), 2 * np.pi * wc_hz / SQ * TS, 4, 2)
-
-    def __call__(self, wc_hz, f):
-        x = np.log(wc_hz)
-        g = np.log(self.wc_hz)
-        j = int(np.clip(np.searchsorted(g, x) - 1, 0, len(g) - 2))
-        t = float(np.clip((x - g[j]) / (g[j + 1] - g[j]), 0, 1))
-        row = (1 - t) * self.v[j] + t * self.v[j + 1]
-        lf = np.log(np.minimum(f, self.f[-1]))
-        return (np.interp(lf, np.log(self.f), row.real) + 1j * np.interp(lf, np.log(self.f), row.imag)) * np.minimum(1.0, self.f[-1] / f)
-
-
-# ------------------------------------------------------------------ design parameters -> filters
-def corners(d):
-    """Continuous corner frequencies [rad/s]; notch and W_i as (wz, bz, wp, bp)."""
-    t = 2 * np.pi
-    c = dict(wz=t * d["fc"] / d["lz_ratio"], wp=t * d["fc"] * d["lpole_ratio"], wi=t * d["fc"] / d["r_i"], wl=t * d["lp_hz"],
-             wc_lp=t * d["fc"] * d["wc_lp_ratio"] if d["mode"] != "linear" else None,
-             wc_i=t * d["fc"] * d["wc_i_ratio"] if d["mode"] != "linear" else None,
-             notch=(t * d["nz_hz"], d["depth"] * d["np_beta"], t * d["nz_hz"] * d["np_ratio"], d["np_beta"]),
-             wi_filter=None)
-    if d["mode"] != "linear":
-        wp_i = t * d["wi_p_hz"]
-        c["wi_filter"] = (wp_i * d["wi_ratio"], 1.0, wp_i, 1.0)          # zero (high), beta_z, pole (low), beta_p
-    return c
-
-
-def _quad(w, b):
-    return [1.0, 2 * b * w, w * w]
-
-
-def _zpk_quad(w, b):
-    r = np.roots(_quad(w, b))
-    return list(r)
-
-
-def sections(d, kp):
-    """Packed SOS of the design (rows [b0 b1 b2 a0 a1 a2]) and the six variable-segment counts, as exp05_Higs prepare_design."""
-    c = corners(d)
-    fs = FS
-    wl, wc_lp, wc_i = c["wl"], c["wc_lp"] or 1.0, c["wc_i"] or 1.0
-    higs = d["mode"] != "linear"
-
-    def sos(z, p, k):
-        zd, pd, kd = signal.bilinear_zpk(z, p, k, fs)
-        return signal.zpk2sos(zd, pd, kd, pairing="nearest")
-
-    lpf_poles = list(np.roots([1.0, np.sqrt(2) * wl, wl * wl]))
-    if higs:
-        hlp = sos([], [-wc_lp], wc_lp)
-        lp_post = sos([-wc_lp], lpf_poles, wl * wl / wc_lp)
-    else:
-        hlp = np.array([[1, 0, 0, 1, 0, 0.]])                   # H = 1: the linear design needs no HIGS element
-        lp_post = sos([], lpf_poles, wl * wl)
-    p = sos([-c["wz"]], [-c["wp"]], kp * c["wp"] / c["wz"])
-    if higs:
-        hi = sos([], [-wc_i], wc_i)
-        vi = (c["wi"] / wc_i, [-wc_i], [0.0])
-    else:
-        hi = np.array([[1, 0, 0, 1, 0, 0.]])
-        vi = (c["wi"], [], [0.0])
-    wz_i, bz_i, wp_i, bp_i = c["wi_filter"] or (1., 1., 1., 1.)
-    zlead, plead, klead = [-c["wz"]], [-c["wp"]], kp * c["wp"] / c["wz"]
-    if c["wi_filter"]:
-        i_pre = sos(_zpk_quad(wz_i, bz_i), _zpk_quad(wp_i, bp_i), wp_i**2 / wz_i**2)
-        i_post = sos(vi[1] + zlead + _zpk_quad(wp_i, bp_i), vi[2] + plead + _zpk_quad(wz_i, bz_i), vi[0] * klead * wz_i**2 / wp_i**2)
-    else:
-        i_pre = np.zeros((0, 6))
-        i_post = sos(vi[1] + zlead, vi[2] + plead, vi[0] * klead)
-    wz_n, bz_n, wp_n, bp_n = c["notch"]
-    post = sos(_zpk_quad(wz_n, bz_n), _zpk_quad(wp_n, bp_n), 1.0)
-    packed = np.vstack([np.zeros((0, 6)), hlp, lp_post, p, i_pre, hi, i_post, post])
-    counts = np.array([0, len(lp_post), len(p), len(i_pre), len(i_post), len(post)], dtype=np.int64)
-    omega = (wc_lp * TS / SQ if higs else 0.0, wc_i * TS / SQ if higs else 0.0)
-    return packed, counts, omega
-
-
-def pack(d, kp, higs_on=None):
-    """Arrays for the numba kernel; higs_on overrides (False: linear counterpart of a HIGS design)."""
-    packed, counts, omega = sections(d, kp)
-    on = d["mode"] != "linear" if higs_on is None else higs_on
-    return dict(coef=np.ascontiguousarray(packed[:, [0, 1, 2, 4, 5]]), cnt=counts, hl_on=on, hl_wts=omega[0], hi_on=on, hi_wts=omega[1])
-
-
-# ------------------------------------------------------------------ frequency domain
-class Grid:
-    def __init__(self, f, P):
-        self.f = np.asarray(f, float)
-        self.w = 2 * np.pi * self.f
-        self.sw = 1j * (2 / TS) * np.tan(self.w * TS / 2)
-        self.P = np.atleast_2d(P)
-
-    def sub(self, idx):
-        return Grid(self.f[idx], self.P[:, idx])
-
-
-def notch_fr(sw, n):
-    wz, bz, wp, bp = n
-    return (sw**2 + 2 * bz * wz * sw + wz**2) / (sw**2 + 2 * bp * wp * sw + wp**2)
-
-
-def ctrl_parts(g, d, tab):
-    """DF controller C (without kp) and G = lead (1 + D_i V_i) V_lp Cn (the uncertain part's linear factor) on grid g."""
-    c = corners(d)
-    sw = g.sw
-    wl = c["wl"]
-    lpb = wl**2 / (sw**2 + np.sqrt(2) * wl * sw + wl**2)
-    lead = (1 + sw / c["wz"]) / (1 + sw / c["wp"])
-    cn = notch_fr(sw, c["notch"])
-    if d["mode"] == "linear":
-        return lpb * lead * (1 + c["wi"] / sw) * cn, None, None
-    vlp = (sw + c["wc_lp"]) / c["wc_lp"] * lpb
-    nlp = tab(c["wc_lp"] / (2 * np.pi), g.f)
-    ni = tab(c["wc_i"] / (2 * np.pi), g.f)
-    ib = ni * c["wi"] / c["wc_i"] * (sw + c["wc_i"]) / sw
-    pid = lead * (1 + ib)
-    return nlp * vlp * pid * cn, pid * vlp * cn, nlp
-
-
-def delta_weight(g, d, tab, f_min=F_MIN_HZ):
-    """W_Delta(w) = |D(j w_min) - D(j w)| for f >= F_START_HZ (eq. 7.48)."""
-    wc_hz = d["fc"] * d["wc_lp_ratio"]
-    dm = tab(wc_hz, np.array([f_min]))[0]
-    return np.where(g.f >= F_START_HZ, np.abs(dm - tab(wc_hz, g.f)), 0.0)
-
-
-class Gate:
-    """Members: S = measured (spliced) FRFs, row 0 nominal (ms060); M = frictionless model (dense) with winding check."""
-
-    def __init__(self, S, M, tab):
-        self.S, self.M, self.tab = S, M, tab
-        self.cache = {}
-
-    def kp_for_unity(self, d):
-        g = Grid([d["fc"]], np.array([[np.interp(d["fc"], self.S.f, self.S.P[0].real) + 1j * np.interp(d["fc"], self.S.f, self.S.P[0].imag)]]))
-        cc, _, _ = ctrl_parts(g, d, self.tab)
-        return 1.0 / abs(cc[0] * g.P[0, 0])
-
-    def terms(self, d, kp, lam, f_min=F_MIN_HZ):
-        """Per S member: max over f of |S|/2 + lam |W_a S P| (term), the same with the two sup norms added (term_normsum), max|S|;
-        model: max|S|."""
-        cs, wa_unit, _ = ctrl_parts(self.S, d, self.tab)
-        L = kp * cs[None, :] * self.S.P
-        s = 1 / np.abs(1 + L)
-        out = dict(S_members=s.max(axis=1), S_peak_hz=self.S.f[np.argmax(s, axis=1)], fc=R.first_crossover(self.S.f, L[0]))
-        if wa_unit is None or lam == 0.0:
-            out["term"] = out["term_normsum"] = np.max(s / S_LIMIT, axis=1)
-        else:
-            wa = delta_weight(self.S, d, self.tab, f_min) * kp * np.abs(wa_unit)
-            wasp = wa[None, :] * s * np.abs(self.S.P)
-            out["term"] = np.max(s / S_LIMIT + lam * wasp, axis=1)
-            out["term_normsum"] = np.max(s / S_LIMIT, axis=1) + lam * np.max(wasp, axis=1)
-        cm, _, _ = ctrl_parts(self.M, d, self.tab)
-        Lm = kp * cm[None, :] * self.M.P
-        sm = 1 / np.abs(1 + Lm)
-        out["S_model"] = float(sm[0].max())
-        out["S_model_hz"] = float(self.M.f[np.argmax(sm[0])])
-        out["S_model_unc"] = [float(sm[i, self.M.f <= UNC_MAX_HZ].max()) for i in range(1, len(sm))]
-        out["winding_ok"] = bool(np.all(R.nyquist_stable_many(Lm)))
-        return out
-
-    def evaluate(self, d, lam):
-        """None if infeasible, else dict(kp, fc, ...). Constraint: term <= 1 on the three measured S members (ms060, ms030, ms100),
-        |S| <= 2 on the model and its stiffness -10 % / +10 % members (<= 2 kHz), winding on all model members, HIGS ratios."""
-        kp = self.kp_for_unity(d)
-        t = self.terms(d, kp, lam)
-        if t["fc"] is None or np.max(t["term"]) > 1.0 or t["S_model"] > S_LIMIT or max(t["S_model_unc"]) > S_LIMIT or not t["winding_ok"] or hf_gain(self.S, d, kp) > HF_GAIN_MAX:
-            return None
-        if d["mode"] != "linear":
-            r = higs_ratios(d, t["fc"])
-            if not (BOOK_LP[0] <= r["lp"] <= BOOK_LP[1] and BOOK_I[0] <= r["i"] <= BOOK_I[1]):
-                return None
-        t["kp"] = kp
-        return t
-
-    def cascade(self, d, kp, limit=S_LIMIT):
-        """Numeric DF of the whole HIGS cascade (incl. W_i, notch) replaces the product of DFs for f in [8 Hz, FS / 4];
-        returns (ok, S_max) with |S| <= limit on S and M and winding on M."""
-        pk = pack(d, kp)
-        n_list = np.unique(np.round(np.geomspace(4, FS / 8., 36)).astype(np.int64))
-        vals = np.array([_ctrl_df(int(n), pk["coef"], pk["cnt"], pk["hl_on"], pk["hl_wts"], pk["hi_on"], pk["hi_wts"], 5, 2) for n in n_list])
-        fg = FS / n_list
-        order = np.argsort(fg)
-        fg, vals = fg[order], vals[order]
-        smax, ok = 0.0, True
-        for g, check in ((self.S, False), (self.M, True)):
-            cs, _, _ = ctrl_parts(g, d, self.tab)
-            cn = np.interp(np.log(g.f), np.log(fg), vals.real) + 1j * np.interp(np.log(g.f), np.log(fg), vals.imag)
-            ctrl = np.where((g.f <= FS / 4) & (g.f >= fg[0]), cn, kp * cs)
-            L = ctrl[None, :] * g.P
-            sg = 1 / np.abs(1 + L)
-            smax = max(smax, float(sg[0].max()) if check else float(sg.max()))
-            if check:
-                smax = max(smax, float(sg[1:, g.f <= UNC_MAX_HZ].max()))
-                ok = ok and bool(np.all(R.nyquist_stable_many(L)))
-        return bool(ok and smax <= limit), smax
-
-
-def hf_gain(g, d, kp):
-    """max |kp C*| for f >= HF_GAIN_HZ with the linear counterpart C* (HIGS replaced by H^-1 D = 1): noise amplification limit."""
-    sel = g.f >= HF_GAIN_HZ
-    sw = g.sw[sel]
-    c = corners(d)
-    wl = c["wl"]
-    cstar = wl**2 / (sw**2 + np.sqrt(2) * wl * sw + wl**2) * (1 + sw / c["wz"]) / (1 + sw / c["wp"]) * (1 + c["wi"] / sw)
-    cstar = cstar * notch_fr(sw, c["notch"])
-    return float(np.max(kp * np.abs(cstar)))
-
-
-BOOK_LP, BOOK_I = H.BOOK_RATIOS["lp"], H.BOOK_RATIOS["i"]
-
-
-def higs_ratios(d, fc_hz):
-    return dict(lp=d["wc_lp_ratio"] * d["fc"] / SQ / fc_hz, i=d["wc_i_ratio"] * d["fc"] / SQ / fc_hz)
-
-
-# ------------------------------------------------------------------ time domain
-class Td:
-    p = None
-    ad = bm = bd = None
-
-
-def set_td_model(p):
-    Td.p = p
-    Td.ad, Td.bm, Td.bd = (np.ascontiguousarray(x) for x in R.discrete_plant(p))
-
-
-_REF = {}
-
-
-def reference():
-    if "r" not in _REF:
-        _REF["r"] = base.reference_profile()
-    return _REF["r"]
-
-
-def td_run(pk, ref, dist, quantized, ilim=CURRENT_LIMIT_A, du=None):
-    n = len(ref)
-    du = np.zeros(n) if du is None else du
-    th_m, th_l, cmd = np.zeros(n), np.zeros(n), np.zeros(n)
-    eq = 2 * np.pi / ENC_COUNTS if quantized else 0.0
-    code = _td(ref, dist, du, pk["coef"], pk["cnt"], pk["hl_on"], pk["hl_wts"], pk["hi_on"], pk["hi_wts"],
-               Td.ad, Td.bm, Td.bd, TD_DELAY, ilim, eq, th_m, th_l, cmd)
-    return th_m, th_l, cmd, code
-
-
-def td_metrics(pk, quantized=True):
-    """Round trip (reference_profile, 1.6 s) and load-torque step (0.005 at 0.1 s, 1.2 s) on the frictionless design model."""
-    ref = reference()
-    th_m, th_l, cmd, code = td_run(pk, ref, np.zeros(len(ref)), quantized)
-    rec = dict(diverged=code < 0, clipped_samples=max(code, 0))
-    if rec["diverged"]:
-        rec["dist_diverged"] = True
-        return rec, None
-    e = ref - th_l
-    win = R.reference_windows(ref)
-    rec.update(move_rms_mrad=1e3 * float(np.sqrt(np.mean(e**2))), peak_error_mrad=1e3 * float(np.max(np.abs(e))),
-               settle_rms_urad=1e6 * float(np.sqrt(np.mean(e[win]**2))), peak_current_ma=1e3 * float(np.max(np.abs(cmd))),
-               twist_200_400hz_rms_urad=1e6 * R.band_rms(th_m - th_l, *R.TWIST_BAND_HZ),
-               tail_rms_urad=1e6 * float(np.sqrt(np.mean(e[-R.TAIL_N():]**2))))
-    n = round(1.2 / TS)
-    dist = 0.005 * (np.arange(n) * TS >= 0.1)
-    _, th_l2, cmd2, code2 = td_run(pk, np.zeros(n), dist, quantized)
-    rec["dist_diverged"] = code2 < 0
-    e2 = None
-    if code2 >= 0:
-        e2 = -th_l2
-        rec.update(dist_iae_mrad_s=1e3 * float(np.sum(np.abs(e2)) * TS), dist_peak_mrad=1e3 * float(np.max(np.abs(e2))),
-                   dist_tail_rms_urad=1e6 * float(np.sqrt(np.mean(e2[-R.TAIL_N():]**2))), dist_peak_current_ma=1e3 * float(np.max(np.abs(cmd2))))
-    return rec, dict(e=e, e2=e2)
-
-
-def td_sensitivity(d, kp, gate, amplitude=0.05, periods=8, skip=2, f_hi=1000.):
-    """S measured in the time domain like the bench measurement: random-phase multisine on 40 log-spaced prime lines (5..f_hi Hz, 1 s
-    period; primes keep the HIGS harmonics off the excited lines) added to the plant input current, S = plant input / disturbance at
-    the excited lines (frictionless model, encoder quantisation, real HIGS law, reference 0).
-    Returns max over the lines of |S| (TD) and of the DF prediction at the same lines, and the TD / DF values at four lines."""
-    n1 = round(1.0 / TS)
-    primes = np.array([k for k in range(5, int(f_hi) + 1) if all(k % q for q in range(2, int(k**0.5) + 1))])
-    lines = primes[np.unique(np.round(np.geomspace(1, len(primes), 40)).astype(int) - 1)]
-    rng = np.random.default_rng(7)
-    t = np.arange(n1) * TS
-    du1 = np.sum(np.sin(2 * np.pi * lines[:, None] * t[None, :] + rng.uniform(0, 2 * np.pi, (len(lines), 1))), axis=0)
-    du1 *= amplitude / np.max(np.abs(du1))
-    du = np.tile(du1, periods)
-    _, _, u, code = td_run(pack(d, kp), np.zeros(len(du)), np.zeros(len(du)), True, du=du)
-    if code < 0:
-        return None
-    seg = slice(skip * n1, periods * n1)
-    k = np.arange(len(lines))
-    U = np.fft.rfft(u[seg].reshape(-1, n1), axis=1).mean(axis=0)
-    Dd = np.fft.rfft(du[seg].reshape(-1, n1), axis=1).mean(axis=0)
-    s_td = np.abs(U[lines] / Dd[lines])
-    cm, _, _ = ctrl_parts(Grid(lines.astype(float), np.ones((1, len(lines)))), d, gate.tab)
-    pm = H.plant_frf(lines.astype(float), Td.p, TD_DELAY * TS)[1]
-    s_df = np.abs(1 / (1 + kp * cm * pm))
-    pick = [int(np.argmin(np.abs(lines - f))) for f in (11, 41, 151, 201, 401, 601)]
-    return dict(max_S_td=float(s_td.max()), max_S_td_hz=float(lines[np.argmax(s_td)]), max_S_df_same_lines=float(s_df.max()),
-                at_hz={int(lines[i]): dict(td=float(s_td[i]), df=float(s_df[i])) for i in pick})
-
-
-def settled(e):
-    nt = R.TAIL_N()
-    tail, prev = np.sqrt(np.mean(e[-nt:]**2)), np.sqrt(np.mean(e[-2 * nt:-nt]**2))
-    return bool(tail <= R.TAIL_LIMIT_URAD * 1e-6 or tail <= 0.9 * prev)
-
-
-def td_screen(d, kp):
-    """Real HIGS law: no divergence, no limit cycle, peak command <= PEAK_CMD_A in both records. Returns (ok, record)."""
-    rec, tr = td_metrics(pack(d, kp))
-    if rec["diverged"] or rec["dist_diverged"]:
-        return False, rec
-    ok = (rec["peak_current_ma"] <= 1e3 * PEAK_CMD_A and rec["dist_peak_current_ma"] <= 1e3 * PEAK_CMD_A and settled(tr["e"]) and settled(tr["e2"]))
-    return bool(ok), rec
-
-
-# ------------------------------------------------------------------ setup: fits, splice, members
-def choose_splice(Ds, fits):
-    """Lowest frequency from which both ms060 and ms100 agree with the frictionless model for SPLICE_RUN consecutive quarter-octave
-    bins: |median phase(Hl / model)| <= SPLICE_PHASE_DEG and |median |Hl / model| - 1| <= SPLICE_MAG. Friction adds phase lead below."""
-    f = Ds["ms060"]["f"]
-    ref = fits["ms060"]["design"]
-    m = H.plant_frf(f, ref["params"], ref["tau_samples"] * TS)[1]
-    edges = 50. * 2 ** (np.arange(0, 3 * 4 + 1) / 4)                      # 50 .. 400 Hz
-    rows, good = [], []
-    for lo, hi in zip(edges[:-1], edges[1:]):
-        s = (f >= lo) & (f < hi)
-        rec = dict(lo_hz=float(lo), hi_hz=float(hi), n=int(s.sum()))
-        ok = s.sum() > 0
-        for amp in ("ms060", "ms100"):
-            r = Ds[amp]["Hl"][s] / m[s]
-            rec[amp] = dict(mag_err=float(np.median(np.abs(r)) - 1), phase_deg=float(np.degrees(np.median(np.angle(r)))))
-            ok = ok and abs(rec[amp]["phase_deg"]) <= SPLICE_PHASE_DEG and abs(rec[amp]["mag_err"]) <= SPLICE_MAG
-        rec["agree"] = bool(ok)
-        rows.append(rec)
-        good.append(ok)
-    for i in range(len(good) - SPLICE_RUN + 1):
-        if all(good[i:i + SPLICE_RUN]):
-            return float(edges[i]), rows
-    raise RuntimeError("no splice frequency found")
-
-
-def build_setup(log=print):
-    global TS, FS
-    Ds = {n: H.load_frf(n) for n in AMPS}
-    H.set_sample_time(Ds["ms060"]["Ts"])
-    TS, FS = H.TS, H.FS
-    fits = {}
-    for n, D in Ds.items():
-        free = H.free_fit(D, False)
-        fits[n] = dict(free=free, design=H.frictionless_fit(D, free["tau_samples"]))
-    f_splice, table = choose_splice(Ds, fits)
-    for n, D in Ds.items():                         # sliding model refitted above the splice frequency (friction lead excluded)
-        fits[n]["design"] = H.frictionless_fit(D, fits[n]["free"]["tau_samples"], band=(f_splice, 700.))
-    log(f"splice {f_splice:.1f} Hz; ms060 design {H.fmt_p(fits['ms060']['design']['params'])}, tau {fits['ms060']['free']['tau_samples']:.2f} smp")
-    fmax = H.F_MAX
-    f = Ds["ms060"]["f"]
-    fs_grid = np.concatenate([np.geomspace(0.5, f_splice, 80, endpoint=False), f[(f >= f_splice) & (f <= MEAS_MAX_HZ)],
-                              np.geomspace(MEAS_MAX_HZ * 1.001, fmax, 40)])
-    rows = []
-    for amp in S_MEMBERS:
-        D, fd = Ds[amp], fits[amp]["design"]
-        mdl = H.plant_frf(fs_grid, fd["params"], fd["tau_samples"] * TS)[1]
-        meas = np.interp(fs_grid, D["f"], D["Hl"].real) + 1j * np.interp(fs_grid, D["f"], D["Hl"].imag)
-        rows.append(np.where((fs_grid >= f_splice) & (fs_grid <= MEAS_MAX_HZ), meas, mdl))
-    fm_grid = np.unique(np.concatenate([np.geomspace(0.5, fmax, 450), np.linspace(100., 700., 240)]))
-    fd = fits["ms060"]["design"]
-    model = np.array([H.plant_frf(fm_grid, dict(fd["params"], stiffness=fd["params"]["stiffness"] * sc), fd["tau_samples"] * TS)[1]
-                      for sc in (1.0,) + STIFFNESS_SCALE])
-    set_td_model(fd["params"])
-    tab = DFTab()
-    gate = Gate(Grid(fs_grid, np.array(rows)), Grid(fm_grid, model), tab)
-    gate.splice_hz = f_splice
-    info = dict(splice_hz=f_splice, splice_table=table, fits={n: dict(free_params=H.fmt_p(v["free"]["params"]), tau_samples=v["free"]["tau_samples"],
-                design_params=H.fmt_p(v["design"]["params"]), design_band_hz=v["design"]["band_hz"]) for n, v in fits.items()},
-                members=[f"{n}_spliced" for n in S_MEMBERS], model_member="ms060_frictionless_model", Ds=Ds)
-    return gate, info
-
-
-def sub_gate(gate):
-    def idx(f):
-        return np.concatenate([np.where(f <= 600)[0][::3], np.where(f > 600)[0][::12]])
-    return Gate(gate.S.sub(idx(gate.S.f)), gate.M.sub(idx(gate.M.f)), gate.tab)
-
-
-# ------------------------------------------------------------------ search
-def start_design(mode):
-    d = dict(mode=mode, fc=60., r_i=3., lz_ratio=2., lpole_ratio=4., lp_hz=600., nz_hz=310., np_ratio=1., depth=0.3, np_beta=0.5,
-             wc_lp_ratio=1.5 * SQ, wc_i_ratio=0.5 * SQ)
-    if mode != "linear":
-        d.update(WI_BOOK)
-    return d
-
-
-def keys_for(mode, objective):
-    k = list(FD_KEYS)
-    if mode != "linear":
-        k += list(HIGS_KEYS)
-        if objective == "error":
-            k += list(TD_KEYS)
-    return k
-
-
-def clip(d):
-    return {k: (float(np.clip(v, *BOUNDS[k])) if k in BOUNDS else v) for k, v in d.items()}
-
-
-def random_designs(mode, n, rng, fd_keys):
-    """Log-uniform samples."""
-    out = []
-    for i in range(n):
-        d = start_design(mode)
-        for k in fd_keys:
-            lo, hi = BOUNDS[k]
-            d[k] = float(np.exp(rng.uniform(np.log(lo), np.log(hi))))
-        out.append(d)
-    return out
-
-
-class Search:
-    def __init__(self, gate, gate_sub, mode, lam, objective, rng, log):
-        self.gate, self.gate_sub, self.mode, self.lam, self.objective, self.rng, self.log = gate, gate_sub, mode, lam, objective, rng, log
-        self.cache = {}
-        self.n_td = 0
-
-    def fd(self, d, g=None):
-        return (g or self.gate).evaluate(d, self.lam)
-
-    def accept(self, d):
-        """Full gate + time-domain screen + cascade DF gate. Returns dict(kp, fc, ..., rms) or None. Cached."""
-        key = tuple(d.values())
-        if key not in self.cache:
-            res = None
-            r = self.fd(d)
-            if r is not None:
-                ok, rec = td_screen(d, r["kp"])
-                self.n_td += 1
-                if ok:
-                    casc_ok, casc_s = (True, None) if self.mode == "linear" else self.gate.cascade(d, r["kp"])
-                    if casc_ok:
-                        res = dict(r, rms=rec["move_rms_mrad"], cascade_S=casc_s)
-            self.cache[key] = res
-        return self.cache[key]
-
-    def cost(self, d):
-        r = self.accept(d)
-        if r is None:
-            return None
-        return -r["fc"] if self.objective == "maxbw" else r["rms"]
-
-    def refine(self, d, keys, steps=(0.2, 0.1, 0.05, 0.025, 0.0125), pair_tries=80, max_evals=4000):
-        c = self.cost(d)
-        n = 0
-        for step in steps:
-            improved = True
-            while improved and n < max_evals:
-                improved = False
-                for k in keys:
-                    for sgn in (1 + step, 1 / (1 + step)):
-                        q = dict(d)
-                        q[k] = float(np.clip(d[k] * sgn, *BOUNDS[k]))
-                        if q[k] == d[k]:
-                            continue
-                        n += 1
-                        cq = self.cost(q)
-                        if cq is not None and cq < c - 1e-9 * abs(c):
-                            d, c, improved = q, cq, True
-            if step <= 0.1:
-                for _ in range(pair_tries):
-                    a, b = self.rng.choice(len(keys), 2, replace=False)
-                    q = dict(d)
-                    for i in (a, b):
-                        q[keys[i]] = float(np.clip(d[keys[i]] * (1 + step * self.rng.uniform(-1.5, 1.5)), *BOUNDS[keys[i]]))
-                    cq = self.cost(q)
-                    if cq is not None and cq < c - 1e-9 * abs(c):
-                        d, c = q, cq
-        return d, c
-
-    def feasible_start(self, d, tries=200, factor=0.97):
-        """Shrink fc (all ratios kept) until the full accept test passes."""
-        d = dict(d)
-        for _ in range(tries):
-            if self.accept(d) is not None:
-                return d
-            d["fc"] *= factor
-            if d["fc"] < BOUNDS["fc"][0]:
-                break
-        return None
-
-    def starts(self, n_random, n_top, extra):
-        fd_keys = [k for k in keys_for(self.mode, "maxbw")]
-        found = []
-        for d in random_designs(self.mode, n_random, self.rng, fd_keys):
-            r = self.fd(d, self.gate_sub)
-            if r is not None:
-                found.append((r["fc"], d))
-        found.sort(key=lambda x: -x[0])
-        out = []
-        for fc, d in found:
-            if all(abs(fc / x - 1) > 5e-3 for x, _ in out):
-                out.append((fc, d))
-            if len(out) >= n_top:
-                break
-        self.log(f"    {self.mode} lam {self.lam} {self.objective}: {len(found)} feasible of {n_random} random designs (search grid)")
-        return [d for _, d in out] + extra
-
-    def run(self, n_random, n_top, extra=()):
-        keys = keys_for(self.mode, self.objective)
-        results = []
-        for s in self.starts(n_random, n_top, list(extra)):
-            d0 = self.feasible_start(s)
-            if d0 is None:
-                continue
-            # first release all FD parameters with the max-crossover objective on the full grid, then (error) the RMS objective
-            d, c = self.refine(d0, keys if self.objective == "maxbw" else keys)
-            results.append((c, d))
-            self.log(f"    start -> cost {c:.5g}  fc {self.accept(d)['fc']:.2f} Hz")
-        if not results:
-            return None
-        results.sort(key=lambda x: x[0])
-        return results[0][1]
-
-
-# ------------------------------------------------------------------ reporting
-def tuning_fields(d, kp):
-    c = corners(d)
-    t = dict(kp=float(kp), integral_hz=d["fc"] / d["r_i"], lead_zero_hz=d["fc"] / d["lz_ratio"], lead_pole_hz=d["fc"] * d["lpole_ratio"],
-             lowpass_hz=d["lp_hz"], higs_lp_corner_hz=d["fc"] * d["wc_lp_ratio"] if d["mode"] != "linear" else 100.,
-             higs_i_corner_hz=d["fc"] * d["wc_i_ratio"] if d["mode"] != "linear" else 2., higs_lp_gain=1.0, higs_i_gain=1.0)
-    wz, bz, wp, bp = c["notch"]
-    t.update(notch_zero_hz=wz / (2 * np.pi), notch_pole_hz=wp / (2 * np.pi), notch_zero_beta=bz, notch_pole_beta=bp)
-    if d["mode"] != "linear":
-        wz, bz, wp, bp = c["wi_filter"]
-        t.update(wi_zero_hz=wz / (2 * np.pi), wi_pole_hz=wp / (2 * np.pi), wi_zero_beta=bz, wi_pole_beta=bp)
-    return t
-
-
-def describe(gate, d, lam_list=LAMBDAS):
-    kp = gate.kp_for_unity(d)
-    out = dict(design=d, kp=float(kp), tuning=tuning_fields(d, kp))
-    t0 = gate.terms(d, kp, 0.0)
-    out["crossover_hz"] = t0["fc"]
-    out["S_max_measured"] = dict(zip(MEMBER_NAMES, map(float, t0["S_members"])))
-    out["S_max_peak_hz"] = dict(zip(MEMBER_NAMES, map(float, t0["S_peak_hz"])))
-    out["hf_gain_a_per_rad"] = hf_gain(gate.S, d, kp)
-    out["edge_flags"] = [k for k in keys_for(d["mode"], "error") if d[k] <= BOUNDS[k][0] * 1.005 or d[k] >= BOUNDS[k][1] * 0.995]
-    flags = []
-    if out["hf_gain_a_per_rad"] >= 0.99 * HF_GAIN_MAX:
-        flags.append("hf_gain_cap")
-    if d["mode"] != "linear":
-        r = higs_ratios(d, t0["fc"])
-        flags += [f"book_ratio_{k}_{'low' if r[k] <= 1.01 * b[0] else 'high'}" for k, b in (("lp", BOOK_LP), ("i", BOOK_I)) if r[k] <= 1.01 * b[0] or r[k] >= 0.99 * b[1]]
-    out["binding_constraints"] = flags
-    out["S_max_model"] = t0["S_model"]
-    out["S_max_model_stiffness_pm10pct_upto2kHz"] = dict(zip(("x0.9", "x1.1"), t0["S_model_unc"]))
-    ab = gate.S.f >= gate.splice_hz
-    cs, _, _ = ctrl_parts(gate.S, d, gate.tab)
-    out["S_max_measured_above_splice"] = dict(zip(MEMBER_NAMES, map(float, (1 / np.abs(1 + kp * cs[None, :] * gate.S.P))[:, ab].max(axis=1))))
-    out["S_max_model_hz"] = t0["S_model_hz"]
-    out["winding_ok_model"] = t0["winding_ok"]
-    for lam in lam_list:
-        t = gate.terms(d, kp, lam)
-        out[f"eq813_term_lambda{lam:g}"] = dict(zip(MEMBER_NAMES, map(float, t["term"])))
-        out[f"eq813_normsum_lambda{lam:g}"] = dict(zip(MEMBER_NAMES, map(float, t["term_normsum"])))
-    if d["mode"] != "linear":
-        t = gate.terms(d, kp, 0.4, f_min=10.)
-        out["eq813_term_lambda0.4_wmin10Hz"] = dict(zip(MEMBER_NAMES, map(float, t["term"])))
-    wz_n, _, wp_n, _ = corners(d)["notch"]
-    out["kp_times_notch_dc_gain"] = float(kp * (wz_n / wp_n) ** 2)
-    if d["mode"] != "linear":
-        out["higs_omega_h_over_crossover"] = higs_ratios(d, t0["fc"])
-        out["higs_corner_hz"] = dict(lp=d["fc"] * d["wc_lp_ratio"] / SQ, i=d["fc"] * d["wc_i_ratio"] / SQ, note="omega_h; DF corner omega_c = SQ * omega_h")
-    L = kp * ctrl_parts(gate.S, d, gate.tab)[0] * gate.S.P[0]
-    mt = R.loop_metrics(gate.S.f, L)
-    out["margins_nominal"] = dict(fc_hz=mt["fc_hz"], pm_deg=mt["pm_deg"], pm_min_deg=mt["pm_min_deg"], gm_up_db=mt["gm_up_db"], gm_low_db=mt["gm_low_db"])
-    ok, rec = td_screen(d, kp)
-    out["td_screen_ok"] = ok
-    for name, q in (("time_domain_quantised_2e20", True), ("time_domain_unquantised", False)):
-        rec, _ = td_metrics(pack(d, kp), quantized=q)
-        out[name] = {k: v for k, v in rec.items()}
-    out["td_sensitivity_multisine"] = td_sensitivity(d, kp, gate)
-    if d["mode"] != "linear":
-        out["cascade_ok"], out["cascade_S"] = gate.cascade(d, kp)
-        lin, _ = td_metrics(pack(d, kp, higs_on=False))
-        out["linear_counterpart_td"] = {k: lin.get(k) for k in ("move_rms_mrad", "peak_current_ma", "twist_200_400hz_rms_urad")}
-        out["linear_counterpart_S_max"] = linear_counterpart_s(gate, d, kp)
-        nowi, _ = td_metrics(pack(dict(d, wi_ratio=1.0), kp))
-        out["time_domain_without_wi"] = {k: nowi.get(k) for k in ("move_rms_mrad", "settle_rms_urad", "peak_current_ma", "twist_200_400hz_rms_urad", "dist_iae_mrad_s")}
-    return out
-
-
-def linear_counterpart_s(gate, d, kp):
-    """max|S| of the design with every HIGS replaced by its linear C* (HIGS ignored): ms060 / ms030 members and the model."""
-    out = []
-    for g in (gate.S, gate.M):
-        sw = g.sw
-        c = corners(d)
-        wl = c["wl"]
-        cs = wl**2 / (sw**2 + np.sqrt(2) * wl * sw + wl**2) * (1 + sw / c["wz"]) / (1 + sw / c["wp"]) * (1 + c["wi"] / sw)
-        cs = cs * notch_fr(sw, c["notch"])
-        out += list((1 / np.abs(1 + kp * cs[None, :] * g.P)).max(axis=1))
-    return dict(zip(MEMBER_NAMES + ("model", "model_x0.9", "model_x1.1"), map(float, out)))
-
-
-def python_port_check(d, kp):
-    """Round-trip RMS with the class-based Python port (R.Higs, R.Biquad, the C++ Step order) vs the numba kernel."""
-    pk = pack(d, kp)
-    coef = pk["coef"]
-    bqs = [R.Biquad([row[0], row[1], row[2], 1.0, row[3], row[4]]) for row in coef]
-    cnt = pk["cnt"]
-    hl, hi = (R.Higs(pk["hl_wts"]) if pk["hl_on"] else None), (R.Higs(pk["hi_wts"]) if pk["hi_on"] else None)
-
-    def step(e):
-        o, x = 0, e
-        x = (hl.step(x) if hl else bqs[o].step(x)); o += 1
-        for i in range(cnt[1]):
-            x = bqs[o + i].step(x)
-        o += cnt[1]
-        p = x
-        for i in range(cnt[2]):
-            p = bqs[o + i].step(p)
-        o += cnt[2]
-        v = x
-        for i in range(cnt[3]):
-            v = bqs[o + i].step(v)
-        o += cnt[3]
-        v = hi.step(v) if hi else bqs[o].step(v)
-        o += 1
-        for i in range(cnt[4]):
-            v = bqs[o + i].step(v)
-        o += cnt[4]
-        y = p + v
-        for i in range(cnt[5]):
-            y = bqs[o + i].step(y)
-        return y
-
-    class C:
-        pass
-    c = C()
-    c.step = step
-    H.set_td_model(Td.p, TD_DELAY)
-    out, _, div = H.simulate_hw(c, reference(), quantized=True, current_limit=CURRENT_LIMIT_A, angle_counts=ENC_COUNTS)
-    e = reference() - out[:, 2]
-    return 1e3 * float(np.sqrt(np.mean(e**2))), bool(div)
-
-
-# ------------------------------------------------------------------ worker
-def record(gate, d, name, mode, lam, objective):
-    rec = describe(gate, d)
-    rec.update(name=name, mode=mode, lam=lam, objective=objective)
-    rec["rms_port_check"] = python_port_check(d, rec["kp"])
+def band_rms(x,low,high):
+    spec=np.fft.rfft(x);f=np.fft.rfftfreq(len(x),TS);use=(f>low)&(f<=high)
+    weights=np.full(len(f),2.);weights[0]=1.
+    if len(x)%2==0: weights[-1]=1.
+    return float(np.sqrt(np.sum(abs(spec[use])**2*weights[use]))/len(x))
+
+
+def spectrum(x,mask):
+    edges=np.flatnonzero(np.diff(np.r_[False,mask,False]));f=np.arange(0,FS/2+1,1.);power=np.zeros(len(f));weight=0;dc_energy=0.;raw_energy=0.
+    for lo,hi in zip(edges[::2],edges[1::2]):
+        xx=x[lo:hi]
+        if len(xx)<32: continue
+        dc_energy+=len(xx)*float(np.mean(xx))**2;raw_energy+=float(np.sum(xx*xx))
+        ff,pp=signal.periodogram(xx,fs=FS,window="hann",nfft=max(16000,len(xx)),detrend=False,scaling="density")
+        power+=np.interp(f,ff,pp)*len(xx);weight+=len(xx)
+    if weight: power/=weight
+    bands=np.r_[0,4,8,16,32,64,128,256,512,1024,2048,4000,8001]
+    energy=np.array([np.sum(power[(f>=lo)&(f<hi)]) for lo,hi in zip(bands[:-1],bands[1:])]);j=int(np.argmax(energy))
+    return dict(f=f,power=power,bands_hz=bands,energy=energy,dominant_band_hz=[float(bands[j]),float(bands[j+1])],peak_hz=float(f[1+np.argmax(power[1:])]),
+                motion_interval_dc_energy_fraction=dc_energy/max(1e-300,raw_energy))
+
+
+def input_spectra(host,t,trials,mode="both"):
+    d=loaded_controller(t,mode);lp=[];ip=[];unweighted=[];details=[];max_lp_difference=0.;iderivative=[]
+    for tr in trials:
+        o=host.run(d,tr["error"],controller_only=True)
+        max_lp_difference=max(max_lp_difference,float(np.max(abs(o[:,7]-tr["error"]))))
+        l=spectrum(o[:,7],tr["motion"]);i=spectrum(o[:,11],tr["motion"])
+        raw=signal.sosfilt(np.asarray(d["sos"])[1:2],o[:,8]);u=spectrum(raw,tr["motion"])
+        lp.append(l["energy"]);ip.append(i["energy"]);unweighted.append(u["energy"])
+        derivative=(2*np.pi*l["f"])**2*l["power"]
+        dd=np.array([derivative[(l["f"]>=a)&(l["f"]<b)].sum() for a,b in zip(l["bands_hz"][:-1],l["bands_hz"][1:])])
+        iv=(2*np.pi*i["f"])**2*i["power"]
+        idd=np.array([iv[(i["f"]>=a)&(i["f"]<b)].sum() for a,b in zip(i["bands_hz"][:-1],i["bands_hz"][1:])]);iderivative.append(idd)
+        command=o[:,4]+tr["ff"]
+        details.append(dict(trial=tr["name"],controller_only_command_peak_a=float(np.max(abs(command))),
+                            controller_only_command_hf_gt_1000hz_rms_a=band_rms(command,1000,FS/2),
+                            controller_only_exceeds_2_71_a=bool(np.max(abs(command))>2.71),
+                            lp_peak_hz=l["peak_hz"],lp_band_energy=l["energy"],i_peak_hz=i["peak_hz"],i_band_energy=i["energy"],
+                            i_unweighted_band_energy=u["energy"],lp_derivative_band_energy=dd,i_derivative_band_energy=idd,motion_samples=int(tr["motion"].sum()),
+                            lp_motion_dc_energy_fraction=l["motion_interval_dc_energy_fraction"],i_motion_dc_energy_fraction=i["motion_interval_dc_energy_fraction"]))
+    bands=l["bands_hz"]
+    normal=lambda a:np.mean(np.array(a)/np.maximum(1e-300,np.sum(a,axis=1))[:,None],axis=0)
+    el,ei,eu=normal(lp),normal(ip),normal(unweighted);j=int(np.argmax(el))
+    fmin=max(1.,float(np.sqrt(max(1.,bands[j])*bands[j+1])))
+    ds=normal([r["lp_derivative_band_energy"] for r in details]);eligible=np.arange(len(ds))>j
+    choices=np.flatnonzero(eligible&(ds>=.1));start=int(choices[0]) if len(choices) else int(np.argmax(np.where(eligible,ds,-1.)))
+    return dict(omega_min_rad_s=2*np.pi*fmin,omega_start_rad_s=2*np.pi*bands[start],f_min_hz=fmin,f_start_hz=float(bands[start]),
+        bands_hz=bands,lp_normalised_band_energy=el,i_normalised_band_energy=ei,
+        i_unweighted_normalised_band_energy=eu,lp_derivative_normalised_band_energy=ds,i_derivative_normalised_band_energy=normal(iderivative),trials=details,
+        lp_input_minus_logged_error_max_rad=max_lp_difference,
+        controller_only_command_summary=dict(peak_a=max(r["controller_only_command_peak_a"] for r in details),
+            hf_gt_1000hz_rms_max_a=max(r["controller_only_command_hf_gt_1000hz_rms_a"] for r in details),
+            over_2_71_a_trials=[r["trial"] for r in details if r["controller_only_exceeds_2_71_a"]],
+            interpretation="Logged-error controller-only replay plus the same logged FF; counterfactual command, not the new closed-loop tracking performance"),
+        spectrum_detrend=False,
+        replay_type="controller-only actual ControllerAlgorithm with A=B=0; reference input is each logged error; LP input equals error because lpPre has 0 sections",
+        motion_rule="abs(gradient(reference)/Ts) > 1 percent of trajectory maximum (minimum 1e-8 rad/s)",
+        selection_rule="equal trial weight; geometric centre of largest LP energy band gives fmin; first higher octave with >=10 percent derivative energy gives fstart; Wi is tuned separately by closed-loop case-b error")
+
+
+def final_record(rec,mode,gate,spectra,host,trials):
+    t=rec["tuning"];rec.pop("x",None);rec["constraint_record"]=gate.evaluate(t,mode,loaded=True)
+    if not rec["constraint_record"]["passed"]: raise RuntimeError("Loaded-controller constraint failed")
+    d=loaded_controller(t,mode);metrics=case_b_replays(host,t,mode,trials)
+    own=input_spectra(host,t,trials,mode)
+    own["proposed_selection"]={k:own[k] for k in ("f_min_hz","f_start_hz")}
+    own.update(f_min_hz=gate.fmin,f_start_hz=gate.fstart,omega_min_rad_s=2*np.pi*gate.fmin,omega_start_rad_s=2*np.pi*gate.fstart,
+               wi_pole_hz=t["wi_pole_hz"],wi_zero_hz=t["wi_zero_hz"])
+    bw=rec["constraint_record"]["per_frf"]["design"]["bandwidth_hz"]
+    rec["linear_counterpart_poles_zeros"]=controller_poles_zeros(t)
+    rec.update(design_mode=mode,sample_time_s=TS,reference_amplitude_rad=.1,move_time_s=.1,dwell_time_s=.2,settle_time_s=.4,
+        sensitivity_limit=2.,max_current_a=2.71,max_position_rad=.5,max_velocity_rad_s=5.,max_twist_rad=.05,bandwidth_hz=bw,omega_b_rad_s=2*np.pi*bw,
+        loaded_controller=d,replay_spectra=own,weight_selection_spectra=spectra,offline_replays=metrics,
+        offline_plant=dict(parameters=MODEL,source=MODEL_SOURCE,delay_samples=DELAY,discretisation="ZOH with 256 implicit Coulomb substeps per sample",friction=True,
+            motor_coulomb_a=.116,motor_viscous_a_per_rad_s=MODEL["bm"],encoder_quantisation=False,
+            current_limit_applied=True,current_limit_a=2.71,host="actual unmodified ControllerAlgorithm; scratch host extends only the offline plant with G case-b friction"),
+        peak_command_trial=max((k for k in metrics if metrics[k]["completed"]),key=lambda k:metrics[k]["command_peak_a"],default=None),
+        feedforward=dict(formula="inertia*a + coulomb_a*tanh(v/.05) + coulomb_slow_a*tanh(v/3) + viscous*v + quadratic*v*abs(v)",
+            inertia=1.134e-4,coulomb_a=.068,coulomb_slow_a=.0625,viscous=.000345,quadratic=.0000541,derivative="gradient centred interior, one-sided endpoints"),
+        provenance="E4 fixed-bound independent bandwidth maximisation on coherence-qualified moving composite plant; separate sup norms; Wi tuned on case-b low-frequency error",
+        df_method="Search: log-interpolated sampled HIGS DF; final: direct sampled law at every measured line. LS sine/cosine/DC, phase=.317rad, n=max(768,ceil(16fs/f)), skip=max(256,ceil(6fs/f)); loaded unwarped-Tustin SOS for every LTI factor",
+        source_sha256={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in
+                       (Path(__file__),ROOT/"ControllerCore/ControllerAlgorithm.cpp",ROOT/"ControllerCore/ControllerAlgorithm.h",ROOT/"simulations/higs_host.cpp")},
+        execution_environment=dict(python=sys.version.split()[0],numpy=np.__version__,scipy=scipy.__version__,numba=nb.__version__,
+            design_command="python simulations/higs_book_design.py --iterations "+str(rec["search"]["maxiter"])+" --starts "+str(rec["search"]["independent_starts"])+" --workers 4",
+            evaluation_command="python simulations/higs_book_design.py --evaluate"),
+        nyquist_assumptions="Composite .1..4999Hz with analytical rigid-body DC continuation; no RHP plant poles; rigid-body pole + controller integrator at DC; type-2 indentation; HF closure to zero inside unit disk; finite-grid DF Nyquist-type only",
+        low_frequency_sensitivity=low_frequency_sensitivity(t,mode,gate),
+        noise_replay=gate.noise.rms(t,mode,details=True),
+        tustin_prewarp_hz=None,parameters_rad_s=dict(omega_i=2*np.pi*t["integral_hz"],omega_d=2*np.pi*t["lead_zero_hz"],omega_r=2*np.pi*4000,
+            omega_lp=2*np.pi*t["lowpass_hz"],omega_h_lp=2*np.pi*t["higs_lp_corner_hz"]/SQ,omega_h_i=2*np.pi*t["higs_i_corner_hz"]/SQ))
     return rec
 
 
-def variant_worker(args):
-    """One family (linear, or both at a given lambda): maximum-crossover design, then the error-optimal design started from it."""
-    name, mode, lam, seed, n_random, n_top, hf_gain_max = args
-    global HF_GAIN_MAX
-    HF_GAIN_MAX = hf_gain_max
-    t0 = time.time()
-    gate, _ = build_setup(log=lambda *a: None)
-    rng = np.random.default_rng(seed)
-
-    def log(*a):
-        print(f"[{name} {time.time() - t0:5.0f}s] " + " ".join(str(x) for x in a), flush=True)
-
-    out = {}
-    d_bw = None
-    for objective in ("maxbw", "error"):
-        search = Search(gate, sub_gate(gate), mode, lam, objective, rng, log)
-        d = search.run(n_random if objective == "maxbw" else n_random // 3, n_top, [d_bw] if d_bw else [])
-        if d is None:
-            log(objective, "no feasible design")
-            continue
-        if objective == "maxbw":
-            d_bw = d
-        rec = record(gate, d, f"{name}_{objective}", mode, lam, objective)
-        out[objective] = rec
-        log(objective, f"fc {rec['crossover_hz']:.1f} Hz  RMS {rec['time_domain_quantised_2e20']['move_rms_mrad']:.4f} mrad  "
-            f"max|S| {rec['S_max_measured']} model {rec['S_max_model']:.3f}")
-    return name, out
-
-
-def exp05_design(rec, label):
-    ref = json.loads((ROOT / "simulations/higs_design.json").read_text())
-    d = dict(ref)
-    d.update(sample_time_s=TS, sensitivity_limit=2, max_current_a=CURRENT_LIMIT_A, max_position_rad=0.5, max_velocity_rad_s=5, max_twist_rad=0.05)
-    tun = dict(rec["tuning"])
-    tun["measured_crossover_target_hz"] = rec["design"]["fc"]
-    tun["gain_basis"] = ("Load FRF frf_ms060.mat (Hl) spliced with the frictionless two-inertia fit below %.0f Hz; kp = 1 / |C(j2 pi fc) G(j2 pi fc)| "
-                         "at the design crossover fc (delay 0 samples, the FRF contains the delay)" % rec["splice_hz"])
-    d["tuning"] = tun
-    d["provenance"] = (f"simulations/higs_book_design.py {label}: error-optimal under eq. 8.13 (lambda = {rec['lam']:g}) with notch and W_i, "
-                       f"book ratios, frf_ms060.mat (primary), frf_ms030.mat, frf_ms100.mat, model stiffness x0.9/x1.1 members; peak command <= {PEAK_CMD_A} A on the frictionless model, delay {TD_DELAY} samples")
-    h = hashlib.sha256()
-    for n in ("frf_ms060.mat", "frf_ms030.mat", "frf_ms100.mat"):
-        h.update((H.DATA / n).read_bytes())
-    d["source_sha256"] = h.hexdigest()
-    return d
+def low_frequency_sensitivity(t,mode,gate):
+    f=np.array([5.,10.,20.]);c=controller_response(t,mode,f,gate.table,loaded=True)[0];rows={}
+    for name,d in gate.frfs.items():
+        p=np.interp(f,d["f"],d["p"].real)+1j*np.interp(f,d["f"],d["p"].imag)
+        low=f<20;model=PLANT["low_frequency_model"]
+        p[low]=rigid_response(f[low],model["J"],model["B"],model["delay_s"])
+        rows[name]=abs(1/(1+c*p))
+    return dict(frequency_hz=f,per_frf=rows,plant_interpolation="Composite design plant; exact rigid-body response below20Hz and real/imaginary interpolation above",
+        additional_numeric_bound=None,low_frequency_requirement="integrator lies in the p198 separation band")
 
 
 def main():
-    global HF_GAIN_MAX
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--output", type=Path, default=OUT)
-    ap.add_argument("--n-random", type=int, default=40000)
-    ap.add_argument("--n-top", type=int, default=8)
-    ap.add_argument("--seeds", type=int, default=4, help="independent random-start searches per family; the best result is kept")
-    ap.add_argument("--workers", type=int, default=12)
-    ap.add_argument("--hf-gain-max", type=float, default=HF_GAIN_MAX, help="A/rad, max |kp C*| above 1 kHz")
-    ap.add_argument("--lambdas", default=",".join(f"{x:g}" for x in LAMBDAS), help="values of lambda for the two-HIGS family")
-    args = ap.parse_args()
-    t0 = time.time()
-    gate, info = build_setup()
-    lambdas = [float(x) for x in args.lambdas.split(",")]
-    families = [("linear", "linear", 0.0)] + [(f"both_lam{lam:g}", "both", lam) for lam in lambdas]
-    jobs = [(f"{fam}__s{seed}", mode, lam, seed, args.n_random, args.n_top, args.hf_gain_max) for fam, mode, lam in families for seed in range(1, args.seeds + 1)]
-    with ProcessPoolExecutor(max_workers=args.workers) as ex:
-        res = dict(ex.map(variant_worker, jobs))
-    designs, candidates = {}, {}
-    for fam, _, _ in families:
-        for objective in ("maxbw", "error"):
-            cand = [(seed, res[f"{fam}__s{seed}"][objective]) for seed in range(1, args.seeds + 1) if objective in res[f"{fam}__s{seed}"]]
-            val = (lambda r: -r["crossover_hz"]) if objective == "maxbw" else (lambda r: r["time_domain_quantised_2e20"]["move_rms_mrad"])
-            seed, best = min(cand, key=lambda x: val(x[1]))
-            best.update(name=f"{fam}_{objective}", seed=seed, splice_hz=info["splice_hz"])
-            designs[best["name"]] = best
-            candidates[best["name"]] = {f"seed{sd}": (r["crossover_hz"] if objective == "maxbw" else r["time_domain_quantised_2e20"]["move_rms_mrad"]) for sd, r in cand}
-    HF_GAIN_MAX = args.hf_gain_max
-    rng = np.random.default_rng(1)
-    for objective in ("maxbw", "error"):          # the feasible set of lambda is nested: a design found at a smaller lambda is a start at a larger one
-        for i, lam in enumerate(lambdas):
-            name = f"both_lam{lam:g}_{objective}"
-            search = Search(gate, sub_gate(gate), "both", lam, objective, rng, print)
-            for prev in lambdas[:i]:
-                d0 = search.feasible_start(designs[f"both_lam{prev:g}_{objective}"]["design"])
-                if d0 is None:
-                    continue
-                d1, c1 = search.refine(d0, keys_for("both", objective))
-                c0 = search.cost(designs[name]["design"])
-                if c0 is None or c1 < c0:
-                    print(f"{name}: restart from lambda {prev:g} design improves cost {c0} -> {c1}")
-                    designs[name] = record(gate, d1, name, "both", lam, objective)
-                    designs[name].update(seed=f"from_lambda{prev:g}", splice_hz=info["splice_hz"])
-    lin = designs.get("linear_error")
-    both = designs.get("both_lam0.4_error")
-    out = dict(
-        setup=dict(splice_hz=info["splice_hz"], splice_rule=f"lowest quarter-octave bin (50..400 Hz) starting {SPLICE_RUN} consecutive bins in which ms060 and ms100 agree "
-                   f"with the frictionless model: |median phase| <= {SPLICE_PHASE_DEG} deg and |median magnitude error| <= {SPLICE_MAG}; the model is refitted above the splice frequency (700 Hz)",
-                   splice_table=info["splice_table"], fits=info["fits"], members=info["members"], model_member=info["model_member"],
-                   measured_max_hz=MEAS_MAX_HZ, sample_time_s=TS, td=dict(delay_samples=TD_DELAY, current_limit_a=CURRENT_LIMIT_A, encoder_counts=ENC_COUNTS,
-                                                                       peak_command_limit_a=PEAK_CMD_A)),
-        eq813=dict(W_S=f"1/{S_LIMIT:g} (|S| <= {S_LIMIT:g})", Delta="|D(j w_min) - D(j w)|, D = DF of the low-pass HIGS (numeric, discrete), eq. 7.48",
-                   w_min_hz=F_MIN_HZ, w_start_hz=F_START_HZ, W_a="W_Delta |kp lead (1 + D_i V_i) V_lp Cn| (W_Delta = 0 below w_start)",
-                   constraint="max_f (|W_S S| + lambda |W_a S P|) <= 1 on the ms060, ms030 and ms100 spliced members; |S| <= 2 (<= 2 kHz for the stiffness x0.9 / x1.1 members) and winding on the frictionless model and its two perturbed members",
-                   lambdas=lambdas, book_ratios=dict(lp=BOOK_LP, i=BOOK_I), bounds={k: list(v) for k, v in BOUNDS.items()}),
-        hf_gain_max_a_per_rad=args.hf_gain_max, seed_candidates=candidates, designs=designs, runtime_s=time.time() - t0)
-    args.output.mkdir(parents=True, exist_ok=True)
-    adopted_both = both or designs.get("both_lam0_error")
-    if lin is not None and adopted_both is not None:
-        for n, r, label in (("book_linear.json", lin, "linear"), ("book_both.json", adopted_both, "both")):
-            (args.output / n).write_text(json.dumps(R.jsonable(exp05_design(r, label)), indent=2, allow_nan=False) + "\n")
-        out["adopted"] = dict(linear="linear_error", both=adopted_both["name"])
-        print({k: f"{r['crossover_hz']:.1f} Hz, RMS {r['time_domain_quantised_2e20']['move_rms_mrad']:.4f} mrad" for k, r in designs.items()})
-    (args.output / "book_design.json").write_text(json.dumps(R.jsonable(out), indent=1, allow_nan=False) + "\n")
-    print("saved", args.output, f"{time.time() - t0:.0f}s")
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--iterations",type=int,default=90)
+    parser.add_argument("--starts",type=int,default=8)
+    parser.add_argument("--workers",type=int,default=4)
+    parser.add_argument("--evaluate",action="store_true")
+    args=parser.parse_args()
+    if args.starts<8: parser.error("E4 requires at least eight independent starts")
+    frfs=load_frfs();trials=load_trials();host=CaseBHost(sys.modules[__name__]);noise=NoiseReplay(sys.modules[__name__],host)
+    table=DirectDF() if args.evaluate else DFTable();modes=notch_candidates(frfs);corners=modes["modes_hz"]
+    old={name:json.loads((OUT/f"book_{name}.json").read_text()) for name in ("linear","both")}
+    spectra=input_spectra(host,old["linear"]["tuning"],trials)
+    save(WORK/"plant.json",PLANT)
+    if not args.evaluate:
+        save(WORK/"decision.json",dict(task="E4 last pass",purpose="Compare feasible maximum first-crossing bandwidth under fixed in-motion plant and binding bounds; no HIGS-win tuning",
+             existing_same_condition_results=False,reason="Existing E3 uses standstill plants and unbounded LP damping/notch shape",plant=PLANT,
+             search_plan=dict(starts=args.starts,iterations=args.iterations,seed_base=1001,objective="maximise first crossover",spread="all feasible starts and best four",wi="identity during bandwidth search; separate case-b LF error tuning in fixed Wi box")))
+    records=json.loads((OUT/"book_design.json").read_text())["designs"] if args.evaluate else {}
+    for label,mode in (("linear","linear"),("both","both")):
+        gate=Gate(frfs,table,spectra["f_min_hz"],spectra["f_start_hz"],noise,current=CurrentReplay(host,trials,8))
+        if not args.evaluate:
+            seed_records=[old[mode]] if mode=="linear" else [records["linear"],old["both"]]
+            try:
+                rec=multi_start(gate,mode,corners,args.iterations,args.starts,args.workers,seed_records,label)
+            except NoFeasibleDesign as error:
+                failure=json.loads((WORK/f"{label}_failure.json").read_text())
+                records[label]=dict(failure,design_mode=mode,design_plant=PLANT)
+                for name in ("linear","both"):
+                    save(OUT/f"book_{name}.json",records.get(name,dict(status="not_run",design_mode=name)))
+                save(OUT/"book_design.json",dict(method="Chapter8 E4 last pass",status="no_feasible_found",design_plant=PLANT,designs=records))
+                print(str(error),flush=True)
+                return
+            rec["tuning"],rec["wi_time_tuning"]=tune_wi(host,rec["tuning"],mode,trials,noise=noise)
+            save(WORK/f"{label}_tuned.json",rec)
+        else: rec=records[label]
+        direct=Gate(frfs,DirectDF(),gate.fmin,gate.fstart,noise,current=CurrentReplay(host,trials,256))
+        rec=final_record(rec,mode,direct,spectra,host,trials)
+        record_convergence(rec,label,mode,direct,host,trials)
+        comp=rec["wi_time_tuning"];unit=dict(rec["tuning"],wi_pole_hz=rec["tuning"]["integral_hz"],wi_zero_hz=rec["tuning"]["integral_hz"])
+        comp["chosen"]=rec["offline_replays"];comp["wi_one"]=case_b_replays(host,unit,mode,trials)
+        comp["chosen_pooled_error_le_20hz_rms_rad"]=_pooled_low_error(comp["chosen"])
+        comp["wi_one_pooled_error_le_20hz_rms_rad"]=_pooled_low_error(comp["wi_one"])
+        comp["chosen_noise_ac_rms_a"]=rec["noise_replay"]["command_ac_rms_a"]
+        comp["wi_one_noise_ac_rms_a"]=noise.rms(unit,mode);comp.pop("history",None)
+        if max(r["command_peak_a"] for r in comp["chosen"].values())>=2.71: raise RuntimeError("Chosen Wi saturates")
+        updated=input_spectra(host,rec["tuning"],trials)
+        if any(updated[k]!=spectra[k] for k in ("f_min_hz","f_start_hz")): raise RuntimeError("LP input spectrum changed")
+        rec["resonance_detection"]=modes;rec["design_plant"]=PLANT
+        rec["measured_frf_sources"]={k:dict(source_sha256=v["source_sha256"],points=len(v["f"]),band_hz=[v["f"][0],v["f"][-1]]) for k,v in frfs.items()}
+        rec["design_label"]={"linear":"Linear","both":"HIGS, fixed project bounds"}[label]
+        rec["hardware_candidate"]=True
+        records[label]=rec;save(WORK/f"{label}_final.json",rec)
+        print(label,rec["bandwidth_hz"],rec["search"]["top_feasible_spread_hz"],rec["linear_counterpart_poles_zeros"],flush=True)
+    linear,box=records["linear"],records["both"]
+    difference=box["bandwidth_hz"]-linear["bandwidth_hz"]
+    comparison=dict(higs_minus_linear_hz=difference,
+        all_feasible_spread_hz={k:r["search"]["all_feasible_spread_hz"] for k,r in records.items()},
+        top_four_spread_hz={k:r["search"]["top_feasible_spread_hz"] for k,r in records.items()},
+        interpretation="Best differences and finite-start ranges only; ranges are not statistical confidence intervals and global optimality is unproved")
+    for label in ("linear","both"): save(OUT/f"book_{label}.json",records[label])
+    save(OUT/"book_design.json",dict(method="Chapter8 Fig8.9 / eq8.11-8.14; E4 last pass",design_plant=PLANT,designs=records,bandwidth_comparison=comparison,deviations=[
+        "W_S=.5 constant; linear lambda=0, HIGS lambda=.4 instead of final book piecewise weighting",
+        "P-slot roll-off fixed4000Hz; omega_d/wb=.3..1; beta_lp=.1..1; one notch within5percent of measured313Hz mode; additional project shape bounds",
+        "Project HIGS search condition wh,lp/wb=1..2.5 and wh,i/wb=.3...7 is not a book claim",
+        "Wi eq8.14 DC1 beta1, pole=wi/3..3wi, zero/pole1..10, separately time-tuned; omega_min/start from replayed LP input spectra",
+        "10mA measured command-noise bound and2.71A case-b non-saturation are project choices",
+        "16kHz sampled HIGS DF and unwarped Tustin rather than book5kHz; finite-grid DF Nyquist-type is not nonlinear stability proof",
+        "Single coherence-qualified moving composite plant; rigid body plus fitted measured elastic mode for offline case-b replay; no hardware or MATLAB evaluation"]))
 
 
-if __name__ == "__main__":
-    main()
+def search_vector(record,mode,corners):
+    t=record["tuning"];bw=record.get("bandwidth_hz") or record["constraint_record"]["per_frf"]["design"]["bandwidth_hz"]
+    vector=[bw,t["integral_hz"]/bw,t["lead_zero_hz"]/bw,t["lowpass_hz"]/bw,t["lowpass_beta"]]
+    for corner in corners:
+        n=min(t["notches"],key=lambda n:abs(n["zero_hz"]-corner));bz=np.clip(n["zero_beta"],.005,.3)
+        fraction=1+np.clip((n["pole_beta"]-2*bz)/(1-2*bz),0,1)
+        vector.extend((n["zero_hz"]/corner,n["pole_hz"]/n["zero_hz"],bz,fraction))
+    if mode=="both":
+        h=np.array([t["higs_lp_corner_hz"],t["higs_i_corner_hz"]])/SQ
+        if record.get("design_mode")=="linear":h=np.array([1.75,.5])*bw
+        vector.extend(h/bw)
+    return np.log(vector)
+
+
+def _start_worker(job):
+    label,index,mode,corners,iterations,initial,fmin,fstart=job
+    host=CaseBHost(sys.modules[__name__]);noise=NoiseReplay(sys.modules[__name__],host)
+    gate=Gate(load_frfs(),DFTable(),fmin,fstart,noise,current=CurrentReplay(host,load_trials(),8))
+    rec=optimise(gate,mode,corners,iterations,1001+100*({"linear":0,"both":1}[label])+index,initial)
+    if rec is not None:
+        try: exact_polish(rec,mode,gate)
+        except RuntimeError as error: rec["direct_failure"]=str(error)
+    save(WORK/f"{label}_start_{index}.json",rec)
+    return rec
+
+
+class NoFeasibleDesign(RuntimeError):
+    pass
+
+
+def multi_start(gate,mode,corners,iterations,starts,workers,seed_records,label):
+    initial=[search_vector(r,mode,corners) for r in seed_records]
+    jobs=[(label,k,mode,corners,iterations,initial[k] if k<len(initial) else None,gate.fmin,gate.fstart) for k in range(starts)]
+    with ProcessPoolExecutor(max_workers=workers) as pool: records=list(pool.map(_start_worker,jobs))
+    feasible=[r for r in records if r and "direct_failure" not in r and r["constraint_record"]["passed"]]
+    feasible.sort(key=lambda r:r["constraint_record"]["per_frf"]["design"]["bandwidth_hz"],reverse=True)
+    if not feasible:
+        failure=dict(status="no_feasible_found",design=label,independent_starts=starts,iterations=iterations,
+                     reason="No endpoint passed direct DF and all fixed bounds; this finite search does not prove infeasibility")
+        save(WORK/f"{label}_failure.json",failure)
+        raise NoFeasibleDesign(failure["reason"]+": "+label)
+    best=feasible[0];top=feasible[:4]
+    values=[r["constraint_record"]["per_frf"]["design"]["bandwidth_hz"] for r in top]
+    best["search"].update(independent_starts=starts,feasible_starts=len(feasible),
+        initial_sources=["linear optimum" if mode=="both" and k==0 else "previous design" if k<len(initial) else "independent Latin hypercube population" for k in range(starts)],
+        top_start_rule="Best four directly feasible independent starts, declared before search; Wi identity during bandwidth search",top_feasible_spread_hz=[min(values),max(values)],
+        all_start_results=[dict(seed=1001+100*({"linear":0,"both":1}[label])+i,
+            feasible=bool(r and "direct_failure" not in r and r["constraint_record"]["passed"]),
+            bandwidth_hz=r["constraint_record"]["per_frf"]["design"]["bandwidth_hz"] if r else None) for i,r in enumerate(records)])
+    save(WORK/f"{label}_search.json",best)
+    return best
+
+
+def record_convergence(rec,label,mode,gate,host,trials):
+    """Screen each independent bandwidth-search endpoint at its own Wi=1."""
+    results=[];endpoints=[]
+    for k in range(rec["search"]["independent_starts"]):
+        path=WORK/f"{label}_start_{k}.json"
+        saved=rec["search"].get("start_endpoints",[])
+        endpoint=json.loads(path.read_text()) if path.exists() else saved[k] if k<len(saved) else None
+        endpoints.append(dict(tuning=endpoint["tuning"],search={key:endpoint["search"].get(key)
+            for key in ("seed","initial_vector_log")}) if endpoint else None)
+        if not endpoint:
+            results.append(dict(start=k,seed=1001+100*({"linear":0,"both":1}[label])+k,
+                feasible=False,bandwidth_hz=None));continue
+        t=endpoint["tuning"]
+        check=gate.evaluate(t,mode,loaded=True)
+        replay=case_b_replays(host,t,mode,trials)
+        peak=max(r["command_peak_a"] for r in replay.values())
+        passed=bool(check["passed"] and all(r["completed"] for r in replay.values()) and peak<2.71)
+        results.append(dict(start=k,seed=endpoint["search"]["seed"],feasible=passed,
+            bandwidth_hz=check["per_frf"]["design"]["bandwidth_hz"],command_peak_a=peak,
+            noise_rms_a=check["noise"]["command_ac_rms_a"]))
+    values=sorted((r["bandwidth_hz"] for r in results if r["feasible"]),reverse=True)[:4]
+    if not values: raise RuntimeError("No feasible convergence endpoints at selected Wi")
+    rec["search"].update(all_start_results=results,feasible_starts=sum(r["feasible"] for r in results),
+        top_start_rule="Up to best four feasible independent endpoints after direct DF, Wi=1 bandwidth-search condition, measured noise, and all five case-b non-saturation checks; declared before search",
+        top_feasible_spread_hz=[min(values),max(values)],
+        all_feasible_spread_hz=[min(r["bandwidth_hz"] for r in results if r["feasible"]),max(r["bandwidth_hz"] for r in results if r["feasible"])],
+        start_endpoints=endpoints,
+        convergence_wi_identity=True)
+
+
+class DFTable:
+    def __init__(self):
+        path=WORK/"discrete_df.npz"
+        if path.exists():
+            d=np.load(path);self.f,self.h,self.d=d["f"],d["h"],d["d"]
+        else:
+            self.f=np.unique(np.r_[np.geomspace(.25,3500,150),np.linspace(3501,7990,110)])
+            self.h=np.geomspace(.1,1/(2*np.pi*TS),120)
+            self.d=discrete_df(self.f,self.h)
+            np.savez(path,f=self.f,h=self.h,d=self.d)
+    def __call__(self,h,f):
+        j=int(np.clip(np.searchsorted(self.h,h)-1,0,len(self.h)-2))
+        a=np.log(h/self.h[j])/np.log(self.h[j+1]/self.h[j])
+        row=self.d[j]*(1-a)+self.d[j+1]*a
+        return np.interp(np.log(f),np.log(self.f),row.real)+1j*np.interp(np.log(f),np.log(self.f),row.imag)
+
+
+class DirectDF:
+    """Final constraint uses the sampled law at EVERY measured FRF frequency."""
+    def __init__(self): self.cache={}
+    def __call__(self,h,f):
+        ff=np.ascontiguousarray(f,dtype=float);key=(float(h),ff.tobytes())
+        if key not in self.cache: self.cache[key]=discrete_df(ff,np.array([h]))[0]
+        return self.cache[key]
+
+
+def exact_polish(rec,mode,gate):
+    """Remove interpolation error using the identical acceptance constraint.
+
+    Frequencies and shape stay fixed; maximise the bandwidth over the local
+    scalar gain interval with the direct sampled DF, never a tracking screen.
+    """
+    direct=Gate(gate.frfs,DirectDF(),gate.fmin,gate.fstart,gate.noise,current=gate.current)
+    t=rec["tuning"].copy();initial=float(t["kp"]);best=None
+    # The first crossover can jump over a local FRF dip. A feasible gain
+    # interval can then be much narrower than the mesh: retain scale=1.
+    for scale in np.unique(np.r_[np.linspace(.85,1.08,150),1.]):
+        candidate=dict(t,kp=initial*scale);r=direct.evaluate(candidate,mode,loaded=True)
+        if r["passed"] and (best is None or r["per_frf"]["design"]["bandwidth_hz"]>best[1]):
+            best=(candidate,r["per_frf"]["design"]["bandwidth_hz"],r)
+    if best is None: raise RuntimeError("Direct sampled DF found no feasible gain near the interpolated design")
+    lo=best[0]["kp"];hi=lo+initial*.23/149
+    for _ in range(24):
+        mid=(lo+hi)/2;candidate=dict(t,kp=mid);r=direct.evaluate(candidate,mode,loaded=True)
+        if r["passed"]:lo=mid;best=(candidate,r["per_frf"]["design"]["bandwidth_hz"],r)
+        else:hi=mid
+    rec["tuning"]=best[0];rec["constraint_record"]=direct.evaluate(rec["tuning"],mode,loaded=True)
+    if not rec["constraint_record"]["passed"]:
+        raise RuntimeError("Direct loaded SOS failed the same design conditions")
+    rec["search"]["direct_df_gain_polish"]=dict(kp_before=initial,kp_after=rec["tuning"]["kp"],interval_scale=[.85,1.08],all_measured_lines=True)
+    return direct
+
+def quad(w,b): return [1.,2*b*w,w*w]
+def tustin(num,den):
+    b,a=signal.bilinear(num,den,fs=FS)
+    return signal.tf2sos(b,a)
+
+def loaded_controller(t,mode):
+    """kp in lpPost, PD roll-off only in P, exact Wi inverse only in iPost."""
+    wl,wi,wd,wr,cl,ci=2*np.pi*np.array([t["lowpass_hz"],t["integral_hz"],t["lead_zero_hz"],4000.,t["higs_lp_corner_hz"],t["higs_i_corner_hz"]])
+    wz,wp=2*np.pi*np.array([t["wi_zero_hz"],t["wi_pole_hz"]])
+    hl=tustin([cl],[1,cl]);lp=tustin(t["kp"]*wl*wl/cl*np.array([1.,cl]),quad(wl,t["lowpass_beta"]))
+    pd=tustin([wr/wd,wr],[1,wr]);pre=tustin((wp/wz)**2*np.array(quad(wz,1.)),quad(wp,1.));hi=tustin([ci],[1,ci])
+    z=np.r_[-ci,np.roots(quad(wp,1.))];p=np.r_[0.,np.roots(quad(wz,1.))]
+    zd,pp,k=signal.bilinear_zpk(z,p,wi/ci*(wz/wp)**2,FS)
+    ip=signal.zpk2sos(zd,pp,k)
+    post=np.vstack([tustin(quad(2*np.pi*n["zero_hz"],n["zero_beta"]),quad(2*np.pi*n["pole_hz"],n["pole_beta"])) for n in t["notches"]]) if t["notches"] else np.zeros((0,6))
+    sos=np.vstack([hl,lp,pd,pre,hi,ip,post])
+    if len(sos)>10: raise ValueError("Controller bank exceeds ten SOS slots")
+    if not (0<cl/SQ*TS<=1 and 0<ci/SQ*TS<=1): raise ValueError("HIGS sampled frequency violates 0 < omega_h Ts <= kh")
+    return dict(sos=sos,section_counts=[0,len(lp),len(pd),len(pre),len(ip),len(post)],higs_lp_enabled=mode=="both",higs_i_enabled=mode=="both",
+                higs_lp_gain=1.,higs_i_gain=1.,higs_lp_omega_ts=cl/SQ*TS,higs_i_omega_ts=ci/SQ*TS)
+
+def sosfr(sos,f): return signal.sosfreqz(sos,worN=2*np.pi*np.asarray(f)*TS)[1]
+
+def controller_response(t,mode,f,table,loaded=False):
+    f=np.asarray(f);s=1j*2*FS*np.tan(np.pi*f/FS)
+    wl,wi,wd,wr,cl,ci=2*np.pi*np.array([t["lowpass_hz"],t["integral_hz"],t["lead_zero_hz"],4000.,t["higs_lp_corner_hz"],t["higs_i_corner_hz"]])
+    lp=wl*wl/(s*s+2*t["lowpass_beta"]*wl*s+wl*wl)
+    hl,hi=cl/(s+cl),ci/(s+ci)
+    dl=table(cl/(2*np.pi*SQ),f) if mode=="both" else hl
+    di=(table(ci/(2*np.pi*SQ),f) if mode=="both" else hi)*wi*(s+ci)/(ci*s)
+    vlp=lp/hl;pd=(1+s/wd)/(1+s/wr);nn=np.ones(len(f),complex)
+    for n in t["notches"]:
+        wz,wp=2*np.pi*np.array([n["zero_hz"],n["pole_hz"]])
+        nn*=(s*s+2*n["zero_beta"]*wz*s+wz*wz)/(s*s+2*n["pole_beta"]*wp*s+wp*wp)
+    c=t["kp"]*dl*vlp*(pd+di)*nn
+    wa=t["kp"]*(1+di+s/wd)/(1+s/wr)*vlp
+    if loaded:
+        sos=loaded_controller(t,mode)["sos"]
+        a,b,p,w,h,v=[sosfr(sos[i:j],f) for i,j in ((0,1),(1,2),(2,3),(3,4),(4,5),(5,7))]
+        nn=sosfr(sos[7:],f) if len(sos)>7 else 1.
+        if mode=="both": a=dl;h=table(ci/(2*np.pi*SQ),f)
+        dd=w*h*v;cc=a*b*(p+dd)*nn
+        if np.max(abs(cc-c)/np.maximum(1e-9,abs(c)))>1e-5: raise AssertionError("Packed SOS / design mismatch")
+        c=cc;wa=b*(1+dd+s/wd)/(1+s/wr)
+    return c,wa,dl
+
+def first_crossover(f,loop):
+    a=np.log(abs(loop));cross=np.flatnonzero(a[:-1]*a[1:]<=0)
+    if not len(cross): return 0.
+    j=cross[0];x=a[j]/(a[j]-a[j+1])
+    return float(np.exp(np.log(f[j])*(1-x)+np.log(f[j+1])*x))
+
+def nyquist(loop):
+    """Type-2 DC indentation, measured positive branch, unit-disk HF closure.
+
+    Assumes no RHP plant poles and no unmeasured encirclement. Raw measurement
+    does not identify DC or Nyquist-frequency dynamics; report these limits.
+    """
+    phase=np.unwrap(np.angle(1+loop))
+    if phase[0]>np.pi/2: phase-=2*np.pi
+    winding=int(np.rint(phase[-1]/(2*np.pi)))
+    return dict(stable=bool(winding==0 and abs(loop[-1])<1),winding=winding,start_phase_deg=float(np.degrees(phase[0])),
+                end_phase_deg=float(np.degrees(phase[-1])),end_loop_magnitude=float(abs(loop[-1])),min_distance_to_minus_one=float(np.min(abs(1+loop))))
+
+def notch_metrics(n):
+    ratio=n["pole_hz"]/n["zero_hz"];bz,bp=n["zero_beta"],n["pole_beta"]
+    aa,bb=4*bz*bz-2,ratio*ratio*(4*bp*bp-2);rr=ratio**4
+    roots=np.roots([bb-aa,2*(rr-1),aa*rr-bb]) if abs(bb-aa)>1e-14 else np.roots([2*(rr-1),aa*rr-bb])
+    xx=[0.]+[float(x.real) for x in roots if abs(x.imag)<1e-8 and x.real>=0]
+    maximum=max([1.]+[(x*x+aa*x+1)/(x*x+bb*x+rr) for x in xx])**.5
+    at_zero=2*bz/np.hypot(ratio*ratio-1,2*bp*ratio)
+    return float(at_zero),float(maximum)
+
+
+def controller_poles_zeros(t):
+    """Minimal complete linear counterpart; Wi and H inverses cancel."""
+    wl,wi,wd,wr=2*np.pi*np.array([t["lowpass_hz"],t["integral_hz"],t["lead_zero_hz"],4000.])
+    def roots(w,beta):
+        delta=w*np.sqrt(complex(beta*beta-1));return [-beta*w+delta,-beta*w-delta]
+    poles=roots(wl,t["lowpass_beta"])+[0.,-wr]
+    zeros=list(np.roots([wr/wd,wr+wi,wi*wr]))
+    for n in t["notches"]:
+        poles.extend(roots(2*np.pi*n["pole_hz"],n["pole_beta"]))
+        zeros.extend(roots(2*np.pi*n["zero_hz"],n["zero_beta"]))
+    def split(values):
+        real=sorted(float(np.real(x)) for x in values if abs(np.imag(x))<=1e-6)
+        complex_=[[float(np.real(x)),float(np.imag(x))] for x in values if abs(np.imag(x))>1e-6]
+        return real,complex_
+    rp,cp=split(poles);rz,cz=split(zeros)
+    return dict(real_poles_rad_s=rp,real_zeros_rad_s=rz,complex_poles_rad_s=cp,complex_zeros_rad_s=cz,
+        interpretation="Unwarped-Tustin continuous-time equivalent of minimal full C(s)=kp*LP*(PD+wi/s)*N; H/Wi cancellation removed; multiplicities retained")
+
+
+class Gate:
+    def __init__(self,frfs,table,fmin,fstart,noise=None,*,current=None):
+        self.frfs,self.table,self.fmin,self.fstart=frfs,table,float(fmin),float(fstart)
+        self.noise,self.current=noise,current
+        self.peaks=notch_candidates(frfs)["per_frf"]
+    def add_noise(self,record,t,mode):
+        value=self.noise.rms(t,mode) if self.noise is not None else None
+        record["noise"]=dict(command_ac_rms_a=value,limit_a=.010,passed=bool(value is not None and value<=.010),
+            interpretation="40 demeaned standstill segments; .2s head exclusion; last of5 periodic cycles; sample-pooled AC RMS")
+        record["passed"]=bool(record["passed"] and record["noise"]["passed"])
+        return record
+    def add_current(self,record,t,mode):
+        if self.current is not None:
+            record["case_b_current"]=self.current.evaluate(t,mode)
+            record["passed"]=bool(record["passed"] and record["case_b_current"]["passed"])
+        return record
+    def evaluate(self,t,mode,loaded=False,include_noise=True,include_current=True):
+        lam=.4 if mode=="both" else 0.
+        def row(d):
+            f,p=d["f"],d["p"];c,w,dl=controller_response(t,mode,f,self.table,loaded=loaded)
+            loop=c*p;ss=1/(1+loop);ws=.5*abs(ss)
+            delta=np.where(f>=self.fstart,self.table(t["higs_lp_corner_hz"]/SQ,np.array([self.fmin]))[0]-dl,0.) if mode=="both" else np.zeros(len(f))
+            un=abs(delta*w*ss*p);test=nyquist(loop)
+            return dict(ws_norm=float(np.max(ws)),wa_sp_norm=float(np.max(un)),sum=float(np.max(ws)+lam*np.max(un)),
+                max_abs_s=float(np.max(abs(ss))),ws_peak_hz=float(f[np.argmax(ws)]),wa_sp_peak_hz=float(f[np.argmax(un)]),
+                bandwidth_hz=first_crossover(f,loop),stable=test["stable"],nyquist=test)
+        design=row(self.frfs["design"]);bw=design["bandwidth_hz"];den=max(1e-30,bw)
+        fi,fl,fd=t["integral_hz"],t["lowpass_hz"],t["lead_zero_hz"]
+        hl,hi=t["higs_lp_corner_hz"]/SQ,t["higs_i_corner_hz"]/SQ
+        wi_pole,wi_ratio=t["wi_pole_hz"],t["wi_zero_hz"]/t["wi_pole_hz"]
+        values=dict(integral_to_bandwidth=fi/den,lead_zero_to_bandwidth=fd/den,lowpass_to_bandwidth=fl/den,lowpass_beta=t["lowpass_beta"],
+            wi_pole_to_integral=wi_pole/fi,wi_zero_to_pole=wi_ratio)
+        ranges=dict(integral_to_bandwidth=[1/3,.5],lead_zero_to_bandwidth=[.3,1.],lowpass_to_bandwidth=[2.,4.],lowpass_beta=[.1,1.],
+            wi_pole_to_integral=[1/3,3.],wi_zero_to_pole=[1.,10.])
+        if mode=="both":
+            values.update(omega_h_lp_to_bandwidth=hl/den,omega_h_i_to_bandwidth=hi/den)
+            ranges.update(omega_h_lp_to_bandwidth=[1.,2.5],omega_h_i_to_bandwidth=[.3,.7])
+        tolerance=1e-10
+        bounds=dict(passed=bool(t["kp"]>0 and abs(t["lead_pole_hz"]-4000)<1e-9 and t["higs_lp_gain"]==1 and t["higs_i_gain"]==1 and
+            t["wi_pole_beta"]==1 and t["wi_zero_beta"]==1 and all(lo-tolerance<=values[k]<=hi_+tolerance for k,(lo,hi_) in ranges.items())),
+            parameters={k:dict(value=v,range=ranges[k],active=bool(min(abs(v-ranges[k][0]),abs(v-ranges[k][1]))<1e-4)) for k,v in values.items()},
+            kp_positive=t["kp"]>0,omega_r_hz=4000.,kh=1.,wi_beta=1.)
+        separation=dict(bandwidth_member="design",integral_to_bandwidth=fi/den,lowpass_to_bandwidth=fl/den,
+            higs_lp_to_bandwidth=hl/den if mode=="both" else None,passed=bool(1/3-tolerance<=fi/den<=.5+tolerance and 2-tolerance<=fl/den<=4+tolerance))
+        box=dict(required=mode=="both",passed=bool(mode!="both" or (1-tolerance<=hl/den<=2.5+tolerance and .3-tolerance<=hi/den<=.7+tolerance)),
+            omega_h_lp_to_bandwidth=hl/den if mode=="both" else None,omega_h_i_to_bandwidth=hi/den if mode=="both" else None,
+            project_search_condition="Fixed project bounds, not a book claim",lp_range=[1.,2.5],i_range=[.3,.7])
+        peak=self.peaks["design"]["peaks_hz"][0];placements=[]
+        for n in t["notches"]:
+            ratio=n["pole_hz"]/n["zero_hz"];at_zero,maximum=notch_metrics(n);bz,bp=n["zero_beta"],n["pole_beta"]
+            placements.append(dict(measured_member="design",peak_hz=peak,zero_hz=n["zero_hz"],pole_to_zero=ratio,zero_beta=bz,pole_beta=bp,
+                gain_at_zero=at_zero,gain_at_zero_db=float(20*np.log10(at_zero)),max_gain=maximum,max_gain_db=float(20*np.log10(maximum)),
+                passed=bool(.95*peak<=n["zero_hz"]<=1.05*peak and .97<=ratio<=1.6 and .005<=bz<=.3 and 2*bz<=bp<=1 and
+                    at_zero<=10**(-6/20) and maximum<=10**(6/20))))
+        notch=dict(passed=bool(len(placements)==1 and all(n["passed"] for n in placements)),placements=placements,
+            rule="One notch at measured313Hz mode within5percent; pole/zero .97..1.6; beta_z .005...3; 2beta_z<=beta_p<=1; at_zero<=-6dB; continuous-frequency max<=+6dB")
+        record=dict(**{"lambda":lam},W_S=.5,passed=bool(bounds["passed"] and design["sum"]<=1 and design["stable"] and bw>0 and notch["passed"]),
+            per_frf={"design":design},bounds=bounds,separation=separation,higs_regime_box=box,notch_shape=notch)
+        if loaded: record["informational_ms100"]=row(MS100)
+        if include_current: self.add_current(record,t,mode)
+        return self.add_noise(record,t,mode) if include_noise else record
+
+
+def notch_candidates(frfs):
+    d=frfs["design"];use=(d["f"]>=150)&(d["f"]<=400);f=d["f"][use];mag=abs(d["p"][use])
+    peaks,_=signal.find_peaks(mag);main=peaks[np.argmax(mag[peaks])]
+    row=dict(peaks_hz=[float(f[main])],peak_magnitude_rad_per_a=float(mag[main]))
+    return dict(per_frf={"design":row},modes_hz=row["peaks_hz"],rule="Largest coherence-qualified in-motion load-position peak in150..400Hz; one notch per limiting elastic resonance")
+
+
+def unpack(x,mode,corners):
+    q=np.exp(x);fc,ri,rd,rl,beta=q[:5];idx=5
+    t=dict(kp=1.,integral_hz=fc*ri,lead_zero_hz=fc*rd,lead_pole_hz=4000.,lowpass_hz=fc*rl,lowpass_beta=beta,
+        higs_lp_corner_hz=150*SQ,higs_i_corner_hz=20*SQ,higs_lp_gain=1.,higs_i_gain=1.,
+        wi_pole_hz=fc*ri,wi_zero_hz=fc*ri,wi_pole_beta=1.,wi_zero_beta=1.,notches=[])
+    for peak in corners:
+        zratio,ratio,bz,bfraction=q[idx:idx+4];idx+=4;f=peak*zratio
+        bp=2*bz+(bfraction-1)*(1-2*bz)
+        t["notches"].append(dict(zero_hz=f,pole_hz=f*ratio,zero_beta=bz,pole_beta=bp))
+    if mode=="both":
+        h=q[idx:idx+2]*fc*SQ;t["higs_lp_corner_hz"],t["higs_i_corner_hz"]=h
+    return fc,t
+
+
+def optimise(gate,mode,corners,iterations=90,seed=1001,initial=None):
+    limits=[(1.,600.),(1/3,1/2),(.3,1.),(2.,4.),(.1,1.)]
+    for f in corners: limits += [(.95,1.05),(.97,1.6),(.005,.3),(1.,2.)]
+    if mode=="both": limits += [(1.,2.5),(.3,.7)]
+    bounds=np.log(limits);f=gate.frfs["design"]["f"];p=gate.frfs["design"]["p"]
+    initial_vector=None if initial is None else np.clip(np.asarray(initial),bounds[:,0],bounds[:,1])
+    counter=0;best=[None,-np.inf]
+    def trial(x):
+        nonlocal counter
+        fc,t=unpack(x,mode,corners)
+        pp=np.interp(fc,f,p.real)+1j*np.interp(fc,f,p.imag)
+        c=controller_response(t,mode,np.array([fc]),gate.table)[0][0];t["kp"]=float(1/abs(c*pp))
+        r=gate.evaluate(t,mode,include_noise=False,include_current=False);bw=r["per_frf"]["design"]["bandwidth_hz"]
+        violation=max(0,r["per_frf"]["design"]["sum"]-.9995)
+        violation+=sum(max(0,n["gain_at_zero"]/10**(-6/20)-.9995)+max(0,n["max_gain"]/10**(6/20)-.9995) for n in r["notch_shape"]["placements"])
+        for item in r["bounds"]["parameters"].values():
+            lo,hi=item["range"];v=item["value"];violation+=max(0,lo-v)+max(0,v-hi)
+        unstable=not r["per_frf"]["design"]["stable"];counter+=1
+        if not unstable and violation<.03:
+            gate.add_current(r,t,mode);current=r["case_b_current"]
+            violation+=max(0,np.log(max(1.,current["command_peak_a"]/2.71)))
+            if current["passed"]:
+                gate.add_noise(r,t,mode);violation+=max(0,r["noise"]["command_ac_rms_a"]/.010-.9995)
+        else:r["passed"]=False
+        if r["passed"] and bw>best[1]:best[:]=[dict(tuning=t,constraint_record=r,x=x.copy()),bw]
+        return -np.log(max(.01,bw))+50*violation+200*unstable
+    started=time.time()
+    res=differential_evolution(trial,bounds,popsize=8,maxiter=iterations,tol=.002,seed=seed,polish=False,x0=initial_vector)
+    minimize(trial,res.x,method="Nelder-Mead",bounds=bounds,options=dict(maxiter=1400,xatol=2e-5,fatol=1e-7))
+    print(f"{mode} seed={seed}: {best[1]:.6f}Hz, {counter} evaluations, {time.time()-started:.1f}s",flush=True)
+    if best[0] is None:return None
+    out=best[0];out["search"]=dict(objective="maximise first composite-design-plant DF crossover under all fixed E4 bounds, separate sup norms, noise and case-b non-saturation",seed=seed,bounds_log=bounds,evaluations=counter,
+        initial_vector_log=initial_vector,search_windows_are_not_acceptance_constraints=True,
+        variable_order=["target_bandwidth_hz","integral_to_target_bandwidth","lead_zero_to_target_bandwidth","lowpass_to_target_bandwidth","lowpass_beta"]+
+            [f"notch_{j}_{k}" for j in range(len(corners)) for k in ("zero_to_peak","pole_to_zero","zero_beta","pole_beta_fraction_plus_one")]+(["higs_lp_wh_to_target_bw","higs_i_wh_to_target_bw"] if mode=="both" else []),
+        elapsed_s=time.time()-started,global_optimality_proved=False,notch_count=len(corners),maxiter=iterations,popsize=8,tol=.002,
+        nelder_mead=dict(maxiter=1400,xatol=2e-5,fatol=1e-7))
+    return out
+
+
+_NOISE_SOURCE = r'''
+extern "C" int noise_ac_variances(
+    const double* input, unsigned segments, const unsigned* sizes,
+    const double* coefficients, unsigned sections, const unsigned* counts,
+    int lp_enabled, double lp_gain, double lp_omega_ts,
+    int i_enabled, double i_gain, double i_omega_ts, double* result)
+{
+    controllercore::ControllerAlgorithm controller;
+    const controllercore::ControllerAlgorithm::SectionCounts layout = {
+        counts[0], counts[1], counts[2], counts[3], counts[4], counts[5]};
+    const controllercore::ControllerAlgorithm::HigsParameters lp = {
+        lp_enabled != 0, lp_gain, lp_omega_ts};
+    const controllercore::ControllerAlgorithm::HigsParameters integral = {
+        i_enabled != 0, i_gain, i_omega_ts};
+    if (!controller.ApplyParameters(coefficients, sections, 1, layout, lp, integral)) return -1;
+    unsigned offset = 0;
+    for (unsigned segment = 0; segment < segments; ++segment) {
+        controller.Reset();
+        const unsigned n = sizes[segment];
+        double mean = 0.0, m2 = 0.0;
+        for (unsigned repeat = 0; repeat < 5; ++repeat) {
+            for (unsigned k = 0; k < n; ++k) {
+                const double command = controller.Step(input[offset + k], 0.0, 0.0);
+                if (!std::isfinite(command)) return static_cast<int>(segment) + 1;
+                if (repeat == 4) {
+                    const double delta = command - mean;
+                    mean += delta / static_cast<double>(k + 1);
+                    m2 += delta * (command - mean);
+                }
+            }
+        }
+        result[segment] = m2 / n;
+        offset += n;
+    }
+    return 0;
+}
+'''
+
+
+def _host_source(core):
+    source = (core.ROOT / "simulations/higs_host.cpp").read_text(encoding="utf-8")
+    source = source.replace(
+        "const double* initial_state, double* output)",
+        "const double* initial_state, double* output, int substeps, double coulomb)")
+    old = '''        double next[4] = {};
+        for (int i = 0; i < 4; ++i) {
+            next[i] = b[i] * delayed;
+            for (int j = 0; j < 4; ++j) next[i] += a[4 * i + j] * state[j];
+            if (!std::isfinite(next[i]) || std::abs(next[i]) > 1e6) return k + 1;
+        }
+        std::copy(next, next + 4, state);'''
+    new = '''        for (int sub = 0; sub < substeps; ++sub) {
+            double next[4] = {};
+            for (int i = 0; i < 4; ++i) {
+                next[i] = b[i] * delayed;
+                for (int j = 0; j < 4; ++j) next[i] += a[4 * i + j] * state[j];
+            }
+            if (coulomb > 0.0) {
+                const double force = std::max(-coulomb, std::min(coulomb, next[1]/b[1]));
+                for (int i = 0; i < 4; ++i) next[i] -= b[i]*force;
+            }
+            for (int i = 0; i < 4; ++i)
+                if (!std::isfinite(next[i]) || std::abs(next[i]) > 1e6) return k + 1;
+            std::copy(next, next + 4, state);
+        }'''
+    if source.count(old) != 1:
+        raise RuntimeError("Offline harness source no longer matches the case-b patch")
+    return source.replace(old, new) + _NOISE_SOURCE
+
+
+class CaseBHost:
+    """Unchanged controller core, G's implicit motor friction and saturation."""
+    def __init__(self, core):
+        self.core = core
+        work = core.WORK
+        work.mkdir(parents=True, exist_ok=True)
+        source_path = work / "case_b_host.cpp"
+        source = _host_source(core)
+        if not source_path.exists() or source_path.read_text(encoding="utf-8") != source:
+            source_path.write_text(source, encoding="utf-8")
+        dll = work / "case_b_host.dll"
+        inputs = [source_path, core.ROOT / "ControllerCore/ControllerAlgorithm.cpp",
+                  core.ROOT / "ControllerCore/ControllerAlgorithm.h"]
+        if not dll.exists() or dll.stat().st_mtime < max(p.stat().st_mtime for p in inputs):
+            vs = Path(os.environ.get("VSINSTALLDIR", r"C:\Program Files\Microsoft Visual Studio\2022\Community"))
+            command = work / "build_case_b.cmd"
+            command.write_text('@echo off\nset "TEMP=%~dp0"\nset "TMP=%~dp0"\ncall "' +
+                str(vs / "VC/Auxiliary/Build/vcvars64.bat") + '" >nul\nif errorlevel 1 exit /b %errorlevel%\n' +
+                'cl.exe /nologo /std:c++17 /O2 /EHsc /LD /I "' + str(core.ROOT / "ControllerCore") +
+                '" "' + str(inputs[1]) + '" "' + str(source_path) + '" /link /OUT:"' + str(dll) +
+                '" /EXPORT:simulate_higs /EXPORT:noise_ac_variances\n', encoding="utf-8")
+            subprocess.run(["cmd.exe", "/d", "/c", str(command)], cwd=work,
+                           check=True, capture_output=True)
+        self.lib = ctypes.CDLL(str(dll))
+        pointer = np.ctypeslib.ndpointer(dtype=np.float64, flags="C_CONTIGUOUS")
+        counts = np.ctypeslib.ndpointer(dtype=np.uint32, flags="C_CONTIGUOUS")
+        self.fn = self.lib.simulate_higs
+        self.fn.argtypes = [ctypes.c_int] + [pointer] * 6 + [ctypes.c_uint, counts,
+            ctypes.c_int, ctypes.c_double, ctypes.c_double, ctypes.c_int, ctypes.c_double,
+            ctypes.c_double, ctypes.c_int, ctypes.c_double, ctypes.c_double, ctypes.c_double,
+            pointer, pointer, ctypes.c_int, ctypes.c_double]
+        self.fn.restype = ctypes.c_int
+        self.noise_fn = self.lib.noise_ac_variances
+        self.noise_fn.argtypes = [pointer, ctypes.c_uint, counts, pointer, ctypes.c_uint, counts,
+            ctypes.c_int, ctypes.c_double, ctypes.c_double, ctypes.c_int, ctypes.c_double,
+            ctypes.c_double, pointer]
+        self.noise_fn.restype = ctypes.c_int
+        self._matrices = {}
+
+    def matrices(self, substeps=256):
+        key = substeps
+        if key not in self._matrices:
+            p = self.core.MODEL
+            jm, jl, k, c = p["jm"], p["jl"], p["stiffness"], p["damping"]
+            viscous = p["bm"]
+            a = np.array([[0, 1, 0, 0], [-k/jm, -(c+viscous)/jm, k/jm, c/jm],
+                          [0, 0, 0, 1], [k/jl, c/jl, -k/jl, -c/jl]])
+            b = np.array([[0.], [1/jm], [0.], [0.]])
+            ad, bd, *_ = signal.cont2discrete((a, b, np.eye(4), np.zeros((4, 1))),
+                                             self.core.TS/substeps)
+            self._matrices[key] = (ad, bd.ravel())
+        return self._matrices[key]
+
+    def run(self, controller, reference, ff=None, controller_only=False, *,
+            substeps=256, limit=2.71, noise=None, friction=True):
+        n = len(reference)
+        if controller_only:
+            a, b, substeps, delay, coulomb, limit = np.zeros((4, 4)), np.zeros(4), 1, 0, 0., 1e100
+        else:
+            a, b = self.matrices(substeps)
+            delay, coulomb = self.core.DELAY, .116 if friction else 0.
+        arr = lambda x: np.ascontiguousarray(x, dtype=np.float64)
+        out = np.zeros((n, 14))
+        d = controller
+        code = self.fn(n, arr(reference), arr(np.zeros(n) if ff is None else ff),
+            arr(np.zeros(n) if noise is None else noise), arr(a), arr(b),
+            arr(np.asarray(d["sos"])[:, [0, 1, 2, 4, 5]]), len(d["sos"]),
+            np.ascontiguousarray(d["section_counts"], dtype=np.uint32),
+            d["higs_lp_enabled"], d["higs_lp_gain"], d["higs_lp_omega_ts"],
+            d["higs_i_enabled"], d["higs_i_gain"], d["higs_i_omega_ts"],
+            delay, limit, 0., 0., arr(np.zeros(4)), out, substeps, coulomb)
+        if code:
+            raise RuntimeError(f"Case-b controller/plant rejected parameters or diverged: {code}")
+        return out
+
+
+def load_standstill(core):
+    segments = []
+    for path in sorted((core.ROOT / "simulations/hardware/trials_book").glob("*.mat")):
+        d = loadmat(path, simplify_cells=True)
+        if "REF" not in d or "raw" not in d or "load_position" not in d["raw"]:
+            continue
+        reference, position = np.asarray(d["REF"], float), np.asarray(d["raw"]["load_position"], float)
+        edges = np.r_[0, np.flatnonzero(np.diff(reference) != 0)+1, len(reference)]
+        for run, (lo, hi) in enumerate(zip(edges[:-1], edges[1:])):
+            lo += round(.2*core.FS)
+            if hi-lo < round(.1*core.FS):
+                continue
+            x = position[lo:hi]-np.mean(position[lo:hi])
+            if not np.all(np.isfinite(x)):
+                raise ValueError(f"Nonfinite standstill samples in {path}")
+            segments.append(dict(trial=path.stem, run=run, start_sample=int(lo),
+                                 stop_sample=int(hi), samples=len(x), x=x))
+    if len(segments) != 40 or sum(s["samples"] for s in segments) != 128036:
+        raise ValueError("Standstill segment selection differs from G question 5")
+    return segments
+
+
+class NoiseReplay:
+    """G q5 noise, with only the latest unit-kp result per mode cached."""
+    def __init__(self, core, host, segments=None):
+        self.core, self.host = core, host
+        self.segments = load_standstill(core) if segments is None else segments
+        self.input = np.ascontiguousarray(np.concatenate([s["x"] for s in self.segments]), dtype=np.float64)
+        self.sizes = np.ascontiguousarray([s["samples"] for s in self.segments], dtype=np.uint32)
+        self.cache = {}
+        self.calls = 0
+
+    def variances(self, controller):
+        d = controller
+        result = np.zeros(len(self.segments))
+        code = self.host.noise_fn(self.input, len(self.segments), self.sizes,
+            np.ascontiguousarray(np.asarray(d["sos"])[:, [0, 1, 2, 4, 5]], dtype=np.float64),
+            len(d["sos"]), np.ascontiguousarray(d["section_counts"], dtype=np.uint32),
+            d["higs_lp_enabled"], d["higs_lp_gain"], d["higs_lp_omega_ts"],
+            d["higs_i_enabled"], d["higs_i_gain"], d["higs_i_omega_ts"], result)
+        if code:
+            raise RuntimeError(f"Noise controller replay failed: {code}")
+        self.calls += 1
+        return result
+
+    def rms(self, tuning, mode, details=False):
+        unit = dict(tuning, kp=1.)
+        key = json.dumps(unit, sort_keys=True, default=self.core.encode)
+        old = self.cache.get(mode)
+        if old is None or old[0] != key:
+            variance = self.variances(self.core.loaded_controller(unit, mode))
+            self.cache[mode] = (key, variance)
+        else:
+            variance = old[1]
+        variance = variance * tuning["kp"]**2
+        pooled = float(np.sqrt(np.sum(variance*self.sizes)/np.sum(self.sizes)))
+        if not details:
+            return pooled
+        return dict(command_ac_rms_a=pooled, limit_a=.01, passed=pooled <= .01,
+            segments=len(self.segments), trials=len({s["trial"] for s in self.segments}),
+            samples=int(np.sum(self.sizes)), duration_s=float(np.sum(self.sizes)*self.core.TS),
+            method="exactly constant REF; head .2s excluded, retain >=.1s; demean position; reset each segment; replay 5 periods and measure last command AC RMS; duration-pooled",
+            rig_choice="10mA is approximately 0.4 percent of 2.71A, chosen for this rig; not a book value",
+            caveat="recorded standstill position includes mechanical motion and drift",
+            per_segment=[{k: v for k, v in s.items() if k != "x"} | {"command_ac_rms_a": float(np.sqrt(v))}
+                         for s, v in zip(self.segments, variance)])
+
+
+def low_frequency_rms(core, x):
+    f = np.fft.rfftfreq(len(x), core.TS)
+    spec = np.fft.rfft(x)
+    weights = np.full(len(f), 2.)
+    weights[0] = 1.
+    if len(x) % 2 == 0:
+        weights[-1] = 1.
+    use = f <= 20.
+    return float(np.sqrt(np.sum(abs(spec[use])**2*weights[use]))/len(x))
+
+
+def identified_ff(core, reference):
+    v = np.gradient(reference)/core.TS
+    a = np.gradient(v)/core.TS
+    return 1.134e-4*a + .068*np.tanh(v/.05) + .0625*np.tanh(v/3.) + .000345*v + .0000541*v*abs(v)
+
+
+class CurrentReplay:
+    """Existing non-saturation condition, evaluated during bandwidth search.
+
+    Eight friction substeps guide the search; final acceptance uses 256.
+    Check the long motion first, since unstable designs can pass a short move.
+    """
+    def __init__(self,host,trials,substeps):
+        self.host,self.substeps=host,substeps
+        order=("r5m100","a002m005","a01m010","a10m010","r5m050")
+        self.inputs=[]
+        for name in order:
+            tr=next(t for t in trials if t["trajectory"]==name)
+            self.inputs.append((name,tr["reference"],identified_ff(host.core,tr["reference"])))
+    def evaluate(self,t,mode):
+        controller=self.host.core.loaded_controller(t,mode);peaks={}
+        for name,reference,ff in self.inputs:
+            try:
+                out=self.host.run(controller,reference,ff,substeps=self.substeps)
+            except RuntimeError as error:
+                return dict(passed=False,command_peak_a=1e6,limit_a=2.71,per_trajectory_peak_a=peaks,friction_substeps=self.substeps,failure=str(error))
+            peaks[name]=float(np.max(abs(out[:,4]+ff)))
+            if peaks[name]>=2.71: break
+        peak=max(peaks.values())
+        return dict(passed=bool(peak<2.71),command_peak_a=peak,limit_a=2.71,per_trajectory_peak_a=peaks,
+            friction_substeps=self.substeps,interpretation="Existing case-b non-saturation condition; reject on first clipped trajectory")
+
+
+def case_b_replays(host, tuning, mode, trials, substeps=256):
+    core = host.core
+    controller = core.loaded_controller(tuning, mode)
+    result = {}
+    for name in core.TRAJECTORIES:
+        tr = next(t for t in trials if t["trajectory"] == name)
+        reference = tr["reference"]
+        ff = identified_ff(core, reference)
+        out = host.run(controller, reference, ff, substeps=substeps)
+        error = reference-out[:, 2]
+        demand = out[:, 4]+ff
+        applied = np.clip(demand, -2.71, 2.71)
+        result[name] = dict(completed=True, reference_trial=tr["name"], source_sha256=tr["source_sha256"],
+            samples=len(reference), error_rms_rad=float(np.sqrt(np.mean(error**2))),
+            error_peak_rad=float(np.max(abs(error))), error_le_20hz_rms_rad=low_frequency_rms(core, error),
+            command_peak_a=float(np.max(abs(demand))), command_hf_gt_1000hz_rms_a=core.band_rms(demand, 1000., core.FS/2),
+            applied_peak_a=float(np.max(abs(applied))), applied_hf_gt_1000hz_rms_a=core.band_rms(applied, 1000., core.FS/2),
+            twist_200_400hz_rms_rad=core.band_rms(out[:, 0]-out[:, 2], 200., 400.),
+            clipped_samples=int(np.sum(abs(demand) > 2.71)), exceeds_2_71_a=bool(np.max(abs(demand)) >= 2.71),
+            metric_interval="entire logged reference; rectangular DFT including edges",
+            friction_substeps=substeps)
+    return result
+
+
+def _pooled_low_error(rows):
+    return float(np.sqrt(sum(v["samples"]*v["error_le_20hz_rms_rad"]**2 for v in rows.values()) /
+                         sum(v["samples"] for v in rows.values())))
+
+
+def tune_wi(host, tuning, mode, trials, *, noise=None, iterations=10, seed=814):
+    """Time-domain LF tuning, ratio<=10; final candidates evaluated at 256 steps."""
+    baseline = dict(tuning, wi_pole_hz=tuning["integral_hz"], wi_zero_hz=tuning["integral_hz"], wi_pole_beta=1., wi_zero_beta=1.)
+    one = case_b_replays(host, baseline, mode, trials)
+    evaluations = []
+    if mode == "linear":
+        return baseline, dict(chosen=one, wi_one=one, chosen_pooled_error_le_20hz_rms_rad=_pooled_low_error(one),
+            wi_one_pooled_error_le_20hz_rms_rad=_pooled_low_error(one),
+            reason="Wi cancels algebraically in the linear controller; choose identity", search_evaluations=0)
+
+    def evaluate(x, substeps):
+        pole, ratio = float(np.exp(x[0])), float(np.exp(x[1]))
+        t = dict(tuning, wi_pole_hz=pole, wi_zero_hz=pole*ratio, wi_pole_beta=1., wi_zero_beta=1.)
+        rows = case_b_replays(host, t, mode, trials, substeps)
+        rms = _pooled_low_error(rows)
+        peak = max(v["command_peak_a"] for v in rows.values())
+        n = 0. if noise is None else noise.rms(t, mode)
+        feasible = peak < 2.71 and n <= .01
+        value = np.log(max(rms, 1e-15)) + 100*max(0., peak/2.71-1.) + 100*max(0., n/.01-1.)
+        evaluations.append(dict(pole_hz=pole, ratio=ratio, objective_rms_rad=rms,
+                                command_peak_a=peak, noise_rms_a=n, feasible=feasible,
+                                substeps=substeps, x=np.asarray(x).copy()))
+        return value, t, rows, feasible
+
+    pole_bounds = [tuning["integral_hz"]/3.,3*tuning["integral_hz"]]
+    candidates = [(np.log([baseline["wi_pole_hz"],1.]),baseline,one,
+                   max(v["command_peak_a"] for v in one.values())<2.71 and (noise is None or noise.rms(baseline,mode)<=.01))]
+    bounds=[(np.log(pole_bounds[0]),np.log(pole_bounds[1])),(0.,np.log(10.))]
+    objective=lambda x:evaluate(x,32)[0]
+    result=differential_evolution(objective,bounds,maxiter=iterations,popsize=5,seed=seed,polish=False,tol=1e-4,x0=candidates[0][0])
+    local=minimize(objective,result.x,method="Nelder-Mead",bounds=bounds,options=dict(maxiter=65,xatol=.002,fatol=1e-6))
+    feasible=sorted((r for r in evaluations if r["substeps"]==32 and r["feasible"]),key=lambda r:r["objective_rms_rad"])
+    for row in feasible[:5]+[dict(x=local.x)]:
+        _,t,replay,passed=evaluate(row["x"],256);candidates.append((row["x"],t,replay,passed))
+    final=sorted((r for r in candidates if r[3]),key=lambda r:_pooled_low_error(r[2]))
+    if not final:raise RuntimeError("No Wi candidate meets fixed pole/ratio, case-b peak and noise bounds")
+    best=final[0]
+    _, chosen, replays, _ = best
+    serial = [{k: v for k, v in row.items() if k != "x"} for row in evaluations]
+    return chosen, dict(chosen=replays, wi_one=one,
+        chosen_pooled_error_le_20hz_rms_rad=_pooled_low_error(replays),
+        wi_one_pooled_error_le_20hz_rms_rad=_pooled_low_error(one),
+        objective="minimise duration-pooled error RMS at DC..20Hz over all five trajectories",
+        constraints="Wi DC gain1, beta1, omega_i/3<=pole<=3omega_i, 1<=zero/pole<=10; each unsaturated demand peak<2.71A; inherited noise bound",
+        numerical_pole_search_hz=pole_bounds, ratio_search=[1., 10.],
+        search_evaluations=len(evaluations), global_optimality_proved=False,
+        coarse_friction_substeps=32, final_friction_substeps=256, history=serial)
+
+
+if __name__=="__main__": main()

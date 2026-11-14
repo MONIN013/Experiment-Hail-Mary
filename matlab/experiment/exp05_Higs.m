@@ -12,7 +12,7 @@ mode = string(validatestring(mode, ["preview", "linear", "integrator", "lowpass"
 repo_root = fileparts(fileparts(fileparts(mfilename("fullpath"))));
 data_dir = experiment.scenario.default_result_dir();
 p = inputParser;
-p.addParameter("design_path", fullfile(repo_root, "simulations", "higs_design.json"), @is_text);
+p.addParameter("design_path", fullfile(repo_root, "simulations", "hardware", "designs", "book_both.json"), @is_text);
 p.addParameter("plant_path", fullfile(data_dir, "plant.mat"), @is_text);
 p.addParameter("result_dir", data_dir, @is_text);
 p.addParameter("target_label", "", @is_text);
@@ -23,13 +23,14 @@ o = p.Results;
 cfg = experiment.ExperimentConfig.defaults();
 design = jsondecode(fileread(o.design_path));
 [linear, integrator, lowpass, both, t, reference] = prepare_design(design, cfg.env.task_rate_hz);
+stability = check_design_constraint(design);
 if numel(reference) > cfg.env.table_max_n
   error("experiment:higs:tableTooLong", "HIGS reference exceeds table_max_n.");
 end
 result = struct("mode", mode, "design", design, "linear", linear.to_struct(), ...
   "integrator", integrator.to_struct(), "lowpass", lowpass.to_struct(), "both", both.to_struct(), "t", t, "reference", reference, ...
   "target_label", string(o.target_label), "io_backend_verified", false, ...
-  "connection_environment", cfg.env.to_struct());
+  "connection_environment", cfg.env.to_struct(), "stability", stability);
 if mode == "preview"
   if o.plot
     figure; plot(t, reference); xlabel("Time [s]"); ylabel("Load reference [rad]");
@@ -47,12 +48,10 @@ if strlength(strtrim(string(o.target_label))) == 0
     "Specify target_label for this trial; it labels records and does not select the ADS target.");
 end
 
-% Gate the measured linear reference before opening ADS. This is a linear
-% commissioning check, not a nonlinear stability certificate for HIGS.
+% The design's own DF constraint was checked above, including in preview.
+% A HIGS-retuned design need not pass a separate linear-counterpart check.
 plant = experiment.exp0n.load_plant_data(o.plant_path, ...
   "expected_sample_time_s", design.sample_time_s);
-stability = experiment.higs_linear_check(plant, linear, ...
-  design.sensitivity_limit, o.plot);
 
 controller = linear;
 if mode == "integrator", controller = integrator; end
@@ -148,15 +147,16 @@ end
 end
 
 function [linear, integrator, lowpass, both, t, r] = prepare_design(d, rate)
-required = ["tuning","sample_time_s","reference_amplitude_rad","move_time_s", ...
+required = ["tuning","design_mode","constraint_record","sample_time_s","reference_amplitude_rad","move_time_s", ...
   "dwell_time_s","settle_time_s","sensitivity_limit","max_current_a", ...
   "max_position_rad","max_velocity_rad_s","max_twist_rad"];
-if ~isstruct(d)||~isscalar(d)||any(~isfield(d,required))||~isstruct(d.tuning)
+if ~isstruct(d)||~isscalar(d)||any(~isfield(d,required))||~isstruct(d.tuning)||~isscalar(d.tuning)
   error("experiment:higs:invalidDesign","Design JSON is missing required fields.");
 end
-tuning_required=["kp","integral_hz","lead_zero_hz","lead_pole_hz","lowpass_hz", ...
-  "higs_lp_corner_hz","higs_i_corner_hz","higs_lp_gain","higs_i_gain"];
-if any(~isfield(d.tuning,tuning_required))
+tuning_required=["kp","integral_hz","lead_zero_hz","lead_pole_hz","lowpass_hz","lowpass_beta", ...
+  "higs_lp_corner_hz","higs_i_corner_hz","higs_lp_gain","higs_i_gain", ...
+  "wi_zero_hz","wi_pole_hz","wi_zero_beta","wi_pole_beta"];
+if any(~isfield(d.tuning,[tuning_required,"notches"]))
   error("experiment:higs:invalidDesign","Design tuning is missing required fields.");
 end
 positive=["sample_time_s","reference_amplitude_rad","move_time_s","dwell_time_s", ...
@@ -168,14 +168,14 @@ for name=positive
   end
 end
 for name=tuning_required
-  v=d.tuning.(name);if ~(isnumeric(v)&&isreal(v)&&isscalar(v)&&isfinite(v))
-    error("experiment:higs:invalidDesign","tuning.%s must be a finite real scalar.",name);
+  v=d.tuning.(name);if ~(isnumeric(v)&&isreal(v)&&isscalar(v)&&isfinite(v)&&v>0)
+    error("experiment:higs:invalidDesign","tuning.%s must be a finite positive scalar.",name);
   end
 end
-if any([d.tuning.kp,d.tuning.integral_hz,d.tuning.lead_zero_hz,d.tuning.lead_pole_hz, ...
-    d.tuning.lowpass_hz,d.tuning.higs_lp_corner_hz,d.tuning.higs_i_corner_hz,d.tuning.higs_lp_gain,d.tuning.higs_i_gain]<=0) || ...
-    d.tuning.lead_zero_hz>=d.tuning.lead_pole_hz
-  error("experiment:higs:invalidDesign","Controller tuning values are outside their valid range.");
+if d.tuning.lead_pole_hz~=4000 || d.tuning.lead_zero_hz>=4000 || ...
+    d.tuning.wi_pole_hz>d.tuning.wi_zero_hz || ...
+    d.tuning.wi_zero_beta~=1 || d.tuning.wi_pole_beta~=1
+  error("experiment:higs:invalidDesign","P roll-off must be 4000 Hz; W_i needs pole <= zero and unit dampings.");
 end
 if d.reference_amplitude_rad>=d.max_position_rad|| ...
     2.1875*d.reference_amplitude_rad/d.move_time_s>=d.max_velocity_rad_s
@@ -185,25 +185,40 @@ Ts=d.sample_time_s;wn=2*pi*d.tuning.lowpass_hz;wi=2*pi*d.tuning.integral_hz;
 wz=2*pi*d.tuning.lead_zero_hz;wp=2*pi*d.tuning.lead_pole_hz;
 wcLp=2*pi*d.tuning.higs_lp_corner_hz;wcI=2*pi*d.tuning.higs_i_corner_hz;
 khLp=d.tuning.higs_lp_gain;khI=d.tuning.higs_i_gain;kp=d.tuning.kp;
-LPF=tf(wn^2,[1,sqrt(2)*wn,wn^2]);
-lead=tf([1/wz,1],[1/wp,1]);
+LPF=tf(wn^2,[1,2*d.tuning.lowpass_beta*wn,wn^2]);
+pd=tf([1/wz,1],[1/wp,1]);
 Hlp=tf(khLp*wcLp,[1,wcLp]);Hi=tf(khI*wcI,[1,wcI]);
-Vlp=LPF/Hlp;Vi=(wi/(khI*wcI))*tf([1,wcI],[1,0]);
-% Optional eq. 8.8c notch (Post) and eq. 8.14 weighting filter W_i (iPre, with W_i^-1 folded into iPost); absent fields = absent filter.
-[hasNotch,notchValues]=optional_filter(d.tuning,["notch_zero_hz","notch_pole_hz","notch_zero_beta","notch_pole_beta"]);
-[hasWi,wiValues]=optional_filter(d.tuning,["wi_zero_hz","wi_pole_hz","wi_zero_beta","wi_pole_beta"]);
-lpPre=zeros(0,6);lpPost=experiment.controller.tustin_sos(Vlp,Ts);
-p=experiment.controller.tustin_sos(kp*lead,Ts);
-iPre=zeros(0,6);iPost=experiment.controller.tustin_sos(kp*lead*Vi,Ts);post=zeros(0,6);
-if hasNotch
-  wnz=2*pi*notchValues(1);wnp=2*pi*notchValues(2);
-  post=experiment.controller.tustin_sos(tf([1,2*notchValues(3)*wnz,wnz^2],[1,2*notchValues(4)*wnp,wnp^2]),Ts);
+Vlp=LPF/Hlp;
+% Fig. 8.9: k_p precedes the split; the PD factor belongs only to P.
+wwz=2*pi*d.tuning.wi_zero_hz;wwp=2*pi*d.tuning.wi_pole_hz;
+Wi=(wwp^2/wwz^2)*tf([1,2*wwz,wwz^2],[1,2*wwp,wwp^2]);
+lpPre=zeros(0,6);lpPost=experiment.controller.tustin_sos(kp*Vlp,Ts);
+p=experiment.controller.tustin_sos(pd,Ts);
+iPre=experiment.controller.tustin_sos(Wi,Ts);
+% Keep the repeated low-frequency zeros in ZPK form: expanding this cubic
+% before tf2sos loses accuracy near DC (notably for the former 4/512 Hz Wi).
+iPostContinuous=zpk([-wcI;-wwp;-wwp],[0;-wwz;-wwz], ...
+  (wi/(khI*wcI))*(wwz/wwp)^2);
+[iz,ip,ik]=zpkdata(c2d(iPostContinuous,Ts,"tustin"),"v");
+iPost=zp2sos(iz,ip,ik);post=zeros(0,6);
+notches=d.tuning.notches;
+if ~isempty(notches)&&~isstruct(notches)
+  error("experiment:higs:invalidDesign","tuning.notches must be an array of notch records.");
 end
-if hasWi
-  wwz=2*pi*wiValues(1);wwp=2*pi*wiValues(2);
-  Wi=(wwp^2/wwz^2)*tf([1,2*wiValues(3)*wwz,wwz^2],[1,2*wiValues(4)*wwp,wwp^2]);
-  iPre=experiment.controller.tustin_sos(Wi,Ts);
-  iPost=experiment.controller.tustin_sos(kp*lead*Vi*inv(Wi),Ts);
+for k=1:numel(notches)
+  n=notches(k);names=["zero_hz","pole_hz","zero_beta","pole_beta"];
+  if any(~isfield(n,names))
+    error("experiment:higs:invalidDesign","Each notch needs zero/pole frequencies and dampings.");
+  end
+  for name=names
+    v=n.(name);
+    if ~(isnumeric(v)&&isreal(v)&&isscalar(v)&&isfinite(v)&&v>0)
+      error("experiment:higs:invalidDesign","Notch %s must be a finite positive scalar.",name);
+    end
+  end
+  wnz=2*pi*n.zero_hz;wnp=2*pi*n.pole_hz;
+  post=[post;experiment.controller.tustin_sos(tf([1,2*n.zero_beta*wnz,wnz^2], ...
+    [1,2*n.pole_beta*wnp,wnp^2]),Ts)]; %#ok<AGROW>
 end
 hlpSos=experiment.controller.tustin_sos(Hlp,Ts);hiSos=experiment.controller.tustin_sos(Hi,Ts);
 packed=[lpPre;hlpSos;lpPost;p;iPre;hiSos;iPost;post];
@@ -225,22 +240,46 @@ u_return=min(1,max(0,(t-d.settle_time_s-d.move_time_s-d.dwell_time_s)/d.move_tim
 r=d.reference_amplitude_rad*(smoothstep7(u_forward)-smoothstep7(u_return));
 end
 
-function [present,values]=optional_filter(tuning,names)
-% All four fields of a filter or none; every value finite, real and positive.
-have=isfield(tuning,names);
-if ~any(have),present=false;values=zeros(1,4);return;end
-if ~all(have)
-  error("experiment:higs:invalidDesign","Filter tuning needs all of %s.",strjoin(names,", "));
+function record=check_design_constraint(d)
+% Gate the design plant's two separate sup-norms; ms100 is informational.
+record=d.constraint_record;
+if ~is_text(d.design_mode)||~any(string(d.design_mode)==["linear","both"]) || ...
+    ~isstruct(record)||~isscalar(record)|| ...
+    any(~isfield(record,["lambda","W_S","passed","per_frf"]))
+  error("experiment:higs:invalidConstraint","Design constraint record is missing required fields.");
 end
-values=zeros(1,4);
-for k=1:4
-  v=tuning.(names(k));
-  if ~(isnumeric(v)&&isreal(v)&&isscalar(v)&&isfinite(v)&&v>0)
-    error("experiment:higs:invalidDesign","tuning.%s must be a finite positive scalar.",names(k));
+lambda=0;if string(d.design_mode)=="both",lambda=.4;end
+if ~isequal(record.lambda,lambda)||~isequal(record.W_S,.5)|| ...
+    ~islogical(record.passed)||~isscalar(record.passed)|| ...
+    ~isstruct(record.per_frf)||~isscalar(record.per_frf)
+  error("experiment:higs:invalidConstraint","Constraint settings do not match the design method.");
+end
+if ~record.passed
+  error("experiment:higs:constraintFailed","The design's own DF constraint record fails.");
+end
+for name="design"
+  if ~isfield(record.per_frf,name)
+    error("experiment:higs:invalidConstraint","Constraint record is missing %s.",name);
   end
-  values(k)=v;
+  member=record.per_frf.(name);
+  names=["ws_norm","wa_sp_norm","sum","bandwidth_hz"];
+  if ~isstruct(member)||~isscalar(member)||any(~isfield(member,[names,"stable"]))
+    error("experiment:higs:invalidConstraint","Constraint record for %s is incomplete.",name);
+  end
+  for field=names
+    v=member.(field);
+    if ~(isnumeric(v)&&isreal(v)&&isscalar(v)&&isfinite(v)&&v>=0)
+      error("experiment:higs:invalidConstraint","Constraint %s.%s is invalid.",name,field);
+    end
+  end
+  if ~islogical(member.stable)||~isscalar(member.stable)|| ...
+      abs(member.sum-(member.ws_norm+lambda*member.wa_sp_norm))>1e-10
+    error("experiment:higs:invalidConstraint","Constraint norm sum for %s is inconsistent.",name);
+  end
+  if member.sum>1||~member.stable||member.bandwidth_hz<=0
+    error("experiment:higs:constraintFailed","DF constraint or Nyquist test fails for %s.",name);
+  end
 end
-present=true;
 end
 
 function y = smoothstep7(u)
