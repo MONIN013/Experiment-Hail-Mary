@@ -61,7 +61,7 @@ DriverAdapter は **ドライバ差異吸収層** である。現行の active �
 | `enableRelativePosition` | `BOOL` | - | 相対位置化の有効化 |
 
 > `ratedCurrentA <= 0` または `encoderResolution <= 0` の場合、そのチャネルの該当変換は 0 出力へ倒す。
-> 現行既定は `MADLT11BF + MHMF011L1A2` 相当で、Motor/Load とも `encoderResolution=8388608`、`ratedCurrentA=1.6`、`maxCurrentA=1.6` とする。
+> `ExperimentHailMary.tsproj` の現行値は ELM7211-0011＋AM8111 用で、Motor/Load とも `encoderResolution=1048576`、`ratedCurrentA` は Motor 2.71・Load 1.0、`maxCurrentA` は Motor 2.71・Load 1.0、Load の位置・速度符号は −1 である（根拠は [HigsExperiment](../operations/HigsExperiment.md) §11.1）。
 
 ### 3.3 `SafetyLimits`
 

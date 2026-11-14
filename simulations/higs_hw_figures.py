@@ -413,6 +413,28 @@ def fig8():
     save(fig, "fig8_summary.png")
 
 
+# ------------------------------------------------------------------ fig 9
+def fig9(su):
+    """Closed-loop |S| measured on hardware (multisine disturbance on dist_value, 2 rad/s ramp) vs the DF prediction."""
+    d = H.ROOT / "simulations/data/hardware16k/sensitivity"
+    fig, ax = plt.subplots(figsize=(7.2, 4.2))
+    for key, name in (("linear", "linear"), ("both", "both")):
+        m = sio.loadmat(d / f"S_sens_{name}.mat", squeeze_me=True)
+        ax.plot(m["f"], db(np.abs(m["Sx"])), "o", ms=2.5, color=COLOR[key], alpha=0.7, label=LABEL[key] + " measured")
+        f, L = su.loop(key, "ms030")
+        sel = (f >= 5) & (f <= 1000)
+        ax.plot(f[sel], db(1 / (1 + L[sel])), color=COLOR[key], lw=1.4, label=LABEL[key] + " DF prediction (0.30 A FRF)")
+    ax.axhline(db(2.0), color="#d6402a", lw=1.4)
+    ax.text(5.5, db(2.0) + 0.3, r"$|S|=2$", color="#d6402a", fontsize=10.5)
+    ax.set_xlabel("frequency [Hz]")
+    ax.set_ylabel("|S| [dB]")
+    ax.set_title("closed-loop sensitivity on hardware (0.05 A multisine disturbance, 2 rad/s)")
+    ax.legend(loc="lower right", fontsize=9)
+    logfreq(ax, 5, 1000)
+    fig.tight_layout()
+    save(fig, "fig9_measured_sensitivity.png")
+
+
 def main():
     Setup(DESIGN_FRF_DIR).check()
     su = Setup(FRF_DIR)
@@ -424,6 +446,7 @@ def main():
     fig6()
     fig7()
     fig8()
+    fig9(su)
 
 
 if __name__ == "__main__":
