@@ -178,6 +178,7 @@ VirtualMotor の予測・照合は `matlab/tests/` と Test 専用 `run_virtual_
 | `matlab/tools/run_full_vm_manifest_e2e.m` | Test 専用。事前凍結manifestに対する全入口・4層照合 |
 | `matlab/tools/refresh_live_script.m` | rich `.m` Live Scriptを構造保護しながら実行・保存 |
 | `matlab/tools/update_matlab_project.m` | Project APIによる登録・分類・ProjectPath同期 |
+| `matlab/tools/higs_bench/` | 実機ベンチ（16 kHz）の HIGS 試行・多重正弦同定・閉ループ感度測定の関数群。使い方は同フォルダの README.md |
 | `matlab/tools/run_ads_discovery_demo.m` | discovery 補助 |
 | `matlab/tools/run_check_logger_bin.m` | logger bin の直接検査 |
 | `matlab/tools/run_exp01_exp04_preflight.m` | exp01〜exp04 実行前の読み取り専用確認 |
