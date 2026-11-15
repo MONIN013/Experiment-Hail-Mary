@@ -520,6 +520,51 @@ HIGSの `a002m005`（trials_ff）、`r5m100`・`r5m050`（両セッション）�
 
 `a01m010` と `a10m010` の改善、`r5m050` の悪化が比較幅を超え、`a002m005` と `r5m100` の差は幅内だった。等速ランプ中の感度は、奇数励振線5–999 Hz、周期1 sの6周期から先頭周期を捨て、残り5周期のFFTの複素平均で $S=\overline{\mathrm{FFT}(current\_cmd)}/\overline{\mathrm{FFT}(dist\_value)}$ とした。最大 $|S|$ はlinear **2.15578（113 Hz）**、HIGS **2.08905（117 Hz）**。両方とも2を超えており、設計時のDF上の値と実測の閉ループ感度を区別する。
 
+### 11.3 図
+
+以下の図は、真のノッチを持つ現行設計と `trials_notch/` の比較である。Linearは青、HIGSは橙、参照とモデルは黒の細線で示す。時間波形とスペクトルはLinearの試行k=1、HIGSの試行k=2を使う。
+
+- [block_diagram](figures/higs16k/block_diagram.png)：実行した並列制御器と負荷位置フィードバックの構成。
+- [block_diagram_bode](figures/higs16k/block_diagram_bode.png)：各要素の振幅小図を添えた構成図で、色は制御器のパラメータ集合を表す。
+- [frf_magnitude](figures/higs16k/frf_magnitude.png)：停止時の各励振電流と走行中設計プラントのFRF振幅。
+- [frf_phase](figures/higs16k/frf_phase.png)：停止時の各励振電流と走行中設計プラントのFRF位相。
+- [higs_df_magnitude](figures/higs16k/higs_df_magnitude.png)：HIGS要素の記述関数と線形対応の振幅。
+- [higs_df_phase](figures/higs16k/higs_df_phase.png)：HIGS要素の記述関数と線形対応の位相。
+- [element_wi](figures/higs16k/element_wi.png)：両制御器の積分重みW_iの振幅。
+- [element_vi](figures/higs16k/element_vi.png)：両制御器の積分枝の後置フィルタV_iの振幅。
+- [element_vlp](figures/higs16k/element_vlp.png)：両制御器のLP枝の後置フィルタV_lpの振幅。
+- [element_notch](figures/higs16k/element_notch.png)：両制御器の線形ノッチC_nの振幅。
+- [loop_magnitude](figures/higs16k/loop_magnitude.png)：設計プラント上のDF開ループL=PCの振幅。
+- [loop_phase](figures/higs16k/loop_phase.png)：設計プラント上のDF開ループL=PCの位相。
+- [sensitivity_model](figures/higs16k/sensitivity_model.png)：設計プラント上の両制御器のDF感度振幅。
+- [sensitivity_linear](figures/higs16k/sensitivity_linear.png)：線形制御器のモデル感度と実測感度。
+- [sensitivity_higs](figures/higs16k/sensitivity_higs.png)：HIGS制御器のDFモデル感度と実測感度。
+- [a002m005_time](figures/higs16k/a002m005_time.png)：a002m005の参照位置、実測電動機電流、追従誤差。
+- [a002m005_error_spectrum](figures/higs16k/a002m005_error_spectrum.png)：a002m005の追従誤差ASD。
+- [a002m005_current_spectrum](figures/higs16k/a002m005_current_spectrum.png)：a002m005の実測電動機電流ASD。
+- [a002m005_error_cumrms](figures/higs16k/a002m005_error_cumrms.png)：a002m005の周波数に対する累積誤差RMS。
+- [a002m005_modes](figures/higs16k/a002m005_modes.png)：a002m005のHIGS試行における参照、誤差、LP・Iモード。
+- [a01m010_time](figures/higs16k/a01m010_time.png)：a01m010の参照位置、実測電動機電流、追従誤差。
+- [a01m010_error_spectrum](figures/higs16k/a01m010_error_spectrum.png)：a01m010の追従誤差ASD。
+- [a01m010_current_spectrum](figures/higs16k/a01m010_current_spectrum.png)：a01m010の実測電動機電流ASD。
+- [a01m010_error_cumrms](figures/higs16k/a01m010_error_cumrms.png)：a01m010の周波数に対する累積誤差RMS。
+- [a01m010_modes](figures/higs16k/a01m010_modes.png)：a01m010のHIGS試行における参照、誤差、LP・Iモード。
+- [a10m010_time](figures/higs16k/a10m010_time.png)：a10m010の参照位置、実測電動機電流、追従誤差。
+- [a10m010_error_spectrum](figures/higs16k/a10m010_error_spectrum.png)：a10m010の追従誤差ASD。
+- [a10m010_current_spectrum](figures/higs16k/a10m010_current_spectrum.png)：a10m010の実測電動機電流ASD。
+- [a10m010_error_cumrms](figures/higs16k/a10m010_error_cumrms.png)：a10m010の周波数に対する累積誤差RMS。
+- [a10m010_modes](figures/higs16k/a10m010_modes.png)：a10m010のHIGS試行における参照、誤差、LP・Iモード。
+- [r5m100_time](figures/higs16k/r5m100_time.png)：r5m100の参照位置、実測電動機電流、追従誤差。
+- [r5m100_error_spectrum](figures/higs16k/r5m100_error_spectrum.png)：r5m100の追従誤差ASD。
+- [r5m100_current_spectrum](figures/higs16k/r5m100_current_spectrum.png)：r5m100の実測電動機電流ASD。
+- [r5m100_error_cumrms](figures/higs16k/r5m100_error_cumrms.png)：r5m100の周波数に対する累積誤差RMS。
+- [r5m100_modes](figures/higs16k/r5m100_modes.png)：r5m100のHIGS試行における参照、誤差、LP・Iモード。
+- [r5m050_time](figures/higs16k/r5m050_time.png)：r5m050の参照位置、実測電動機電流、追従誤差。
+- [r5m050_error_spectrum](figures/higs16k/r5m050_error_spectrum.png)：r5m050の追従誤差ASD。
+- [r5m050_current_spectrum](figures/higs16k/r5m050_current_spectrum.png)：r5m050の実測電動機電流ASD。
+- [r5m050_error_cumrms](figures/higs16k/r5m050_error_cumrms.png)：r5m050の周波数に対する累積誤差RMS。
+- [r5m050_modes](figures/higs16k/r5m050_modes.png)：r5m050のHIGS試行における参照、誤差、LP・Iモード。
+
 ## 12. 走行中プラントと固定境界による帯域最大化
 
 `simulations/higs_book_design.py` は、走行中の単一設計プラントに対して線形とHIGSを独立に設計する。正本は `simulations/hardware/designs/book_design.json`、exp05読込用は `book_linear.json` と `book_both.json` である。この設計を最後の設計パスとし、目的は設計プラントのDF開ループの最初の0 dB交差 \(\omega_b\) の最大化とする。HIGSが優位になるような追加調整は行わない。以下はモデルによるオフライン評価である。
