@@ -522,48 +522,66 @@ HIGSの `a002m005`（trials_ff）、`r5m100`・`r5m050`（両セッション）�
 
 ### 11.3 図
 
-以下の図は、真のノッチを持つ現行設計と `trials_notch/` の比較である。Linearは青、HIGSは橙、参照とモデルは黒の細線で示す。時間波形とスペクトルはLinearの試行k=1、HIGSの試行k=2を使う。
+以下の図は、真のノッチを持つ現行設計と `trials_notch/` の比較である。制御器比較はLinearが青、HIGSが橙、参照とモデルが黒の細線である。要素比較は積分器とLPだけをLinear/HIGSで重ね、他の要素はHIGS設計の黒線で示す。Bode図は振幅を上、位相を下へ並べ、周波数軸を共有する。時間波形とスペクトルはLinearの試行k=1、HIGSの試行k=2を使う。モード図の縦軸はLP-HIGSとI-HIGSで、Integratorは積分、Gainはセクタ境界、Zeroは符号変化後の零出力を示す。共通14図と各軌道5図の計39図を保存する。
 
 - [block_diagram](figures/higs16k/block_diagram.png)：実行した並列制御器と負荷位置フィードバックの構成。
-- [block_diagram_bode](figures/higs16k/block_diagram_bode.png)：各要素の振幅小図を添えた構成図で、色は制御器のパラメータ集合を表す。
-- [frf_magnitude](figures/higs16k/frf_magnitude.png)：停止時の各励振電流と走行中設計プラントのFRF振幅。
-- [frf_phase](figures/higs16k/frf_phase.png)：停止時の各励振電流と走行中設計プラントのFRF位相。
-- [higs_df_magnitude](figures/higs16k/higs_df_magnitude.png)：HIGS要素の記述関数と線形対応の振幅。
-- [higs_df_phase](figures/higs16k/higs_df_phase.png)：HIGS要素の記述関数と線形対応の位相。
-- [element_wi](figures/higs16k/element_wi.png)：両制御器の積分重みW_iの振幅。
-- [element_vi](figures/higs16k/element_vi.png)：両制御器の積分枝の後置フィルタV_iの振幅。
-- [element_vlp](figures/higs16k/element_vlp.png)：両制御器のLP枝の後置フィルタV_lpの振幅。
-- [element_notch](figures/higs16k/element_notch.png)：両制御器の線形ノッチC_nの振幅。
-- [loop_magnitude](figures/higs16k/loop_magnitude.png)：設計プラント上のDF開ループL=PCの振幅。
-- [loop_phase](figures/higs16k/loop_phase.png)：設計プラント上のDF開ループL=PCの位相。
+- [block_diagram_bode](figures/higs16k/block_diagram_bode.png)：HIGS制御器の各要素を黒線で示す構成図。ブロック直下の小図は振幅が上、位相が下で、両HIGSはDF。
+- [frf_bode](figures/higs16k/frf_bode.png)：停止時の各励振電流と走行中設計プラントのFRF振幅・位相。
+- [higs_df_bode](figures/higs16k/higs_df_bode.png)：HIGS要素の記述関数と線形対応の振幅・位相。
+- [element_integrator_bode](figures/higs16k/element_integrator_bode.png)：HIGS設計のパラメータによる線形積分器とHIGS積分器DFの比較。
+- [element_lowpass_bode](figures/higs16k/element_lowpass_bode.png)：HIGS設計のパラメータによる線形LPとHIGSベースLPのDFの比較。
+- [element_wi_bode](figures/higs16k/element_wi_bode.png)：HIGS制御器の積分重みW_iの振幅・位相。
+- [element_vi_bode](figures/higs16k/element_vi_bode.png)：HIGS制御器の積分枝後置フィルタV_iの振幅・位相。
+- [element_vlp_bode](figures/higs16k/element_vlp_bode.png)：HIGS制御器のLP枝後置フィルタV_lpの振幅・位相。
+- [element_notch_bode](figures/higs16k/element_notch_bode.png)：HIGS制御器の線形ノッチC_nの振幅・位相。
+- [loop_bode](figures/higs16k/loop_bode.png)：設計プラント上の両制御器のDF開ループL=PCの振幅・位相。
 - [sensitivity_model](figures/higs16k/sensitivity_model.png)：設計プラント上の両制御器のDF感度振幅。
 - [sensitivity_linear](figures/higs16k/sensitivity_linear.png)：線形制御器のモデル感度と実測感度。
 - [sensitivity_higs](figures/higs16k/sensitivity_higs.png)：HIGS制御器のDFモデル感度と実測感度。
-- [a002m005_time](figures/higs16k/a002m005_time.png)：a002m005の参照位置、実測電動機電流、追従誤差。
-- [a002m005_error_spectrum](figures/higs16k/a002m005_error_spectrum.png)：a002m005の追従誤差ASD。
-- [a002m005_current_spectrum](figures/higs16k/a002m005_current_spectrum.png)：a002m005の実測電動機電流ASD。
-- [a002m005_error_cumrms](figures/higs16k/a002m005_error_cumrms.png)：a002m005の周波数に対する累積誤差RMS。
-- [a002m005_modes](figures/higs16k/a002m005_modes.png)：a002m005のHIGS試行における参照、誤差、LP・Iモード。
-- [a01m010_time](figures/higs16k/a01m010_time.png)：a01m010の参照位置、実測電動機電流、追従誤差。
-- [a01m010_error_spectrum](figures/higs16k/a01m010_error_spectrum.png)：a01m010の追従誤差ASD。
-- [a01m010_current_spectrum](figures/higs16k/a01m010_current_spectrum.png)：a01m010の実測電動機電流ASD。
-- [a01m010_error_cumrms](figures/higs16k/a01m010_error_cumrms.png)：a01m010の周波数に対する累積誤差RMS。
-- [a01m010_modes](figures/higs16k/a01m010_modes.png)：a01m010のHIGS試行における参照、誤差、LP・Iモード。
-- [a10m010_time](figures/higs16k/a10m010_time.png)：a10m010の参照位置、実測電動機電流、追従誤差。
-- [a10m010_error_spectrum](figures/higs16k/a10m010_error_spectrum.png)：a10m010の追従誤差ASD。
-- [a10m010_current_spectrum](figures/higs16k/a10m010_current_spectrum.png)：a10m010の実測電動機電流ASD。
-- [a10m010_error_cumrms](figures/higs16k/a10m010_error_cumrms.png)：a10m010の周波数に対する累積誤差RMS。
-- [a10m010_modes](figures/higs16k/a10m010_modes.png)：a10m010のHIGS試行における参照、誤差、LP・Iモード。
-- [r5m100_time](figures/higs16k/r5m100_time.png)：r5m100の参照位置、実測電動機電流、追従誤差。
-- [r5m100_error_spectrum](figures/higs16k/r5m100_error_spectrum.png)：r5m100の追従誤差ASD。
-- [r5m100_current_spectrum](figures/higs16k/r5m100_current_spectrum.png)：r5m100の実測電動機電流ASD。
-- [r5m100_error_cumrms](figures/higs16k/r5m100_error_cumrms.png)：r5m100の周波数に対する累積誤差RMS。
-- [r5m100_modes](figures/higs16k/r5m100_modes.png)：r5m100のHIGS試行における参照、誤差、LP・Iモード。
-- [r5m050_time](figures/higs16k/r5m050_time.png)：r5m050の参照位置、実測電動機電流、追従誤差。
-- [r5m050_error_spectrum](figures/higs16k/r5m050_error_spectrum.png)：r5m050の追従誤差ASD。
-- [r5m050_current_spectrum](figures/higs16k/r5m050_current_spectrum.png)：r5m050の実測電動機電流ASD。
-- [r5m050_error_cumrms](figures/higs16k/r5m050_error_cumrms.png)：r5m050の周波数に対する累積誤差RMS。
-- [r5m050_modes](figures/higs16k/r5m050_modes.png)：r5m050のHIGS試行における参照、誤差、LP・Iモード。
+
+`a002m005/`（5図）
+
+- [a002m005/time](figures/higs16k/a002m005/time.png)：参照位置、実測電動機電流、追従誤差。
+- [a002m005/error_spectrum](figures/higs16k/a002m005/error_spectrum.png)：追従誤差ASD。
+- [a002m005/current_spectrum](figures/higs16k/a002m005/current_spectrum.png)：実測電動機電流ASD。
+- [a002m005/error_cumrms](figures/higs16k/a002m005/error_cumrms.png)：周波数に対する累積誤差RMS。
+- [a002m005/modes](figures/higs16k/a002m005/modes.png)：HIGS試行における参照、誤差、LP-HIGS・I-HIGSモード。
+
+
+`a01m010/`（5図）
+
+- [a01m010/time](figures/higs16k/a01m010/time.png)：参照位置、実測電動機電流、追従誤差。
+- [a01m010/error_spectrum](figures/higs16k/a01m010/error_spectrum.png)：追従誤差ASD。
+- [a01m010/current_spectrum](figures/higs16k/a01m010/current_spectrum.png)：実測電動機電流ASD。
+- [a01m010/error_cumrms](figures/higs16k/a01m010/error_cumrms.png)：周波数に対する累積誤差RMS。
+- [a01m010/modes](figures/higs16k/a01m010/modes.png)：HIGS試行における参照、誤差、LP-HIGS・I-HIGSモード。
+
+
+`a10m010/`（5図）
+
+- [a10m010/time](figures/higs16k/a10m010/time.png)：参照位置、実測電動機電流、追従誤差。
+- [a10m010/error_spectrum](figures/higs16k/a10m010/error_spectrum.png)：追従誤差ASD。
+- [a10m010/current_spectrum](figures/higs16k/a10m010/current_spectrum.png)：実測電動機電流ASD。
+- [a10m010/error_cumrms](figures/higs16k/a10m010/error_cumrms.png)：周波数に対する累積誤差RMS。
+- [a10m010/modes](figures/higs16k/a10m010/modes.png)：HIGS試行における参照、誤差、LP-HIGS・I-HIGSモード。
+
+
+`r5m100/`（5図）
+
+- [r5m100/time](figures/higs16k/r5m100/time.png)：参照位置、実測電動機電流、追従誤差。
+- [r5m100/error_spectrum](figures/higs16k/r5m100/error_spectrum.png)：追従誤差ASD。
+- [r5m100/current_spectrum](figures/higs16k/r5m100/current_spectrum.png)：実測電動機電流ASD。
+- [r5m100/error_cumrms](figures/higs16k/r5m100/error_cumrms.png)：周波数に対する累積誤差RMS。
+- [r5m100/modes](figures/higs16k/r5m100/modes.png)：HIGS試行における参照、誤差、LP-HIGS・I-HIGSモード。
+
+
+`r5m050/`（5図）
+
+- [r5m050/time](figures/higs16k/r5m050/time.png)：参照位置、実測電動機電流、追従誤差。
+- [r5m050/error_spectrum](figures/higs16k/r5m050/error_spectrum.png)：追従誤差ASD。
+- [r5m050/current_spectrum](figures/higs16k/r5m050/current_spectrum.png)：実測電動機電流ASD。
+- [r5m050/error_cumrms](figures/higs16k/r5m050/error_cumrms.png)：周波数に対する累積誤差RMS。
+- [r5m050/modes](figures/higs16k/r5m050/modes.png)：HIGS試行における参照、誤差、LP-HIGS・I-HIGSモード。
 
 ## 12. 走行中プラントと固定境界による帯域最大化
 
