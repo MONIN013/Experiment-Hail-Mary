@@ -1,25 +1,25 @@
 {
   "tuning": {
-    "kp": 12.424719247837313,
-    "integral_hz": 17.448065646226553,
-    "lead_zero_hz": 15.844357932533258,
+    "kp": 3.2420901451403847,
+    "integral_hz": 14.529961770702112,
+    "lead_zero_hz": 12.896630884751676,
     "lead_pole_hz": 4000.0,
-    "lowpass_hz": 202.69543934993254,
-    "lowpass_beta": 0.9947565333347654,
+    "lowpass_hz": 161.7710542130298,
+    "lowpass_beta": 0.9637065855455414,
     "higs_lp_corner_hz": 242.8489779909349,
     "higs_i_corner_hz": 32.379863732124655,
     "higs_lp_gain": 1.0,
     "higs_i_gain": 1.0,
-    "wi_pole_hz": 17.448065646226553,
-    "wi_zero_hz": 17.448065646226553,
+    "wi_pole_hz": 14.529961770702112,
+    "wi_zero_hz": 14.529961770702112,
     "wi_pole_beta": 1.0,
     "wi_zero_beta": 1.0,
     "notches": [
       {
-        "zero_hz": 308.654725982939,
-        "pole_hz": 493.84756157270243,
-        "zero_beta": 0.12237833971886693,
-        "pole_beta": 0.2512938522495186
+        "zero_hz": 306.28659704761077,
+        "pole_hz": 306.28659704761077,
+        "zero_beta": 0.08805412499555397,
+        "pole_beta": 0.20274648158528763
       }
     ]
   },
@@ -29,21 +29,21 @@
     "passed": true,
     "per_frf": {
       "design": {
-        "ws_norm": 0.9999999999423644,
+        "ws_norm": 0.9978093737591601,
         "wa_sp_norm": 0.0,
-        "sum": 0.9999999999423644,
-        "max_abs_s": 1.9999999998847289,
-        "ws_peak_hz": 133.0,
+        "sum": 0.9978093737591601,
+        "max_abs_s": 1.9956187475183202,
+        "ws_peak_hz": 105.0,
         "wa_sp_peak_hz": 0.1,
-        "bandwidth_hz": 52.27002079366109,
+        "bandwidth_hz": 40.999999999871676,
         "stable": true,
         "nyquist": {
           "stable": true,
           "winding": 0,
-          "start_phase_deg": -191.39812512970786,
-          "end_phase_deg": -0.0013782591870176097,
-          "end_loop_magnitude": 2.7897029309722673e-05,
-          "min_distance_to_minus_one": 0.5000000000288177
+          "start_phase_deg": -191.3472022193541,
+          "end_phase_deg": -0.00028496962914512677,
+          "end_loop_magnitude": 5.685786899294874e-06,
+          "min_distance_to_minus_one": 0.5010977178098595
         }
       }
     },
@@ -51,7 +51,7 @@
       "passed": true,
       "parameters": {
         "integral_to_bandwidth": {
-          "value": 0.3338063651266525,
+          "value": 0.3543893114816485,
           "range": [
             0.3333333333333333,
             0.5
@@ -59,7 +59,7 @@
           "active": false
         },
         "lead_zero_to_bandwidth": {
-          "value": 0.3031251507452,
+          "value": 0.3145519727998059,
           "range": [
             0.3,
             1.0
@@ -67,7 +67,7 @@
           "active": false
         },
         "lowpass_to_bandwidth": {
-          "value": 3.8778526633858523,
+          "value": 3.9456354686228323,
           "range": [
             2.0,
             4.0
@@ -75,7 +75,7 @@
           "active": false
         },
         "lowpass_beta": {
-          "value": 0.9947565333347654,
+          "value": 0.9637065855455414,
           "range": [
             0.1,
             1.0
@@ -106,8 +106,8 @@
     },
     "separation": {
       "bandwidth_member": "design",
-      "integral_to_bandwidth": 0.3338063651266525,
-      "lowpass_to_bandwidth": 3.8778526633858523,
+      "integral_to_bandwidth": 0.3543893114816485,
+      "lowpass_to_bandwidth": 3.9456354686228323,
       "higs_lp_to_bandwidth": null,
       "passed": true
     },
@@ -132,61 +132,91 @@
         {
           "measured_member": "design",
           "peak_hz": 313.0,
-          "zero_hz": 308.654725982939,
-          "pole_to_zero": 1.6,
-          "zero_beta": 0.12237833971886693,
-          "pole_beta": 0.2512938522495186,
-          "gain_at_zero": 0.1394575903870391,
-          "gain_at_zero_db": -17.111156860157244,
-          "max_gain": 1.4331836777694293,
-          "max_gain_db": 3.126037068655746,
+          "zero_hz": 306.28659704761077,
+          "pole_to_zero": 1.0,
+          "zero_beta": 0.08805412499555397,
+          "pole_beta": 0.20274648158528763,
+          "gain_at_zero": 0.4343065502644148,
+          "gain_at_zero_db": -7.244072410119551,
+          "max_gain": 1.0,
+          "max_gain_db": 0.0,
+          "gain_at_peak": 0.44474478435124143,
+          "gain_at_peak_db": -7.037782726185176,
+          "gain_at_peak_loaded": 0.44596163926538557,
+          "gain_at_peak_loaded_db": -7.014049936603266,
+          "parameters": {
+            "frequency_to_peak": {
+              "value": 0.978551428267127,
+              "range": [
+                0.95,
+                1.05
+              ],
+              "active": false
+            },
+            "zero_beta": {
+              "value": 0.08805412499555397,
+              "range": [
+                0.005,
+                0.10137324079264382
+              ],
+              "active": false
+            },
+            "pole_beta": {
+              "value": 0.20274648158528763,
+              "range": [
+                0.2,
+                1.0
+              ],
+              "active": false
+            }
+          },
           "passed": true
         }
       ],
-      "rule": "One notch at measured313Hz mode within5percent; pole/zero .97..1.6; beta_z .005...3; 2beta_z<=beta_p<=1; at_zero<=-6dB; continuous-frequency max<=+6dB"
+      "rule": "One true notch per limiting resonance; shared zero/pole frequency within5percent of measured peak; beta_p .2..1; beta_z .005..beta_p/2; at centre and measured peak (continuous and loaded Tustin)<=-6dB; exact continuous-frequency max=0dB"
     },
     "informational_ms100": {
-      "ws_norm": 1.2597363868129203,
+      "ws_norm": 1.3214745987218854,
       "wa_sp_norm": 0.0,
-      "sum": 1.2597363868129203,
-      "max_abs_s": 2.5194727736258407,
+      "sum": 1.3214745987218854,
+      "max_abs_s": 2.642949197443771,
       "ws_peak_hz": 101.0,
       "wa_sp_peak_hz": 5.0,
-      "bandwidth_hz": 30.294968621693112,
+      "bandwidth_hz": 29.152745147284563,
       "stable": true,
       "nyquist": {
         "stable": true,
         "winding": 0,
-        "start_phase_deg": -125.03568982421692,
-        "end_phase_deg": -0.001378259187013925,
-        "end_loop_magnitude": 2.7897029309722673e-05,
-        "min_distance_to_minus_one": 0.3969084367444357
+        "start_phase_deg": -117.34466972537582,
+        "end_phase_deg": -0.00028496962914930675,
+        "end_loop_magnitude": 5.685786899294874e-06,
+        "min_distance_to_minus_one": 0.37836519936409974
       }
     },
     "case_b_current": {
       "passed": true,
-      "command_peak_a": 0.8498491363628603,
+      "command_peak_a": 0.8316328540288582,
       "limit_a": 2.71,
       "per_trajectory_peak_a": {
-        "r5m100": 0.15726256077877013,
-        "a002m005": 0.8498491363628603,
-        "a01m010": 0.15356267976986637,
-        "a10m010": 0.19932843496027586,
-        "r5m050": 0.24939217349572762
+        "r5m100": 0.15724831059977315,
+        "a002m005": 0.8316328540288582,
+        "a01m010": 0.151721518092539,
+        "a10m010": 0.20846166669237937,
+        "r5m050": 0.24940306064444223
       },
       "friction_substeps": 256,
       "interpretation": "Existing case-b non-saturation condition; reject on first clipped trajectory"
     },
     "noise": {
-      "command_ac_rms_a": 0.00043694352054244104,
+      "command_ac_rms_a": 0.0002657027013513173,
       "limit_a": 0.01,
       "passed": true,
       "interpretation": "40 demeaned standstill segments; .2s head exclusion; last of5 periodic cycles; sample-pooled AC RMS"
     }
   },
   "search": {
-    "objective": "maximise first composite-design-plant DF crossover under all fixed E4 bounds, separate sup norms, noise and case-b non-saturation",
-    "seed": 1001,
+    "objective": "maximise first composite-design-plant DF crossover under fixed adopted bounds and the true-notch rule, separate sup norms, noise and case-b non-saturation",
+    "seed": 1004,
     "bounds_log": [
       [
         0.0,
@@ -213,30 +243,16 @@
         0.04879016416943204
       ],
       [
-        -0.030459207484708574,
-        0.47000362924573563
-      ],
-      [
-        -5.298317366548036,
-        -1.2039728043259361
+        -1.6094379124341003,
+        0.0
       ],
       [
         0.0,
         0.6931471805599453
       ]
     ],
-    "evaluations": 7355,
-    "initial_vector_log": [
-      4.01725099176255,
-      -1.0966176024697405,
-      -1.2039728043259361,
-      1.3118687308027437,
-      0.0,
-      -0.006410278360919054,
-      0.4571953684953139,
-      -1.2059887487127532,
-      0.0
-    ],
+    "evaluations": 6214,
+    "initial_vector_log": null,
     "search_windows_are_not_acceptance_constraints": true,
     "variable_order": [
       "target_bandwidth_hz",
@@ -244,12 +260,11 @@
       "lead_zero_to_target_bandwidth",
       "lowpass_to_target_bandwidth",
       "lowpass_beta",
-      "notch_0_zero_to_peak",
-      "notch_0_pole_to_zero",
-      "notch_0_zero_beta",
-      "notch_0_pole_beta_fraction_plus_one"
+      "notch_0_frequency_to_peak",
+      "notch_0_pole_beta",
+      "notch_0_depth_fraction_plus_one"
     ],
-    "elapsed_s": 183.69421935081482,
+    "elapsed_s": 135.69727849960327,
     "global_optimality_proved": false,
     "notch_count": 1,
     "maxiter": 90,
@@ -261,8 +276,8 @@
       "fatol": 1e-07
     },
     "direct_df_gain_polish": {
-      "kp_before": 12.418592837986326,
-      "kp_after": 12.424719247837313,
+      "kp_before": 3.2420901451403847,
+      "kp_after": 3.2420901451403847,
       "interval_scale": [
         0.85,
         1.08
@@ -283,142 +298,137 @@
     ],
     "top_start_rule": "Up to best four feasible independent endpoints after direct DF, Wi=1 bandwidth-search condition, measured noise, and all five case-b non-saturation checks; declared before search",
     "top_feasible_spread_hz": [
-      51.91243771871073,
-      52.27002079366109
+      38.69841058409018,
+      40.999999999871676
     ],
     "all_start_results": [
       {
         "start": 0,
         "seed": 1001,
         "feasible": true,
-        "bandwidth_hz": 52.27002079366109,
-        "command_peak_a": 0.8498491363628603,
-        "noise_rms_a": 0.00043694352054244104
+        "bandwidth_hz": 38.69841058409018,
+        "command_peak_a": 0.8229463877247785,
+        "noise_rms_a": 0.00022543916918439967
       },
       {
         "start": 1,
         "seed": 1002,
         "feasible": true,
-        "bandwidth_hz": 51.75382836811719,
-        "command_peak_a": 0.8454288795668662,
-        "noise_rms_a": 0.0004158481164527312
+        "bandwidth_hz": 40.99999999713632,
+        "command_peak_a": 0.8283171489247967,
+        "noise_rms_a": 0.00024843748948096927
       },
       {
         "start": 2,
         "seed": 1003,
         "feasible": true,
-        "bandwidth_hz": 48.99999999999323,
-        "command_peak_a": 0.8488173190619894,
-        "noise_rms_a": 0.00043472180994757304
+        "bandwidth_hz": 34.99999999992049,
+        "command_peak_a": 0.8192934814898999,
+        "noise_rms_a": 0.00020340719303323614
       },
       {
         "start": 3,
         "seed": 1004,
         "feasible": true,
-        "bandwidth_hz": 52.07022635696614,
-        "command_peak_a": 0.8459401530681789,
-        "noise_rms_a": 0.0004496312773011062
+        "bandwidth_hz": 40.999999999871676,
+        "command_peak_a": 0.8316328540288582,
+        "noise_rms_a": 0.0002657027013513173
       },
       {
         "start": 4,
         "seed": 1005,
         "feasible": true,
-        "bandwidth_hz": 48.999999999999886,
-        "command_peak_a": 0.8467666161488351,
-        "noise_rms_a": 0.00036666117198387094
+        "bandwidth_hz": 40.99999999967402,
+        "command_peak_a": 0.8307172692978031,
+        "noise_rms_a": 0.0002627176273479986
       },
       {
         "start": 5,
         "seed": 1006,
         "feasible": true,
-        "bandwidth_hz": 48.999999999156124,
-        "command_peak_a": 0.8437296867962589,
-        "noise_rms_a": 0.00040326920646051865
+        "bandwidth_hz": 34.99999999893123,
+        "command_peak_a": 0.8246643477448432,
+        "noise_rms_a": 0.00023046981652146792
       },
       {
         "start": 6,
         "seed": 1007,
         "feasible": true,
-        "bandwidth_hz": 51.91243771871073,
-        "command_peak_a": 0.8539886458265096,
-        "noise_rms_a": 0.000449197469290582
+        "bandwidth_hz": 34.99999999996782,
+        "command_peak_a": 0.8184941747183512,
+        "noise_rms_a": 0.00020512358473614534
       },
       {
         "start": 7,
         "seed": 1008,
         "feasible": true,
-        "bandwidth_hz": 52.04659951268888,
-        "command_peak_a": 0.8479429512132233,
-        "noise_rms_a": 0.000404785955706831
+        "bandwidth_hz": 34.999999999421306,
+        "command_peak_a": 0.8181942603132176,
+        "noise_rms_a": 0.00019642860549110803
       }
-    ],
-    "all_feasible_spread_hz": [
-      48.999999999156124,
-      52.27002079366109
     ],
     "start_endpoints": [
       {
         "tuning": {
-          "kp": 12.424719247837313,
-          "integral_hz": 17.448065646226553,
-          "lead_zero_hz": 15.844357932533258,
+          "kp": 3.0737140732409967,
+          "integral_hz": 13.618522899706587,
+          "lead_zero_hz": 12.428928080285653,
           "lead_pole_hz": 4000.0,
-          "lowpass_hz": 202.69543934993254,
-          "lowpass_beta": 0.9947565333347654,
+          "lowpass_hz": 128.18888774214616,
+          "lowpass_beta": 0.9826453222972027,
           "higs_lp_corner_hz": 242.8489779909349,
           "higs_i_corner_hz": 32.379863732124655,
           "higs_lp_gain": 1.0,
           "higs_i_gain": 1.0,
-          "wi_pole_hz": 17.448065646226553,
-          "wi_zero_hz": 17.448065646226553,
+          "wi_pole_hz": 13.618522899706587,
+          "wi_zero_hz": 13.618522899706587,
           "wi_pole_beta": 1.0,
           "wi_zero_beta": 1.0,
           "notches": [
             {
-              "zero_hz": 308.654725982939,
-              "pole_hz": 493.84756157270243,
-              "zero_beta": 0.12237833971886693,
-              "pole_beta": 0.2512938522495186
+              "zero_hz": 317.2498887884564,
+              "pole_hz": 317.2498887884564,
+              "zero_beta": 0.06971151362308287,
+              "pole_beta": 0.20042030247251572
             }
           ]
         },
         "search": {
           "seed": 1001,
           "initial_vector_log": [
-            4.01725099176255,
-            -1.0966176024697405,
-            -1.2039728043259361,
-            1.3118687308027437,
-            0.0,
-            -0.006410278360919054,
-            0.4571953684953139,
-            -1.2059887487127532,
-            0.0
+            3.956422990537284,
+            -1.0971941992524072,
+            -1.1936095199867605,
+            1.3552815631605597,
+            -0.005257261880868664,
+            -0.013979930030856626,
+            -1.3811322985220504,
+            0.6795085129205719
           ]
         }
       },
       {
         "tuning": {
-          "kp": 10.57399108064324,
-          "integral_hz": 17.645120793219817,
-          "lead_zero_hz": 15.60207368094728,
+          "kp": 3.1282356953922577,
+          "integral_hz": 13.711310199283695,
+          "lead_zero_hz": 12.394855208578955,
           "lead_pole_hz": 4000.0,
-          "lowpass_hz": 189.38048949386078,
-          "lowpass_beta": 0.9094419808092141,
+          "lowpass_hz": 160.78290415337995,
+          "lowpass_beta": 0.9982332283835276,
           "higs_lp_corner_hz": 242.8489779909349,
           "higs_i_corner_hz": 32.379863732124655,
           "higs_lp_gain": 1.0,
           "higs_i_gain": 1.0,
-          "wi_pole_hz": 17.645120793219817,
-          "wi_zero_hz": 17.645120793219817,
+          "wi_pole_hz": 13.711310199283695,
+          "wi_zero_hz": 13.711310199283695,
           "wi_pole_beta": 1.0,
           "wi_zero_beta": 1.0,
           "notches": [
             {
-              "zero_hz": 314.33845239469576,
-              "pole_hz": 482.1801167521991,
-              "zero_beta": 0.06341740768514335,
-              "pole_beta": 0.1820202261342958
+              "zero_hz": 321.80398352830986,
+              "pole_hz": 321.80398352830986,
+              "zero_beta": 0.15304580020904396,
+              "pole_beta": 0.3263625971947565
             }
           ]
         },
@@ -429,26 +439,26 @@
       },
       {
         "tuning": {
-          "kp": 11.78743026153256,
-          "integral_hz": 16.337310235535305,
-          "lead_zero_hz": 17.36244474999639,
+          "kp": 2.7569757233919976,
+          "integral_hz": 12.41707571788074,
+          "lead_zero_hz": 11.435424225880837,
           "lead_pole_hz": 4000.0,
-          "lowpass_hz": 189.72045344812932,
-          "lowpass_beta": 0.9083596554025846,
+          "lowpass_hz": 124.80154387963496,
+          "lowpass_beta": 0.9692385994570755,
           "higs_lp_corner_hz": 242.8489779909349,
           "higs_i_corner_hz": 32.379863732124655,
           "higs_lp_gain": 1.0,
           "higs_i_gain": 1.0,
-          "wi_pole_hz": 16.337310235535305,
-          "wi_zero_hz": 16.337310235535305,
+          "wi_pole_hz": 12.41707571788074,
+          "wi_zero_hz": 12.41707571788074,
           "wi_pole_beta": 1.0,
           "wi_zero_beta": 1.0,
           "notches": [
             {
-              "zero_hz": 302.82766400185733,
-              "pole_hz": 469.66528072795995,
-              "zero_beta": 0.06469581649298055,
-              "pole_beta": 0.16822196301228706
+              "zero_hz": 308.23438061759816,
+              "pole_hz": 308.23438061759816,
+              "zero_beta": 0.09607183580051598,
+              "pole_beta": 0.21723761453715895
             }
           ]
         },
@@ -459,26 +469,26 @@
       },
       {
         "tuning": {
-          "kp": 10.36160747913676,
-          "integral_hz": 17.382540608920866,
-          "lead_zero_hz": 15.647971336006822,
+          "kp": 3.2420901451403847,
+          "integral_hz": 14.529961770702112,
+          "lead_zero_hz": 12.896630884751676,
           "lead_pole_hz": 4000.0,
-          "lowpass_hz": 193.95686311947222,
-          "lowpass_beta": 0.9633130148682973,
+          "lowpass_hz": 161.7710542130298,
+          "lowpass_beta": 0.9637065855455414,
           "higs_lp_corner_hz": 242.8489779909349,
           "higs_i_corner_hz": 32.379863732124655,
           "higs_lp_gain": 1.0,
           "higs_i_gain": 1.0,
-          "wi_pole_hz": 17.382540608920866,
-          "wi_zero_hz": 17.382540608920866,
+          "wi_pole_hz": 14.529961770702112,
+          "wi_zero_hz": 14.529961770702112,
           "wi_pole_beta": 1.0,
           "wi_zero_beta": 1.0,
           "notches": [
             {
-              "zero_hz": 307.63062424208016,
-              "pole_hz": 457.551684695222,
-              "zero_beta": 0.06575121094590461,
-              "pole_beta": 0.15151868754700573
+              "zero_hz": 306.28659704761077,
+              "pole_hz": 306.28659704761077,
+              "zero_beta": 0.08805412499555397,
+              "pole_beta": 0.20274648158528763
             }
           ]
         },
@@ -489,26 +499,26 @@
       },
       {
         "tuning": {
-          "kp": 9.571773434400706,
-          "integral_hz": 16.477092000889087,
-          "lead_zero_hz": 15.207304298490905,
+          "kp": 3.188673570509496,
+          "integral_hz": 14.636725683562613,
+          "lead_zero_hz": 12.638787109581436,
           "lead_pole_hz": 4000.0,
-          "lowpass_hz": 194.05883387374985,
-          "lowpass_beta": 0.9281675197676568,
+          "lowpass_hz": 159.07075991045394,
+          "lowpass_beta": 0.9679828959587707,
           "higs_lp_corner_hz": 242.8489779909349,
           "higs_i_corner_hz": 32.379863732124655,
           "higs_lp_gain": 1.0,
           "higs_i_gain": 1.0,
-          "wi_pole_hz": 16.477092000889087,
-          "wi_zero_hz": 16.477092000889087,
+          "wi_pole_hz": 14.636725683562613,
+          "wi_zero_hz": 14.636725683562613,
           "wi_pole_beta": 1.0,
           "wi_zero_beta": 1.0,
           "notches": [
             {
-              "zero_hz": 328.3233398749326,
-              "pole_hz": 489.6275313364921,
-              "zero_beta": 0.16384070529426745,
-              "pole_beta": 0.34619363329737146
+              "zero_hz": 312.0377057393252,
+              "pole_hz": 312.0377057393252,
+              "zero_beta": 0.09132101466175406,
+              "pole_beta": 0.20694457214099207
             }
           ]
         },
@@ -519,26 +529,26 @@
       },
       {
         "tuning": {
-          "kp": 6.086613277687631,
-          "integral_hz": 17.853394769041294,
-          "lead_zero_hz": 14.710699568800544,
+          "kp": 3.516717029150394,
+          "integral_hz": 11.920770326752033,
+          "lead_zero_hz": 15.002724366670666,
           "lead_pole_hz": 4000.0,
-          "lowpass_hz": 195.99756833230458,
-          "lowpass_beta": 0.9891483277532824,
+          "lowpass_hz": 135.67356667435604,
+          "lowpass_beta": 0.9503669022400596,
           "higs_lp_corner_hz": 242.8489779909349,
           "higs_i_corner_hz": 32.379863732124655,
           "higs_lp_gain": 1.0,
           "higs_i_gain": 1.0,
-          "wi_pole_hz": 17.853394769041294,
-          "wi_zero_hz": 17.853394769041294,
+          "wi_pole_hz": 11.920770326752033,
+          "wi_zero_hz": 11.920770326752033,
           "wi_pole_beta": 1.0,
           "wi_zero_beta": 1.0,
           "notches": [
             {
-              "zero_hz": 312.83748098470267,
-              "pole_hz": 375.39977170089287,
-              "zero_beta": 0.03159258813813428,
-              "pole_beta": 0.1098201848889018
+              "zero_hz": 313.442821038377,
+              "pole_hz": 313.442821038377,
+              "zero_beta": 0.07374611783668877,
+              "pole_beta": 0.2376871478924945
             }
           ]
         },
@@ -549,26 +559,26 @@
       },
       {
         "tuning": {
-          "kp": 14.027180276299521,
-          "integral_hz": 17.3292764391841,
-          "lead_zero_hz": 18.79845322541696,
+          "kp": 2.531932580673411,
+          "integral_hz": 12.948981340952026,
+          "lead_zero_hz": 10.550542239487559,
           "lead_pole_hz": 4000.0,
-          "lowpass_hz": 196.36557539174902,
-          "lowpass_beta": 0.916858231076756,
+          "lowpass_hz": 134.8798288406124,
+          "lowpass_beta": 0.9699050660104389,
           "higs_lp_corner_hz": 242.8489779909349,
           "higs_i_corner_hz": 32.379863732124655,
           "higs_lp_gain": 1.0,
           "higs_i_gain": 1.0,
-          "wi_pole_hz": 17.3292764391841,
-          "wi_zero_hz": 17.3292764391841,
+          "wi_pole_hz": 12.948981340952026,
+          "wi_zero_hz": 12.948981340952026,
           "wi_pole_beta": 1.0,
           "wi_zero_beta": 1.0,
           "notches": [
             {
-              "zero_hz": 302.870927482069,
-              "pole_hz": 484.59348397131026,
-              "zero_beta": 0.21547054148776168,
-              "pole_beta": 0.4320333664511738
+              "zero_hz": 323.04375353328606,
+              "pole_hz": 323.04375353328606,
+              "zero_beta": 0.0544389820846729,
+              "pole_beta": 0.22232109448282286
             }
           ]
         },
@@ -579,26 +589,26 @@
       },
       {
         "tuning": {
-          "kp": 11.286914458974378,
-          "integral_hz": 17.374401279717716,
-          "lead_zero_hz": 15.63848730142794,
+          "kp": 2.6921742476273014,
+          "integral_hz": 11.675160592361786,
+          "lead_zero_hz": 11.2047863243439,
           "lead_pole_hz": 4000.0,
-          "lowpass_hz": 197.80156015212881,
-          "lowpass_beta": 0.9522160411607654,
+          "lowpass_hz": 125.71271977096927,
+          "lowpass_beta": 0.9842909540683649,
           "higs_lp_corner_hz": 242.8489779909349,
           "higs_i_corner_hz": 32.379863732124655,
           "higs_lp_gain": 1.0,
           "higs_i_gain": 1.0,
-          "wi_pole_hz": 17.374401279717716,
-          "wi_zero_hz": 17.374401279717716,
+          "wi_pole_hz": 11.675160592361786,
+          "wi_zero_hz": 11.675160592361786,
           "wi_pole_beta": 1.0,
           "wi_zero_beta": 1.0,
           "notches": [
             {
-              "zero_hz": 306.0387189883656,
-              "pole_hz": 476.2715738889299,
-              "zero_beta": 0.16559907280001726,
-              "pole_beta": 0.3758286500641187
+              "zero_hz": 320.3862273726789,
+              "pole_hz": 320.3862273726789,
+              "zero_beta": 0.10096568446647042,
+              "pole_beta": 0.24451715666785026
             }
           ]
         },
@@ -607,6 +617,10 @@
           "initial_vector_log": null
         }
       }
+    ],
+    "all_feasible_spread_hz": [
+      34.99999999893123,
+      40.999999999871676
     ],
     "convergence_wi_identity": true
   },
@@ -617,14 +631,14 @@
         "reference_trial": "a002m005_1_linear",
         "source_sha256": "ddfc1bc80cb43c53810b12f3099659f795302174e70761d32f1be41161298ba7",
         "samples": 16161,
-        "error_rms_rad": 0.00042617621692865154,
-        "error_peak_rad": 0.006001848708782731,
-        "error_le_20hz_rms_rad": 8.763800551258239e-05,
-        "command_peak_a": 0.8498491363628603,
-        "command_hf_gt_1000hz_rms_a": 0.0007759819829093341,
-        "applied_peak_a": 0.8498491363628603,
-        "applied_hf_gt_1000hz_rms_a": 0.0007759819829093341,
-        "twist_200_400hz_rms_rad": 0.0004562713600056429,
+        "error_rms_rad": 0.0009577878972561846,
+        "error_peak_rad": 0.005423376362262728,
+        "error_le_20hz_rms_rad": 0.0008688722804012874,
+        "command_peak_a": 0.8316328540288582,
+        "command_hf_gt_1000hz_rms_a": 0.0010202497187789834,
+        "applied_peak_a": 0.8316328540288582,
+        "applied_hf_gt_1000hz_rms_a": 0.0010202497187789834,
+        "twist_200_400hz_rms_rad": 0.00041483803341801765,
         "clipped_samples": 0,
         "exceeds_2_71_a": false,
         "metric_interval": "entire logged reference; rectangular DFT including edges",
@@ -635,14 +649,14 @@
         "reference_trial": "a01m010_1_linear",
         "source_sha256": "23e9e7846ab529158cf754657468f2ec05ae2fc35d3e5dd6cb610f43a9681384",
         "samples": 19201,
-        "error_rms_rad": 0.001707195704296988,
-        "error_peak_rad": 0.009738307152269823,
-        "error_le_20hz_rms_rad": 0.001581647055601851,
-        "command_peak_a": 0.15356267976986637,
-        "command_hf_gt_1000hz_rms_a": 0.0003720290387378089,
-        "applied_peak_a": 0.15356267976986637,
-        "applied_hf_gt_1000hz_rms_a": 0.0003720290387378089,
-        "twist_200_400hz_rms_rad": 6.070179885559828e-06,
+        "error_rms_rad": 0.0028064306188305753,
+        "error_peak_rad": 0.012401942508794395,
+        "error_le_20hz_rms_rad": 0.002710603608064942,
+        "command_peak_a": 0.151721518092539,
+        "command_hf_gt_1000hz_rms_a": 0.00041210336945621213,
+        "applied_peak_a": 0.151721518092539,
+        "applied_hf_gt_1000hz_rms_a": 0.00041210336945621213,
+        "twist_200_400hz_rms_rad": 2.9474487128239746e-06,
         "clipped_samples": 0,
         "exceeds_2_71_a": false,
         "metric_interval": "entire logged reference; rectangular DFT including edges",
@@ -653,14 +667,14 @@
         "reference_trial": "a10m010_1_linear",
         "source_sha256": "aa72ffcf6834c5f71baed3ba029e17ff0cc91420f6dad1230e456778f2582d1e",
         "samples": 19201,
-        "error_rms_rad": 0.0022453895634366445,
-        "error_peak_rad": 0.00669084076410853,
-        "error_le_20hz_rms_rad": 0.0021830180017704294,
-        "command_peak_a": 0.19932843496027586,
-        "command_hf_gt_1000hz_rms_a": 0.0006607568693730525,
-        "applied_peak_a": 0.19932843496027586,
-        "applied_hf_gt_1000hz_rms_a": 0.0006607568693730525,
-        "twist_200_400hz_rms_rad": 7.978462382468879e-06,
+        "error_rms_rad": 0.003857880221946749,
+        "error_peak_rad": 0.01027369326581462,
+        "error_le_20hz_rms_rad": 0.0038052124199264266,
+        "command_peak_a": 0.20846166669237937,
+        "command_hf_gt_1000hz_rms_a": 0.000710977402575744,
+        "applied_peak_a": 0.20846166669237937,
+        "applied_hf_gt_1000hz_rms_a": 0.000710977402575744,
+        "twist_200_400hz_rms_rad": 1.0417868755339838e-05,
         "clipped_samples": 0,
         "exceeds_2_71_a": false,
         "metric_interval": "entire logged reference; rectangular DFT including edges",
@@ -671,14 +685,14 @@
         "reference_trial": "r5m100_1_linear",
         "source_sha256": "27dcb2e1a07dd778c7dc27b6f887f2361e4590dc00a379a9648d2f95196517a3",
         "samples": 48001,
-        "error_rms_rad": 0.0015245285856402553,
-        "error_peak_rad": 0.0121416937290455,
-        "error_le_20hz_rms_rad": 0.0014895850478783168,
-        "command_peak_a": 0.15726256077877013,
-        "command_hf_gt_1000hz_rms_a": 0.00027157307599478175,
-        "applied_peak_a": 0.15726256077877013,
-        "applied_hf_gt_1000hz_rms_a": 0.00027157307599478175,
-        "twist_200_400hz_rms_rad": 1.2878751889483641e-06,
+        "error_rms_rad": 0.002675583035193883,
+        "error_peak_rad": 0.019209362906291716,
+        "error_le_20hz_rms_rad": 0.002650434654795234,
+        "command_peak_a": 0.15724831059977315,
+        "command_hf_gt_1000hz_rms_a": 0.00033250371689990755,
+        "applied_peak_a": 0.15724831059977315,
+        "applied_hf_gt_1000hz_rms_a": 0.00033250371689990755,
+        "twist_200_400hz_rms_rad": 1.4474402893881726e-06,
         "clipped_samples": 0,
         "exceeds_2_71_a": false,
         "metric_interval": "entire logged reference; rectangular DFT including edges",
@@ -689,14 +703,14 @@
         "reference_trial": "r5m050_1_linear",
         "source_sha256": "074982a2342712ac852bbef3e2e326f1e8221fcffb9f47e48cf7e7ac5c96e214",
         "samples": 32001,
-        "error_rms_rad": 0.00732938659076057,
-        "error_peak_rad": 0.01763660525003452,
-        "error_le_20hz_rms_rad": 0.007309196271543386,
-        "command_peak_a": 0.24939217349572762,
-        "command_hf_gt_1000hz_rms_a": 0.00037586013792535744,
-        "applied_peak_a": 0.24939217349572762,
-        "applied_hf_gt_1000hz_rms_a": 0.00037586013792535744,
-        "twist_200_400hz_rms_rad": 5.55432236444387e-06,
+        "error_rms_rad": 0.013255893104333031,
+        "error_peak_rad": 0.03205603042446725,
+        "error_le_20hz_rms_rad": 0.013240974439732895,
+        "command_peak_a": 0.24940306064444223,
+        "command_hf_gt_1000hz_rms_a": 0.0004998841489081218,
+        "applied_peak_a": 0.24940306064444223,
+        "applied_hf_gt_1000hz_rms_a": 0.0004998841489081218,
+        "twist_200_400hz_rms_rad": 5.529601397423694e-06,
         "clipped_samples": 0,
         "exceeds_2_71_a": false,
         "metric_interval": "entire logged reference; rectangular DFT including edges",
@@ -709,14 +723,14 @@
         "reference_trial": "a002m005_1_linear",
         "source_sha256": "ddfc1bc80cb43c53810b12f3099659f795302174e70761d32f1be41161298ba7",
         "samples": 16161,
-        "error_rms_rad": 0.00042617621692865154,
-        "error_peak_rad": 0.006001848708782731,
-        "error_le_20hz_rms_rad": 8.763800551258239e-05,
-        "command_peak_a": 0.8498491363628603,
-        "command_hf_gt_1000hz_rms_a": 0.0007759819829093341,
-        "applied_peak_a": 0.8498491363628603,
-        "applied_hf_gt_1000hz_rms_a": 0.0007759819829093341,
-        "twist_200_400hz_rms_rad": 0.0004562713600056429,
+        "error_rms_rad": 0.0009577878972561846,
+        "error_peak_rad": 0.005423376362262728,
+        "error_le_20hz_rms_rad": 0.0008688722804012874,
+        "command_peak_a": 0.8316328540288582,
+        "command_hf_gt_1000hz_rms_a": 0.0010202497187789834,
+        "applied_peak_a": 0.8316328540288582,
+        "applied_hf_gt_1000hz_rms_a": 0.0010202497187789834,
+        "twist_200_400hz_rms_rad": 0.00041483803341801765,
         "clipped_samples": 0,
         "exceeds_2_71_a": false,
         "metric_interval": "entire logged reference; rectangular DFT including edges",
@@ -727,14 +741,14 @@
         "reference_trial": "a01m010_1_linear",
         "source_sha256": "23e9e7846ab529158cf754657468f2ec05ae2fc35d3e5dd6cb610f43a9681384",
         "samples": 19201,
-        "error_rms_rad": 0.001707195704296988,
-        "error_peak_rad": 0.009738307152269823,
-        "error_le_20hz_rms_rad": 0.001581647055601851,
-        "command_peak_a": 0.15356267976986637,
-        "command_hf_gt_1000hz_rms_a": 0.0003720290387378089,
-        "applied_peak_a": 0.15356267976986637,
-        "applied_hf_gt_1000hz_rms_a": 0.0003720290387378089,
-        "twist_200_400hz_rms_rad": 6.070179885559828e-06,
+        "error_rms_rad": 0.0028064306188305753,
+        "error_peak_rad": 0.012401942508794395,
+        "error_le_20hz_rms_rad": 0.002710603608064942,
+        "command_peak_a": 0.151721518092539,
+        "command_hf_gt_1000hz_rms_a": 0.00041210336945621213,
+        "applied_peak_a": 0.151721518092539,
+        "applied_hf_gt_1000hz_rms_a": 0.00041210336945621213,
+        "twist_200_400hz_rms_rad": 2.9474487128239746e-06,
         "clipped_samples": 0,
         "exceeds_2_71_a": false,
         "metric_interval": "entire logged reference; rectangular DFT including edges",
@@ -745,14 +759,14 @@
         "reference_trial": "a10m010_1_linear",
         "source_sha256": "aa72ffcf6834c5f71baed3ba029e17ff0cc91420f6dad1230e456778f2582d1e",
         "samples": 19201,
-        "error_rms_rad": 0.0022453895634366445,
-        "error_peak_rad": 0.00669084076410853,
-        "error_le_20hz_rms_rad": 0.0021830180017704294,
-        "command_peak_a": 0.19932843496027586,
-        "command_hf_gt_1000hz_rms_a": 0.0006607568693730525,
-        "applied_peak_a": 0.19932843496027586,
-        "applied_hf_gt_1000hz_rms_a": 0.0006607568693730525,
-        "twist_200_400hz_rms_rad": 7.978462382468879e-06,
+        "error_rms_rad": 0.003857880221946749,
+        "error_peak_rad": 0.01027369326581462,
+        "error_le_20hz_rms_rad": 0.0038052124199264266,
+        "command_peak_a": 0.20846166669237937,
+        "command_hf_gt_1000hz_rms_a": 0.000710977402575744,
+        "applied_peak_a": 0.20846166669237937,
+        "applied_hf_gt_1000hz_rms_a": 0.000710977402575744,
+        "twist_200_400hz_rms_rad": 1.0417868755339838e-05,
         "clipped_samples": 0,
         "exceeds_2_71_a": false,
         "metric_interval": "entire logged reference; rectangular DFT including edges",
@@ -763,14 +777,14 @@
         "reference_trial": "r5m100_1_linear",
         "source_sha256": "27dcb2e1a07dd778c7dc27b6f887f2361e4590dc00a379a9648d2f95196517a3",
         "samples": 48001,
-        "error_rms_rad": 0.0015245285856402553,
-        "error_peak_rad": 0.0121416937290455,
-        "error_le_20hz_rms_rad": 0.0014895850478783168,
-        "command_peak_a": 0.15726256077877013,
-        "command_hf_gt_1000hz_rms_a": 0.00027157307599478175,
-        "applied_peak_a": 0.15726256077877013,
-        "applied_hf_gt_1000hz_rms_a": 0.00027157307599478175,
-        "twist_200_400hz_rms_rad": 1.2878751889483641e-06,
+        "error_rms_rad": 0.002675583035193883,
+        "error_peak_rad": 0.019209362906291716,
+        "error_le_20hz_rms_rad": 0.002650434654795234,
+        "command_peak_a": 0.15724831059977315,
+        "command_hf_gt_1000hz_rms_a": 0.00033250371689990755,
+        "applied_peak_a": 0.15724831059977315,
+        "applied_hf_gt_1000hz_rms_a": 0.00033250371689990755,
+        "twist_200_400hz_rms_rad": 1.4474402893881726e-06,
         "clipped_samples": 0,
         "exceeds_2_71_a": false,
         "metric_interval": "entire logged reference; rectangular DFT including edges",
@@ -781,26 +795,26 @@
         "reference_trial": "r5m050_1_linear",
         "source_sha256": "074982a2342712ac852bbef3e2e326f1e8221fcffb9f47e48cf7e7ac5c96e214",
         "samples": 32001,
-        "error_rms_rad": 0.00732938659076057,
-        "error_peak_rad": 0.01763660525003452,
-        "error_le_20hz_rms_rad": 0.007309196271543386,
-        "command_peak_a": 0.24939217349572762,
-        "command_hf_gt_1000hz_rms_a": 0.00037586013792535744,
-        "applied_peak_a": 0.24939217349572762,
-        "applied_hf_gt_1000hz_rms_a": 0.00037586013792535744,
-        "twist_200_400hz_rms_rad": 5.55432236444387e-06,
+        "error_rms_rad": 0.013255893104333031,
+        "error_peak_rad": 0.03205603042446725,
+        "error_le_20hz_rms_rad": 0.013240974439732895,
+        "command_peak_a": 0.24940306064444223,
+        "command_hf_gt_1000hz_rms_a": 0.0004998841489081218,
+        "applied_peak_a": 0.24940306064444223,
+        "applied_hf_gt_1000hz_rms_a": 0.0004998841489081218,
+        "twist_200_400hz_rms_rad": 5.529601397423694e-06,
         "clipped_samples": 0,
         "exceeds_2_71_a": false,
         "metric_interval": "entire logged reference; rectangular DFT including edges",
         "friction_substeps": 256
       }
     },
-    "chosen_pooled_error_le_20hz_rms_rad": 0.0038123812435001477,
-    "wi_one_pooled_error_le_20hz_rms_rad": 0.0038123812435001477,
+    "chosen_pooled_error_le_20hz_rms_rad": 0.006885112224188851,
+    "wi_one_pooled_error_le_20hz_rms_rad": 0.006885112224188851,
     "reason": "Wi cancels algebraically in the linear controller; choose identity",
     "search_evaluations": 0,
-    "chosen_noise_ac_rms_a": 0.00043694352054244104,
-    "wi_one_noise_ac_rms_a": 0.00043694352054244104
+    "chosen_noise_ac_rms_a": 0.0002657027013513173,
+    "wi_one_noise_ac_rms_a": 0.0002657027013513173
   },
   "linear_counterpart_poles_zeros": {
     "real_poles_rad_s": [
@@ -810,41 +824,309 @@
     "real_zeros_rad_s": [],
     "complex_poles_rad_s": [
       [
-        -1266.895068751238,
-        130.25009517065607
+        -979.5475231059946,
+        271.35191847476585
       ],
       [
-        -1266.895068751238,
-        -130.25009517065607
+        -979.5475231059946,
+        -271.35191847476585
       ],
       [
-        -779.7486761060287,
-        3003.365150365415
+        -390.1765707162386,
+        1884.4869351289703
       ],
       [
-        -779.7486761060287,
-        -3003.365150365415
+        -390.1765707162386,
+        -1884.4869351289703
       ]
     ],
     "complex_zeros_rad_s": [
       [
-        -49.993644472220936,
-        91.73100991643301
+        -40.66313468413528,
+        75.79098612319034
       ],
       [
-        -49.993644472220936,
-        -91.73100991643301
+        -40.66313468413528,
+        -75.79098612319034
       ],
       [
-        -237.33257779096522,
-        1924.7578721474392
+        -169.45624042176905,
+        1916.9802679187346
       ],
       [
-        -237.33257779096522,
-        -1924.7578721474392
+        -169.45624042176905,
+        -1916.9802679187346
       ]
     ],
+    "poles": [
+      {
+        "real_rad_s": -979.5475231059946,
+        "imag_rad_s": 271.35191847476585,
+        "natural_frequency_hz": 161.7710542130298,
+        "damping": 0.9637065855455414,
+        "inherent_integrator": false
+      },
+      {
+        "real_rad_s": -979.5475231059946,
+        "imag_rad_s": -271.35191847476585,
+        "natural_frequency_hz": 161.7710542130298,
+        "damping": 0.9637065855455414,
+        "inherent_integrator": false
+      },
+      {
+        "real_rad_s": 0.0,
+        "imag_rad_s": 0.0,
+        "natural_frequency_hz": 0.0,
+        "damping": null,
+        "inherent_integrator": true
+      },
+      {
+        "real_rad_s": -25132.741228718343,
+        "imag_rad_s": 0.0,
+        "natural_frequency_hz": 3999.9999999999995,
+        "damping": 1.0,
+        "inherent_integrator": false
+      },
+      {
+        "real_rad_s": -390.1765707162386,
+        "imag_rad_s": 1884.4869351289703,
+        "natural_frequency_hz": 306.28659704761077,
+        "damping": 0.20274648158528763,
+        "inherent_integrator": false
+      },
+      {
+        "real_rad_s": -390.1765707162386,
+        "imag_rad_s": -1884.4869351289703,
+        "natural_frequency_hz": 306.28659704761077,
+        "damping": 0.20274648158528763,
+        "inherent_integrator": false
+      }
+    ],
+    "zeros": [
+      {
+        "real_rad_s": -40.66313468413528,
+        "imag_rad_s": 75.79098612319034,
+        "natural_frequency_hz": 13.68895736447075,
+        "damping": 0.472770768019836,
+        "inherent_integrator": false
+      },
+      {
+        "real_rad_s": -40.66313468413528,
+        "imag_rad_s": -75.79098612319034,
+        "natural_frequency_hz": 13.68895736447075,
+        "damping": 0.472770768019836,
+        "inherent_integrator": false
+      },
+      {
+        "real_rad_s": -169.45624042176905,
+        "imag_rad_s": 1916.9802679187346,
+        "natural_frequency_hz": 306.28659704761077,
+        "damping": 0.08805412499555397,
+        "inherent_integrator": false
+      },
+      {
+        "real_rad_s": -169.45624042176905,
+        "imag_rad_s": -1916.9802679187346,
+        "natural_frequency_hz": 306.28659704761077,
+        "damping": 0.08805412499555397,
+        "inherent_integrator": false
+      }
+    ],
     "interpretation": "Unwarped-Tustin continuous-time equivalent of minimal full C(s)=kp*LP*(PD+wi/s)*N; H/Wi cancellation removed; multiplicities retained"
+  },
+  "controller_filter_poles_zeros": {
+    "factors": {
+      "lp_post": {
+        "poles": [
+          {
+            "real_rad_s": -979.5475231059946,
+            "imag_rad_s": 271.35191847476585,
+            "natural_frequency_hz": 161.7710542130298,
+            "damping": 0.9637065855455414,
+            "inherent_integrator": false
+          },
+          {
+            "real_rad_s": -979.5475231059946,
+            "imag_rad_s": -271.35191847476585,
+            "natural_frequency_hz": 161.7710542130298,
+            "damping": 0.9637065855455414,
+            "inherent_integrator": false
+          }
+        ],
+        "zeros": [
+          {
+            "real_rad_s": -1525.865130376221,
+            "imag_rad_s": 0.0,
+            "natural_frequency_hz": 242.8489779909349,
+            "damping": 1.0,
+            "inherent_integrator": false
+          }
+        ]
+      },
+      "p": {
+        "poles": [
+          {
+            "real_rad_s": -25132.741228718343,
+            "imag_rad_s": 0.0,
+            "natural_frequency_hz": 3999.9999999999995,
+            "damping": 1.0,
+            "inherent_integrator": false
+          }
+        ],
+        "zeros": [
+          {
+            "real_rad_s": -81.0319216871902,
+            "imag_rad_s": 0.0,
+            "natural_frequency_hz": 12.896630884751676,
+            "damping": 1.0,
+            "inherent_integrator": false
+          }
+        ]
+      },
+      "i_pre_Wi": {
+        "poles": [
+          {
+            "real_rad_s": -91.2944423115566,
+            "imag_rad_s": 0.0,
+            "natural_frequency_hz": 14.529961770702112,
+            "damping": 1.0,
+            "inherent_integrator": false
+          },
+          {
+            "real_rad_s": -91.2944423115566,
+            "imag_rad_s": 0.0,
+            "natural_frequency_hz": 14.529961770702112,
+            "damping": 1.0,
+            "inherent_integrator": false
+          }
+        ],
+        "zeros": [
+          {
+            "real_rad_s": -91.2944423115566,
+            "imag_rad_s": 0.0,
+            "natural_frequency_hz": 14.529961770702112,
+            "damping": 1.0,
+            "inherent_integrator": false
+          },
+          {
+            "real_rad_s": -91.2944423115566,
+            "imag_rad_s": 0.0,
+            "natural_frequency_hz": 14.529961770702112,
+            "damping": 1.0,
+            "inherent_integrator": false
+          }
+        ]
+      },
+      "i_post": {
+        "poles": [
+          {
+            "real_rad_s": 0.0,
+            "imag_rad_s": 0.0,
+            "natural_frequency_hz": 0.0,
+            "damping": null,
+            "inherent_integrator": true
+          },
+          {
+            "real_rad_s": -91.2944423115566,
+            "imag_rad_s": 0.0,
+            "natural_frequency_hz": 14.529961770702112,
+            "damping": 1.0,
+            "inherent_integrator": false
+          },
+          {
+            "real_rad_s": -91.2944423115566,
+            "imag_rad_s": 0.0,
+            "natural_frequency_hz": 14.529961770702112,
+            "damping": 1.0,
+            "inherent_integrator": false
+          }
+        ],
+        "zeros": [
+          {
+            "real_rad_s": -203.4486840501628,
+            "imag_rad_s": 0.0,
+            "natural_frequency_hz": 32.379863732124655,
+            "damping": 1.0,
+            "inherent_integrator": false
+          },
+          {
+            "real_rad_s": -91.2944423115566,
+            "imag_rad_s": 0.0,
+            "natural_frequency_hz": 14.529961770702112,
+            "damping": 1.0,
+            "inherent_integrator": false
+          },
+          {
+            "real_rad_s": -91.2944423115566,
+            "imag_rad_s": 0.0,
+            "natural_frequency_hz": 14.529961770702112,
+            "damping": 1.0,
+            "inherent_integrator": false
+          }
+        ]
+      },
+      "notch_0": {
+        "poles": [
+          {
+            "real_rad_s": -390.1765707162386,
+            "imag_rad_s": 1884.4869351289703,
+            "natural_frequency_hz": 306.28659704761077,
+            "damping": 0.20274648158528763,
+            "inherent_integrator": false
+          },
+          {
+            "real_rad_s": -390.1765707162386,
+            "imag_rad_s": -1884.4869351289703,
+            "natural_frequency_hz": 306.28659704761077,
+            "damping": 0.20274648158528763,
+            "inherent_integrator": false
+          }
+        ],
+        "zeros": [
+          {
+            "real_rad_s": -169.45624042176905,
+            "imag_rad_s": 1916.9802679187346,
+            "natural_frequency_hz": 306.28659704761077,
+            "damping": 0.08805412499555397,
+            "inherent_integrator": false
+          },
+          {
+            "real_rad_s": -169.45624042176905,
+            "imag_rad_s": -1916.9802679187346,
+            "natural_frequency_hz": 306.28659704761077,
+            "damping": 0.08805412499555397,
+            "inherent_integrator": false
+          }
+        ]
+      },
+      "lp_linear_H": {
+        "poles": [
+          {
+            "real_rad_s": -1525.865130376221,
+            "imag_rad_s": 0.0,
+            "natural_frequency_hz": 242.8489779909349,
+            "damping": 1.0,
+            "inherent_integrator": false
+          }
+        ],
+        "zeros": []
+      },
+      "i_linear_H": {
+        "poles": [
+          {
+            "real_rad_s": -203.4486840501628,
+            "imag_rad_s": 0.0,
+            "natural_frequency_hz": 32.379863732124655,
+            "damping": 1.0,
+            "inherent_integrator": false
+          }
+        ],
+        "zeros": []
+      }
+    },
+    "low_damping_complex_poles": [],
+    "no_unintended_low_damping_poles": true,
+    "interpretation": "Unwarped-Tustin continuous-time roots with multiplicities; finite zeros only. HIGS states are nonlinear and have no LTI poles; origin is the inherent I structure."
   },
   "design_mode": "linear",
   "sample_time_s": 6.25e-05,
@@ -857,8 +1139,8 @@
   "max_position_rad": 0.5,
   "max_velocity_rad_s": 5.0,
   "max_twist_rad": 0.05,
-  "bandwidth_hz": 52.27002079366109,
-  "omega_b_rad_s": 328.42222665670283,
+  "bandwidth_hz": 40.999999999871676,
+  "omega_b_rad_s": 257.61059759355675,
   "loaded_controller": {
     "sos": [
       [
@@ -870,16 +1152,16 @@
         0.0
       ],
       [
-        0.4000985026490386,
-        0.03641942431813721,
-        -0.3636790783309014,
+        0.06765992524201539,
+        0.0061588221660602155,
+        -0.061501103075955174,
         1.0,
-        -1.84760999105603,
-        0.8534724051020417
+        -1.880930602264049,
+        0.8847298933943664
       ],
       [
-        141.84017869845604,
-        -140.96037700547913,
+        174.15942760251593,
+        -173.27962590953902,
         0.0,
         1.0,
         -0.12019830702311479,
@@ -887,11 +1169,11 @@
       ],
       [
         1.0,
-        -1.986343108699268,
-        0.9863897363692677,
+        -1.9886206594158211,
+        0.9886530317638539,
         1.0,
-        -1.986343108699268,
-        0.9863897363692677
+        -1.9886206594158211,
+        0.9886530317638539
       ],
       [
         0.0063176054852450494,
@@ -902,28 +1184,28 @@
         0.0
       ],
       [
-        0.5422813574458624,
-        -0.5354295180891702,
+        0.4515874454173015,
+        -0.4458815427728292,
         0.0,
         1.0,
-        -0.993171554349634,
+        -1.9886206594158213,
+        0.988653031763854
+      ],
+      [
+        1.0,
+        -1.9886206594158213,
+        0.988653031763854,
+        1.0,
+        -1.0,
         0.0
       ],
       [
+        0.9865807552856922,
+        -1.9384836472670925,
+        0.9659757230663901,
         1.0,
-        -1.986343108699268,
-        0.986389736369268,
-        1.0,
-        -1.993171554349634,
-        0.993171554349634
-      ],
-      [
-        0.9625467303250792,
-        -1.883172554602277,
-        0.934510118172613,
-        1.0,
-        -1.8723428053638533,
-        0.9078865977361159
+        -1.938483647267092,
+        0.952556478352082
       ]
     ],
     "section_counts": [
@@ -976,32 +1258,32 @@
       0.003305954947643586
     ],
     "i_normalised_band_energy": [
-      0.12481386690283332,
-      0.10827421087847729,
-      0.16321090191728155,
-      0.14422958095733548,
-      0.21212076811493502,
-      0.13685389195340977,
-      0.07453256464393704,
-      0.03501751700672905,
-      0.0009453774257469145,
-      1.2794395675078156e-06,
-      3.8954900971018455e-08,
-      1.8048460700219861e-09
+      0.12804914839963907,
+      0.11010928865843864,
+      0.16367277711885503,
+      0.14535865557837893,
+      0.2133769226213909,
+      0.13257647981098222,
+      0.07237817773683365,
+      0.03360071931575346,
+      0.000876703993992781,
+      1.1024804588856357e-06,
+      2.3377169523195836e-08,
+      9.081068925276277e-10
     ],
     "i_unweighted_normalised_band_energy": [
-      0.12481386690283332,
-      0.10827421087847729,
-      0.16321090191728155,
-      0.14422958095733548,
-      0.21212076811493502,
-      0.13685389195340977,
-      0.07453256464393704,
-      0.03501751700672905,
-      0.0009453774257469145,
-      1.2794395675078156e-06,
-      3.8954900971018455e-08,
-      1.8048460700219861e-09
+      0.12804914839963907,
+      0.11010928865843864,
+      0.16367277711885503,
+      0.14535865557837893,
+      0.2133769226213909,
+      0.13257647981098222,
+      0.07237817773683365,
+      0.03360071931575346,
+      0.000876703993992781,
+      1.1024804588856357e-06,
+      2.3377169523195836e-08,
+      9.081068925276277e-10
     ],
     "lp_derivative_normalised_band_energy": [
       0.00016940936442285005,
@@ -1018,24 +1300,24 @@
       0.6807105027545026
     ],
     "i_derivative_normalised_band_energy": [
-      0.0011652097545245895,
-      0.009647714437387574,
-      0.0754795610658491,
-      0.16583794701010926,
-      0.19619781769769676,
-      0.2234263332399669,
-      0.1475161478256677,
-      0.1707373251835639,
-      0.00947887849282461,
-      0.0003814640823059404,
-      0.00011359660989457312,
-      1.8004600209135847e-05
+      0.001229146036751504,
+      0.010103522650948023,
+      0.07927466196390644,
+      0.17529305162621708,
+      0.20897381109206115,
+      0.23138133124113,
+      0.13598350171977552,
+      0.14889791064706298,
+      0.00859914993979133,
+      0.00020194446948410227,
+      5.352605765177882e-05,
+      8.442555219995127e-06
     ],
     "trials": [
       {
         "trial": "a002m005_1_linear",
-        "controller_only_command_peak_a": 0.7394366028810652,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.0010167397495903958,
+        "controller_only_command_peak_a": 0.7124430400831199,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.000992948286027382,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 105.0,
         "lp_band_energy": [
@@ -1054,32 +1336,32 @@
         ],
         "i_peak_hz": 1.0,
         "i_band_energy": [
-          9.090934382224367e-06,
-          1.0385841139670285e-05,
-          2.074243050685887e-05,
-          4.124516895089446e-05,
-          8.057717092815673e-05,
-          0.00014669741537656463,
-          0.00020288666067841898,
-          0.00010597589123581021,
-          3.1516534477338406e-06,
-          2.7578296663360537e-09,
-          3.839437428838575e-11,
-          7.291922176692728e-13
+          4.205236243293317e-07,
+          4.804185090065942e-07,
+          9.594513969864056e-07,
+          1.907550100043756e-06,
+          3.724525191240067e-06,
+          6.76579378818774e-06,
+          9.280961228655146e-06,
+          4.733076970147886e-06,
+          1.3289202479388865e-07,
+          1.2799760975689464e-10,
+          1.5886368273618688e-12,
+          2.313556077147023e-14
         ],
         "i_unweighted_band_energy": [
-          9.090934382224367e-06,
-          1.0385841139670285e-05,
-          2.074243050685887e-05,
-          4.124516895089446e-05,
-          8.057717092815673e-05,
-          0.00014669741537656463,
-          0.00020288666067841898,
-          0.00010597589123581021,
-          3.1516534477338406e-06,
-          2.7578296663360537e-09,
-          3.839437428838575e-11,
-          7.291922176692728e-13
+          4.205236243293317e-07,
+          4.804185090065942e-07,
+          9.594513969864056e-07,
+          1.907550100043756e-06,
+          3.724525191240067e-06,
+          6.76579378818774e-06,
+          9.280961228655146e-06,
+          4.733076970147886e-06,
+          1.3289202479388865e-07,
+          1.2799760975689464e-10,
+          1.5886368273618688e-12,
+          2.313556077147023e-14
         ],
         "lp_derivative_band_energy": [
           2.8112888767504672e-05,
@@ -1096,27 +1378,27 @@
           16.596730094864842
         ],
         "i_derivative_band_energy": [
-          0.0014355255527474901,
-          0.012914692051203696,
-          0.11256530345764464,
-          0.9328025866128649,
-          7.415662202748908,
-          53.82955130750868,
-          283.31503150577964,
-          476.957436623489,
-          39.80625016822303,
-          0.15832323375083002,
-          0.010050240963558922,
-          0.0005941489749322875
+          6.640371644509691e-05,
+          0.0005973948015679278,
+          0.005206729970249553,
+          0.043140100298919445,
+          0.34273846880435566,
+          2.481607798762177,
+          12.938580931262425,
+          21.19656785945157,
+          1.676672931704646,
+          0.0072729970939166555,
+          0.0003930858857285088,
+          1.994241968509868e-05
         ],
         "motion_samples": 142,
         "lp_motion_dc_energy_fraction": 0.023148105306128493,
-        "i_motion_dc_energy_fraction": 0.5533502891643455
+        "i_motion_dc_energy_fraction": 0.5691266758685495
       },
       {
         "trial": "a002m005_2_both",
-        "controller_only_command_peak_a": 0.7336110171993945,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.0009884032931641706,
+        "controller_only_command_peak_a": 0.7091201926852975,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.000986245438800537,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 1.0,
         "lp_band_energy": [
@@ -1135,32 +1417,32 @@
         ],
         "i_peak_hz": 1.0,
         "i_band_energy": [
-          9.70195647510311e-06,
-          1.108382078031588e-05,
-          2.213583860349165e-05,
-          4.4011097721315804e-05,
-          8.594286772262041e-05,
-          0.00015619005367356145,
-          0.00021452447806189268,
-          0.00010939229972793861,
-          2.9816104587566893e-06,
-          2.459792897196615e-09,
-          1.344759700029151e-11,
-          1.459185378822783e-13
+          4.465978344141854e-07,
+          5.102041545332159e-07,
+          1.0189191039376484e-06,
+          2.0256372407249655e-06,
+          3.953945150635041e-06,
+          7.174095030931737e-06,
+          9.793752229924374e-06,
+          4.903386995618091e-06,
+          1.2802599871568758e-07,
+          1.3798413477756944e-10,
+          1.4535823909591832e-12,
+          3.100750448426207e-14
         ],
         "i_unweighted_band_energy": [
-          9.70195647510311e-06,
-          1.108382078031588e-05,
-          2.213583860349165e-05,
-          4.4011097721315804e-05,
-          8.594286772262041e-05,
-          0.00015619005367356145,
-          0.00021452447806189268,
-          0.00010939229972793861,
-          2.9816104587566893e-06,
-          2.459792897196615e-09,
-          1.344759700029151e-11,
-          1.459185378822783e-13
+          4.465978344141854e-07,
+          5.102041545332159e-07,
+          1.0189191039376484e-06,
+          2.0256372407249655e-06,
+          3.953945150635041e-06,
+          7.174095030931737e-06,
+          9.793752229924374e-06,
+          4.903386995618091e-06,
+          1.2802599871568758e-07,
+          1.3798413477756944e-10,
+          1.4535823909591832e-12,
+          3.100750448426207e-14
         ],
         "lp_derivative_band_energy": [
           3.340809776884123e-05,
@@ -1177,27 +1459,27 @@
           0.004402175963527356
         ],
         "i_derivative_band_energy": [
-          0.001532009298730134,
-          0.013782606298438662,
-          0.12012645925566823,
-          0.9953364367620434,
-          7.908818646882098,
-          57.29328000118835,
-          299.1285995865952,
-          489.5253578119274,
-          37.41045446136353,
-          0.13412515349005466,
-          0.0030352444231823436,
-          0.00013069443892845878
+          7.052098785131471e-05,
+          0.0006344324018131,
+          0.005529429599274024,
+          0.04581007350275199,
+          0.36383017582917737,
+          2.6307647963767824,
+          13.639187735269582,
+          21.85753433841224,
+          1.6083988322549156,
+          0.007742439634836887,
+          0.0003455274910604825,
+          2.729471011707943e-05
         ],
         "motion_samples": 142,
         "lp_motion_dc_energy_fraction": 0.07093464908702037,
-        "i_motion_dc_energy_fraction": 0.5716667526959955
+        "i_motion_dc_energy_fraction": 0.5740153127181555
       },
       {
         "trial": "a002m005_3_both",
-        "controller_only_command_peak_a": 0.7330194434203147,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.0009870447564210027,
+        "controller_only_command_peak_a": 0.709014050635705,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.000985568423972326,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 39.0,
         "lp_band_energy": [
@@ -1216,32 +1498,32 @@
         ],
         "i_peak_hz": 1.0,
         "i_band_energy": [
-          8.653320235714731e-06,
-          9.885850301555846e-06,
-          1.9743524397119445e-05,
-          3.9256180306104314e-05,
-          7.666995339072437e-05,
-          0.00013942768342219163,
-          0.00019199748067541685,
-          9.884569352537352e-05,
-          2.7806814785193403e-06,
-          2.5233138815677773e-09,
-          1.823472800072462e-11,
-          2.853438561545643e-13
+          4.0036717265388147e-07,
+          4.5738974869419886e-07,
+          9.134492143240054e-07,
+          1.8159993885184254e-06,
+          3.54505152838124e-06,
+          6.434470686145497e-06,
+          8.79683553601755e-06,
+          4.429499797710856e-06,
+          1.1763362819504443e-07,
+          1.1931245165595464e-10,
+          1.0089347434317424e-12,
+          2.2864674700537054e-14
         ],
         "i_unweighted_band_energy": [
-          8.653320235714731e-06,
-          9.885850301555846e-06,
-          1.9743524397119445e-05,
-          3.9256180306104314e-05,
-          7.666995339072437e-05,
-          0.00013942768342219163,
-          0.00019199748067541685,
-          9.884569352537352e-05,
-          2.7806814785193403e-06,
-          2.5233138815677773e-09,
-          1.823472800072462e-11,
-          2.853438561545643e-13
+          4.0036717265388147e-07,
+          4.5738974869419886e-07,
+          9.134492143240054e-07,
+          1.8159993885184254e-06,
+          3.54505152838124e-06,
+          6.434470686145497e-06,
+          8.79683553601755e-06,
+          4.429499797710856e-06,
+          1.1763362819504443e-07,
+          1.1931245165595464e-10,
+          1.0089347434317424e-12,
+          2.2864674700537054e-14
         ],
         "lp_derivative_band_energy": [
           2.7324128994509618e-05,
@@ -1258,27 +1540,27 @@
           7.016563627677059
         ],
         "i_derivative_band_energy": [
-          0.0013664224014359894,
-          0.012292948879220347,
-          0.1071440794437043,
-          0.8878078721302763,
-          7.055700285898805,
-          51.15093879438977,
-          267.86579366658646,
-          443.3813252948733,
-          34.86943598575923,
-          0.13465123645459,
-          0.004331071516335182,
-          0.0002618355896060805
+          6.322084549282218e-05,
+          0.0005687584926136868,
+          0.004957074772486086,
+          0.041069250990801415,
+          0.32621040018235975,
+          2.3597046940542787,
+          12.254726337323588,
+          19.774127094577032,
+          1.4747846460801974,
+          0.006509508710173163,
+          0.00024795365717342893,
+          2.043634639558043e-05
         ],
         "motion_samples": 142,
         "lp_motion_dc_energy_fraction": 0.054509015922174574,
-        "i_motion_dc_energy_fraction": 0.5676099991985449
+        "i_motion_dc_energy_fraction": 0.5761663111360005
       },
       {
         "trial": "a002m005_4_linear",
-        "controller_only_command_peak_a": 0.7243074502797341,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.0010170148644777248,
+        "controller_only_command_peak_a": 0.704081312060926,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.0009955208625579022,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 1.0,
         "lp_band_energy": [
@@ -1297,32 +1579,32 @@
         ],
         "i_peak_hz": 1.0,
         "i_band_energy": [
-          9.735834237080001e-06,
-          1.112239362665685e-05,
-          2.2211872280138102e-05,
-          4.4154105910662196e-05,
-          8.61582710218579e-05,
-          0.00015613692643149946,
-          0.00021245682224167698,
-          0.00010658004880190489,
-          2.9167333121936746e-06,
-          2.354247612592807e-09,
-          2.2285898932468612e-11,
-          9.27136179474812e-13
+          4.5308279407043455e-07,
+          5.176044784809119e-07,
+          1.033634688751952e-06,
+          2.054374856542726e-06,
+          4.005995661148978e-06,
+          7.240451518575644e-06,
+          9.759536821264364e-06,
+          4.778915677645272e-06,
+          1.2517842772588368e-07,
+          1.3117658920353916e-10,
+          1.7247625709378149e-12,
+          4.8062616078771007e-14
         ],
         "i_unweighted_band_energy": [
-          9.735834237080001e-06,
-          1.112239362665685e-05,
-          2.2211872280138102e-05,
-          4.4154105910662196e-05,
-          8.61582710218579e-05,
-          0.00015613692643149946,
-          0.00021245682224167698,
-          0.00010658004880190489,
-          2.9167333121936746e-06,
-          2.354247612592807e-09,
-          2.2285898932468612e-11,
-          9.27136179474812e-13
+          4.5308279407043455e-07,
+          5.176044784809119e-07,
+          1.033634688751952e-06,
+          2.054374856542726e-06,
+          4.005995661148978e-06,
+          7.240451518575644e-06,
+          9.759536821264364e-06,
+          4.778915677645272e-06,
+          1.2517842772588368e-07,
+          1.3117658920353916e-10,
+          1.7247625709378149e-12,
+          4.8062616078771007e-14
         ],
         "lp_derivative_band_energy": [
           3.208824565689724e-05,
@@ -1339,27 +1621,27 @@
           13.785109225075693
         ],
         "i_derivative_band_energy": [
-          0.0015373568798272583,
-          0.013830542747371246,
-          0.12053803430735896,
-          0.9985357040909977,
-          7.927538210844933,
-          57.243218904082276,
-          295.7309540984299,
-          476.3069311831082,
-          36.59429665478784,
-          0.13273808344449095,
-          0.005421912188761327,
-          0.0007834518540836549
+          7.154488486725479e-05,
+          0.0006436328076454141,
+          0.005609221417747937,
+          0.04645776435021279,
+          0.3685498765640994,
+          2.6531671411605724,
+          13.559405913732258,
+          21.264034248823343,
+          1.572085679645868,
+          0.007514178138652085,
+          0.00040797238973189106,
+          4.1390590593723356e-05
         ],
         "motion_samples": 142,
         "lp_motion_dc_energy_fraction": 0.06018371878891805,
-        "i_motion_dc_energy_fraction": 0.5824042404300879
+        "i_motion_dc_energy_fraction": 0.5885986581848063
       },
       {
         "trial": "a01m010_1_linear",
-        "controller_only_command_peak_a": 0.1331854797987713,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.0004958638902222921,
+        "controller_only_command_peak_a": 0.1275635249367471,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.00027613782843733813,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 1.0,
         "lp_band_energy": [
@@ -1378,32 +1660,32 @@
         ],
         "i_peak_hz": 1.0,
         "i_band_energy": [
-          0.00031266246762743526,
-          0.000336129684608975,
-          0.0005239863871492374,
-          0.00038429097266681614,
-          4.571824460510503e-05,
-          3.8259173659182566e-07,
-          3.018937001730994e-08,
-          6.6764420767375834e-09,
-          5.392620942628434e-12,
-          7.716848301659408e-13,
-          8.047197983014755e-14,
-          3.815735439466438e-15
+          2.1468416269557085e-05,
+          2.3090197524926717e-05,
+          3.605600033549077e-05,
+          2.650017160089408e-05,
+          3.106292620353365e-06,
+          2.3806387418429163e-08,
+          1.4514571595058405e-09,
+          2.4940008282967443e-10,
+          1.6118986622522444e-13,
+          2.1814952023018824e-14,
+          2.2346567958066427e-15,
+          1.055174870599966e-16
         ],
         "i_unweighted_band_energy": [
-          0.00031266246762743526,
-          0.000336129684608975,
-          0.0005239863871492374,
-          0.00038429097266681614,
-          4.571824460510503e-05,
-          3.8259173659182566e-07,
-          3.018937001730994e-08,
-          6.6764420767375834e-09,
-          5.392620942628434e-12,
-          7.716848301659408e-13,
-          8.047197983014755e-14,
-          3.815735439466438e-15
+          2.1468416269557085e-05,
+          2.3090197524926717e-05,
+          3.605600033549077e-05,
+          2.650017160089408e-05,
+          3.106292620353365e-06,
+          2.3806387418429163e-08,
+          1.4514571595058405e-09,
+          2.4940008282967443e-10,
+          1.6118986622522444e-13,
+          2.1814952023018824e-14,
+          2.2346567958066427e-15,
+          1.055174870599966e-16
         ],
         "lp_derivative_band_energy": [
           0.0003025915632012222,
@@ -1420,27 +1702,27 @@
           0.08366317076428753
         ],
         "i_derivative_band_energy": [
-          0.049050173543487875,
-          0.41341756202740554,
-          2.7010259851949376,
-          7.051150306186436,
-          2.505380575464941,
-          0.09890747464621615,
-          0.035146261819130185,
-          0.022137161133341833,
-          0.00010405967043945053,
-          5.23904460811733e-05,
-          2.085773614866344e-05,
-          3.0398295903848474e-06
+          0.0033681085181766516,
+          0.028401768515537284,
+          0.1859240309658405,
+          0.48599771073865267,
+          0.16984037276711483,
+          0.006044368380032425,
+          0.0016429936140489238,
+          0.000823514339206909,
+          3.0723368544097787e-06,
+          1.4754580224653314e-06,
+          5.788208546032319e-07,
+          8.405527669065631e-08
         ],
         "motion_samples": 2834,
         "lp_motion_dc_energy_fraction": 0.250025161458994,
-        "i_motion_dc_energy_fraction": 0.2530100236152225
+        "i_motion_dc_energy_fraction": 0.2542134467636984
       },
       {
         "trial": "a01m010_2_both",
-        "controller_only_command_peak_a": 0.11639909730501433,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.00013740242894064048,
+        "controller_only_command_peak_a": 0.11695769164334133,
+        "controller_only_command_hf_gt_1000hz_rms_a": 7.11375003533237e-05,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 1.0,
         "lp_band_energy": [
@@ -1459,32 +1741,32 @@
         ],
         "i_peak_hz": 1.0,
         "i_band_energy": [
-          3.362659111104208e-05,
-          3.693385120992041e-05,
-          5.899429483190718e-05,
-          3.313683226088276e-05,
-          3.5620026734899355e-06,
-          3.8345112415803645e-07,
-          6.823433937393102e-08,
-          4.2078905372096745e-08,
-          1.459048428577639e-11,
-          1.0780513475997303e-12,
-          1.0812593927988117e-13,
-          3.770748065846262e-15
+          2.316932075634784e-06,
+          2.5451292049986544e-06,
+          4.072767168992982e-06,
+          2.3143915736170983e-06,
+          2.4807382361734304e-07,
+          2.329181527565893e-08,
+          3.320658964840086e-09,
+          1.5402302636682477e-09,
+          4.3949675462112364e-13,
+          3.050084851422003e-14,
+          2.99960707873242e-15,
+          1.0427153911909178e-16
         ],
         "i_unweighted_band_energy": [
-          3.362659111104208e-05,
-          3.693385120992041e-05,
-          5.899429483190718e-05,
-          3.313683226088276e-05,
-          3.5620026734899355e-06,
-          3.8345112415803645e-07,
-          6.823433937393102e-08,
-          4.2078905372096745e-08,
-          1.459048428577639e-11,
-          1.0780513475997303e-12,
-          1.0812593927988117e-13,
-          3.770748065846262e-15
+          2.316932075634784e-06,
+          2.5451292049986544e-06,
+          4.072767168992982e-06,
+          2.3143915736170983e-06,
+          2.4807382361734304e-07,
+          2.329181527565893e-08,
+          3.320658964840086e-09,
+          1.5402302636682477e-09,
+          4.3949675462112364e-13,
+          3.050084851422003e-14,
+          2.99960707873242e-15,
+          1.0427153911909178e-16
         ],
         "lp_derivative_band_energy": [
           3.20119228625979e-05,
@@ -1501,27 +1783,27 @@
           0.09035648059837847
         ],
         "i_derivative_band_energy": [
-          0.005289987485776123,
-          0.04557637449489725,
-          0.3037061949748964,
-          0.5513342368030069,
-          0.2606802807936184,
-          0.12878729081870494,
-          0.07919751877878561,
-          0.15384076239342379,
-          0.0002433651360347055,
-          6.841730335786065e-05,
-          3.351179779904258e-05,
-          3.1541662691116975e-06
+          0.0003644901744393461,
+          0.0031408072996542647,
+          0.020977761035700357,
+          0.03862659439088473,
+          0.01799278732544582,
+          0.0076496060421611094,
+          0.003678722768952175,
+          0.0056116986682641905,
+          7.253634930368303e-06,
+          1.9296890047013186e-06,
+          9.291282459049408e-07,
+          8.721293136598647e-08
         ],
         "motion_samples": 2834,
         "lp_motion_dc_energy_fraction": 0.10669670722341837,
-        "i_motion_dc_energy_fraction": 0.10938420161626926
+        "i_motion_dc_energy_fraction": 0.11045915330290292
       },
       {
         "trial": "a01m010_3_both",
-        "controller_only_command_peak_a": 0.11336237781523656,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.00014040392125431607,
+        "controller_only_command_peak_a": 0.11461053131933746,
+        "controller_only_command_hf_gt_1000hz_rms_a": 6.987376745826821e-05,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 1.0,
         "lp_band_energy": [
@@ -1540,32 +1822,32 @@
         ],
         "i_peak_hz": 1.0,
         "i_band_energy": [
-          3.106605103620089e-05,
-          3.434014974207211e-05,
-          5.5873258055840136e-05,
-          3.157524248698608e-05,
-          3.6246437059221576e-06,
-          5.646396764541697e-07,
-          6.3615294374346e-08,
-          5.753411444070527e-08,
-          1.511907253125509e-11,
-          2.5249883480339637e-12,
-          1.5218092305183216e-13,
-          9.246772150209364e-15
+          2.1436927750597447e-06,
+          2.3692975342185185e-06,
+          3.859203236554899e-06,
+          2.2042378004779992e-06,
+          2.4994126974201063e-07,
+          3.500793870436097e-08,
+          2.9889555261602203e-09,
+          2.0996195922586736e-09,
+          4.526714111051424e-13,
+          7.143407564562056e-14,
+          4.2256066701352915e-15,
+          2.55664517510285e-16
         ],
         "i_unweighted_band_energy": [
-          3.106605103620089e-05,
-          3.434014974207211e-05,
-          5.5873258055840136e-05,
-          3.157524248698608e-05,
-          3.6246437059221576e-06,
-          5.646396764541697e-07,
-          6.3615294374346e-08,
-          5.753411444070527e-08,
-          1.511907253125509e-11,
-          2.5249883480339637e-12,
-          1.5218092305183216e-13,
-          9.246772150209364e-15
+          2.1436927750597447e-06,
+          2.3692975342185185e-06,
+          3.859203236554899e-06,
+          2.2042378004779992e-06,
+          2.4994126974201063e-07,
+          3.500793870436097e-08,
+          2.9889555261602203e-09,
+          2.0996195922586736e-09,
+          4.526714111051424e-13,
+          7.143407564562056e-14,
+          4.2256066701352915e-15,
+          2.55664517510285e-16
         ],
         "lp_derivative_band_energy": [
           2.9390341969577392e-05,
@@ -1582,27 +1864,27 @@
           0.2176606765651261
         ],
         "i_derivative_band_energy": [
-          0.0048908426609917035,
-          0.04242147545238959,
-          0.2885883473005919,
-          0.5189400364932921,
-          0.2771923056643558,
-          0.16362597954517238,
-          0.08612607861100006,
-          0.21090857232985644,
-          0.0002762278952757937,
-          0.0001593993033228924,
-          4.0395367751572496e-05,
-          8.029398624236746e-06
+          0.00033747928886375606,
+          0.0029268513770190534,
+          0.019940605259813247,
+          0.03635032327680341,
+          0.018919606039417905,
+          0.009973396089314359,
+          0.0038649837432589125,
+          0.007677394017708753,
+          8.185604455698416e-06,
+          4.4967781811364615e-06,
+          1.1208328741913424e-06,
+          2.219905287929635e-07
         ],
         "motion_samples": 2834,
         "lp_motion_dc_energy_fraction": 0.10464425438385369,
-        "i_motion_dc_energy_fraction": 0.10724962572917356
+        "i_motion_dc_energy_fraction": 0.10835045821535337
       },
       {
         "trial": "a01m010_4_linear",
-        "controller_only_command_peak_a": 0.11348150219663188,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.00048608370616767317,
+        "controller_only_command_peak_a": 0.10826882925531792,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.0002677649624831952,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 1.0,
         "lp_band_energy": [
@@ -1621,32 +1903,32 @@
         ],
         "i_peak_hz": 1.0,
         "i_band_energy": [
-          0.0004373134601674298,
-          0.0004598271230702804,
-          0.000660622637202747,
-          0.0003651458704855457,
-          2.1662668441194316e-05,
-          4.41971581155442e-07,
-          2.0635156985439682e-08,
-          6.161435260947183e-09,
-          1.8688433163631275e-11,
-          1.9362283119847343e-12,
-          2.797062048131355e-13,
-          9.496497824800556e-15
+          2.9931883608187048e-05,
+          3.1494657682571774e-05,
+          4.535238229144455e-05,
+          2.519902009855411e-05,
+          1.4702686246086193e-06,
+          2.6970448369983614e-08,
+          1.011993787502578e-09,
+          2.2885051432308063e-10,
+          5.560578611866561e-13,
+          5.47210619575738e-14,
+          7.767910300225531e-15,
+          2.6258046646376527e-16
         ],
         "i_unweighted_band_energy": [
-          0.0004373134601674298,
-          0.0004598271230702804,
-          0.000660622637202747,
-          0.0003651458704855457,
-          2.1662668441194316e-05,
-          4.41971581155442e-07,
-          2.0635156985439682e-08,
-          6.161435260947183e-09,
-          1.8688433163631275e-11,
-          1.9362283119847343e-12,
-          2.797062048131355e-13,
-          9.496497824800556e-15
+          2.9931883608187048e-05,
+          3.1494657682571774e-05,
+          4.535238229144455e-05,
+          2.519902009855411e-05,
+          1.4702686246086193e-06,
+          2.6970448369983614e-08,
+          1.011993787502578e-09,
+          2.2885051432308063e-10,
+          5.560578611866561e-13,
+          5.47210619575738e-14,
+          7.767910300225531e-15,
+          2.6258046646376527e-16
         ],
         "lp_derivative_band_energy": [
           0.0004283026705100487,
@@ -1663,27 +1945,27 @@
           0.23560467123215392
         ],
         "i_derivative_band_energy": [
-          0.06843732356682466,
-          0.5633074818991146,
-          3.3473230754689283,
-          6.260211578217768,
-          1.1761939900188905,
-          0.11995076953547668,
-          0.02225394057196424,
-          0.020965702940218253,
-          0.0003809488459982517,
-          0.00012552478678188797,
-          7.05805883048937e-05,
-          8.040568901795204e-06
+          0.004684554623144089,
+          0.038587016335018015,
+          0.22990352599100677,
+          0.4322963882617237,
+          0.07935539624302033,
+          0.007215515442093955,
+          0.0010624796461717826,
+          0.0007763199427900874,
+          1.1216058012354952e-05,
+          3.53881747674379e-06,
+          1.9589698118978508e-06,
+          2.2230754231541523e-07
         ],
         "motion_samples": 2834,
         "lp_motion_dc_energy_fraction": 0.27705449325084736,
-        "i_motion_dc_energy_fraction": 0.28158017114736794
+        "i_motion_dc_energy_fraction": 0.28306706705242035
       },
       {
         "trial": "a10m010_1_linear",
-        "controller_only_command_peak_a": 0.22784516273327834,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.0005097006783893412,
+        "controller_only_command_peak_a": 0.20837830234449073,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.00025495288195787817,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 12.0,
         "lp_band_energy": [
@@ -1702,32 +1984,32 @@
         ],
         "i_peak_hz": 12.0,
         "i_band_energy": [
-          0.00021933895810181107,
-          0.00041040188884868846,
-          0.001249973561187439,
-          0.0009404377322691332,
-          2.7045378334619366e-05,
-          9.219591187665468e-07,
-          2.21149416055932e-07,
-          1.2344971068620012e-08,
-          3.7924247398501743e-10,
-          6.138887826934718e-11,
-          1.1744722324513307e-11,
-          4.4004264572513764e-13
+          1.5792726597833062e-05,
+          2.8728824958519245e-05,
+          8.597570982378232e-05,
+          6.445998554614995e-05,
+          1.802883528677485e-06,
+          5.691970009816382e-08,
+          1.1060176930512396e-08,
+          4.579251737370609e-10,
+          1.1169520556417695e-11,
+          1.729668922776913e-12,
+          3.261173543988911e-13,
+          1.2165842011414399e-14
         ],
         "i_unweighted_band_energy": [
-          0.00021933895810181107,
-          0.00041040188884868846,
-          0.001249973561187439,
-          0.0009404377322691332,
-          2.7045378334619366e-05,
-          9.219591187665468e-07,
-          2.21149416055932e-07,
-          1.2344971068620012e-08,
-          3.7924247398501743e-10,
-          6.138887826934718e-11,
-          1.1744722324513307e-11,
-          4.4004264572513764e-13
+          1.5792726597833062e-05,
+          2.8728824958519245e-05,
+          8.597570982378232e-05,
+          6.445998554614995e-05,
+          1.802883528677485e-06,
+          5.691970009816382e-08,
+          1.1060176930512396e-08,
+          4.579251737370609e-10,
+          1.1169520556417695e-11,
+          1.729668922776913e-12,
+          3.261173543988911e-13,
+          1.2165842011414399e-14
         ],
         "lp_derivative_band_energy": [
           0.00018758973952517395,
@@ -1744,27 +2026,27 @@
           11.866838986972699
         ],
         "i_derivative_band_energy": [
-          0.0375259207754066,
-          0.5400029029970445,
-          6.8757726470668254,
-          15.117447491326276,
-          2.0407812062868467,
-          0.25430054990405637,
-          0.21344768577330353,
-          0.043251360328762145,
-          0.00894492462804608,
-          0.004595651773873368,
-          0.002962412273864614,
-          0.00040181440115016995
+          0.0026871207689862318,
+          0.037707489407172445,
+          0.47245150853540296,
+          1.035644343687803,
+          0.13624717567855082,
+          0.015267546227962628,
+          0.010422352973764756,
+          0.0015885795217938092,
+          0.0002611556226193369,
+          0.0001292011604584095,
+          8.221795352819336e-05,
+          1.1108184901949967e-05
         ],
         "motion_samples": 2834,
         "lp_motion_dc_energy_fraction": 0.047220108695134946,
-        "i_motion_dc_energy_fraction": 0.049609095338130536
+        "i_motion_dc_energy_fraction": 0.05038912613161573
       },
       {
         "trial": "a10m010_2_both",
-        "controller_only_command_peak_a": 0.20843086368995573,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.0004338920608109803,
+        "controller_only_command_peak_a": 0.1974072762231791,
+        "controller_only_command_hf_gt_1000hz_rms_a": 9.614198232290097e-05,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 14.0,
         "lp_band_energy": [
@@ -1783,32 +2065,32 @@
         ],
         "i_peak_hz": 14.0,
         "i_band_energy": [
-          6.026933709079476e-06,
-          3.750979096190262e-05,
-          0.0001775546461999472,
-          0.00017912183490900244,
-          3.781518639911914e-05,
-          1.1146466469835833e-05,
-          3.3294471163636288e-06,
-          1.9799951347966523e-06,
-          1.6285415561081495e-09,
-          1.9392469928630948e-10,
-          2.1732243468696815e-11,
-          9.098009116699327e-13
+          4.38348023814678e-07,
+          2.5844666760242906e-06,
+          1.2151599894503814e-05,
+          1.2141588739548338e-05,
+          2.4762925137525114e-06,
+          6.743017882960683e-07,
+          1.5186037349402568e-07,
+          7.285690252531051e-08,
+          4.943160182671565e-11,
+          5.4882322228562726e-12,
+          6.035492271968042e-13,
+          2.515904954397844e-14
         ],
         "i_unweighted_band_energy": [
-          6.026933709079476e-06,
-          3.750979096190262e-05,
-          0.0001775546461999472,
-          0.00017912183490900244,
-          3.781518639911914e-05,
-          1.1146466469835833e-05,
-          3.3294471163636288e-06,
-          1.9799951347966523e-06,
-          1.6285415561081495e-09,
-          1.9392469928630948e-10,
-          2.1732243468696815e-11,
-          9.098009116699327e-13
+          4.38348023814678e-07,
+          2.5844666760242906e-06,
+          1.2151599894503814e-05,
+          1.2141588739548338e-05,
+          2.4762925137525114e-06,
+          6.743017882960683e-07,
+          1.5186037349402568e-07,
+          7.285690252531051e-08,
+          4.943160182671565e-11,
+          5.4882322228562726e-12,
+          6.035492271968042e-13,
+          2.515904954397844e-14
         ],
         "lp_derivative_band_energy": [
           8.429968550563453e-06,
@@ -1825,27 +2107,27 @@
           19.91543405022427
         ],
         "i_derivative_band_energy": [
-          0.0014901142213636423,
-          0.05249325259384212,
-          1.0086582134606936,
-          3.0847117281856096,
-          2.70141992559692,
-          3.3930489742367422,
-          4.967021458800362,
-          6.980900064013828,
-          0.02489256125907293,
-          0.012380853297619789,
-          0.005518299384055445,
-          0.0007333512779230959
+          0.00010583483594756439,
+          0.003611972085279154,
+          0.06901341350350682,
+          0.20810448882470783,
+          0.17629755638722713,
+          0.19969522852572205,
+          0.21857141305534256,
+          0.25611809717437095,
+          0.0007495463345735531,
+          0.0003492712682709246,
+          0.00015315836202531305,
+          2.0278059099969813e-05
         ],
         "motion_samples": 2834,
         "lp_motion_dc_energy_fraction": 0.00563038655127031,
-        "i_motion_dc_energy_fraction": 0.006047045682314917
+        "i_motion_dc_energy_fraction": 0.006184929724706246
       },
       {
         "trial": "a10m010_3_both",
-        "controller_only_command_peak_a": 0.2053261318675406,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.00020954611363144856,
+        "controller_only_command_peak_a": 0.20062441073313977,
+        "controller_only_command_hf_gt_1000hz_rms_a": 8.313254925695606e-05,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 13.0,
         "lp_band_energy": [
@@ -1864,32 +2146,32 @@
         ],
         "i_peak_hz": 13.0,
         "i_band_energy": [
-          1.0110328612675065e-05,
-          3.408705051206811e-05,
-          0.00013698577154853668,
-          0.00011639366367634,
-          1.526889388039677e-05,
-          6.403559279033551e-06,
-          3.276713213375033e-06,
-          5.730400404235629e-07,
-          1.8959259215684555e-10,
-          2.0682452921663176e-11,
-          1.913747954829293e-12,
-          5.208228320027083e-13
+          7.459335279330531e-07,
+          2.379016305228312e-06,
+          9.422765355597985e-06,
+          7.969681501201149e-06,
+          1.0043093150939892e-06,
+          3.934966202488083e-07,
+          1.5621000008918311e-07,
+          2.107549160949832e-08,
+          5.671016547933564e-12,
+          5.8336435950465e-13,
+          5.3101577114938507e-14,
+          1.4402259102450708e-14
         ],
         "i_unweighted_band_energy": [
-          1.0110328612675065e-05,
-          3.408705051206811e-05,
-          0.00013698577154853668,
-          0.00011639366367634,
-          1.526889388039677e-05,
-          6.403559279033551e-06,
-          3.276713213375033e-06,
-          5.730400404235629e-07,
-          1.8959259215684555e-10,
-          2.0682452921663176e-11,
-          1.913747954829293e-12,
-          5.208228320027083e-13
+          7.459335279330531e-07,
+          2.379016305228312e-06,
+          9.422765355597985e-06,
+          7.969681501201149e-06,
+          1.0043093150939892e-06,
+          3.934966202488083e-07,
+          1.5621000008918311e-07,
+          2.107549160949832e-08,
+          5.671016547933564e-12,
+          5.8336435950465e-13,
+          5.3101577114938507e-14,
+          1.4402259102450708e-14
         ],
         "lp_derivative_band_energy": [
           9.570979409482196e-06,
@@ -1906,27 +2188,27 @@
           5.764593797986857
         ],
         "i_derivative_band_energy": [
-          0.0019980594852356554,
-          0.046635630276326626,
-          0.7678098030864311,
-          1.9125793119287637,
-          1.2267761722315775,
-          1.8135691946198156,
-          4.018212896330974,
-          2.048682887571652,
-          0.0034853354596814925,
-          0.0014519988053692723,
-          0.0005817433859120009,
-          0.00039799510673079066
+          0.00014498057374350955,
+          0.003246255640898016,
+          0.05278630256117638,
+          0.13064705225402118,
+          0.08034982611801836,
+          0.10819341910904484,
+          0.18546797746143207,
+          0.07512899265482102,
+          0.00010326269668389734,
+          4.0863633087472255e-05,
+          1.6129959229177867e-05,
+          1.100533363824105e-05
         ],
         "motion_samples": 2834,
         "lp_motion_dc_energy_fraction": 0.02231321958811533,
-        "i_motion_dc_energy_fraction": 0.023387570759080295
+        "i_motion_dc_energy_fraction": 0.023975362577352683
       },
       {
         "trial": "a10m010_4_linear",
-        "controller_only_command_peak_a": 0.22267574815546864,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.0006416916336869482,
+        "controller_only_command_peak_a": 0.20492955338014957,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.00027541358070841176,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 12.0,
         "lp_band_energy": [
@@ -1945,32 +2227,32 @@
         ],
         "i_peak_hz": 12.0,
         "i_band_energy": [
-          0.00021983790533131,
-          0.0003751108550393495,
-          0.0010755286204502726,
-          0.0008196079005869033,
-          4.422154125134047e-05,
-          2.8387478108051963e-06,
-          2.2977811388396808e-07,
-          4.165500173320744e-08,
-          1.6130648964714189e-09,
-          2.4478995585881634e-10,
-          1.9548921905882153e-11,
-          1.004498835611356e-12
+          1.5748899835874675e-05,
+          2.6265356518700738e-05,
+          7.406777115520733e-05,
+          5.626078464594451e-05,
+          2.9389403444469036e-06,
+          1.7454565237734464e-07,
+          1.082400422255247e-08,
+          1.5634016486998397e-09,
+          4.803477848389273e-11,
+          6.92567196614646e-12,
+          5.42388099735481e-13,
+          2.777533906532339e-14
         ],
         "i_unweighted_band_energy": [
-          0.00021983790533131,
-          0.0003751108550393495,
-          0.0010755286204502726,
-          0.0008196079005869033,
-          4.422154125134047e-05,
-          2.8387478108051963e-06,
-          2.2977811388396808e-07,
-          4.165500173320744e-08,
-          1.6130648964714189e-09,
-          2.4478995585881634e-10,
-          1.9548921905882153e-11,
-          1.004498835611356e-12
+          1.5748899835874675e-05,
+          2.6265356518700738e-05,
+          7.406777115520733e-05,
+          5.626078464594451e-05,
+          2.9389403444469036e-06,
+          1.7454565237734464e-07,
+          1.082400422255247e-08,
+          1.5634016486998397e-09,
+          4.803477848389273e-11,
+          6.92567196614646e-12,
+          5.42388099735481e-13,
+          2.777533906532339e-14
         ],
         "lp_derivative_band_energy": [
           0.00018806259991078206,
@@ -1987,27 +2269,27 @@
           24.577532794295955
         ],
         "i_derivative_band_energy": [
-          0.03695844398980905,
-          0.4894311342710598,
-          5.896048745026451,
-          13.35364743729896,
-          3.231108953653465,
-          0.7058397190217482,
-          0.29242215899603285,
-          0.13950004270612135,
-          0.03262517473271448,
-          0.015519899505024012,
-          0.005874093430832102,
-          0.0008397291655480145
+          0.002636714574816642,
+          0.03419406192400891,
+          0.4056261122304808,
+          0.9161945082689232,
+          0.2145855880662905,
+          0.04267122664540804,
+          0.013377661694122061,
+          0.005179472628176792,
+          0.0009620765357901101,
+          0.00043784622440665784,
+          0.00016288585597146342,
+          2.321760205484392e-05
         ],
         "motion_samples": 2834,
         "lp_motion_dc_energy_fraction": 0.058047302304301135,
-        "i_motion_dc_energy_fraction": 0.06001517011768462
+        "i_motion_dc_energy_fraction": 0.06074076910435597
       },
       {
         "trial": "r5m050_1_linear",
-        "controller_only_command_peak_a": 1.2195526351043986,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.005112758841632432,
+        "controller_only_command_peak_a": 0.7461581973198398,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.0009939563374816503,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 3.0,
         "lp_band_energy": [
@@ -2026,32 +2308,32 @@
         ],
         "i_peak_hz": 3.0,
         "i_band_energy": [
-          0.009020422099190673,
-          0.005431435229035488,
-          2.1512189620514884e-05,
-          7.024843759358601e-05,
-          0.0007909440926087822,
-          0.0044636927752345545,
-          1.1273483853966749e-05,
-          1.884789815309984e-06,
-          1.0563574260169814e-07,
-          1.2375196870651198e-08,
-          7.374459269154755e-10,
-          3.806946614380441e-11
+          0.0006141963154314353,
+          0.0003694048976244046,
+          1.4646242985651052e-06,
+          4.739019942662362e-06,
+          5.119029388748884e-05,
+          0.000272251537966591,
+          5.50762975915709e-07,
+          6.887787080096293e-08,
+          3.164004132487147e-09,
+          3.504086556629042e-10,
+          2.0483818123148595e-11,
+          1.052752530475489e-12
         ],
         "i_unweighted_band_energy": [
-          0.009020422099190673,
-          0.005431435229035488,
-          2.1512189620514884e-05,
-          7.024843759358601e-05,
-          0.0007909440926087822,
-          0.0044636927752345545,
-          1.1273483853966749e-05,
-          1.884789815309984e-06,
-          1.0563574260169814e-07,
-          1.2375196870651198e-08,
-          7.374459269154755e-10,
-          3.806946614380441e-11
+          0.0006141963154314353,
+          0.0003694048976244046,
+          1.4646242985651052e-06,
+          4.739019942662362e-06,
+          5.119029388748884e-05,
+          0.000272251537966591,
+          5.50762975915709e-07,
+          6.887787080096293e-08,
+          3.164004132487147e-09,
+          3.504086556629042e-10,
+          2.0483818123148595e-11,
+          1.052752530475489e-12
         ],
         "lp_derivative_band_energy": [
           0.013597534921511107,
@@ -2068,27 +2350,27 @@
           691.3909441384217
         ],
         "i_derivative_band_energy": [
-          2.0925713733111655,
-          4.578560488666966,
-          0.0889730654919775,
-          1.4638297825036657,
-          91.45310245898133,
-          1167.328576435895,
-          12.164472626036682,
-          7.349597702841621,
-          2.0316104399696187,
-          0.7624103937132065,
-          0.18294700369285868,
-          0.030041845119140806
+          0.1423733553250592,
+          0.3114105423936573,
+          0.006062052415542677,
+          0.09859526024527937,
+          5.901655391015228,
+          70.97679184976792,
+          0.57746044204144,
+          0.26372050711905964,
+          0.06001184636889656,
+          0.021517568353222313,
+          0.005078007402918558,
+          0.0008306986930594967
         ],
         "motion_samples": 14174,
         "lp_motion_dc_energy_fraction": 0.0006158784766718237,
-        "i_motion_dc_energy_fraction": 0.000677990568673419
+        "i_motion_dc_energy_fraction": 0.0006936962933303998
       },
       {
         "trial": "r5m050_2_both",
-        "controller_only_command_peak_a": 1.0887455777906196,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.005070378067999726,
+        "controller_only_command_peak_a": 0.7470100707759845,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.0009714070899394184,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 3.0,
         "lp_band_energy": [
@@ -2107,32 +2389,32 @@
         ],
         "i_peak_hz": 3.0,
         "i_band_energy": [
-          0.002218590825492215,
-          0.001664101347111053,
-          0.0001694993575499206,
-          0.0008122886587252739,
-          0.0016255879932043729,
-          0.010044078740545057,
-          0.001181380681385512,
-          0.0001688159565037791,
-          1.367984917501551e-07,
-          1.0736116756358975e-08,
-          5.512306802291772e-10,
-          3.3581051637920164e-11
+          0.00015098092677938348,
+          0.00011311646047278656,
+          1.1497498820718873e-05,
+          5.465779582823006e-05,
+          0.00010506264629401893,
+          0.0006104798286241357,
+          5.862218877931675e-05,
+          6.136918156953244e-06,
+          4.119077063511268e-09,
+          3.0362604212774155e-10,
+          1.5303648394072257e-11,
+          9.285836497841896e-13
         ],
         "i_unweighted_band_energy": [
-          0.002218590825492215,
-          0.001664101347111053,
-          0.0001694993575499206,
-          0.0008122886587252739,
-          0.0016255879932043729,
-          0.010044078740545057,
-          0.001181380681385512,
-          0.0001688159565037791,
-          1.367984917501551e-07,
-          1.0736116756358975e-08,
-          5.512306802291772e-10,
-          3.3581051637920164e-11
+          0.00015098092677938348,
+          0.00011311646047278656,
+          1.1497498820718873e-05,
+          5.465779582823006e-05,
+          0.00010506264629401893,
+          0.0006104798286241357,
+          5.862218877931675e-05,
+          6.136918156953244e-06,
+          4.119077063511268e-09,
+          3.0362604212774155e-10,
+          1.5303648394072257e-11,
+          9.285836497841896e-13
         ],
         "lp_derivative_band_energy": [
           0.0034098299647038364,
@@ -2149,27 +2431,27 @@
           699.2339744716664
         ],
         "i_derivative_band_energy": [
-          0.5235884741928641,
-          1.488181228494588,
-          0.9540664495359157,
-          19.45027366180947,
-          185.30332291237215,
-          2700.4729338259162,
-          1175.8792448209888,
-          635.6586850296101,
-          2.352801930224895,
-          0.7162924942415645,
-          0.1493537003755569,
-          0.027473206203749326
+          0.03560649084609246,
+          0.10115600898455565,
+          0.06473503332749679,
+          1.3069961883771983,
+          11.913293599241264,
+          162.87413420186206,
+          56.85413932358827,
+          23.033621834938767,
+          0.07001734600989132,
+          0.02018197205168844,
+          0.0041436090383884135,
+          0.000759627699473022
         ],
         "motion_samples": 14174,
         "lp_motion_dc_energy_fraction": 6.06203552708196e-05,
-        "i_motion_dc_energy_fraction": 8.613078704400799e-05
+        "i_motion_dc_energy_fraction": 9.403843485451966e-05
       },
       {
         "trial": "r5m050_3_both",
-        "controller_only_command_peak_a": 1.0011976546228016,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.005302855975776044,
+        "controller_only_command_peak_a": 0.6840705355732842,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.001001238258835237,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 3.0,
         "lp_band_energy": [
@@ -2188,32 +2470,32 @@
         ],
         "i_peak_hz": 3.0,
         "i_band_energy": [
-          0.0017622078435125977,
-          0.001082125643013883,
-          0.0003196415487704584,
-          0.001245914345632225,
-          0.0013752670882921933,
-          0.005423958672805318,
-          0.0006318014481832628,
-          7.111590487023241e-05,
-          6.779893767775335e-08,
-          1.4694848907575697e-08,
-          5.703129198423998e-10,
-          3.117303037624602e-11
+          0.0001199794609972733,
+          7.354848152299527e-05,
+          2.1609214048287066e-05,
+          8.378911793641841e-05,
+          9.011650033379198e-05,
+          0.000327268712965162,
+          3.0954388483985075e-05,
+          2.611877019098817e-06,
+          1.9912040017210398e-09,
+          4.1693338877664825e-10,
+          1.583312893390617e-11,
+          8.619621134261782e-13
         ],
         "i_unweighted_band_energy": [
-          0.0017622078435125977,
-          0.001082125643013883,
-          0.0003196415487704584,
-          0.001245914345632225,
-          0.0013752670882921933,
-          0.005423958672805318,
-          0.0006318014481832628,
-          7.111590487023241e-05,
-          6.779893767775335e-08,
-          1.4694848907575697e-08,
-          5.703129198423998e-10,
-          3.117303037624602e-11
+          0.0001199794609972733,
+          7.354848152299527e-05,
+          2.1609214048287066e-05,
+          8.378911793641841e-05,
+          9.011650033379198e-05,
+          0.000327268712965162,
+          3.0954388483985075e-05,
+          2.611877019098817e-06,
+          1.9912040017210398e-09,
+          4.1693338877664825e-10,
+          1.583312893390617e-11,
+          8.619621134261782e-13
         ],
         "lp_derivative_band_energy": [
           0.0026588565325039986,
@@ -2230,27 +2512,27 @@
           724.5355554828627
         ],
         "i_derivative_band_energy": [
-          0.408743750852028,
-          0.8992769987316943,
-          1.9897259740419195,
-          25.19157335528407,
-          115.58144030082997,
-          1564.9765220782688,
-          672.0631548038066,
-          257.1941036682126,
-          1.7491454535758248,
-          0.8129688964785673,
-          0.15578471489618906,
-          0.026039567471594412
+          0.027803415209209075,
+          0.06111381268118235,
+          0.1344820792405141,
+          1.6920824577190072,
+          7.5297334601354216,
+          93.68868897692107,
+          31.969709317193157,
+          9.388935399581637,
+          0.05082616159155205,
+          0.023001176110241068,
+          0.004321851334237715,
+          0.0007199639164744185
         ],
         "motion_samples": 14174,
         "lp_motion_dc_energy_fraction": 0.0002233980971238623,
-        "i_motion_dc_energy_fraction": 0.0003167648697576992
+        "i_motion_dc_energy_fraction": 0.00034268161280779096
       },
       {
         "trial": "r5m050_4_linear",
-        "controller_only_command_peak_a": 1.2987649549426463,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.0048001521908498075,
+        "controller_only_command_peak_a": 0.7906734462593458,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.0009324483931448417,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 3.0,
         "lp_band_energy": [
@@ -2269,32 +2551,32 @@
         ],
         "i_peak_hz": 3.0,
         "i_band_energy": [
-          0.00887654925836201,
-          0.005291125599493224,
-          2.14329300344884e-05,
-          0.00012630833761052043,
-          0.0007562692515538281,
-          0.004609415125319839,
-          1.5757684057078843e-05,
-          2.3769261443024573e-06,
-          9.815383346609446e-08,
-          8.863314185079442e-09,
-          6.415503616772646e-10,
-          3.352358451323428e-11
+          0.0006043970939223717,
+          0.0003598653032240752,
+          1.458525215351762e-06,
+          8.516968493882186e-06,
+          4.91210293006789e-05,
+          0.00028167750777765345,
+          7.836191820252151e-07,
+          8.75688241349329e-08,
+          2.954483687637132e-09,
+          2.506300097573146e-10,
+          1.7811089210614175e-11,
+          9.26977346144225e-13
         ],
         "i_unweighted_band_energy": [
-          0.00887654925836201,
-          0.005291125599493224,
-          2.14329300344884e-05,
-          0.00012630833761052043,
-          0.0007562692515538281,
-          0.004609415125319839,
-          1.5757684057078843e-05,
-          2.3769261443024573e-06,
-          9.815383346609446e-08,
-          8.863314185079442e-09,
-          6.415503616772646e-10,
-          3.352358451323428e-11
+          0.0006043970939223717,
+          0.0003598653032240752,
+          1.458525215351762e-06,
+          8.516968493882186e-06,
+          4.91210293006789e-05,
+          0.00028167750777765345,
+          7.836191820252151e-07,
+          8.75688241349329e-08,
+          2.954483687637132e-09,
+          2.506300097573146e-10,
+          1.7811089210614175e-11,
+          9.26977346144225e-13
         ],
         "lp_derivative_band_energy": [
           0.013365284621224603,
@@ -2311,27 +2593,27 @@
           702.9124595138219
         ],
         "i_derivative_band_energy": [
-          2.056700088081306,
-          4.450764786790415,
-          0.09108022739814065,
-          2.670701548596936,
-          80.88247209134785,
-          1184.4022746724759,
-          15.736726057458634,
-          8.718389926464711,
-          1.680005338874243,
-          0.575330634615158,
-          0.1705022257704509,
-          0.027576400982358647
+          0.13993096714111491,
+          0.30272530287438987,
+          0.0061982656706206975,
+          0.17978020854281251,
+          5.228719946687564,
+          72.1445507187972,
+          0.7581240164888887,
+          0.3168839017460232,
+          0.05001640909697767,
+          0.01621966912394223,
+          0.004730807201167853,
+          0.0007624733548590861
         ],
         "motion_samples": 14174,
         "lp_motion_dc_energy_fraction": 0.0006423503575343841,
-        "i_motion_dc_energy_fraction": 0.0007067893725598243
+        "i_motion_dc_energy_fraction": 0.0007228653167550524
       },
       {
         "trial": "r5m100_1_linear",
-        "controller_only_command_peak_a": 0.5166800105573066,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.0026355269905687997,
+        "controller_only_command_peak_a": 0.32725059771726306,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.0005345386552737664,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 41.0,
         "lp_band_energy": [
@@ -2350,32 +2632,32 @@
         ],
         "i_peak_hz": 41.0,
         "i_band_energy": [
-          0.000209282589403405,
-          2.097476037833639e-06,
-          2.1310615270245604e-05,
-          8.575611585859042e-05,
-          0.002092030903480811,
-          4.719241148979293e-05,
-          2.3573478732557766e-06,
-          2.1334264561771145e-07,
-          2.2191129459570062e-08,
-          2.0568201432746196e-09,
-          1.5775904438347465e-10,
-          8.26328662329154e-12
+          1.4248101487603851e-05,
+          1.426431936071258e-07,
+          1.447852563821516e-06,
+          5.761593930631925e-06,
+          0.00013817765533180484,
+          2.882034100071361e-06,
+          1.1540481458010774e-07,
+          7.78916124970705e-09,
+          6.677467999835562e-10,
+          5.82043868852427e-11,
+          4.3796661926174444e-12,
+          2.2849129356609666e-13
         ],
         "i_unweighted_band_energy": [
-          0.000209282589403405,
-          2.097476037833639e-06,
-          2.1310615270245604e-05,
-          8.575611585859042e-05,
-          0.002092030903480811,
-          4.719241148979293e-05,
-          2.3573478732557766e-06,
-          2.1334264561771145e-07,
-          2.2191129459570062e-08,
-          2.0568201432746196e-09,
-          1.5775904438347465e-10,
-          8.26328662329154e-12
+          1.4248101487603851e-05,
+          1.426431936071258e-07,
+          1.447852563821516e-06,
+          5.761593930631925e-06,
+          0.00013817765533180484,
+          2.882034100071361e-06,
+          1.1540481458010774e-07,
+          7.78916124970705e-09,
+          6.677467999835562e-10,
+          5.82043868852427e-11,
+          4.3796661926174444e-12,
+          2.2849129356609666e-13
         ],
         "lp_derivative_band_energy": [
           0.00014237324649770398,
@@ -2392,27 +2674,27 @@
           201.45966732535533
         ],
         "i_derivative_band_energy": [
-          0.021957697973036493,
-          0.0029107642263579946,
-          0.09834327135654143,
-          2.498435496929596,
-          142.3867107483114,
-          12.402761110612005,
-          2.5272581982388678,
-          0.8784023884784007,
-          0.3953034798205983,
-          0.13353809305136488,
-          0.04275980852161612,
-          0.006852064974679174
+          0.0014947289313050759,
+          0.0001980192518878545,
+          0.006679936236101854,
+          0.1677072703320472,
+          9.391889845987016,
+          0.7475682665227599,
+          0.11996387283513239,
+          0.03113266044667886,
+          0.011734320972192519,
+          0.0037646059089693883,
+          0.00118630967512976,
+          0.000189454217614312
         ],
         "motion_samples": 28346,
         "lp_motion_dc_energy_fraction": 0.002108307159477666,
-        "i_motion_dc_energy_fraction": 0.002400885318254111
+        "i_motion_dc_energy_fraction": 0.002481706897360592
       },
       {
         "trial": "r5m100_2_both",
-        "controller_only_command_peak_a": 0.34216175872993937,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.002541396398271226,
+        "controller_only_command_peak_a": 0.24261432675701164,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.0004880265990147653,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 41.0,
         "lp_band_energy": [
@@ -2431,32 +2713,32 @@
         ],
         "i_peak_hz": 41.0,
         "i_band_energy": [
-          3.837865256572479e-05,
-          3.290488046803053e-06,
-          1.1545862740060272e-05,
-          7.1545863853354e-05,
-          0.0008891768991727675,
-          0.00011847424274864972,
-          2.330263736176189e-05,
-          5.438124765275115e-06,
-          1.9921118801163196e-08,
-          2.0358076772165354e-09,
-          1.5256041979737562e-10,
-          7.310846390340531e-12
+          2.61016591337388e-06,
+          2.238408965177008e-07,
+          7.837303827124984e-07,
+          4.8129649009696635e-06,
+          5.866923052138163e-05,
+          7.0893983842785674e-06,
+          1.1279626671636724e-06,
+          1.999303533306097e-07,
+          5.97106646874547e-10,
+          5.755197122651089e-11,
+          4.236063948865403e-12,
+          2.0216120537093068e-13
         ],
         "i_unweighted_band_energy": [
-          3.837865256572479e-05,
-          3.290488046803053e-06,
-          1.1545862740060272e-05,
-          7.1545863853354e-05,
-          0.0008891768991727675,
-          0.00011847424274864972,
-          2.330263736176189e-05,
-          5.438124765275115e-06,
-          1.9921118801163196e-08,
-          2.0358076772165354e-09,
-          1.5256041979737562e-10,
-          7.310846390340531e-12
+          2.61016591337388e-06,
+          2.238408965177008e-07,
+          7.837303827124984e-07,
+          4.8129649009696635e-06,
+          5.866923052138163e-05,
+          7.0893983842785674e-06,
+          1.1279626671636724e-06,
+          1.999303533306097e-07,
+          5.97106646874547e-10,
+          5.755197122651089e-11,
+          4.236063948865403e-12,
+          2.0216120537093068e-13
         ],
         "lp_derivative_band_energy": [
           2.8183511521489538e-05,
@@ -2473,27 +2755,27 @@
           148.26815001025932
         ],
         "i_derivative_band_energy": [
-          0.004338269682821205,
-          0.004042435161787958,
-          0.056982515590266604,
-          1.8854238516743669,
-          62.700580007583476,
-          37.89395209806273,
-          26.459333166712682,
-          19.369440489894174,
-          0.36714410476842974,
-          0.13619993475338515,
-          0.039531043535923516,
-          0.005922244671962305
+          0.0002951953123685449,
+          0.0002748711884438726,
+          0.003867194198282454,
+          0.12664725242765984,
+          4.12748135558801,
+          2.2219718162261737,
+          1.2384450112879848,
+          0.7093087163722205,
+          0.010874569677049521,
+          0.0038373128334744204,
+          0.001096991501463598,
+          0.00016375144173154746
         ],
         "motion_samples": 28346,
         "lp_motion_dc_energy_fraction": 0.0004817058097486044,
-        "i_motion_dc_energy_fraction": 0.0005397638535280531
+        "i_motion_dc_energy_fraction": 0.0005535474717790807
       },
       {
         "trial": "r5m100_3_both",
-        "controller_only_command_peak_a": 0.3115756489226018,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.0028496520273556957,
+        "controller_only_command_peak_a": 0.24881929538881395,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.0005420143301897536,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 42.0,
         "lp_band_energy": [
@@ -2512,32 +2794,32 @@
         ],
         "i_peak_hz": 42.0,
         "i_band_energy": [
-          3.8514615566591146e-05,
-          9.100151341762748e-07,
-          1.3129199048997297e-05,
-          9.640076070891924e-05,
-          0.0008455766552400517,
-          0.00013799935709898597,
-          2.6752835002997153e-05,
-          4.283178903154866e-06,
-          1.4171651509200124e-08,
-          2.9443449551002477e-09,
-          1.563975825313538e-10,
-          8.48195902738858e-12
+          2.619350144250378e-06,
+          6.182051650490886e-08,
+          8.923113044438335e-07,
+          6.480186680030047e-06,
+          5.5786156924580126e-05,
+          8.295635283621172e-06,
+          1.3098352308686779e-06,
+          1.5759686553010823e-07,
+          4.1988571778861354e-10,
+          8.339996550983049e-11,
+          4.341422661150362e-12,
+          2.345442400749127e-13
         ],
         "i_unweighted_band_energy": [
-          3.8514615566591146e-05,
-          9.100151341762748e-07,
-          1.3129199048997297e-05,
-          9.640076070891924e-05,
-          0.0008455766552400517,
-          0.00013799935709898597,
-          2.6752835002997153e-05,
-          4.283178903154866e-06,
-          1.4171651509200124e-08,
-          2.9443449551002477e-09,
-          1.563975825313538e-10,
-          8.48195902738858e-12
+          2.619350144250378e-06,
+          6.182051650490886e-08,
+          8.923113044438335e-07,
+          6.480186680030047e-06,
+          5.5786156924580126e-05,
+          8.295635283621172e-06,
+          1.3098352308686779e-06,
+          1.5759686553010823e-07,
+          4.1988571778861354e-10,
+          8.339996550983049e-11,
+          4.341422661150362e-12,
+          2.345442400749127e-13
         ],
         "lp_derivative_band_energy": [
           2.6744046343281538e-05,
@@ -2554,27 +2836,27 @@
           185.90800780963696
         ],
         "i_derivative_band_energy": [
-          0.004114498745224595,
-          0.0011874255522635877,
-          0.06474971173008119,
-          2.817342190047933,
-          59.88877296815906,
-          42.35560480550709,
-          28.492995821772432,
-          15.248305807512073,
-          0.3172952548506498,
-          0.17921570987074503,
-          0.04337180918015457,
-          0.006912269996413337
+          0.00027993836434737576,
+          8.068917250004181e-05,
+          0.004399726925503817,
+          0.18921381737020737,
+          3.94463994942281,
+          2.499087759575375,
+          1.3559472530523902,
+          0.5583216552476099,
+          0.009288211988254785,
+          0.00505929706661671,
+          0.0012031505636147422,
+          0.0001911241324509225
         ],
         "motion_samples": 28346,
         "lp_motion_dc_energy_fraction": 0.0003936679961003867,
-        "i_motion_dc_energy_fraction": 0.0004467572265619964
+        "i_motion_dc_energy_fraction": 0.00046072721623419214
       },
       {
         "trial": "r5m100_4_linear",
-        "controller_only_command_peak_a": 0.47453721334609766,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.0026730735586197145,
+        "controller_only_command_peak_a": 0.3216826974782858,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.0005398421437178017,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 41.0,
         "lp_band_energy": [
@@ -2593,32 +2875,32 @@
         ],
         "i_peak_hz": 41.0,
         "i_band_energy": [
-          0.00019895967020531143,
-          2.048705455168248e-06,
-          1.9324143013192482e-05,
-          0.0001049331983639729,
-          0.0020961959459668625,
-          4.285102191158306e-05,
-          1.8852538420916126e-06,
-          2.415543295411516e-07,
-          1.4319271754799805e-08,
-          2.0345570914781193e-09,
-          2.113830644899326e-10,
-          8.572661022029156e-12
+          1.354513254588311e-05,
+          1.3933711677822382e-07,
+          1.3131062232015748e-06,
+          7.04435363271767e-06,
+          0.00013846586227449215,
+          2.622650593532223e-06,
+          9.124017120821618e-08,
+          8.922276001501858e-09,
+          4.260057598491881e-10,
+          5.7497789042228377e-11,
+          5.869232551525023e-12,
+          2.370474648890981e-13
         ],
         "i_unweighted_band_energy": [
-          0.00019895967020531143,
-          2.048705455168248e-06,
-          1.9324143013192482e-05,
-          0.0001049331983639729,
-          0.0020961959459668625,
-          4.285102191158306e-05,
-          1.8852538420916126e-06,
-          2.415543295411516e-07,
-          1.4319271754799805e-08,
-          2.0345570914781193e-09,
-          2.113830644899326e-10,
-          8.572661022029156e-12
+          1.354513254588311e-05,
+          1.3933711677822382e-07,
+          1.3131062232015748e-06,
+          7.04435363271767e-06,
+          0.00013846586227449215,
+          2.622650593532223e-06,
+          9.124017120821618e-08,
+          8.922276001501858e-09,
+          4.260057598491881e-10,
+          5.7497789042228377e-11,
+          5.869232551525023e-12,
+          2.370474648890981e-13
         ],
         "lp_derivative_band_energy": [
           0.00013562700391510523,
@@ -2635,28 +2917,28 @@
           196.4546913387553
         ],
         "i_derivative_band_energy": [
-          0.0209057023990884,
-          0.002465327662984399,
-          0.08632200837127306,
-          3.279714759943938,
-          142.31499289501383,
-          10.991052459602784,
-          2.1500808304735464,
-          0.899989463594139,
-          0.2961098341844405,
-          0.14087578231952122,
-          0.05580979963507236,
-          0.007063897404665444
+          0.0014229476412787848,
+          0.0001676529364970759,
+          0.005864998104012905,
+          0.22003465432443098,
+          9.388127396060884,
+          0.6641081249010382,
+          0.10046693459134433,
+          0.03256392540758942,
+          0.00870787160799745,
+          0.003966345937037258,
+          0.0015485736996076152,
+          0.0001953131126156668
         ],
         "motion_samples": 28346,
         "lp_motion_dc_energy_fraction": 0.00204241833850219,
-        "i_motion_dc_energy_fraction": 0.002276653535584143
+        "i_motion_dc_energy_fraction": 0.002342472214451331
       }
     ],
     "lp_input_minus_logged_error_max_rad": 0.0,
     "controller_only_command_summary": {
-      "peak_a": 1.2987649549426463,
-      "hf_gt_1000hz_rms_max_a": 0.005302855975776044,
+      "peak_a": 0.7906734462593458,
+      "hf_gt_1000hz_rms_max_a": 0.001001238258835237,
       "over_2_71_a_trials": [],
       "interpretation": "Logged-error controller-only replay plus the same logged FF; counterfactual command, not the new closed-loop tracking performance"
     },
@@ -2668,8 +2950,8 @@
       "f_min_hz": 45.254833995939045,
       "f_start_hz": 256.0
     },
-    "wi_pole_hz": 17.448065646226553,
-    "wi_zero_hz": 17.448065646226553
+    "wi_pole_hz": 14.529961770702112,
+    "wi_zero_hz": 14.529961770702112
   },
   "weight_selection_spectra": {
     "omega_min_rad_s": 284.34450804213543,
@@ -2764,8 +3046,8 @@
     "trials": [
       {
         "trial": "a002m005_1_linear",
-        "controller_only_command_peak_a": 0.7380097419499525,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.0025779945215112037,
+        "controller_only_command_peak_a": 0.7618933932294762,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.0024805322240362845,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 105.0,
         "lp_band_energy": [
@@ -2845,8 +3127,8 @@
       },
       {
         "trial": "a002m005_2_both",
-        "controller_only_command_peak_a": 0.7328880047408289,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.002692891936662841,
+        "controller_only_command_peak_a": 0.749082435697789,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.0025411462123562344,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 1.0,
         "lp_band_energy": [
@@ -2926,8 +3208,8 @@
       },
       {
         "trial": "a002m005_3_both",
-        "controller_only_command_peak_a": 0.7328946795621097,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.002616584166397529,
+        "controller_only_command_peak_a": 0.7491722992368407,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.0024713125331801925,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 39.0,
         "lp_band_energy": [
@@ -3007,8 +3289,8 @@
       },
       {
         "trial": "a002m005_4_linear",
-        "controller_only_command_peak_a": 0.72502347393893,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.0024660692088231896,
+        "controller_only_command_peak_a": 0.7758503213479846,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.0024452815613116314,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 1.0,
         "lp_band_energy": [
@@ -3088,8 +3370,8 @@
       },
       {
         "trial": "a01m010_1_linear",
-        "controller_only_command_peak_a": 0.1426729686086906,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.0005457273521421533,
+        "controller_only_command_peak_a": 0.21815701099533383,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.001260635154205844,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 1.0,
         "lp_band_energy": [
@@ -3169,8 +3451,8 @@
       },
       {
         "trial": "a01m010_2_both",
-        "controller_only_command_peak_a": 0.12495820282400988,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.0003054780804067233,
+        "controller_only_command_peak_a": 0.14697359563566526,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.00039271827615832057,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 1.0,
         "lp_band_energy": [
@@ -3250,8 +3532,8 @@
       },
       {
         "trial": "a01m010_3_both",
-        "controller_only_command_peak_a": 0.12063045367098593,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.00026650080463044807,
+        "controller_only_command_peak_a": 0.13702362274790356,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.00036439868610164955,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 1.0,
         "lp_band_energy": [
@@ -3331,8 +3613,8 @@
       },
       {
         "trial": "a01m010_4_linear",
-        "controller_only_command_peak_a": 0.12092641296337725,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.0005637470005921987,
+        "controller_only_command_peak_a": 0.19856731354119347,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.0011246949961507323,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 1.0,
         "lp_band_energy": [
@@ -3412,8 +3694,8 @@
       },
       {
         "trial": "a10m010_1_linear",
-        "controller_only_command_peak_a": 0.24030908217902658,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.0016320470097160123,
+        "controller_only_command_peak_a": 0.35463237738437536,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.0018296104827773818,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 12.0,
         "lp_band_energy": [
@@ -3493,8 +3775,8 @@
       },
       {
         "trial": "a10m010_2_both",
-        "controller_only_command_peak_a": 0.22033711524230876,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.0036860968854240156,
+        "controller_only_command_peak_a": 0.29673873065069944,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.0034340551028711483,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 14.0,
         "lp_band_energy": [
@@ -3574,8 +3856,8 @@
       },
       {
         "trial": "a10m010_3_both",
-        "controller_only_command_peak_a": 0.23409071848714033,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.0012328848657227353,
+        "controller_only_command_peak_a": 0.3125898706820408,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.0011760579301684994,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 13.0,
         "lp_band_energy": [
@@ -3655,8 +3937,8 @@
       },
       {
         "trial": "a10m010_4_linear",
-        "controller_only_command_peak_a": 0.24954341664038004,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.001778904728311882,
+        "controller_only_command_peak_a": 0.3544757334810342,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.0019510147759335197,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 12.0,
         "lp_band_energy": [
@@ -3736,9 +4018,9 @@
       },
       {
         "trial": "r5m050_1_linear",
-        "controller_only_command_peak_a": 1.61378740830292,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.02535482969290058,
-        "controller_only_exceeds_2_71_a": false,
+        "controller_only_command_peak_a": 2.7104055136660508,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.02358409157959477,
+        "controller_only_exceeds_2_71_a": true,
         "lp_peak_hz": 3.0,
         "lp_band_energy": [
           5.8419646883310004e-05,
@@ -3817,9 +4099,9 @@
       },
       {
         "trial": "r5m050_2_both",
-        "controller_only_command_peak_a": 1.4107530105574722,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.024500956166298084,
-        "controller_only_exceeds_2_71_a": false,
+        "controller_only_command_peak_a": 2.809638693184838,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.022853338504577242,
+        "controller_only_exceeds_2_71_a": true,
         "lp_peak_hz": 3.0,
         "lp_band_energy": [
           1.4404187027289824e-05,
@@ -3898,8 +4180,8 @@
       },
       {
         "trial": "r5m050_3_both",
-        "controller_only_command_peak_a": 1.37840914192124,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.02221053632751127,
+        "controller_only_command_peak_a": 2.4167211379230276,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.020815515094941166,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 3.0,
         "lp_band_energy": [
@@ -3979,9 +4261,9 @@
       },
       {
         "trial": "r5m050_4_linear",
-        "controller_only_command_peak_a": 1.5772688297592299,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.02437122747205538,
-        "controller_only_exceeds_2_71_a": false,
+        "controller_only_command_peak_a": 2.9483534881405298,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.022954179604856927,
+        "controller_only_exceeds_2_71_a": true,
         "lp_peak_hz": 3.0,
         "lp_band_energy": [
           5.748948446504354e-05,
@@ -4060,8 +4342,8 @@
       },
       {
         "trial": "r5m100_1_linear",
-        "controller_only_command_peak_a": 0.7211938295963968,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.01638296080737124,
+        "controller_only_command_peak_a": 1.1184656779263484,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.015212627750389049,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 41.0,
         "lp_band_energy": [
@@ -4141,8 +4423,8 @@
       },
       {
         "trial": "r5m100_2_both",
-        "controller_only_command_peak_a": 0.5481386707505812,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.01302012199918834,
+        "controller_only_command_peak_a": 0.7514027322158306,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.012156893575133007,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 41.0,
         "lp_band_energy": [
@@ -4222,8 +4504,8 @@
       },
       {
         "trial": "r5m100_3_both",
-        "controller_only_command_peak_a": 0.621083897549174,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.012937706920050758,
+        "controller_only_command_peak_a": 0.8671366955573647,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.012039427421060747,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 42.0,
         "lp_band_energy": [
@@ -4303,8 +4585,8 @@
       },
       {
         "trial": "r5m100_4_linear",
-        "controller_only_command_peak_a": 0.7336878892851946,
-        "controller_only_command_hf_gt_1000hz_rms_a": 0.016585873942884768,
+        "controller_only_command_peak_a": 1.022400726319525,
+        "controller_only_command_hf_gt_1000hz_rms_a": 0.015419747346552803,
         "controller_only_exceeds_2_71_a": false,
         "lp_peak_hz": 41.0,
         "lp_band_energy": [
@@ -4385,9 +4667,13 @@
     ],
     "lp_input_minus_logged_error_max_rad": 0.0,
     "controller_only_command_summary": {
-      "peak_a": 1.61378740830292,
-      "hf_gt_1000hz_rms_max_a": 0.02535482969290058,
-      "over_2_71_a_trials": [],
+      "peak_a": 2.9483534881405298,
+      "hf_gt_1000hz_rms_max_a": 0.02358409157959477,
+      "over_2_71_a_trials": [
+        "r5m050_1_linear",
+        "r5m050_2_both",
+        "r5m050_4_linear"
+      ],
       "interpretation": "Logged-error controller-only replay plus the same logged FF; counterfactual command, not the new closed-loop tracking performance"
     },
     "spectrum_detrend": false,
@@ -4401,14 +4687,14 @@
       "reference_trial": "a002m005_1_linear",
       "source_sha256": "ddfc1bc80cb43c53810b12f3099659f795302174e70761d32f1be41161298ba7",
       "samples": 16161,
-      "error_rms_rad": 0.00042617621692865154,
-      "error_peak_rad": 0.006001848708782731,
-      "error_le_20hz_rms_rad": 8.763800551258239e-05,
-      "command_peak_a": 0.8498491363628603,
-      "command_hf_gt_1000hz_rms_a": 0.0007759819829093341,
-      "applied_peak_a": 0.8498491363628603,
-      "applied_hf_gt_1000hz_rms_a": 0.0007759819829093341,
-      "twist_200_400hz_rms_rad": 0.0004562713600056429,
+      "error_rms_rad": 0.0009577878972561846,
+      "error_peak_rad": 0.005423376362262728,
+      "error_le_20hz_rms_rad": 0.0008688722804012874,
+      "command_peak_a": 0.8316328540288582,
+      "command_hf_gt_1000hz_rms_a": 0.0010202497187789834,
+      "applied_peak_a": 0.8316328540288582,
+      "applied_hf_gt_1000hz_rms_a": 0.0010202497187789834,
+      "twist_200_400hz_rms_rad": 0.00041483803341801765,
       "clipped_samples": 0,
       "exceeds_2_71_a": false,
       "metric_interval": "entire logged reference; rectangular DFT including edges",
@@ -4419,14 +4705,14 @@
       "reference_trial": "a01m010_1_linear",
       "source_sha256": "23e9e7846ab529158cf754657468f2ec05ae2fc35d3e5dd6cb610f43a9681384",
       "samples": 19201,
-      "error_rms_rad": 0.001707195704296988,
-      "error_peak_rad": 0.009738307152269823,
-      "error_le_20hz_rms_rad": 0.001581647055601851,
-      "command_peak_a": 0.15356267976986637,
-      "command_hf_gt_1000hz_rms_a": 0.0003720290387378089,
-      "applied_peak_a": 0.15356267976986637,
-      "applied_hf_gt_1000hz_rms_a": 0.0003720290387378089,
-      "twist_200_400hz_rms_rad": 6.070179885559828e-06,
+      "error_rms_rad": 0.0028064306188305753,
+      "error_peak_rad": 0.012401942508794395,
+      "error_le_20hz_rms_rad": 0.002710603608064942,
+      "command_peak_a": 0.151721518092539,
+      "command_hf_gt_1000hz_rms_a": 0.00041210336945621213,
+      "applied_peak_a": 0.151721518092539,
+      "applied_hf_gt_1000hz_rms_a": 0.00041210336945621213,
+      "twist_200_400hz_rms_rad": 2.9474487128239746e-06,
       "clipped_samples": 0,
       "exceeds_2_71_a": false,
       "metric_interval": "entire logged reference; rectangular DFT including edges",
@@ -4437,14 +4723,14 @@
       "reference_trial": "a10m010_1_linear",
       "source_sha256": "aa72ffcf6834c5f71baed3ba029e17ff0cc91420f6dad1230e456778f2582d1e",
       "samples": 19201,
-      "error_rms_rad": 0.0022453895634366445,
-      "error_peak_rad": 0.00669084076410853,
-      "error_le_20hz_rms_rad": 0.0021830180017704294,
-      "command_peak_a": 0.19932843496027586,
-      "command_hf_gt_1000hz_rms_a": 0.0006607568693730525,
-      "applied_peak_a": 0.19932843496027586,
-      "applied_hf_gt_1000hz_rms_a": 0.0006607568693730525,
-      "twist_200_400hz_rms_rad": 7.978462382468879e-06,
+      "error_rms_rad": 0.003857880221946749,
+      "error_peak_rad": 0.01027369326581462,
+      "error_le_20hz_rms_rad": 0.0038052124199264266,
+      "command_peak_a": 0.20846166669237937,
+      "command_hf_gt_1000hz_rms_a": 0.000710977402575744,
+      "applied_peak_a": 0.20846166669237937,
+      "applied_hf_gt_1000hz_rms_a": 0.000710977402575744,
+      "twist_200_400hz_rms_rad": 1.0417868755339838e-05,
       "clipped_samples": 0,
       "exceeds_2_71_a": false,
       "metric_interval": "entire logged reference; rectangular DFT including edges",
@@ -4455,14 +4741,14 @@
       "reference_trial": "r5m100_1_linear",
       "source_sha256": "27dcb2e1a07dd778c7dc27b6f887f2361e4590dc00a379a9648d2f95196517a3",
       "samples": 48001,
-      "error_rms_rad": 0.0015245285856402553,
-      "error_peak_rad": 0.0121416937290455,
-      "error_le_20hz_rms_rad": 0.0014895850478783168,
-      "command_peak_a": 0.15726256077877013,
-      "command_hf_gt_1000hz_rms_a": 0.00027157307599478175,
-      "applied_peak_a": 0.15726256077877013,
-      "applied_hf_gt_1000hz_rms_a": 0.00027157307599478175,
-      "twist_200_400hz_rms_rad": 1.2878751889483641e-06,
+      "error_rms_rad": 0.002675583035193883,
+      "error_peak_rad": 0.019209362906291716,
+      "error_le_20hz_rms_rad": 0.002650434654795234,
+      "command_peak_a": 0.15724831059977315,
+      "command_hf_gt_1000hz_rms_a": 0.00033250371689990755,
+      "applied_peak_a": 0.15724831059977315,
+      "applied_hf_gt_1000hz_rms_a": 0.00033250371689990755,
+      "twist_200_400hz_rms_rad": 1.4474402893881726e-06,
       "clipped_samples": 0,
       "exceeds_2_71_a": false,
       "metric_interval": "entire logged reference; rectangular DFT including edges",
@@ -4473,14 +4759,14 @@
       "reference_trial": "r5m050_1_linear",
       "source_sha256": "074982a2342712ac852bbef3e2e326f1e8221fcffb9f47e48cf7e7ac5c96e214",
       "samples": 32001,
-      "error_rms_rad": 0.00732938659076057,
-      "error_peak_rad": 0.01763660525003452,
-      "error_le_20hz_rms_rad": 0.007309196271543386,
-      "command_peak_a": 0.24939217349572762,
-      "command_hf_gt_1000hz_rms_a": 0.00037586013792535744,
-      "applied_peak_a": 0.24939217349572762,
-      "applied_hf_gt_1000hz_rms_a": 0.00037586013792535744,
-      "twist_200_400hz_rms_rad": 5.55432236444387e-06,
+      "error_rms_rad": 0.013255893104333031,
+      "error_peak_rad": 0.03205603042446725,
+      "error_le_20hz_rms_rad": 0.013240974439732895,
+      "command_peak_a": 0.24940306064444223,
+      "command_hf_gt_1000hz_rms_a": 0.0004998841489081218,
+      "applied_peak_a": 0.24940306064444223,
+      "applied_hf_gt_1000hz_rms_a": 0.0004998841489081218,
+      "twist_200_400hz_rms_rad": 5.529601397423694e-06,
       "clipped_samples": 0,
       "exceeds_2_71_a": false,
       "metric_interval": "entire logged reference; rectangular DFT including edges",
@@ -4518,10 +4804,10 @@
     "quadratic": 5.41e-05,
     "derivative": "gradient centred interior, one-sided endpoints"
   },
-  "provenance": "E4 fixed-bound independent bandwidth maximisation on coherence-qualified moving composite plant; separate sup norms; Wi tuned on case-b low-frequency error",
+  "provenance": "true-notch fixed-bound independent bandwidth maximisation on coherence-qualified moving composite plant; separate sup norms; Wi tuned on case-b low-frequency error; no HIGS-win tuning",
   "df_method": "Search: log-interpolated sampled HIGS DF; final: direct sampled law at every measured line. LS sine/cosine/DC, phase=.317rad, n=max(768,ceil(16fs/f)), skip=max(256,ceil(6fs/f)); loaded unwarped-Tustin SOS for every LTI factor",
   "source_sha256": {
-    "simulations\\higs_book_design.py": "9e85d4beca1100322342b6ed6120c373c94eecf636123fec2aa908e35012b355",
+    "simulations\\higs_book_design.py": "9427445d7166aacfccffadb03ae1253a546bbde010a6482329eadce2917a9522",
     "ControllerCore\\ControllerAlgorithm.cpp": "63ead63b2eb40523c1ba292546021f91f2e55b43fa59c605b5606215e8b6f054",
     "ControllerCore\\ControllerAlgorithm.h": "96a02d2b521b0a6f07a4a5296ad4454f62b973b47f086e58349720a960ba6f89",
     "simulations\\higs_host.cpp": "a5a0cd53baabaddaa3396d7aa531e467117638dd5920aac1c1aaf3647ca870cf"
@@ -4543,9 +4829,9 @@
     ],
     "per_frf": {
       "design": [
-        0.006981086076156542,
-        0.06418177646303201,
-        0.5232381183402872
+        0.012869459288105067,
+        0.125414473650249,
+        0.6723719350004019
       ]
     },
     "plant_interpolation": "Composite design plant; exact rigid-body response below20Hz and real/imaginary interpolation above",
@@ -4553,7 +4839,7 @@
     "low_frequency_requirement": "integrator lies in the p198 separation band"
   },
   "noise_replay": {
-    "command_ac_rms_a": 0.00043694352054244104,
+    "command_ac_rms_a": 0.0002657027013513173,
     "limit_a": 0.01,
     "passed": true,
     "segments": 40,
@@ -4570,7 +4856,7 @@
         "start_sample": 3200,
         "stop_sample": 6401,
         "samples": 3201,
-        "command_ac_rms_a": 0.0002336187460391255
+        "command_ac_rms_a": 0.00014515923886977217
       },
       {
         "trial": "a002m005_1_linear",
@@ -4578,7 +4864,7 @@
         "start_sample": 12961,
         "stop_sample": 16161,
         "samples": 3200,
-        "command_ac_rms_a": 0.0004968402627599944
+        "command_ac_rms_a": 0.0002940118004954115
       },
       {
         "trial": "a002m005_2_both",
@@ -4586,7 +4872,7 @@
         "start_sample": 3200,
         "stop_sample": 6401,
         "samples": 3201,
-        "command_ac_rms_a": 0.0002395391252342396
+        "command_ac_rms_a": 0.00013772895974842054
       },
       {
         "trial": "a002m005_2_both",
@@ -4594,7 +4880,7 @@
         "start_sample": 12961,
         "stop_sample": 16161,
         "samples": 3200,
-        "command_ac_rms_a": 0.0002577690498503557
+        "command_ac_rms_a": 0.00015349971171218797
       },
       {
         "trial": "a002m005_3_both",
@@ -4602,7 +4888,7 @@
         "start_sample": 3200,
         "stop_sample": 6401,
         "samples": 3201,
-        "command_ac_rms_a": 0.00024955747744762036
+        "command_ac_rms_a": 0.00012961789026773147
       },
       {
         "trial": "a002m005_3_both",
@@ -4610,7 +4896,7 @@
         "start_sample": 12961,
         "stop_sample": 16161,
         "samples": 3200,
-        "command_ac_rms_a": 0.00023353272069239338
+        "command_ac_rms_a": 0.00013757165552141
       },
       {
         "trial": "a002m005_4_linear",
@@ -4618,7 +4904,7 @@
         "start_sample": 3200,
         "stop_sample": 6401,
         "samples": 3201,
-        "command_ac_rms_a": 0.00030676263268152536
+        "command_ac_rms_a": 0.00019138798100714293
       },
       {
         "trial": "a002m005_4_linear",
@@ -4626,7 +4912,7 @@
         "start_sample": 12961,
         "stop_sample": 16161,
         "samples": 3200,
-        "command_ac_rms_a": 0.00046245734206067866
+        "command_ac_rms_a": 0.0002627904398793967
       },
       {
         "trial": "a01m010_1_linear",
@@ -4634,7 +4920,7 @@
         "start_sample": 3200,
         "stop_sample": 6401,
         "samples": 3201,
-        "command_ac_rms_a": 0.0002371784093528581
+        "command_ac_rms_a": 0.0001370281883228441
       },
       {
         "trial": "a01m010_1_linear",
@@ -4642,7 +4928,7 @@
         "start_sample": 16000,
         "stop_sample": 19201,
         "samples": 3201,
-        "command_ac_rms_a": 0.0010603976688421009
+        "command_ac_rms_a": 0.0005969558912884438
       },
       {
         "trial": "a01m010_2_both",
@@ -4650,7 +4936,7 @@
         "start_sample": 3200,
         "stop_sample": 6401,
         "samples": 3201,
-        "command_ac_rms_a": 0.0002606638487637111
+        "command_ac_rms_a": 0.00015536708676252824
       },
       {
         "trial": "a01m010_2_both",
@@ -4658,7 +4944,7 @@
         "start_sample": 16000,
         "stop_sample": 19201,
         "samples": 3201,
-        "command_ac_rms_a": 0.00034095419385734503
+        "command_ac_rms_a": 0.00022788649258477154
       },
       {
         "trial": "a01m010_3_both",
@@ -4666,7 +4952,7 @@
         "start_sample": 3200,
         "stop_sample": 6401,
         "samples": 3201,
-        "command_ac_rms_a": 0.00028924301427707487
+        "command_ac_rms_a": 0.0001708565209859645
       },
       {
         "trial": "a01m010_3_both",
@@ -4674,7 +4960,7 @@
         "start_sample": 16000,
         "stop_sample": 19201,
         "samples": 3201,
-        "command_ac_rms_a": 0.0003786303880222074
+        "command_ac_rms_a": 0.00021902712459764424
       },
       {
         "trial": "a01m010_4_linear",
@@ -4682,7 +4968,7 @@
         "start_sample": 3200,
         "stop_sample": 6401,
         "samples": 3201,
-        "command_ac_rms_a": 0.0002666696049762353
+        "command_ac_rms_a": 0.00016300308423645437
       },
       {
         "trial": "a01m010_4_linear",
@@ -4690,7 +4976,7 @@
         "start_sample": 16000,
         "stop_sample": 19201,
         "samples": 3201,
-        "command_ac_rms_a": 0.0007289722583379435
+        "command_ac_rms_a": 0.00042181583761480756
       },
       {
         "trial": "a10m010_1_linear",
@@ -4698,7 +4984,7 @@
         "start_sample": 3200,
         "stop_sample": 6401,
         "samples": 3201,
-        "command_ac_rms_a": 0.0002664531311425968
+        "command_ac_rms_a": 0.00016644536450505628
       },
       {
         "trial": "a10m010_1_linear",
@@ -4706,7 +4992,7 @@
         "start_sample": 16000,
         "stop_sample": 19201,
         "samples": 3201,
-        "command_ac_rms_a": 0.0005225755099377583
+        "command_ac_rms_a": 0.00035871992810967225
       },
       {
         "trial": "a10m010_2_both",
@@ -4714,7 +5000,7 @@
         "start_sample": 3200,
         "stop_sample": 6401,
         "samples": 3201,
-        "command_ac_rms_a": 0.00029917878973258926
+        "command_ac_rms_a": 0.0001955431896976326
       },
       {
         "trial": "a10m010_2_both",
@@ -4722,7 +5008,7 @@
         "start_sample": 16000,
         "stop_sample": 19201,
         "samples": 3201,
-        "command_ac_rms_a": 0.0003768095789972772
+        "command_ac_rms_a": 0.00023125617188380737
       },
       {
         "trial": "a10m010_3_both",
@@ -4730,7 +5016,7 @@
         "start_sample": 3200,
         "stop_sample": 6401,
         "samples": 3201,
-        "command_ac_rms_a": 0.0003759110257036834
+        "command_ac_rms_a": 0.000232838731567403
       },
       {
         "trial": "a10m010_3_both",
@@ -4738,7 +5024,7 @@
         "start_sample": 16000,
         "stop_sample": 19201,
         "samples": 3201,
-        "command_ac_rms_a": 0.0004591007753484798
+        "command_ac_rms_a": 0.00027717196620199953
       },
       {
         "trial": "a10m010_4_linear",
@@ -4746,7 +5032,7 @@
         "start_sample": 3200,
         "stop_sample": 6401,
         "samples": 3201,
-        "command_ac_rms_a": 0.00043085891990404443
+        "command_ac_rms_a": 0.0002850114107089831
       },
       {
         "trial": "a10m010_4_linear",
@@ -4754,7 +5040,7 @@
         "start_sample": 16000,
         "stop_sample": 19201,
         "samples": 3201,
-        "command_ac_rms_a": 0.0005216777528506405
+        "command_ac_rms_a": 0.0003407236584284777
       },
       {
         "trial": "r5m050_1_linear",
@@ -4762,7 +5048,7 @@
         "start_sample": 3200,
         "stop_sample": 6401,
         "samples": 3201,
-        "command_ac_rms_a": 0.0003073942219655243
+        "command_ac_rms_a": 0.00018898255760046363
       },
       {
         "trial": "r5m050_1_linear",
@@ -4770,7 +5056,7 @@
         "start_sample": 28800,
         "stop_sample": 32001,
         "samples": 3201,
-        "command_ac_rms_a": 0.0005258550396516899
+        "command_ac_rms_a": 0.0003261619983407011
       },
       {
         "trial": "r5m050_2_both",
@@ -4778,7 +5064,7 @@
         "start_sample": 3200,
         "stop_sample": 6401,
         "samples": 3201,
-        "command_ac_rms_a": 0.000302521708722915
+        "command_ac_rms_a": 0.0001850806041262042
       },
       {
         "trial": "r5m050_2_both",
@@ -4786,7 +5072,7 @@
         "start_sample": 28800,
         "stop_sample": 32001,
         "samples": 3201,
-        "command_ac_rms_a": 0.00028222016321912823
+        "command_ac_rms_a": 0.00018555387972355166
       },
       {
         "trial": "r5m050_3_both",
@@ -4794,7 +5080,7 @@
         "start_sample": 3200,
         "stop_sample": 6401,
         "samples": 3201,
-        "command_ac_rms_a": 0.00025883819451164275
+        "command_ac_rms_a": 0.00015924163276343444
       },
       {
         "trial": "r5m050_3_both",
@@ -4802,7 +5088,7 @@
         "start_sample": 28800,
         "stop_sample": 32001,
         "samples": 3201,
-        "command_ac_rms_a": 0.00034829993243809266
+        "command_ac_rms_a": 0.0002090226923219304
       },
       {
         "trial": "r5m050_4_linear",
@@ -4810,7 +5096,7 @@
         "start_sample": 3200,
         "stop_sample": 6401,
         "samples": 3201,
-        "command_ac_rms_a": 0.00023934429652293043
+        "command_ac_rms_a": 0.0001427497109239764
       },
       {
         "trial": "r5m050_4_linear",
@@ -4818,7 +5104,7 @@
         "start_sample": 28800,
         "stop_sample": 32001,
         "samples": 3201,
-        "command_ac_rms_a": 0.0004706325019859422
+        "command_ac_rms_a": 0.00028554898404703846
       },
       {
         "trial": "r5m100_1_linear",
@@ -4826,7 +5112,7 @@
         "start_sample": 3200,
         "stop_sample": 6401,
         "samples": 3201,
-        "command_ac_rms_a": 0.00041915200807482217
+        "command_ac_rms_a": 0.0002729642355265309
       },
       {
         "trial": "r5m100_1_linear",
@@ -4834,7 +5120,7 @@
         "start_sample": 44800,
         "stop_sample": 48001,
         "samples": 3201,
-        "command_ac_rms_a": 0.0005897436844938189
+        "command_ac_rms_a": 0.00035593442835087747
       },
       {
         "trial": "r5m100_2_both",
@@ -4842,7 +5128,7 @@
         "start_sample": 3200,
         "stop_sample": 6401,
         "samples": 3201,
-        "command_ac_rms_a": 0.00030378530119257413
+        "command_ac_rms_a": 0.0002003203681797128
       },
       {
         "trial": "r5m100_2_both",
@@ -4850,7 +5136,7 @@
         "start_sample": 44800,
         "stop_sample": 48001,
         "samples": 3201,
-        "command_ac_rms_a": 0.00035387233705031775
+        "command_ac_rms_a": 0.00024228990062890676
       },
       {
         "trial": "r5m100_3_both",
@@ -4858,7 +5144,7 @@
         "start_sample": 3200,
         "stop_sample": 6401,
         "samples": 3201,
-        "command_ac_rms_a": 0.0003352175585235611
+        "command_ac_rms_a": 0.00021960789228012243
       },
       {
         "trial": "r5m100_3_both",
@@ -4866,7 +5152,7 @@
         "start_sample": 44800,
         "stop_sample": 48001,
         "samples": 3201,
-        "command_ac_rms_a": 0.0003632146241570552
+        "command_ac_rms_a": 0.00024407986014487036
       },
       {
         "trial": "r5m100_4_linear",
@@ -4874,7 +5160,7 @@
         "start_sample": 3200,
         "stop_sample": 6401,
         "samples": 3201,
-        "command_ac_rms_a": 0.0003663056668052048
+        "command_ac_rms_a": 0.0002501946118040806
       },
       {
         "trial": "r5m100_4_linear",
@@ -4882,16 +5168,16 @@
         "start_sample": 44800,
         "stop_sample": 48001,
         "samples": 3201,
-        "command_ac_rms_a": 0.0010383020473335419
+        "command_ac_rms_a": 0.0006090344602518017
       }
     ]
   },
   "tustin_prewarp_hz": null,
   "parameters_rad_s": {
-    "omega_i": 109.62942970707557,
-    "omega_d": 99.5530369633873,
+    "omega_i": 91.2944423115566,
+    "omega_d": 81.0319216871902,
     "omega_r": 25132.741228718343,
-    "omega_lp": 1273.5730063558071,
+    "omega_lp": 1016.4375109582611,
     "omega_h_lp": 942.4777960769379,
     "omega_h_i": 125.66370614359172
   },

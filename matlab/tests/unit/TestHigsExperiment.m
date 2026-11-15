@@ -27,9 +27,9 @@ classdef TestHigsExperiment < matlab.unittest.TestCase
       w=2*pi*logspace(1,log10(2000),200);
       testCase.verifyEqual(squeeze(freqresp(K,w)),squeeze(freqresp(Cd,w)),"RelTol",1e-7);
     end
-    function independentSkewNotchesAndWeightingCancelInLinearCounterpart(testCase)
-      ns=[struct("zero_hz",300,"pole_hz",420,"zero_beta",.02,"pole_beta",.3), ...
-        struct("zero_hz",900,"pole_hz",990,"zero_beta",.15,"pole_beta",.45)];
+    function trueNotchesAndWeightingCancelInLinearCounterpart(testCase)
+      ns=[struct("zero_hz",300,"pole_hz",300,"zero_beta",.02,"pole_beta",.3), ...
+        struct("zero_hz",900,"pole_hz",900,"zero_beta",.15,"pole_beta",.45)];
       path=write_design(struct("notches",ns));clean=onCleanup(@()delete(path));
       a=exp05_Higs("preview","design_path",path,"plot",false);
       testCase.verifyEqual([a.both.lp_pre_section_count,a.both.lp_post_section_count,a.both.p_section_count, ...
@@ -193,22 +193,23 @@ classdef TestHigsExperiment < matlab.unittest.TestCase
         testCase.verifyEqual(numel(d.tuning.notches),numel(placements));
         for k=1:numel(d.tuning.notches)
           n=d.tuning.notches(k);placement=placements(k);
-          ratio=n.pole_hz/n.zero_hz;
-          testCase.verifyGreaterThanOrEqual(ratio,.97-1e-12);
-          testCase.verifyLessThanOrEqual(ratio,1.6+1e-12);
+          testCase.verifyEqual(n.pole_hz,n.zero_hz);
           testCase.verifyGreaterThanOrEqual(n.zero_beta,.005-tol);
-          testCase.verifyLessThanOrEqual(n.zero_beta,.3+tol);
-          testCase.verifyGreaterThanOrEqual(n.pole_beta,2*n.zero_beta-tol);
+          testCase.verifyLessThanOrEqual(n.zero_beta,n.pole_beta/2+tol);
+          testCase.verifyGreaterThanOrEqual(n.pole_beta,.2-tol);
           testCase.verifyLessThanOrEqual(n.pole_beta,1+tol);
-          resonanceGain=2*n.zero_beta/hypot(ratio^2-1,2*n.pole_beta*ratio);
-          testCase.verifyLessThanOrEqual(resonanceGain,10^(-6/20)+tol);
-          testCase.verifyEqual(placement.gain_at_zero,resonanceGain,"AbsTol",tol);
-          a=4*n.zero_beta^2-2;b=(4*n.pole_beta^2-2)*ratio^2;
-          extrema=roots([b-a,2*(ratio^4-1),a*ratio^4-b]);
-          x=real(extrema(abs(imag(extrema))<tol & real(extrema)>=0));
-          maxGain=sqrt(max([1;ratio^-4;(x.^2+a*x+1)./(x.^2+b*x+ratio^4)]));
-          testCase.verifyLessThanOrEqual(maxGain,10^(6/20)+tol);
-          testCase.verifyEqual(placement.max_gain,maxGain,"AbsTol",tol);
+          centreGain=n.zero_beta/n.pole_beta;
+          testCase.verifyLessThanOrEqual(centreGain,10^(-6/20)+tol);
+          testCase.verifyEqual(placement.gain_at_zero,centreGain,"AbsTol",tol);
+          testCase.verifyEqual(placement.max_gain,1,"AbsTol",tol);
+          testCase.verifyLessThanOrEqual(placement.max_gain_db,.1);
+          wn=2*pi*n.zero_hz;s=2i*pi*placement.peak_hz;
+          continuousGain=abs((s^2+2*n.zero_beta*wn*s+wn^2)/(s^2+2*n.pole_beta*wn*s+wn^2));
+          s=1i*2/d.sample_time_s*tan(pi*placement.peak_hz*d.sample_time_s);
+          loadedGain=abs((s^2+2*n.zero_beta*wn*s+wn^2)/(s^2+2*n.pole_beta*wn*s+wn^2));
+          testCase.verifyEqual(placement.gain_at_peak,continuousGain,"AbsTol",tol);
+          testCase.verifyEqual(placement.gain_at_peak_loaded,loadedGain,"AbsTol",tol);
+          testCase.verifyLessThanOrEqual(max(continuousGain,loadedGain),10^(-6/20)+tol);
           testCase.verifyLessThanOrEqual(abs(n.zero_hz/placement.peak_hz-1),.05+tol);
           measured=d.resonance_detection.per_frf.(string(placement.measured_member)).peaks_hz;
           testCase.verifyLessThanOrEqual(min(abs(measured-placement.peak_hz)),1e-10);
@@ -225,6 +226,7 @@ classdef TestHigsExperiment < matlab.unittest.TestCase
         rootRecord=d.linear_counterpart_poles_zeros;
         testCase.verifyTrue(isreal(rootRecord.real_poles_rad_s));testCase.verifyTrue(isreal(rootRecord.real_zeros_rad_s));
         testCase.verifyTrue(all(isfinite([rootRecord.real_poles_rad_s(:);rootRecord.real_zeros_rad_s(:)])));
+        testCase.verifyTrue(d.controller_filter_poles_zeros.no_unintended_low_damping_poles);
         path=fullfile(folder,"book_"+mode+".json");
         testCase.verifyEqual(jsondecode(fileread(path)),d);
       end

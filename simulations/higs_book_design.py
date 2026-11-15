@@ -260,6 +260,7 @@ def final_record(rec,mode,gate,spectra,host,trials):
                wi_pole_hz=t["wi_pole_hz"],wi_zero_hz=t["wi_zero_hz"])
     bw=rec["constraint_record"]["per_frf"]["design"]["bandwidth_hz"]
     rec["linear_counterpart_poles_zeros"]=controller_poles_zeros(t)
+    rec["controller_filter_poles_zeros"]=controller_filter_poles_zeros(t,mode)
     rec.update(design_mode=mode,sample_time_s=TS,reference_amplitude_rad=.1,move_time_s=.1,dwell_time_s=.2,settle_time_s=.4,
         sensitivity_limit=2.,max_current_a=2.71,max_position_rad=.5,max_velocity_rad_s=5.,max_twist_rad=.05,bandwidth_hz=bw,omega_b_rad_s=2*np.pi*bw,
         loaded_controller=d,replay_spectra=own,weight_selection_spectra=spectra,offline_replays=metrics,
@@ -269,7 +270,7 @@ def final_record(rec,mode,gate,spectra,host,trials):
         peak_command_trial=max((k for k in metrics if metrics[k]["completed"]),key=lambda k:metrics[k]["command_peak_a"],default=None),
         feedforward=dict(formula="inertia*a + coulomb_a*tanh(v/.05) + coulomb_slow_a*tanh(v/3) + viscous*v + quadratic*v*abs(v)",
             inertia=1.134e-4,coulomb_a=.068,coulomb_slow_a=.0625,viscous=.000345,quadratic=.0000541,derivative="gradient centred interior, one-sided endpoints"),
-        provenance="E4 fixed-bound independent bandwidth maximisation on coherence-qualified moving composite plant; separate sup norms; Wi tuned on case-b low-frequency error",
+        provenance="true-notch fixed-bound independent bandwidth maximisation on coherence-qualified moving composite plant; separate sup norms; Wi tuned on case-b low-frequency error; no HIGS-win tuning",
         df_method="Search: log-interpolated sampled HIGS DF; final: direct sampled law at every measured line. LS sine/cosine/DC, phase=.317rad, n=max(768,ceil(16fs/f)), skip=max(256,ceil(6fs/f)); loaded unwarped-Tustin SOS for every LTI factor",
         source_sha256={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in
                        (Path(__file__),ROOT/"ControllerCore/ControllerAlgorithm.cpp",ROOT/"ControllerCore/ControllerAlgorithm.h",ROOT/"simulations/higs_host.cpp")},
@@ -302,15 +303,15 @@ def main():
     parser.add_argument("--workers",type=int,default=4)
     parser.add_argument("--evaluate",action="store_true")
     args=parser.parse_args()
-    if args.starts<8: parser.error("E4 requires at least eight independent starts")
+    if args.starts<8: parser.error("The design requires at least eight independent starts")
     frfs=load_frfs();trials=load_trials();host=CaseBHost(sys.modules[__name__]);noise=NoiseReplay(sys.modules[__name__],host)
     table=DirectDF() if args.evaluate else DFTable();modes=notch_candidates(frfs);corners=modes["modes_hz"]
     old={name:json.loads((OUT/f"book_{name}.json").read_text()) for name in ("linear","both")}
     spectra=input_spectra(host,old["linear"]["tuning"],trials)
     save(WORK/"plant.json",PLANT)
     if not args.evaluate:
-        save(WORK/"decision.json",dict(task="E4 last pass",purpose="Compare feasible maximum first-crossing bandwidth under fixed in-motion plant and binding bounds; no HIGS-win tuning",
-             existing_same_condition_results=False,reason="Existing E3 uses standstill plants and unbounded LP damping/notch shape",plant=PLANT,
+        save(WORK/"decision.json",dict(task="true-notch design pass",purpose="Compare feasible maximum first-crossing bandwidth under fixed in-motion plant and true-notch bounds; no HIGS-win tuning",
+             existing_same_condition_results=False,reason="Existing adopted designs use skew zero/pole frequencies and allow lightly damped notch poles",plant=PLANT,
              search_plan=dict(starts=args.starts,iterations=args.iterations,seed_base=1001,objective="maximise first crossover",spread="all feasible starts and best four",wi="identity during bandwidth search; separate case-b LF error tuning in fixed Wi box")))
     records=json.loads((OUT/"book_design.json").read_text())["designs"] if args.evaluate else {}
     for label,mode in (("linear","linear"),("both","both")):
@@ -324,7 +325,7 @@ def main():
                 records[label]=dict(failure,design_mode=mode,design_plant=PLANT)
                 for name in ("linear","both"):
                     save(OUT/f"book_{name}.json",records.get(name,dict(status="not_run",design_mode=name)))
-                save(OUT/"book_design.json",dict(method="Chapter8 E4 last pass",status="no_feasible_found",design_plant=PLANT,designs=records))
+                save(OUT/"book_design.json",dict(method="Chapter8 true-notch pass",status="no_feasible_found",design_plant=PLANT,designs=records))
                 print(str(error),flush=True)
                 return
             rec["tuning"],rec["wi_time_tuning"]=tune_wi(host,rec["tuning"],mode,trials,noise=noise)
@@ -355,9 +356,9 @@ def main():
         top_four_spread_hz={k:r["search"]["top_feasible_spread_hz"] for k,r in records.items()},
         interpretation="Best differences and finite-start ranges only; ranges are not statistical confidence intervals and global optimality is unproved")
     for label in ("linear","both"): save(OUT/f"book_{label}.json",records[label])
-    save(OUT/"book_design.json",dict(method="Chapter8 Fig8.9 / eq8.11-8.14; E4 last pass",design_plant=PLANT,designs=records,bandwidth_comparison=comparison,deviations=[
+    save(OUT/"book_design.json",dict(method="Chapter8 Fig8.9 / eq8.11-8.14; true-notch pass",design_plant=PLANT,designs=records,bandwidth_comparison=comparison,deviations=[
         "W_S=.5 constant; linear lambda=0, HIGS lambda=.4 instead of final book piecewise weighting",
-        "P-slot roll-off fixed4000Hz; omega_d/wb=.3..1; beta_lp=.1..1; one notch within5percent of measured313Hz mode; additional project shape bounds",
+        "P-slot roll-off fixed4000Hz; omega_d/wb=.3..1; beta_lp=.1..1; one true notch per limiting resonance: shared zero/pole frequency within5percent of measured mode; beta_p=.2..1; beta_z=.005..beta_p/2; measured-peak gain<=-6dB; max gain=0dB",
         "Project HIGS search condition wh,lp/wb=1..2.5 and wh,i/wb=.3...7 is not a book claim",
         "Wi eq8.14 DC1 beta1, pole=wi/3..3wi, zero/pole1..10, separately time-tuned; omega_min/start from replayed LP input spectra",
         "10mA measured command-noise bound and2.71A case-b non-saturation are project choices",
@@ -369,9 +370,9 @@ def search_vector(record,mode,corners):
     t=record["tuning"];bw=record.get("bandwidth_hz") or record["constraint_record"]["per_frf"]["design"]["bandwidth_hz"]
     vector=[bw,t["integral_hz"]/bw,t["lead_zero_hz"]/bw,t["lowpass_hz"]/bw,t["lowpass_beta"]]
     for corner in corners:
-        n=min(t["notches"],key=lambda n:abs(n["zero_hz"]-corner));bz=np.clip(n["zero_beta"],.005,.3)
-        fraction=1+np.clip((n["pole_beta"]-2*bz)/(1-2*bz),0,1)
-        vector.extend((n["zero_hz"]/corner,n["pole_hz"]/n["zero_hz"],bz,fraction))
+        n=min(t["notches"],key=lambda n:abs(n["zero_hz"]-corner));bp=np.clip(n["pole_beta"],.2,1.)
+        fraction=1+np.clip((n["zero_beta"]-.005)/(bp/2-.005),0,1)
+        vector.extend((n["zero_hz"]/corner,bp,fraction))
     if mode=="both":
         h=np.array([t["higs_lp_corner_hz"],t["higs_i_corner_hz"]])/SQ
         if record.get("design_mode")=="linear":h=np.array([1.75,.5])*bw
@@ -413,7 +414,9 @@ def multi_start(gate,mode,corners,iterations,starts,workers,seed_records,label):
         top_start_rule="Best four directly feasible independent starts, declared before search; Wi identity during bandwidth search",top_feasible_spread_hz=[min(values),max(values)],
         all_start_results=[dict(seed=1001+100*({"linear":0,"both":1}[label])+i,
             feasible=bool(r and "direct_failure" not in r and r["constraint_record"]["passed"]),
-            bandwidth_hz=r["constraint_record"]["per_frf"]["design"]["bandwidth_hz"] if r else None) for i,r in enumerate(records)])
+            bandwidth_hz=r["constraint_record"]["per_frf"]["design"]["bandwidth_hz"] if r else None) for i,r in enumerate(records)],
+        start_endpoints=[dict(tuning=r["tuning"],search={key:r["search"].get(key)
+            for key in ("seed","initial_vector_log")}) if r else None for r in records])
     save(WORK/f"{label}_search.json",best)
     return best
 
@@ -514,7 +517,7 @@ def loaded_controller(t,mode):
     z=np.r_[-ci,np.roots(quad(wp,1.))];p=np.r_[0.,np.roots(quad(wz,1.))]
     zd,pp,k=signal.bilinear_zpk(z,p,wi/ci*(wz/wp)**2,FS)
     ip=signal.zpk2sos(zd,pp,k)
-    post=np.vstack([tustin(quad(2*np.pi*n["zero_hz"],n["zero_beta"]),quad(2*np.pi*n["pole_hz"],n["pole_beta"])) for n in t["notches"]]) if t["notches"] else np.zeros((0,6))
+    post=np.vstack([tustin(quad(2*np.pi*n["zero_hz"],n["zero_beta"]),quad(2*np.pi*n["zero_hz"],n["pole_beta"])) for n in t["notches"]]) if t["notches"] else np.zeros((0,6))
     sos=np.vstack([hl,lp,pd,pre,hi,ip,post])
     if len(sos)>10: raise ValueError("Controller bank exceeds ten SOS slots")
     if not (0<cl/SQ*TS<=1 and 0<ci/SQ*TS<=1): raise ValueError("HIGS sampled frequency violates 0 < omega_h Ts <= kh")
@@ -532,8 +535,8 @@ def controller_response(t,mode,f,table,loaded=False):
     di=(table(ci/(2*np.pi*SQ),f) if mode=="both" else hi)*wi*(s+ci)/(ci*s)
     vlp=lp/hl;pd=(1+s/wd)/(1+s/wr);nn=np.ones(len(f),complex)
     for n in t["notches"]:
-        wz,wp=2*np.pi*np.array([n["zero_hz"],n["pole_hz"]])
-        nn*=(s*s+2*n["zero_beta"]*wz*s+wz*wz)/(s*s+2*n["pole_beta"]*wp*s+wp*wp)
+        wn=2*np.pi*n["zero_hz"]
+        nn*=(s*s+2*n["zero_beta"]*wn*s+wn*wn)/(s*s+2*n["pole_beta"]*wn*s+wn*wn)
     c=t["kp"]*dl*vlp*(pd+di)*nn
     wa=t["kp"]*(1+di+s/wd)/(1+s/wr)*vlp
     if loaded:
@@ -565,13 +568,13 @@ def nyquist(loop):
                 end_phase_deg=float(np.degrees(phase[-1])),end_loop_magnitude=float(abs(loop[-1])),min_distance_to_minus_one=float(np.min(abs(1+loop))))
 
 def notch_metrics(n):
-    ratio=n["pole_hz"]/n["zero_hz"];bz,bp=n["zero_beta"],n["pole_beta"]
-    aa,bb=4*bz*bz-2,ratio*ratio*(4*bp*bp-2);rr=ratio**4
-    roots=np.roots([bb-aa,2*(rr-1),aa*rr-bb]) if abs(bb-aa)>1e-14 else np.roots([2*(rr-1),aa*rr-bb])
-    xx=[0.]+[float(x.real) for x in roots if abs(x.imag)<1e-8 and x.real>=0]
-    maximum=max([1.]+[(x*x+aa*x+1)/(x*x+bb*x+rr) for x in xx])**.5
-    at_zero=2*bz/np.hypot(ratio*ratio-1,2*bp*ratio)
-    return float(at_zero),float(maximum)
+    """Shared frequency and beta_z<=beta_p make the exact supremum one."""
+    return float(n["zero_beta"]/n["pole_beta"]),1.
+
+
+def notch_gain(n,f,loaded=False):
+    s=1j*(2*FS*np.tan(np.pi*f/FS) if loaded else 2*np.pi*f);wn=2*np.pi*n["zero_hz"]
+    return float(abs((s*s+2*n["zero_beta"]*wn*s+wn*wn)/(s*s+2*n["pole_beta"]*wn*s+wn*wn)))
 
 
 def controller_poles_zeros(t):
@@ -582,7 +585,7 @@ def controller_poles_zeros(t):
     poles=roots(wl,t["lowpass_beta"])+[0.,-wr]
     zeros=list(np.roots([wr/wd,wr+wi,wi*wr]))
     for n in t["notches"]:
-        poles.extend(roots(2*np.pi*n["pole_hz"],n["pole_beta"]))
+        poles.extend(roots(2*np.pi*n["zero_hz"],n["pole_beta"]))
         zeros.extend(roots(2*np.pi*n["zero_hz"],n["zero_beta"]))
     def split(values):
         real=sorted(float(np.real(x)) for x in values if abs(np.imag(x))<=1e-6)
@@ -590,7 +593,33 @@ def controller_poles_zeros(t):
         return real,complex_
     rp,cp=split(poles);rz,cz=split(zeros)
     return dict(real_poles_rad_s=rp,real_zeros_rad_s=rz,complex_poles_rad_s=cp,complex_zeros_rad_s=cz,
+        poles=[root_record(x) for x in poles],zeros=[root_record(x) for x in zeros],
         interpretation="Unwarped-Tustin continuous-time equivalent of minimal full C(s)=kp*LP*(PD+wi/s)*N; H/Wi cancellation removed; multiplicities retained")
+
+
+def root_record(value):
+    value=complex(value);frequency=abs(value)
+    return dict(real_rad_s=float(value.real),imag_rad_s=float(value.imag),natural_frequency_hz=float(frequency/(2*np.pi)),
+                damping=float(-value.real/frequency) if frequency else None,inherent_integrator=bool(frequency==0))
+
+
+def controller_filter_poles_zeros(t,mode):
+    """All active LTI factors before branch combination/cancellation."""
+    wl,wd,wr,cl,ci,wp,wz=2*np.pi*np.array([t["lowpass_hz"],t["lead_zero_hz"],4000.,
+        t["higs_lp_corner_hz"],t["higs_i_corner_hz"],t["wi_pole_hz"],t["wi_zero_hz"]])
+    def roots(w,beta):
+        delta=w*np.sqrt(complex(beta*beta-1));return [-beta*w+delta,-beta*w-delta]
+    def factor(poles,zeros):return dict(poles=[root_record(x) for x in poles],zeros=[root_record(x) for x in zeros])
+    factors=dict(lp_post=factor(roots(wl,t["lowpass_beta"]),[-cl]),p=factor([-wr],[-wd]),
+        i_pre_Wi=factor([-wp,-wp],[-wz,-wz]),i_post=factor([0.,-wz,-wz],[-ci,-wp,-wp]))
+    for k,n in enumerate(t["notches"]):
+        wn=2*np.pi*n["zero_hz"]
+        factors[f"notch_{k}"]=factor(roots(wn,n["pole_beta"]),roots(wn,n["zero_beta"]))
+    if mode=="linear":
+        factors.update(lp_linear_H=factor([-cl],[]),i_linear_H=factor([-ci],[]))
+    low=[dict(factor=name,**p) for name,f in factors.items() for p in f["poles"] if abs(p["imag_rad_s"])>1e-6 and p["damping"]<.2-1e-12]
+    return dict(factors=factors,low_damping_complex_poles=low,no_unintended_low_damping_poles=not low,
+        interpretation="Unwarped-Tustin continuous-time roots with multiplicities; finite zeros only. HIGS states are nonlinear and have no LTI poles; origin is the inherent I structure.")
 
 
 class Gate:
@@ -643,12 +672,18 @@ class Gate:
         peak=self.peaks["design"]["peaks_hz"][0];placements=[]
         for n in t["notches"]:
             ratio=n["pole_hz"]/n["zero_hz"];at_zero,maximum=notch_metrics(n);bz,bp=n["zero_beta"],n["pole_beta"]
+            at_peak=notch_gain(n,peak);at_peak_loaded=notch_gain(n,peak,loaded=True)
+            values={"frequency_to_peak":n["zero_hz"]/peak,"zero_beta":bz,"pole_beta":bp}
+            ranges={"frequency_to_peak":[.95,1.05],"zero_beta":[.005,bp/2],"pole_beta":[.2,1.]}
             placements.append(dict(measured_member="design",peak_hz=peak,zero_hz=n["zero_hz"],pole_to_zero=ratio,zero_beta=bz,pole_beta=bp,
                 gain_at_zero=at_zero,gain_at_zero_db=float(20*np.log10(at_zero)),max_gain=maximum,max_gain_db=float(20*np.log10(maximum)),
-                passed=bool(.95*peak<=n["zero_hz"]<=1.05*peak and .97<=ratio<=1.6 and .005<=bz<=.3 and 2*bz<=bp<=1 and
-                    at_zero<=10**(-6/20) and maximum<=10**(6/20))))
+                gain_at_peak=at_peak,gain_at_peak_db=float(20*np.log10(at_peak)),gain_at_peak_loaded=at_peak_loaded,
+                gain_at_peak_loaded_db=float(20*np.log10(at_peak_loaded)),
+                parameters={k:dict(value=v,range=ranges[k],active=bool(min(abs(v-ranges[k][0]),abs(v-ranges[k][1]))<1e-4)) for k,v in values.items()},
+                passed=bool(.95*peak<=n["zero_hz"]<=1.05*peak and n["pole_hz"]==n["zero_hz"] and .2<=bp<=1 and .005<=bz<=bp/2 and
+                    max(at_zero,at_peak,at_peak_loaded)<=10**(-6/20) and maximum<=10**(.1/20))))
         notch=dict(passed=bool(len(placements)==1 and all(n["passed"] for n in placements)),placements=placements,
-            rule="One notch at measured313Hz mode within5percent; pole/zero .97..1.6; beta_z .005...3; 2beta_z<=beta_p<=1; at_zero<=-6dB; continuous-frequency max<=+6dB")
+            rule="One true notch per limiting resonance; shared zero/pole frequency within5percent of measured peak; beta_p .2..1; beta_z .005..beta_p/2; at centre and measured peak (continuous and loaded Tustin)<=-6dB; exact continuous-frequency max=0dB")
         record=dict(**{"lambda":lam},W_S=.5,passed=bool(bounds["passed"] and design["sum"]<=1 and design["stable"] and bw>0 and notch["passed"]),
             per_frf={"design":design},bounds=bounds,separation=separation,higs_regime_box=box,notch_shape=notch)
         if loaded: record["informational_ms100"]=row(MS100)
@@ -669,9 +704,9 @@ def unpack(x,mode,corners):
         higs_lp_corner_hz=150*SQ,higs_i_corner_hz=20*SQ,higs_lp_gain=1.,higs_i_gain=1.,
         wi_pole_hz=fc*ri,wi_zero_hz=fc*ri,wi_pole_beta=1.,wi_zero_beta=1.,notches=[])
     for peak in corners:
-        zratio,ratio,bz,bfraction=q[idx:idx+4];idx+=4;f=peak*zratio
-        bp=2*bz+(bfraction-1)*(1-2*bz)
-        t["notches"].append(dict(zero_hz=f,pole_hz=f*ratio,zero_beta=bz,pole_beta=bp))
+        ratio,bp,fraction=q[idx:idx+3];idx+=3;f=peak*ratio
+        bz=.005+(fraction-1)*(bp/2-.005)
+        t["notches"].append(dict(zero_hz=f,pole_hz=f,zero_beta=bz,pole_beta=bp))
     if mode=="both":
         h=q[idx:idx+2]*fc*SQ;t["higs_lp_corner_hz"],t["higs_i_corner_hz"]=h
     return fc,t
@@ -679,7 +714,7 @@ def unpack(x,mode,corners):
 
 def optimise(gate,mode,corners,iterations=90,seed=1001,initial=None):
     limits=[(1.,600.),(1/3,1/2),(.3,1.),(2.,4.),(.1,1.)]
-    for f in corners: limits += [(.95,1.05),(.97,1.6),(.005,.3),(1.,2.)]
+    for f in corners: limits += [(.95,1.05),(.2,1.),(1.,2.)]
     if mode=="both": limits += [(1.,2.5),(.3,.7)]
     bounds=np.log(limits);f=gate.frfs["design"]["f"];p=gate.frfs["design"]["p"]
     initial_vector=None if initial is None else np.clip(np.asarray(initial),bounds[:,0],bounds[:,1])
@@ -691,7 +726,7 @@ def optimise(gate,mode,corners,iterations=90,seed=1001,initial=None):
         c=controller_response(t,mode,np.array([fc]),gate.table)[0][0];t["kp"]=float(1/abs(c*pp))
         r=gate.evaluate(t,mode,include_noise=False,include_current=False);bw=r["per_frf"]["design"]["bandwidth_hz"]
         violation=max(0,r["per_frf"]["design"]["sum"]-.9995)
-        violation+=sum(max(0,n["gain_at_zero"]/10**(-6/20)-.9995)+max(0,n["max_gain"]/10**(6/20)-.9995) for n in r["notch_shape"]["placements"])
+        violation+=sum(max(0,max(n["gain_at_zero"],n["gain_at_peak"],n["gain_at_peak_loaded"])/10**(-6/20)-.9995) for n in r["notch_shape"]["placements"])
         for item in r["bounds"]["parameters"].values():
             lo,hi=item["range"];v=item["value"];violation+=max(0,lo-v)+max(0,v-hi)
         unstable=not r["per_frf"]["design"]["stable"];counter+=1
@@ -708,10 +743,10 @@ def optimise(gate,mode,corners,iterations=90,seed=1001,initial=None):
     minimize(trial,res.x,method="Nelder-Mead",bounds=bounds,options=dict(maxiter=1400,xatol=2e-5,fatol=1e-7))
     print(f"{mode} seed={seed}: {best[1]:.6f}Hz, {counter} evaluations, {time.time()-started:.1f}s",flush=True)
     if best[0] is None:return None
-    out=best[0];out["search"]=dict(objective="maximise first composite-design-plant DF crossover under all fixed E4 bounds, separate sup norms, noise and case-b non-saturation",seed=seed,bounds_log=bounds,evaluations=counter,
+    out=best[0];out["search"]=dict(objective="maximise first composite-design-plant DF crossover under fixed adopted bounds and the true-notch rule, separate sup norms, noise and case-b non-saturation",seed=seed,bounds_log=bounds,evaluations=counter,
         initial_vector_log=initial_vector,search_windows_are_not_acceptance_constraints=True,
         variable_order=["target_bandwidth_hz","integral_to_target_bandwidth","lead_zero_to_target_bandwidth","lowpass_to_target_bandwidth","lowpass_beta"]+
-            [f"notch_{j}_{k}" for j in range(len(corners)) for k in ("zero_to_peak","pole_to_zero","zero_beta","pole_beta_fraction_plus_one")]+(["higs_lp_wh_to_target_bw","higs_i_wh_to_target_bw"] if mode=="both" else []),
+            [f"notch_{j}_{k}" for j in range(len(corners)) for k in ("frequency_to_peak","pole_beta","depth_fraction_plus_one")]+(["higs_lp_wh_to_target_bw","higs_i_wh_to_target_bw"] if mode=="both" else []),
         elapsed_s=time.time()-started,global_optimality_proved=False,notch_count=len(corners),maxiter=iterations,popsize=8,tol=.002,
         nelder_mead=dict(maxiter=1400,xatol=2e-5,fatol=1e-7))
     return out
